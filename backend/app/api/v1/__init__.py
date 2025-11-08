@@ -8,10 +8,8 @@ from fastapi import APIRouter
 api_router = APIRouter()
 
 # Import and include endpoint routers
-# from app.api.v1.endpoints import generation, validation, llm_config
-# api_router.include_router(generation.router, prefix="/generate", tags=["generation"])
-# api_router.include_router(validation.router, prefix="/validate", tags=["validation"])
-# api_router.include_router(llm_config.router, prefix="/llm", tags=["llm-config"])
+from app.api.v1.endpoints import llm_config
+api_router.include_router(llm_config.router, prefix="/llm", tags=["llm-config"])
 
 
 @api_router.get("/status")

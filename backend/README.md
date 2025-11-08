@@ -92,8 +92,8 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 GOOGLE_API_KEY=your_google_api_key_here
 
 # Default LLM Configuration
-DEFAULT_LLM_PROVIDER=openai
-DEFAULT_MODEL=gpt-4
+DEFAULT_LLM_PROVIDER=google
+DEFAULT_MODEL=gemini-2.5-flash
 DEFAULT_TEMPERATURE=0.2
 DEFAULT_MAX_TOKENS=4000
 
@@ -134,6 +134,8 @@ The API will be available at:
 - `POST /api/v1/generate/adam` - Generate ADAM code
 - `POST /api/v1/validate/code` - Validate generated code
 - `GET /api/v1/llm/providers` - List available LLM providers
+ - `GET /api/v1/llm/providers` - List available LLM providers
+ - `GET /api/v1/llm/defaults` - Get current default provider and model (and available providers info)
 
 ## Module Architecture
 

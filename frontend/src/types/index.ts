@@ -18,6 +18,18 @@ export interface StudyMetadata {
   studyPhase: string;
 }
 
+export interface ProjectConfiguration {
+  studyId: string;
+  protocolNumber: string;
+  sponsor: string;
+  therapeuticArea: string;
+  studyPhase: string;
+  sdtmVersion: string;
+  adamIgVersion: string;
+  medraVersion: string;
+  programmingLanguage: string;
+}
+
 export interface SDTMDataset {
   name: string;
   description: string;

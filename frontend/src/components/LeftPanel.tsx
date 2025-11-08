@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { Tabs, Button } from 'antd';
+import ProjectConfigTab from './tabs/ProjectConfigTab';
 import SetupTab from './tabs/SetupTab';
 import DatasetsTab from './tabs/DatasetsTab';
 import VariablesTab from './tabs/VariablesTab';
 import RulesTab from './tabs/RulesTab';
-import type { StudyMetadata, GenerationOptions } from '../types';
+import type { StudyMetadata, GenerationOptions, ProjectConfiguration } from '../types';
 import './LeftPanel.css';
 
 interface LeftPanelProps {
+  projectConfig: ProjectConfiguration;
   studyMetadata: StudyMetadata;
   selectedDatasets: string[];
   selectedVariables: string[];
   generationOptions: GenerationOptions;
+  onProjectConfigChange: (config: ProjectConfiguration) => void;
   onStudyMetadataChange: (metadata: StudyMetadata) => void;
   onDatasetsChange: (datasets: string[]) => void;
   onVariablesChange: (variables: string[]) => void;
@@ -21,9 +24,19 @@ interface LeftPanelProps {
 }
 
 const LeftPanel = (props: LeftPanelProps) => {
-  const [activeTab, setActiveTab] = useState('setup');
+  const [activeTab, setActiveTab] = useState('project');
 
   const tabItems = [
+    {
+      key: 'project',
+      label: 'Project Config',
+      children: (
+        <ProjectConfigTab
+          projectConfig={props.projectConfig}
+          onConfigChange={props.onProjectConfigChange}
+        />
+      ),
+    },
     {
       key: 'setup',
       label: 'Setup',

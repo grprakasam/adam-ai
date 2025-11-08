@@ -4,12 +4,17 @@ Handles environment variables and application settings
 """
 
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
+from pydantic import ConfigDict, field_validator
 from typing import Optional
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
+    
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8"
+    )
     
     # Application
     APP_NAME: str = "ADAM AI Code Generator"
@@ -37,8 +42,8 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: Optional[str] = None
     
     # Default LLM Configuration
-    DEFAULT_LLM_PROVIDER: str = "openai"  # openai, anthropic, google
-    DEFAULT_MODEL: str = "gpt-4"
+    DEFAULT_LLM_PROVIDER: str = "google"  # openai, anthropic, google
+    DEFAULT_MODEL: str = "gemini-2.5-flash"
     DEFAULT_TEMPERATURE: float = 0.2
     DEFAULT_MAX_TOKENS: int = 4000
     
@@ -50,10 +55,6 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/adam_ai.log"
-    
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 # Global settings instance
