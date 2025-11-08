@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADAM AI Code Generator - Professional Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f8f9fa;
+            overflow: hidden;
+        }
+
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            z-index: 100;
+        }
+
+        .header-title {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .selector {
+            background: rgba(255,255,255,0.15);
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .selector:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        .language-toggle {
+            display: flex;
+            gap: 0;
+            background: rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 2px;
+        }
+
+        .radio-btn {
+            padding: 4px 12px;
+            background: transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            border: none;
+            color: white;
+        }
+
+        .radio-btn.active {
+            background: white;
+            color: #4f46e5;
+            font-weight: 500;
+        }
+
+        .icon-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.15);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 0;
+        }
+
+        /* Left Panel - Configuration */
+        .left-panel {
+            width: 380px;
+            background: #ffffff;
+            border-right: 1px solid #e5e7eb;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .config-tabs {
+            display: flex;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .config-tab {
+            flex: 1;
+            padding: 12px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .config-tab:hover {
+            color: #4f46e5;
+            background: #f3f4f6;
+        }
+
+        .config-tab.active {
+            color: #4f46e5;
+            border-bottom-color: #4f46e5;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Right Panel - Output */
+        .right-panel {
+            flex: 1;
+            background: #f8f9fa;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Section Styling */
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .section:hover {
+            border-color: #d1d5db;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .section-header {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-header::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: #4f46e5;
+            border-radius: 2px;
+        }
+
+        .section-subtitle {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: -8px;
+            margin-bottom: 16px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #374151;
+            font-size: 13px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.2s;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #4f46e5;
+        }
+
+        /* Dataset Selector */
+        .dataset-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .dataset-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fafafa;
+        }
+
+        .dataset-item:hover {
+            background: #f3f4f6;
+            border-color: #4f46e5;
+        }
+
+        .dataset-item.checked {
+            background: #eef2ff;
+            border-color: #4f46e5;
+            border-width: 2px;
+            padding: 9px 11px;
+        }
+
+        .checkbox {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            cursor: pointer;
+            accent-color: #4f46e5;
+        }
+
+        .dataset-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dataset-name {
+            font-weight: 600;
+            color: #111827;
+            font-size: 13px;
+        }
+
+        .dataset-desc {
+            color: #6b7280;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .required-badge {
+            background: #ef4444;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        /* Variable Selector */
+        .search-box {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .variable-category {
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .category-header {
+            background: #f9fafb;
+            color: #111827;
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .category-header:hover {
+            background: #f3f4f6;
+        }
+
+        .category-count {
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 400;
+        }
+
+        .variable-list {
+            padding: 8px;
+            background: white;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .variable-item {
+            padding: 8px;
+            margin-bottom: 4px;
+            background: #fafafa;
+            border-radius: 6px;
+            display: flex;
+            align-items: start;
+            transition: all 0.2s;
+        }
+
+        .variable-item:hover {
+            background: #f3f4f6;
+        }
+
+        .variable-info {
+            flex: 1;
+            margin-left: 8px;
+        }
+
+        .variable-name {
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 2px;
+            font-size: 12px;
+        }
+
+        .variable-label {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+
+        .badge-required {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 12px 24px;
+            font-size: 14px;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            margin-top: auto;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 8px -1px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-icon {
+            background: transparent;
+            border: 1px solid #e5e7eb;
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* Code Editor */
+        .code-editor-container {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .code-editor-header {
+            background: #f9fafb;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-editor-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: #6b7280;
+        }
+
+        .code-editor {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            min-height: 400px;
+            max-height: 600px;
+            overflow: auto;
+        }
+
+        .code-line {
+            display: flex;
+        }
+
+        .line-number {
+            color: #858585;
+            margin-right: 16px;
+            user-select: none;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        .code-content {
+            flex: 1;
+        }
+
+        .keyword { color: #569cd6; }
+        .string { color: #ce9178; }
+        .comment { color: #6a9955; }
+        .function { color: #dcdcaa; }
+
+        /* Validation Panel */
+        .validation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .validation-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            background: #fafafa;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .validation-item:hover {
+            border-color: #d1d5db;
+        }
+
+        .validation-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        .validation-icon.pass {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .validation-icon.warning {
+            background: #fef3c7;
+            color: #ca8a04;
+        }
+
+        .validation-icon.error {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .validation-info {
+            flex: 1;
+        }
+
+        .validation-label {
+            font-weight: 500;
+            font-size: 12px;
+            color: #111827;
+            margin-bottom: 2px;
+        }
+
+        .validation-status {
+            color: #6b7280;
+            font-size: 11px;
+        }
+
+        /* Derivation Sequence */
+        .sequence-list {
+            list-style: none;
+        }
+
+        .sequence-item {
+            display: flex;
+            align-items: start;
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #fafafa;
+            border-left: 3px solid #4f46e5;
+            border-radius: 4px;
+        }
+
+        .sequence-number {
+            background: #4f46e5;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 12px;
+            font-size: 12px;
+        }
+
+        .sequence-details {
+            flex: 1;
+        }
+
+        .sequence-var {
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+
+        .sequence-deps {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* Chat Panel */
+        .chat-panel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 350px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            border: 1px solid #e5e7eb;
+            z-index: 1000;
+            display: none;
+        }
+
+        .chat-panel.open {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-close {
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .chat-messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 12px;
+            background: #fafafa;
+        }
+
+        .chat-message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            max-width: 85%;
+        }
+
+        .chat-message.user {
+            background: #4f46e5;
+            color: white;
+            margin-left: auto;
+        }
+
+        .chat-message.ai {
+            background: white;
+            color: #111827;
+            border: 1px solid #e5e7eb;
+        }
+
+        .chat-input-container {
+            padding: 12px;
+            border-top: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .chat-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .chat-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            z-index: 999;
+        }
+
+        /* Quality Metrics */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #4f46e5;
+        }
+
+        /* Accordion */
+        .accordion-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+
+        .accordion-header {
+            background: #fafafa;
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .accordion-header:hover {
+            background: #f3f4f6;
+        }
+
+        .accordion-content {
+            padding: 12px;
+            display: none;
+            font-size: 12px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        .accordion-content.show {
+            display: block;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-title">ADAM AI Code Generator</div>
+            <div class="header-controls">
+                <select class="selector">
+                    <option>OpenAI GPT-4</option>
+                    <option>Claude 3.5 Sonnet</option>
+                    <option>Google Gemini Pro</option>
+                </select>
+                <div class="language-toggle">
+                    <button class="radio-btn active">R</button>
+                    <button class="radio-btn">SAS</button>
+                </div>
+                <button class="icon-btn">⚙️</button>
+                <button class="icon-btn">📊</button>
+                <button class="icon-btn">👤</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Left Panel: Configuration -->
+            <div class="left-panel">
+                <!-- Configuration Tabs -->
+                <div class="config-tabs">
+                    <button class="config-tab active" onclick="switchTab(event, 'setup')">Setup</button>
+                    <button class="config-tab" onclick="switchTab(event, 'datasets')">Datasets</button>
+                    <button class="config-tab" onclick="switchTab(event, 'variables')">Variables</button>
+                    <button class="config-tab" onclick="switchTab(event, 'rules')">Rules</button>
+                </div>
+
+                <!-- Tab: Setup -->
+                <div class="tab-content active" id="setup">
+                    <div class="section">
+                        <div class="section-header">Study Metadata</div>
+                        <div class="section-subtitle">Configure basic study information</div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Study ID</label>
+                            <input type="text" class="form-input" placeholder="e.g., CDISC01">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Protocol Number</label>
+                            <input type="text" class="form-input" placeholder="e.g., PROTO-2024-001">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Therapeutic Area</label>
+                            <select class="form-select">
+                                <option>Oncology</option>
+                                <option>Cardiology</option>
+                                <option>Neurology</option>
+                                <option>Immunology</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Study Phase</label>
+                            <select class="form-select">
+                                <option>Phase I</option>
+                                <option>Phase II</option>
+                                <option>Phase III</option>
+                                <option>Phase IV</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">Generation Options</div>
+                        <div class="section-subtitle">Configure code generation parameters</div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Include Comments</label>
+                            <select class="form-select">
+                                <option>Comprehensive</option>
+                                <option>Minimal</option>
+                                <option>None</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Code Style</label>
+                            <select class="form-select">
+                                <option>Standard</option>
+                                <option>Compact</option>
+                                <option>Verbose</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Optimization Level</label>
+                            <select class="form-select">
+                                <option>Balanced</option>
+                                <option>Performance</option>
+                                <option>Readability</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary">
+                        ✨ Generate ADSL Code
+                    </button>
+                </div>
+
+                <!-- Tab: Datasets -->
+                <div class="tab-content" id="datasets">
+                    <div class="section">
+                        <div class="section-header">SDTM Datasets</div>
+                        <div class="section-subtitle">Select required source datasets</div>
+                        
+                        <div class="dataset-list">
+                            <div class="dataset-item checked">
+                                <input type="checkbox" class="checkbox" checked>
+                                <div class="dataset-info">
+                                    <div class="dataset-name">DM <span class="required-badge">REQUIRED</span></div>
+                                    <div class="dataset-desc">Demographics</div>
+                                </div>
+                            </div>
+                            <div class="dataset-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="dataset-info">
+                                    <div class="dataset-name">AE</div>
+                                    <div class="dataset-desc">Adverse Events</div>
+                                </div>
+                            </div>
+                            <div class="dataset-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="dataset-info">
+                                    <div class="dataset-name">LB</div>
+                                    <div class="dataset-desc">Laboratory</div>
+                                </div>
+                            </div>
+                            <div class="dataset-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="dataset-info">
+                                    <div class="dataset-name">VS</div>
+                                    <div class="dataset-desc">Vital Signs</div>
+                                </div>
+                            </div>
+                            <div class="dataset-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="dataset-info">
+                                    <div class="dataset-name">EX</div>
+                                    <div class="dataset-desc">Exposure</div>
+                                </div>
+                            </div>
+                            <div class="dataset-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="dataset-info">
+                                    <div class="dataset-name">DS</div>
+                                    <div class="dataset-desc">Disposition</div>
+                                </div>
+                            </div>
+                            <div class="dataset-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="dataset-info">
+                                    <div class="dataset-name">MH</div>
+                                    <div class="dataset-desc">Medical History</div>
+                                </div>
+                            </div>
+                            <div class="dataset-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="dataset-info">
+                                    <div class="dataset-name">CM</div>
+                                    <div class="dataset-desc">Concomitant Meds</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary">
+                        ✨ Generate ADSL Code
+                    </button>
+                </div>
+
+                <!-- Tab: Variables -->
+                <div class="tab-content" id="variables">
+                    <input type="text" class="search-box" placeholder="🔍 Search variables...">
+                    
+                    <div class="variable-category">
+                        <div class="category-header">
+                            <span>Identifier Variables</span>
+                            <span class="category-count">3/5 selected</span>
+                        </div>
+                        <div class="variable-list">
+                            <div class="variable-item checked">
+                                <input type="checkbox" class="checkbox" checked>
+                                <div class="variable-info">
+                                    <div class="variable-name">STUDYID <span class="badge badge-required">REQUIRED</span></div>
+                                    <div class="variable-label">Study Identifier</div>
+                                </div>
+                            </div>
+                            <div class="variable-item checked">
+                                <input type="checkbox" class="checkbox" checked>
+                                <div class="variable-info">
+                                    <div class="variable-name">USUBJID <span class="badge badge-required">REQUIRED</span></div>
+                                    <div class="variable-label">Unique Subject Identifier</div>
+                                </div>
+                            </div>
+                            <div class="variable-item checked">
+                                <input type="checkbox" class="checkbox" checked>
+                                <div class="variable-info">
+                                    <div class="variable-name">SUBJID</div>
+                                    <div class="variable-label">Subject Identifier</div>
+                                </div>
+                            </div>
+                            <div class="variable-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="variable-info">
+                                    <div class="variable-name">SITEID</div>
+                                    <div class="variable-label">Site Identifier</div>
+                                </div>
+                            </div>
+                            <div class="variable-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="variable-info">
+                                    <div class="variable-name">INVID</div>
+                                    <div class="variable-label">Investigator Identifier</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="variable-category">
+                        <div class="category-header">
+                            <span>Treatment Variables</span>
+                            <span class="category-count">2/4 selected</span>
+                        </div>
+                        <div class="variable-list">
+                            <div class="variable-item checked">
+                                <input type="checkbox" class="checkbox" checked>
+                                <div class="variable-info">
+                                    <div class="variable-name">TRT01P</div>
+                                    <div class="variable-label">Planned Treatment Arm</div>
+                                </div>
+                            </div>
+                            <div class="variable-item checked">
+                                <input type="checkbox" class="checkbox" checked>
+                                <div class="variable-info">
+                                    <div class="variable-name">TRT01A</div>
+                                    <div class="variable-label">Actual Treatment Arm</div>
+                                </div>
+                            </div>
+                            <div class="variable-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="variable-info">
+                                    <div class="variable-name">TRT01PN <span class="badge badge-warning">DEPENDS ON TRT01P</span></div>
+                                    <div class="variable-label">Planned Treatment (N)</div>
+                                </div>
+                            </div>
+                            <div class="variable-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="variable-info">
+                                    <div class="variable-name">TRT01AN <span class="badge badge-warning">DEPENDS ON TRT01A</span></div>
+                                    <div class="variable-label">Actual Treatment (N)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="variable-category">
+                        <div class="category-header">
+                            <span>Population Flags</span>
+                            <span class="category-count">1/3 selected</span>
+                        </div>
+                        <div class="variable-list">
+                            <div class="variable-item checked">
+                                <input type="checkbox" class="checkbox" checked>
+                                <div class="variable-info">
+                                    <div class="variable-name">SAFFL</div>
+                                    <div class="variable-label">Safety Population Flag</div>
+                                </div>
+                            </div>
+                            <div class="variable-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="variable-info">
+                                    <div class="variable-name">ITTFL</div>
+                                    <div class="variable-label">Intent-to-Treat Population</div>
+                                </div>
+                            </div>
+                            <div class="variable-item">
+                                <input type="checkbox" class="checkbox">
+                                <div class="variable-info">
+                                    <div class="variable-name">EFFFL</div>
+                                    <div class="variable-label">Efficacy Population Flag</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary">
+                        ✨ Generate ADSL Code
+                    </button>
+                </div>
+
+                <!-- Tab: Rules -->
+                <div class="tab-content" id="rules">
+                    <div class="section">
+                        <div class="section-header">Derivation Rules</div>
+                        <div class="section-subtitle">CDISC implementation guidance and specifications</div>
+                        
+                        <div class="accordion-item">
+                            <div class="accordion-header">
+                                <span>ADSL Application Behaviour Rules</span>
+                                <span>▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                Rules for ADSL dataset structure, mandatory variables, and standard derivations as per CDISC ADAM IG.
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <div class="accordion-header">
+                                <span>ADSL IG-Specific Rules</span>
+                                <span>▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                Implementation Guide specific requirements for ADSL including naming conventions, formats, and metadata.
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <div class="accordion-header">
+                                <span>ADSL Macro Logic</span>
+                                <span>▼</span>
+                            </div>
+                            <div class="accordion-content">
+                                Reusable logic patterns for common ADSL derivations including treatment assignment, population flags, and date imputations.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-icon">📥 Import Rules</button>
+                        <button class="btn btn-icon">🔄 Reload</button>
+                        <button class="btn btn-icon">⚙️ Configure</button>
+                    </div>
+
+                    <button class="btn btn-primary">
+                        ✨ Generate ADSL Code
+                    </button>
+                </div>
+            </div>
+
+            <!-- Right Panel: Output -->
+            <div class="right-panel">
+                <!-- Generated Code Section -->
+                <div class="section">
+                    <div class="section-header">Generated Code</div>
+                    <div class="section-subtitle">AI-generated ADAM derivation code with validation</div>
+                    
+                    <div class="code-editor-container">
+                        <div class="code-editor-header">
+                            <span class="code-editor-title">ADSL.R</span>
+                            <div class="btn-group">
+                                <button class="btn btn-icon">📋 Copy</button>
+                                <button class="btn btn-icon">💾 Save</button>
+                                <button class="btn btn-icon">🔄 Regenerate</button>
+                            </div>
+                        </div>
+                        <div class="code-editor">
+<div class="code-line"><span class="line-number">1</span><span class="code-content"><span class="comment"># ============================================================================</span></span></div>
+<div class="code-line"><span class="line-number">2</span><span class="code-content"><span class="comment"># Program: ADSL.R</span></span></div>
+<div class="code-line"><span class="line-number">3</span><span class="code-content"><span class="comment"># Purpose: Create ADSL (Subject-Level Analysis Dataset)</span></span></div>
+<div class="code-line"><span class="line-number">4</span><span class="code-content"><span class="comment"># Generated by: ADAM AI Code Generator</span></span></div>
+<div class="code-line"><span class="line-number">5</span><span class="code-content"><span class="comment"># ============================================================================</span></span></div>
+<div class="code-line"><span class="line-number">6</span><span class="code-content"></span></div>
+<div class="code-line"><span class="line-number">7</span><span class="code-content"><span class="keyword">library</span>(dplyr)</span></div>
+<div class="code-line"><span class="line-number">8</span><span class="code-content"><span class="keyword">library</span>(tidyr)</span></div>
+<div class="code-line"><span class="line-number">9</span><span class="code-content"><span class="keyword">library</span>(lubridate)</span></div>
+<div class="code-line"><span class="line-number">10</span><span class="code-content"></span></div>
+<div class="code-line"><span class="line-number">11</span><span class="code-content"><span class="comment"># Read SDTM datasets</span></span></div>
+<div class="code-line"><span class="line-number">12</span><span class="code-content">dm <- <span class="function">read_xpt</span>(<span class="string">"sdtm/dm.xpt"</span>)</span></div>
+<div class="code-line"><span class="line-number">13</span><span class="code-content">ex <- <span class="function">read_xpt</span>(<span class="string">"sdtm/ex.xpt"</span>)</span></div>
+<div class="code-line"><span class="line-number">14</span><span class="code-content">ds <- <span class="function">read_xpt</span>(<span class="string">"sdtm/ds.xpt"</span>)</span></div>
+<div class="code-line"><span class="line-number">15</span><span class="code-content"></span></div>
+<div class="code-line"><span class="line-number">16</span><span class="code-content"><span class="comment"># Start with DM as base</span></span></div>
+<div class="code-line"><span class="line-number">17</span><span class="code-content">adsl <- dm %>%</span></div>
+<div class="code-line"><span class="line-number">18</span><span class="code-content">  <span class="function">select</span>(STUDYID, USUBJID, SUBJID, SITEID, AGE, AGEU, SEX, RACE) %>%</span></div>
+<div class="code-line"><span class="line-number">19</span><span class="code-content">  <span class="function">mutate</span>(</span></div>
+<div class="code-line"><span class="line-number">20</span><span class="code-content">    <span class="comment"># Derive treatment variables</span></span></div>
+<div class="code-line"><span class="line-number">21</span><span class="code-content">    TRT01P = ARM,</span></div>
+<div class="code-line"><span class="line-number">22</span><span class="code-content">    TRT01A = ACTARM,</span></div>
+<div class="code-line"><span class="line-number">23</span><span class="code-content">    TRT01PN = <span class="function">case_when</span>(</span></div>
+<div class="code-line"><span class="line-number">24</span><span class="code-content">      TRT01P == <span class="string">"Placebo"</span> ~ 0,</span></div>
+<div class="code-line"><span class="line-number">25</span><span class="code-content">      TRT01P == <span class="string">"Treatment A"</span> ~ 1,</span></div>
+<div class="code-line"><span class="line-number">26</span><span class="code-content">      TRT01P == <span class="string">"Treatment B"</span> ~ 2</span></div>
+<div class="code-line"><span class="line-number">27</span><span class="code-content">    )</span></div>
+<div class="code-line"><span class="line-number">28</span><span class="code-content">  )</span></div>
+<div class="code-line"><span class="line-number">29</span><span class="code-content"></span></div>
+<div class="code-line"><span class="line-number">30</span><span class="code-content"><span class="comment"># Derive population flags</span></span></div>
+<div class="code-line"><span class="line-number">31</span><span class="code-content">adsl <- adsl %>%</span></div>
+<div class="code-line"><span class="line-number">32</span><span class="code-content">  <span class="function">mutate</span>(</span></div>
+<div class="code-line"><span class="line-number">33</span><span class="code-content">    SAFFL = <span class="function">if_else</span>(!<span class="function">is.na</span>(TRT01A), <span class="string">"Y"</span>, <span class="string">"N"</span>)</span></div>
+<div class="code-line"><span class="line-number">34</span><span class="code-content">  )</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation Results Section -->
+                <div class="section">
+                    <div class="section-header">Validation Results</div>
+                    <div class="section-subtitle">Automated quality checks and compliance validation</div>
+                    
+                    <div class="validation-grid">
+                        <div class="validation-item">
+                            <div class="validation-icon pass">✓</div>
+                            <div class="validation-info">
+                                <div class="validation-label">CDISC Compliance</div>
+                                <div class="validation-status">All rules passed</div>
+                            </div>
+                        </div>
+                        <div class="validation-item">
+                            <div class="validation-icon pass">✓</div>
+                            <div class="validation-info">
+                                <div class="validation-label">Required Variables</div>
+                                <div class="validation-status">Complete</div>
+                            </div>
+                        </div>
+                        <div class="validation-item">
+                            <div class="validation-icon warning">!</div>
+                            <div class="validation-info">
+                                <div class="validation-label">Data Types</div>
+                                <div class="validation-status">1 warning</div>
+                            </div>
+                        </div>
+                        <div class="validation-item">
+                            <div class="validation-icon pass">✓</div>
+                            <div class="validation-info">
+                                <div class="validation-label">Derivation Logic</div>
+                                <div class="validation-status">Valid</div>
+                            </div>
+                        </div>
+                        <div class="validation-item">
+                            <div class="validation-icon pass">✓</div>
+                            <div class="validation-info">
+                                <div class="validation-label">Syntax Check</div>
+                                <div class="validation-status">No errors</div>
+                            </div>
+                        </div>
+                        <div class="validation-item">
+                            <div class="validation-icon pass">✓</div>
+                            <div class="validation-info">
+                                <div class="validation-label">Dependencies</div>
+                                <div class="validation-status">Resolved</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Derivation Sequence Section -->
+                <div class="section">
+                    <div class="section-header">Derivation Sequence</div>
+                    <div class="section-subtitle">Execution order based on variable dependencies</div>
+                    
+                    <ul class="sequence-list">
+                        <li class="sequence-item">
+                            <div class="sequence-number">1</div>
+                            <div class="sequence-details">
+                                <div class="sequence-var">STUDYID, USUBJID, SUBJID</div>
+                                <div class="sequence-deps">Source: DM (no dependencies)</div>
+                            </div>
+                        </li>
+                        <li class="sequence-item">
+                            <div class="sequence-number">2</div>
+                            <div class="sequence-details">
+                                <div class="sequence-var">TRT01P, TRT01A</div>
+                                <div class="sequence-deps">Source: DM.ARM, DM.ACTARM</div>
+                            </div>
+                        </li>
+                        <li class="sequence-item">
+                            <div class="sequence-number">3</div>
+                            <div class="sequence-details">
+                                <div class="sequence-var">TRT01PN, TRT01AN</div>
+                                <div class="sequence-deps">Depends on: TRT01P, TRT01A</div>
+                            </div>
+                        </li>
+                        <li class="sequence-item">
+                            <div class="sequence-number">4</div>
+                            <div class="sequence-details">
+                                <div class="sequence-var">SAFFL</div>
+                                <div class="sequence-deps">Depends on: TRT01A</div>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Code Quality Metrics Section -->
+                <div class="section">
+                    <div class="section-header">Code Quality Metrics</div>
+                    <div class="section-subtitle">Performance and compliance indicators</div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Compliance</div>
+                            <div class="metric-value">98%</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Efficiency</div>
+                            <div class="metric-value">95%</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Coverage</div>
+                            <div class="metric-value">12/13</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Readability</div>
+                            <div class="metric-value">A+</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documentation Section -->
+                <div class="section">
+                    <div class="section-header">Documentation</div>
+                    <div class="section-subtitle">Derivation details and implementation notes</div>
+                    
+                    <div class="accordion-item">
+                        <div class="accordion-header">
+                            <span>Variable Derivation Details</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <strong>TRT01P:</strong> Planned treatment arm from DM.ARM<br>
+                            <strong>TRT01A:</strong> Actual treatment arm from DM.ACTARM<br>
+                            <strong>SAFFL:</strong> Safety population flag derived based on treatment received
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <div class="accordion-header">
+                            <span>Data Sources</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            <strong>Primary:</strong> DM (Demographics)<br>
+                            <strong>Secondary:</strong> EX (Exposure), DS (Disposition)<br>
+                            <strong>Reference:</strong> CDISC ADAM IG v1.3
+                        </div>
+                    </div>
+
+                    <div class="accordion-item">
+                        <div class="accordion-header">
+                            <span>Implementation Notes</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="accordion-content">
+                            Code follows CDISC ADAM Implementation Guide v1.3 standards. Treatment coding uses numeric values for statistical analysis. Population flags follow standard ICH E9 definitions.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Chat Assistant (Fixed Position) -->
+    <button class="chat-toggle" onclick="toggleChat()">💬</button>
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <span>AI Assistant</span>
+            <button class="chat-close" onclick="toggleChat()">×</button>
+        </div>
+        <div class="chat-messages">
+            <div class="chat-message ai">
+                Hello! I can help you with ADSL derivations, rule clarifications, and code suggestions.
+            </div>
+            <div class="chat-message user">
+                How should I handle missing baseline dates?
+            </div>
+            <div class="chat-message ai">
+                For missing baseline dates, implement this logic:<br><br>
+                1. Use minimum date from DM.RFSTDTC if available<br>
+                2. Otherwise, use first non-missing visit date from SV<br>
+                3. Document imputation in ABLFL comment
+            </div>
+        </div>
+        <div class="chat-input-container">
+            <input type="text" class="chat-input" placeholder="Ask a question...">
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function switchTab(event, tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.config-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        // Chat toggle
+        function toggleChat() {
+            const panel = document.getElementById('chatPanel');
+            const toggle = document.querySelector('.chat-toggle');
+            panel.classList.toggle('open');
+            toggle.style.display = panel.classList.contains('open') ? 'none' : 'flex';
+        }
+
+        // Toggle checkboxes
+        document.querySelectorAll('.checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                this.closest('.dataset-item, .variable-item')?.classList.toggle('checked', this.checked);
+            });
+        });
+
+        // Collapsible categories
+        document.querySelectorAll('.category-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const list = this.nextElementSibling;
+                if (list) {
+                    list.style.display = list.style.display === 'none' || !list.style.display ? 'block' : 'none';
+                }
+            });
+        });
+
+        // Accordion
+        document.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const content = this.nextElementSibling;
+                const isOpen = content.classList.contains('show');
+                
+                // Close all accordions in the same section
+                const section = this.closest('.section');
+                section.querySelectorAll('.accordion-content').forEach(c => c.classList.remove('show'));
+                
+                // Open clicked accordion if it was closed
+                if (!isOpen) {
+                    content.classList.add('show');
+                }
+            });
+        });
+
+        // Language toggle
+        document.querySelectorAll('.radio-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.radio-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
