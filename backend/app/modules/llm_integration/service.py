@@ -180,9 +180,11 @@ class AnthropicProvider(BaseLLMProvider):
 
 class GoogleProvider(BaseLLMProvider):
     """Google Gemini provider"""
-    
-    def __init__(self, api_key: str, model: str = "gemini-pro"):
-        super().__init__(api_key, model)
+
+    def __init__(self, api_key: str, model: str = None):
+        # default model will be provided by settings.DEFAULT_MODEL when constructing
+        model_to_use = model or getattr(settings, 'DEFAULT_MODEL', 'gemini-pro')
+        super().__init__(api_key, model_to_use)
         try:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
@@ -262,7 +264,7 @@ class LLMIntegrationService:
             try:
                 self.providers["openai"] = OpenAIProvider(
                     api_key=settings.OPENAI_API_KEY,
-                    model="gpt-4"
+                    model=(getattr(settings, 'DEFAULT_MODEL') if getattr(settings, 'DEFAULT_LLM_PROVIDER', 'openai') == 'openai' else 'gpt-4')
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize OpenAI provider: {str(e)}")
@@ -272,7 +274,7 @@ class LLMIntegrationService:
             try:
                 self.providers["anthropic"] = AnthropicProvider(
                     api_key=settings.ANTHROPIC_API_KEY,
-                    model="claude-3-5-sonnet-20241022"
+                    model=(getattr(settings, 'DEFAULT_MODEL') if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'anthropic' else 'claude-3-5-sonnet-20241022')
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize Anthropic provider: {str(e)}")
@@ -282,7 +284,7 @@ class LLMIntegrationService:
             try:
                 self.providers["google"] = GoogleProvider(
                     api_key=settings.GOOGLE_API_KEY,
-                    model="gemini-pro"
+                    model=(getattr(settings, 'DEFAULT_MODEL') if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'google' else 'gemini-pro')
                 )
             except Exception as e:
                 logger.error(f"Failed to initialize Google provider: {str(e)}")
@@ -292,7 +294,7 @@ class LLMIntegrationService:
     async def generate(
         self,
         prompt: str,
-        provider: str = "openai",
+        provider: str = None,
         model: Optional[str] = None,
         temperature: float = 0.2,
         max_tokens: int = 4000,
@@ -312,12 +314,15 @@ class LLMIntegrationService:
         Returns:
             Generation result dictionary
         """
-        if provider not in self.providers:
-            raise ValueError(f"Provider '{provider}' not available. Available: {list(self.providers.keys())}")
+        # If provider not specified, fall back to default from settings
+        provider_to_use = provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'openai')
+        if provider_to_use not in self.providers:
+            raise ValueError(f"Provider '{provider_to_use}' not available. Available: {list(self.providers.keys())}")
         
-        llm_provider = self.providers[provider]
+        llm_provider = self.providers[provider_to_use]
         
         # Override model if specified
+        # Override model if specified, otherwise keep provider default
         if model:
             llm_provider.model = model
         

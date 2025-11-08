@@ -20,6 +20,13 @@
   align-items: center;
 }
 
+.llm-indicator {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-right: 12px;
+}
+
 .provider-selector {
   min-width: 180px;
 }

@@ -1,7 +1,9 @@
-import { Select, Button, Space } from 'antd';
+import { Select, Button, Space, Tag } from 'antd';
 import { SettingOutlined, BarChartOutlined, UserOutlined } from '@ant-design/icons';
 import type { ProgrammingLanguage, LLMProvider } from '../types';
 import './Header.css';
+import { useEffect, useState } from 'react';
+import api from '../services/api';
 
 interface HeaderProps {
   language: ProgrammingLanguage;
@@ -11,11 +13,36 @@ interface HeaderProps {
 }
 
 const Header = ({ language, llmProvider, onLanguageChange, onLlmProviderChange }: HeaderProps) => {
+  const [activeProvider, setActiveProvider] = useState<string | null>(null);
+  const [activeModel, setActiveModel] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getLLMDefaults()
+      .then((data) => {
+        if (!mounted) return;
+        setActiveProvider(data.default_provider || null);
+        setActiveModel(data.default_model || null);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setActiveProvider(null);
+        setActiveModel(null);
+      });
+    return () => { mounted = false; };
+  }, []);
+
   return (
     <div className="header">
       <div className="header-title">ADAM AI Code Generator</div>
       
       <Space size="middle" className="header-controls">
+        {activeProvider && activeModel && (
+          <div className="llm-indicator">
+            <Tag color="blue">{activeProvider}</Tag>
+            <Tag>{activeModel}</Tag>
+          </div>
+        )}
         <Select
           value={llmProvider}
           onChange={onLlmProviderChange}
@@ -23,7 +50,7 @@ const Header = ({ language, llmProvider, onLanguageChange, onLlmProviderChange }
           options={[
             { value: 'openai', label: 'OpenAI GPT-4' },
             { value: 'anthropic', label: 'Claude 3.5 Sonnet' },
-            { value: 'google', label: 'Google Gemini Pro' },
+            { value: 'google', label: 'Google Gemini (gemini-2.5-flash)' },
           ]}
         />
         

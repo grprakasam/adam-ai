@@ -42,6 +42,12 @@ export const adamApi = {
     const response = await apiClient.post('/validate', { code, language });
     return response.data;
   },
+
+  // LLM defaults
+  getLLMDefaults: async () => {
+    const response = await apiClient.get('/llm/defaults');
+    return response.data;
+  }
 };
 
 export default adamApi;

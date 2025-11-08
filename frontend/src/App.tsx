@@ -1,21 +1,38 @@
 import { useState } from 'react';
-import { ConfigProvider, theme } from 'antd';
+import { ConfigProvider, theme, Button } from 'antd';
+import { HomeOutlined } from '@ant-design/icons';
 import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import ChatPanel from './components/ChatPanel';
+import LandingPage from './components/LandingPage';
 import type { 
   ProgrammingLanguage, 
   LLMProvider, 
   StudyMetadata,
   GenerationOptions,
-  GenerationResponse
+  GenerationResponse,
+  ProjectConfiguration
 } from './types';
 import './App.css';
 
+type ViewMode = 'landing' | 'workspace';
+
 function App() {
+  const [viewMode, setViewMode] = useState<ViewMode>('landing');
   const [language, setLanguage] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
-  const [llmProvider, setLlmProvider] = useState<LLMProvider>('openai' as LLMProvider);
+  const [llmProvider, setLlmProvider] = useState<LLMProvider>('google' as LLMProvider);
+  const [projectConfig, setProjectConfig] = useState<ProjectConfiguration>({
+    studyId: '',
+    protocolNumber: '',
+    sponsor: '',
+    therapeuticArea: 'Oncology',
+    studyPhase: 'Phase III',
+    sdtmVersion: 'SDTM v2.0',
+    adamIgVersion: 'ADaM IG v1.3',
+    medraVersion: 'MedDRA v26.1',
+    programmingLanguage: 'R'
+  });
   const [studyMetadata, setStudyMetadata] = useState<StudyMetadata>({
     studyId: '',
     protocolNumber: '',
@@ -78,37 +95,59 @@ function App() {
       }}
     >
       <div className="app-container">
-        <Header 
-          language={language}
-          llmProvider={llmProvider}
-          onLanguageChange={setLanguage}
-          onLlmProviderChange={setLlmProvider}
-        />
-        
-        <div className="main-content">
-          <LeftPanel
-            studyMetadata={studyMetadata}
-            selectedDatasets={selectedDatasets}
-            selectedVariables={selectedVariables}
-            generationOptions={generationOptions}
-            onStudyMetadataChange={setStudyMetadata}
-            onDatasetsChange={setSelectedDatasets}
-            onVariablesChange={setSelectedVariables}
-            onOptionsChange={setGenerationOptions}
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
-          />
-          
-          <RightPanel
-            generationResult={generationResult}
-            language={language}
-          />
-        </div>
+        {viewMode === 'landing' ? (
+          <LandingPage onStartProject={() => setViewMode('workspace')} />
+        ) : (
+          <>
+            <div style={{ 
+              position: 'fixed', 
+              top: 20, 
+              right: 20, 
+              zIndex: 1000 
+            }}>
+              <Button 
+                icon={<HomeOutlined />}
+                onClick={() => setViewMode('landing')}
+                size="large"
+              >
+                Back to Landing
+              </Button>
+            </div>
+            <Header 
+              language={language}
+              llmProvider={llmProvider}
+              onLanguageChange={setLanguage}
+              onLlmProviderChange={setLlmProvider}
+            />
+            
+            <div className="main-content">
+              <LeftPanel
+                projectConfig={projectConfig}
+                studyMetadata={studyMetadata}
+                selectedDatasets={selectedDatasets}
+                selectedVariables={selectedVariables}
+                generationOptions={generationOptions}
+                onProjectConfigChange={setProjectConfig}
+                onStudyMetadataChange={setStudyMetadata}
+                onDatasetsChange={setSelectedDatasets}
+                onVariablesChange={setSelectedVariables}
+                onOptionsChange={setGenerationOptions}
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+              />
+              
+              <RightPanel
+                generationResult={generationResult}
+                language={language}
+              />
+            </div>
 
-        <ChatPanel 
-          isOpen={chatOpen}
-          onToggle={() => setChatOpen(!chatOpen)}
-        />
+            <ChatPanel 
+              isOpen={chatOpen}
+              onToggle={() => setChatOpen(!chatOpen)}
+            />
+          </>
+        )}
       </div>
     </ConfigProvider>
   );

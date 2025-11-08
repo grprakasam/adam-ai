@@ -3,7 +3,7 @@ Input Models
 Pydantic models for user input validation
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from enum import Enum
 
@@ -33,46 +33,57 @@ class ADAMDatasetType(str, Enum):
 
 class SDTMDataset(BaseModel):
     """SDTM dataset information"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "name": "DM.csv",
+            "domain": "DM",
+            "file_path": "/path/to/DM.csv",
+            "file_type": "csv",
+            "file_size": 1024000
+        }
+    })
+    
     name: str = Field(..., description="Dataset filename")
     domain: str = Field(..., description="SDTM domain (e.g., DM, AE, LB)")
     file_path: str = Field(..., description="Full path to the dataset file")
     file_type: str = Field(..., description="File type (csv, sas7bdat, xpt)")
     file_size: int = Field(..., description="File size in bytes")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "DM.csv",
-                "domain": "DM",
-                "file_path": "/path/to/DM.csv",
-                "file_type": "csv",
-                "file_size": 1024000
-            }
-        }
 
 
 class SpecificationFile(BaseModel):
     """ADAM specification file information"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "name": "ADSL_Specification.xlsx",
+            "file_path": "/path/to/ADSL_Specification.xlsx",
+            "file_type": "xlsx",
+            "file_size": 512000,
+            "spec_type": "ADSL"
+        }
+    })
+    
     name: str = Field(..., description="Specification filename")
     file_path: str = Field(..., description="Full path to the specification file")
     file_type: str = Field(..., description="File type (xlsx, docx, pdf)")
     file_size: int = Field(..., description="File size in bytes")
     spec_type: str = Field(..., description="Type of specification (ADSL, ADAE, etc.)")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "ADSL_Specification.xlsx",
-                "file_path": "/path/to/ADSL_Specification.xlsx",
-                "file_type": "xlsx",
-                "file_size": 512000,
-                "spec_type": "ADSL"
-            }
-        }
 
 
 class GenerationParameters(BaseModel):
     """Parameters for code generation"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "adam_dataset": "ADSL",
+            "programming_language": "R",
+            "llm_provider": "openai",
+            "model": "gpt-4",
+            "temperature": 0.2,
+            "max_tokens": 4000,
+            "include_comments": True,
+            "include_validation": True
+        }
+    })
+    
     adam_dataset: ADAMDatasetType = Field(..., description="Target ADAM dataset type")
     programming_language: ProgrammingLanguage = Field(
         default=ProgrammingLanguage.R,
@@ -106,24 +117,24 @@ class GenerationParameters(BaseModel):
         default=True,
         description="Include validation checks in generated code"
     )
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "adam_dataset": "ADSL",
-                "programming_language": "R",
-                "llm_provider": "openai",
-                "model": "gpt-4",
-                "temperature": 0.2,
-                "max_tokens": 4000,
-                "include_comments": True,
-                "include_validation": True
-            }
-        }
 
 
 class ProjectInput(BaseModel):
     """Complete project input for ADAM code generation"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "project_name": "Study XYZ ADSL Generation",
+            "sdtm_datasets": [],
+            "specifications": [],
+            "parameters": {
+                "adam_dataset": "ADSL",
+                "programming_language": "R",
+                "llm_provider": "openai"
+            },
+            "user_notes": "Focus on baseline characteristics"
+        }
+    })
+    
     project_name: str = Field(..., description="Project name or identifier")
     sdtm_datasets: List[SDTMDataset] = Field(
         default_factory=list,
@@ -138,21 +149,6 @@ class ProjectInput(BaseModel):
         default=None,
         description="Additional notes or requirements from user"
     )
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "project_name": "Study XYZ ADSL Generation",
-                "sdtm_datasets": [],
-                "specifications": [],
-                "parameters": {
-                    "adam_dataset": "ADSL",
-                    "programming_language": "R",
-                    "llm_provider": "openai"
-                },
-                "user_notes": "Focus on baseline characteristics"
-            }
-        }
 
 
 class FileUploadRequest(BaseModel):

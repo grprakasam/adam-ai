@@ -3,6 +3,7 @@ FastAPI Main Application
 Entry point for the ADAM AI Code Generator backend
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
@@ -10,6 +11,20 @@ import sys
 
 from app.config import settings
 from app.api.v1 import api_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager"""
+    # Startup
+    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info(f"Default LLM Provider: {settings.DEFAULT_LLM_PROVIDER}")
+    
+    yield
+    
+    # Shutdown
+    logger.info(f"Shutting down {settings.APP_NAME}")
 
 
 # Configure logging
@@ -34,7 +49,8 @@ app = FastAPI(
     description="AI-powered ADAM code generator for clinical trials following CDISC standards",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json"
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan
 )
 
 
@@ -50,20 +66,6 @@ app.add_middleware(
 
 # Include API routers
 app.include_router(api_router, prefix="/api/v1")
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Application startup event"""
-    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    logger.info(f"Debug mode: {settings.DEBUG}")
-    logger.info(f"Default LLM Provider: {settings.DEFAULT_LLM_PROVIDER}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown event"""
-    logger.info(f"Shutting down {settings.APP_NAME}")
 
 
 @app.get("/")
