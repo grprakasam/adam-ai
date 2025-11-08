@@ -1,0 +1,70 @@
+.header {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+  z-index: 100;
+}
+
+.header-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.header-controls {
+  display: flex;
+  align-items: center;
+}
+
+.provider-selector {
+  min-width: 180px;
+}
+
+.provider-selector .ant-select-selector {
+  background: rgba(255,255,255,0.15) !important;
+  border-color: rgba(255,255,255,0.2) !important;
+  color: white !important;
+}
+
+.provider-selector .ant-select-arrow {
+  color: white !important;
+}
+
+.language-toggle {
+  display: flex;
+  gap: 0;
+  background: rgba(255,255,255,0.15);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.language-toggle .ant-btn {
+  background: transparent !important;
+  border: none !important;
+  color: white !important;
+  height: 28px !important;
+  padding: 4px 12px !important;
+}
+
+.language-toggle .ant-btn.ant-btn-primary,
+.language-toggle .ant-btn.active {
+  background: white !important;
+  color: #4f46e5 !important;
+  font-weight: 500;
+}
+
+.icon-btn {
+  color: white !important;
+  background: rgba(255,255,255,0.15) !important;
+  border: none !important;
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.icon-btn:hover {
+  background: rgba(255,255,255,0.25) !important;
+}
