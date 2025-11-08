@@ -212,9 +212,6 @@ __marimo__/
 backend/logs/*.log
 backend/logs/*.txt
 
-# Content files (large data files)
-Content/
-
 # Temporary files
 *.tmp
 *.temp
