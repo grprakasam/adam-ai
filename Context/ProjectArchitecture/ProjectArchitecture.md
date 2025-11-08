@@ -21,7 +21,7 @@ A user friendly chatbot mode ui screen to interactively  understand user inputs 
 Get things confirmed at each level from the user (based on how it is defined under 'Context\ADAMRules')and  gradually build the final program
 
 **Tech Stack:**
-Development: Python framework preferably flask 
+Development: Python framework 
 LLM:  Google /Antrophic/ OPenai Premium models
 
 
