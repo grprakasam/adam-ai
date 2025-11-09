@@ -5,3 +5,45 @@
   flex-direction: column;
   gap: var(--space-6);
 }
+
+.generate-footer {
+  margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.generate-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  color: var(--gray-600);
+}
+
+.generate-percentage {
+  font-weight: var(--font-semibold);
+  color: var(--primary-500);
+}
+
+.generate-percentage.ready {
+  color: var(--success-600);
+}
+
+.generate-status .ready {
+  color: var(--success-600);
+}
+
+.generate-submit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.generate-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}

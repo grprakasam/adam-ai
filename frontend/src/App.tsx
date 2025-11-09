@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { ConfigProvider, theme, Button, message } from 'antd';
-import { HomeOutlined } from '@ant-design/icons';
+import { ConfigProvider, theme, message } from 'antd';
 import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
@@ -135,26 +134,12 @@ write_sas(adsl, "path/to/adsl.sas7bdat")`,
           <LandingPage onStartProject={() => setViewMode('workspace')} />
         ) : (
           <>
-            <div style={{
-              position: 'fixed',
-              top: 20,
-              right: 20,
-              zIndex: 1000
-            }}>
-              <Button
-                icon={<HomeOutlined />}
-                onClick={() => setViewMode('landing')}
-                size="large"
-              >
-                Back to Landing
-              </Button>
-            </div>
-
             <Header
               language={language}
               llmProvider={llmProvider}
               onLanguageChange={setLanguage}
               onLlmProviderChange={setLlmProvider}
+              onBackToLanding={() => setViewMode('landing')}
             />
 
             <div className="main-content">
