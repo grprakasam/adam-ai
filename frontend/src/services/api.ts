@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { GenerationRequest, GenerationResponse } from '../types';
+import type { GenerationRequest, GenerationResponse, CategorizationResult } from '../types';
 
 const API_BASE_URL = '/api/v1';
 
@@ -46,6 +46,29 @@ export const adamApi = {
   // LLM defaults
   getLLMDefaults: async () => {
     const response = await apiClient.get('/llm/defaults');
+    return response.data;
+  },
+
+  // Categorize specification variables
+  categorizeSpecification: async (specFilePath: string, datasetType: string = 'ADSL'): Promise<CategorizationResult> => {
+    const response = await apiClient.post('/specification/categorize-path', {
+      spec_file_path: specFilePath,
+      dataset_type: datasetType
+    });
+    return response.data;
+  },
+
+  // Categorize specification by file upload
+  categorizeSpecificationFile: async (file: File, datasetType: string = 'ADSL'): Promise<CategorizationResult> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('dataset_type', datasetType);
+
+    const response = await apiClient.post('/specification/categorize', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 };

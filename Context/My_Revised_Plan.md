@@ -1,254 +1,803 @@
-# ADAM AI Code Generator — Revised MVP Plan (ADSL)
+# ADAM AI – Revised Execution Plan
 
-## Document Info
-- Date: 2025-11-08
-- Scope: MVP focused on ADSL dataset only
-- Decisions (confirmed):
-  - Backend: FastAPI
-  - Frontend: React + TypeScript (keep current plan)
-  - Code generation: SAS and R (user choice)
-  - LLM: Default Google Gemini 2.5 Pro; provider-agnostic interface
-  - Deployment: Local (no Docker yet)
-  - Inputs: Excel spec in `Content\UserInputs\ADAMSpecifications\`; standard docs in `Content\StandardDocuments\`
-  - IG-specific rules: TBD for now
-  - Create required directories if missing
+## Executive Summary
+This revised plan addresses critical gaps in the initial plan by incorporating:
+1. **Variables Analysis Page** – A dedicated UI for categorized variable grouping based on VariablesMapping.xlsx
+2. **Enhanced specification parsing** – Parse and categorize variables according to ADAM rules
+3. **Progressive disclosure workflow** – Stage-based user confirmations aligned with domain logic
+4. **Backend services** – Excel parsing, variable categorization, and mapping services
 
----
+## Key Gaps Identified in Initial Plan
 
-## 1) Scope & Success Criteria
-- Dataset scope: ADSL only for MVP; ADAE/ADLB follow later.
-- Behavior: After spec upload, drive a rule-based, categorized flow (per `ADSL_ApplicationBehaviourRules.md`) and progressively generate/edit SAS or R code to produce ADSL using SDTM inputs (DM/DS/EX/AE/LB per MacroLogic).
-- Success criteria (MVP):
-  - Spec upload works; variables categorized and decoded (e.g., `TRTxxP`, `AGEGRy`, `APxxSDT`).
-  - Guided confirmations at each step; user selects SAS or R at start.
-  - Provider-agnostic LLM interface works with Gemini 2.5 Pro by default.
-  - Generated code shown in editor, downloadable, and saved to disk with metadata.
-  - Static validations: variable coverage, naming conventions, rule adherence checks, and warnings.
+### **CRITICAL MISSING ELEMENTS:**
 
----
+1. **Variables Analysis Page** (from requirement 0_MyRequirement_planner.md)
+   - NOT mentioned in initial plan
+   - Required: Categorized variable grouping UI with tabbed interface
+   - Must use VariablesMapping.xlsx for categorization
+   - Should appear after spec upload, before generation
 
-## 2) Architecture Overview (MVP)
-- Frontend (React + TypeScript)
-  - Views: Upload & Mapping, Variable Categories, Chat/Guided Steps, Code Review (Monaco), Validation & Warnings, Download & Summary.
-  - State mgmt: lightweight (e.g., context + hooks) for MVP; persist session in backend.
-  - Accessibility: keyboard navigation, clear error states.
+2. **VariablesMapping.xlsx Integration** (from ADSL_ApplicationBehaviourRules.md)
+   - Initial plan mentions parsing but not variable categorization
+   - Missing: Service to read and apply VariablesMapping.xlsx
+   - Missing: Backend endpoint to categorize uploaded variables
 
-- Backend (FastAPI)
-  - Endpoints:
-    - `POST /spec/upload`: accepts Excel; returns inferred headers; stores file.
-    - `POST /spec/map`: save column-mapping decisions.
-    - `GET /rules/adsl`: parsed rules from `Context\ADAMRules\*`.
-    - `POST /generate`: provider, language (SAS|R), context payload; streams or returns code.
-    - `POST /validate`: static checks on generated code vs spec/rules.
-    - `POST /save`: persists code, metadata, and warnings.
-  - Services: rules parser, spec parser, prompt builder, provider client, validation service, persistence.
+3. **Progressive User Confirmation Workflow**
+   - Initial plan focuses on linear flow
+   - Missing: Stage-by-stage user confirmations per ProjectRequirements.md
+   - Missing: Interactive validation at each stage
 
-- LLM Providers
-  - Default Gemini 2.5 Pro; interface supports future OpenAI/Anthropic.
-  - Config via env (e.g., `GOOGLE_API_KEY`, `PROVIDER=google`, `MODEL=gemini-2.5-pro`).
-  - Retry/backoff, error normalization, optional streaming.
+4. **Domain-Specific Context Building**
+   - Initial plan treats LLM prompting generically
+   - Missing: Dataset-specific context assembly (ADSL vs ADAE vs ADLB)
+   - Missing: Rule-based prompt template selection
 
-- Storage & Paths (create if missing)
-  - Specs: `Content\UserInputs\ADAMSpecifications\`
-  - Standards: `Content\StandardDocuments\` (IG version, dictionary files)
-  - Outputs: `Content\Generated\ADSL\{timestamp}\{SAS|R}\ADSL.{sas|R}`
-  - Logs: `Content\Logs\{date}.log`
-  - Sessions: `Content\Sessions\{session_id}.json`
+5. **Variable Dependency Analysis**
+   - Hardcoded categories in VariablesTab.tsx
+   - Missing: Dynamic loading from VariablesMapping.xlsx
+   - Missing: Dependency graph validation
 
----
+## Revised Architecture
 
-## 3) End-to-End User Flow (MVP)
-1. Start: User selects dataset = ADSL, language = SAS or R.
-2. Upload Excel spec to `Content\UserInputs\ADAMSpecifications\` via UI.
-3. Column detection & mapping:
-   - Auto-detect columns; present an interactive mapping UI for required fields (minimally: `Variable`).
-   - User confirms which column holds “Variable” and optionally maps label/derivation columns if present (no assumptions).
-4. Rule load:
-   - App loads `ADSL_ApplicationBehaviourRules.md` and `ADSL_MacroLogic.md`.
-   - IG-specific rules are TBD; expose an optional IG Version selector based on files in `Content\StandardDocuments\`.
-5. Categorized variable view:
-   - Variables from the spec are grouped per categories stated in `ADSL_ApplicationBehaviourRules.md` (Subject IDs, Demographics, Treatment, Dose, Dates, Disposition, Flags, Phase Time, Analysis Groupings).
-   - Decode family patterns (e.g., `TRTxxP` → `TRT01P`, `TRT02P`; `AGEGRy` → `AGEGR1`, etc.).
-6. Guided confirmations (rule-driven):
-   - For each category, confirm required variables exist; highlight missing/extra.
-   - Confirm IG version/dictionary references if needed.
-   - Capture any clarifications (e.g., unit assumptions, derivation preferences) before generation.
-7. Code generation (LLM):
-   - Prompt builder assembles context: spec selections, category focus, MacroLogic sequencing, language (SAS|R), and compliance constraints.
-   - Generate code in steps aligned to MacroLogic (period/phase vars, treatments, date-time, disposition, death, groupings, labels/attributes).
-8. Review & edit:
-   - Show code in Monaco with SAS/R syntax highlighting.
-   - Provide diffs as code refines across steps.
-9. Validation:
-   - Static checks: variable coverage vs spec; naming conventions; presence of SDTM input references (DM/DS/EX/AE/LB); simple pattern checks for date/time derivations.
-   - Present warnings/errors with actionable suggestions.
-10. Save & download:
-   - Save final code + metadata to `Content\Generated\ADSL\{timestamp}\{SAS|R}\`.
-   - Allow download; persist session state and decisions.
+### **Frontend – Enhanced Tab Flow**
+
+```
+Landing Page
+    ↓ (Get Started)
+Workspace Page
+    ├── Tab 1: Project Information ✓ (Completed)
+    ├── Tab 2: Dataset Selection ✓ (Completed)
+    ├── Tab 3: Specification Upload ✓ (Completed)
+    ├── Tab 4: Variables Analysis ⚠️ (NEW - CRITICAL)
+    │   ├── Auto-loads after spec upload
+    │   ├── Displays categorized variables from VariablesMapping.xlsx
+    │   ├── Tabbed UI per category (Identifiers, Treatment, Demographics, etc.)
+    │   ├── Variable cards with: name, label, type, source, derivation preview
+    │   ├── Selection checkboxes (required vars pre-checked, disabled)
+    │   ├── Search/filter functionality
+    │   └── Confirmation button → unlocks next tab
+    ├── Tab 5: Standards Selection ✓ (Completed)
+    ├── Tab 6: Rules Configuration ✓ (Completed)
+    └── Tab 7: Generate & Review
+        ├── Pre-generation summary panel
+        ├── Confirm & Generate CTA
+        └── Results display (code, validation, docs)
+```
+
+### **Backend – New Services**
+
+```
+New Modules Required:
+├── specification_parser/
+│   ├── excel_reader.py          # Existing, enhance with validation
+│   ├── variable_extractor.py    # NEW: Extract variable rows
+│   └── variable_validator.py    # NEW: Validate against naming rules
+├── variable_categorizer/
+│   ├── mapping_loader.py         # NEW: Read VariablesMapping.xlsx
+│   ├── categorizer.py            # NEW: Map vars to categories
+│   └── dependency_resolver.py    # NEW: Build dependency graph
+├── context_builder/              # Exists, enhance
+│   ├── dataset_context.py        # NEW: Dataset-specific contexts
+│   └── rule_selector.py          # NEW: Select rules per dataset type
+└── confirmation_tracker/         # NEW: Track stage completions
+    └── progress_validator.py     # Validate completion before generation
+```
 
 ---
 
-## 4) Functional Modules & Key Tasks
+## Detailed Implementation Plan
 
-### A. Input Collection & Validation
-- Objectives: Upload, detect columns, map required fields; collect dataset/language choice.
-- Inputs: Excel spec; user mapping selections.
-- Outputs: Canonical spec JSON with variables list and any per-variable attributes available.
-- Tasks:
-  - File upload with size/type checks; store file path.
-  - Header extraction; propose auto-mapping; require user confirmation for “Variable” column.
-  - Optional mapping for attributes (Label, Type, Derivation) if present.
-  - Persist mapping alongside session.
+### **PHASE 1: Variables Analysis Infrastructure (Priority: HIGHEST)**
 
-### B. Rules Loading & Processing
-- Parse `ADSL_ApplicationBehaviourRules.md` to:
-  - Enumerate categories and variable families (e.g., `TRTxxP`, `AGEGRy`, `APxxSDT`).
-  - Produce machine-readable category definitions and decoding regex.
-- Parse `ADSL_MacroLogic.md` to:
-  - Extract derivation phases and their ordering (period/phase → treatment → datetime/duration → disposition → death → groupings → labels/attributes).
-  - Identify required SDTM inputs: DM, DS, EX, AE, LB.
-- IG-specific rules: treat as TBD; leave hook for future parsing.
+#### **Backend Tasks**
 
-### C. Spec Parser & Variable Categorizer
-- Build a categorizer that:
-  - Matches spec variables to categories; flags unmatched or missing.
-  - Decodes pattern families into enumerated instances (e.g., TRT01P, TRT02P) based on spec presence.
-  - Produces category-wise lists for the UI and generation context.
+**1.1 Variables Mapping Service**
+```python
+# File: backend/app/modules/variable_categorizer/mapping_loader.py
 
-### D. Variable Pattern Decoder
-- Implement regex-driven decoding for small-letter placeholders per rules:
-  - `TRTxxP|TRTxxPN|TRTxxA|TRTxxAN`, `APxxSDT|APxxSTM|APxxETMF`, etc.
-  - `AGEGRy|AGEGRyN`, `AGGRy` families, etc.
-- Expose utility that, given a pattern family and the spec, resolves actual variable instances.
+Purpose: Read and parse VariablesMapping.xlsx
+Deliverables:
+  - Load Excel with categories and variable attributes
+  - Return structured JSON: {category: str, variables: [{name, group, priority}]}
+  - Cache mapping in memory (reload on config change)
+  - Validation: Ensure required columns exist
 
-### E. Context Builder & State Management
-- Maintain session-scoped context:
-  - Dataset=ADSL, language=SAS|R, mapped columns, variables by category, IG/dictionary selection, MacroLogic phase state.
-- Token/size management: include only relevant rules and variables for each generation step.
+Dependencies: openpyxl, pandas
+Acceptance: Can load VariablesMapping.xlsx and return category structure
+```
 
-### F. Prompt Engineering
-- Provider-specific prompt templates (Gemini default):
-  - System: role as expert SAS/R + ADaM programmer; must follow CDISC and provided rules.
-  - Context: selected categories, resolved variables, MacroLogic phase, IG/dictionary refs (as available), constraints (naming, conventions).
-  - Instruction: generate only code fences in target language; avoid placeholders; explain assumptions in comments if unavoidable.
-- Chunking strategy:
-  - Generate per MacroLogic phase with cumulative context.
-  - Summarize long rule texts to fit token limits.
+**1.2 Variable Categorization Endpoint**
+```python
+# Route: POST /api/spec/categorize
 
-### G. LLM Integration
-- Abstraction: `ProviderClient` with methods: `complete()`, `stream()`.
-- Gemini 2.5 Pro default implementation; pluggable keys via env.
-- Retries/backoff; error normalization and surfaced UI messages.
+Input: {specId: str}
+Process:
+  1. Load parsed specification variables (from existing parse endpoint)
+  2. Load VariablesMapping.xlsx categories
+  3. Match each spec variable to category (by name pattern or exact match)
+  4. Enrich with metadata (required status, dependencies, CDISC type)
+Output: {
+  categories: [
+    {
+      name: "Identifier Variables",
+      description: "...",
+      variables: [
+        {name: "STUDYID", label: "...", type: "Char", 
+         source: "DM", required: true, category: "Identifiers"}
+      ]
+    }
+  ],
+  uncategorized: [...],  # Variables not found in mapping
+  warnings: [...]
+}
 
-### H. Code Generation Orchestrator
-- Drives phase-by-phase generation for ADSL:
-  1) Period/Subperiod/Phase variables (APxx*, etc.)
-  2) Treatment variables (TRT0xP, TRT0xA)
-  3) Datetime & Duration (TRTSDTM, TRTEDTM, TRTDURD)
-  4) Disposition variables
-  5) Death variables & LSTALVDT
-  6) Groupings & Populations
-  7) Labels & Attributes
-- Merges generated blocks into a single program file (SAS or R) with clear section headers.
+Validation:
+  - Warn if variables missing from mapping
+  - Flag if required variables absent from spec
+```
 
-### I. Validation & QA Checks (Static for MVP)
-- Coverage: every spec variable either generated or explicitly ignored with reason.
-- Naming: variables match allowed patterns/categories; flags for unknowns.
-- Inputs: references to DM/DS/EX/AE/LB present when required by phase.
-- Structural: basic syntax patterns (balanced quotes, proc/data step markers for SAS; library usage for R) — best-effort static checks.
-- Report: warnings and errors ranked by severity; downloadable as JSON.
+**1.3 Enhanced Specification Parser**
+```python
+# Enhance: backend/app/modules/input_collection/spec_parser.py
 
-### J. UI/UX
-- Category sidebar with counts and status (confirmed/pending/missing).
-- Guided chat-like stepper aligned with rules; gated confirmations per category.
-- Monaco editor with language mode (SAS or R) and diff view for iterations.
-- Validation panel with filters (errors/warnings/info) and quick-jump to affected sections.
-- Download buttons (program file, metadata, warning report).
+Additions:
+  - Extract variable metadata: name, label, type, length, source, derivation logic
+  - Validate against ADAM_VariablenamingRules.md (DT suffix = date, FL = flag, etc.)
+  - Return structured warnings for:
+    * Invalid naming conventions
+    * Missing required columns
+    * Ambiguous derivation logic
+  - Store parsed data in structured format (JSON) for reuse
+```
 
-### K. Output Management & Persistence
-- Write outputs to `Content\Generated\ADSL\{timestamp}\{SAS|R}\`.
-- Save session JSON: spec mapping, selections, IG version, provider, prompts (optional), warnings.
-- Logging: append to `Content\Logs\{date}.log` with trace ids.
+#### **Frontend Tasks**
 
-### L. Config & Secrets
-- `.env` (not committed): `PROVIDER=google`, `MODEL=gemini-2.5-pro`, `GOOGLE_API_KEY=...`.
-- Feature flags: `ENABLE_STREAMING`, `SAVE_PROMPTS`.
+**1.4 Variables Analysis Tab Component**
+```typescript
+// File: frontend/src/components/tabs/VariablesAnalysisTab.tsx
 
----
+Features:
+  - Auto-trigger on spec upload completion (listen to store state)
+  - Call POST /api/spec/categorize with specId
+  - Display categorized variables in tabbed interface:
+    * Each category = one tab (Identifiers, Treatment, Demographics, etc.)
+    * Within tab: Grid/cards of variables with:
+      - Variable name (bold)
+      - Label (secondary text)
+      - Type indicator (Num/Char badge)
+      - Source dataset chip (DM, EX, etc.)
+      - Derivation summary (collapsible)
+      - Selection checkbox (required vars disabled+checked)
+    * Search bar (filters across all categories)
+    * "Select All" / "Deselect All" per category
+  - Bottom action bar:
+    * Variable count: "45/67 variables selected"
+    * "Confirm Variables" button → updates store → enables next tab
+  - Visual states:
+    * Loading skeleton during categorization
+    * Error state with retry for failed categorization
+    * Warning badges for uncategorized variables
 
-## 5) Non-Functional Requirements
-- Reliability: clear error messages and recovery (re-run a failed phase).
-- Performance: paginate large specs; chunk prompts by category/phase.
-- Security: store keys in env; no PHI handling rules required for MVP (subject to change).
-- Observability: request ids across UI/backend; basic timing metrics in logs.
+Store Integration:
+  - Add to projectStore: 
+    * categorizedVariables: CategorizedVariable[]
+    * selectedVariableNames: string[]
+    * variableAnalysisComplete: boolean
+  - Completion check: variableAnalysisComplete = true when user confirms
 
----
+Accessibility:
+  - Tab keyboard navigation (ARIA tablist)
+  - Focus management on category switch
+  - Screen reader announcements for counts
+```
 
-## 6) Milestones & Deliverables
-1. Project setup (FastAPI, React, shared types, dirs); env/config scaffolding.
-2. Rules parser (ADSL_ApplicationBehaviourRules + MacroLogic) → canonical JSON.
-3. Spec upload + header detection + mapping UI.
-4. Variable categorizer + pattern decoder + categorized view.
-5. Provider abstraction (Gemini default) + prompt templates.
-6. Orchestrated generation per MacroLogic; merge into SAS/R file; gated confirmations.
-7. Static validation; warnings/errors panel; export.
-8. Monaco editor integration; code diffs and download.
-9. Persistence (outputs, sessions, logs) with timestamped paths.
-10. Local run instructions and smoke test with sample spec.
+**1.5 Update Tab Navigation**
+```typescript
+// File: frontend/src/components/LeftPanel.tsx
 
----
-
-## 7) Test Strategy
-- Unit tests: rules parser, spec parser, variable categorizer, pattern decoder.
-- Integration tests: prompt builder correctness for each phase; provider client error handling.
-- E2E (manual for MVP): sample spec → full ADSL generation in SAS and R; verify coverage report; review code structure aligns with MacroLogic.
-- Fixtures: anonymized sample spec; synthetic SDTM shapes metadata (no execution required).
-
----
-
-## 8) Directory Structure & Conventions (MVP)
-- Inputs: `Content\UserInputs\ADAMSpecifications\` (uploaded specs)
-- Standards: `Content\StandardDocuments\` (IG version, dictionaries)
-- Generated: `Content\Generated\ADSL\{timestamp}\{SAS|R}\ADSL.{sas|R}`
-- Sessions: `Content\Sessions\{session_id}.json`
-- Logs: `Content\Logs\{date}.log`
-- Naming: use ISO timestamp `YYYYMMDD_HHMMSS` for generated folders.
+Changes:
+  - Insert "Variables Analysis" tab after "Specification Upload"
+  - Status badge logic:
+    * complete: variableAnalysisComplete = true
+    * incomplete: spec uploaded but variables not confirmed
+    * not-started: spec not uploaded
+  - Disable tab until spec upload completes
+  - Progress percentage: Include in completion calculation (now 6 tabs)
+```
 
 ---
 
-## 9) Open Items & Future Enhancements
-- Add IG-specific rules content and parser; enforce IG-based validations.
-- Extend to ADAE, ADLB with dataset-specific rules and MacroLogic.
-- RAG over `StandardDocuments` with semantic chunking to enrich prompts.
-- Containerization and cloud deployment; secret management (e.g., AWS Secrets Manager).
-- Optional: run-time code execution against sample SDTM (post-MVP) for deeper validation.
+### **PHASE 2: Enhanced Specification Workflow**
+
+#### **2.1 Specification Upload Enhancement**
+```typescript
+// Update: frontend/src/components/tabs/SpecificationUploadTab.tsx
+
+Post-Upload Flow:
+  1. Upload file → backend saves
+  2. Auto-trigger parse: POST /api/spec/parse
+  3. Display parse results:
+     - Variable count, dataset guess
+     - Parsing warnings (collapsible panel)
+  4. Auto-trigger categorization: POST /api/spec/categorize
+  5. Show preview: "Found 67 variables in 8 categories"
+  6. CTA: "Review Variables" → navigate to Variables Analysis tab
+
+Enhanced Validation:
+  - Check file has required columns before parse
+  - Show inline errors for missing columns
+  - Suggest column mappings if names don't match expected
+```
+
+#### **2.2 Variable Dependency Resolution**
+```python
+# File: backend/app/modules/variable_categorizer/dependency_resolver.py
+
+Purpose: Build dependency graph for variables
+Process:
+  1. Parse derivation logic from spec (extract variable names)
+  2. Identify dependencies (e.g., TRT01PN depends on TRT01P)
+  3. Topologically sort for execution order
+  4. Detect circular dependencies → error
+Output: {
+  execution_order: ["STUDYID", "USUBJID", "TRT01P", "TRT01PN", ...],
+  dependency_graph: {variable: [dependencies]},
+  circular_deps: [...]  # Should be empty
+}
+
+Integration:
+  - Called during categorization
+  - Exposed via GET /api/spec/{specId}/dependencies
+  - Used in code generation to order variable creation
+```
 
 ---
 
-## 10) Risks & Mitigations
-- Spec format variability → mapping UI and header autodetection.
-- Token/length limits → phase-by-phase generation and summarization.
-- Provider limits/errors → retry/backoff and resumable generation per phase.
-- Static validation limits → clearly label checks as best-effort; encourage manual review.
+### **PHASE 3: Progressive User Confirmation Flow**
+
+#### **3.1 Stage-Based Validation**
+```python
+# File: backend/app/modules/confirmation_tracker/progress_validator.py
+
+Stages:
+  1. Project Info: studyId, dataset type selected
+  2. Spec Upload: File uploaded and parsed successfully
+  3. Variables: Variables categorized and user-confirmed selection
+  4. Standards: SDTM/ADaM/MedDRA versions selected
+  5. Rules: Rule categories reviewed and enabled
+  6. Ready: All stages complete → enable generation
+
+Endpoint: GET /api/progress/validate
+Returns: {
+  overall_completion: 85,
+  stages: [
+    {name: "project", complete: true, percent: 100},
+    {name: "variables", complete: false, percent: 60, 
+     missing: ["User must confirm variable selection"]}
+  ],
+  can_generate: false,
+  blockers: ["Variables not confirmed"]
+}
+
+Frontend Use:
+  - Poll on tab change
+  - Update progress bar
+  - Show blockers in Generate tab if not ready
+```
+
+#### **3.2 Pre-Generation Summary Panel**
+```typescript
+// File: frontend/src/components/tabs/GenerateTab.tsx (enhance existing)
+
+Before Generate Button:
+  - Summary Section (collapsible cards):
+    * Dataset: ADSL
+    * Variables: 45 selected (with expandable list)
+    * Standards: SDTM v2.0, ADaM IG v1.3, MedDRA v27.0
+    * Rules: 12 enabled (grouped by category)
+    * Language: R
+  - Validation checklist:
+    ✓ All required variables present
+    ✓ No circular dependencies
+    ⚠ 2 optional variables skipped
+  - Estimated generation time: ~15 seconds
+  - CTA: "Confirm & Generate Code"
+
+Post-Generation:
+  - Keep existing right panel (code, validation, docs)
+  - Add: "Regenerate with Changes" button
+```
 
 ---
 
-## 11) Acceptance Criteria (MVP)
-- User uploads ADSL spec; confirms column mapping.
-- App categorizes variables and decodes families; highlights missing/unmatched.
-- Guided, rule-driven flow collects confirmations per category.
-- Generates coherent SAS and R programs in MacroLogic order.
-- Validation panel reports coverage and basic issues; user can edit code.
-- Final artifacts saved to timestamped folder and downloadable; session persisted.
+### **PHASE 4: Dataset-Specific Context Assembly**
+
+#### **4.1 Dataset Context Builder**
+```python
+# File: backend/app/modules/context_builder/dataset_context.py
+
+Purpose: Build dataset-specific context for LLM
+Process:
+  1. Identify dataset type (ADSL/ADAE/ADLB from user selection)
+  2. Load relevant rules from Context/ADAMRules/:
+     - ADSL: Load ADSL_MacroLogic.md, ADSL_IGSpecificRules.md, 
+             ADSL_ApplicationBehaviourRules.md
+     - ADAE/ADLB: Similar pattern (create files as needed)
+  3. Load input dataset requirements from ADSL_MacroLogic.md (DM, DS, EX, etc.)
+  4. Filter variables by dataset relevance (ADSL doesn't need lab vars)
+  5. Assemble context blocks:
+     - Variable naming rules (from ADAM_VariablenamingRules.md)
+     - IG-specific constraints
+     - Macro logic (derivation sequence)
+     - Standard references (SDTM/ADaM versions)
+
+Output: Structured context dict for prompt builder
+Integration: Called before prompt assembly in generate flow
+```
+
+#### **4.2 Rule Selector Service**
+```python
+# File: backend/app/modules/context_builder/rule_selector.py
+
+Purpose: Select applicable rules based on dataset and variables
+Process:
+  1. Load all rules from Context/ADAMRules/*.md
+  2. Filter by dataset type (some rules ADSL-only)
+  3. Filter by selected variables (no need for treatment rules if no TRT vars)
+  4. Prioritize enabled rules (from user selection in Rules tab)
+  5. Group by category: Naming, IG Compliance, Macro Logic, etc.
+
+Output: Filtered, prioritized rule set for prompt
+Benefits:
+  - Reduces prompt token count (only relevant rules)
+  - Improves generation quality (focused context)
+  - Enables dataset-specific rule libraries
+```
 
 ---
 
-## 12) Local Run (MVP) — High-Level
-- Prereqs: Node.js and Python 3; set `GOOGLE_API_KEY` and `MODEL=gemini-2.5-pro` in env.
-- Ensure folders exist (app will create if missing):
-  - `Content\UserInputs\ADAMSpecifications\`
-  - `Content\StandardDocuments\`
-  - `Content\Generated\ADSL\` and `Content\Logs\` and `Content\Sessions\`
-- Place sample spec in `Content\UserInputs\ADAMSpecifications\`.
-- Start backend (FastAPI + uvicorn) and frontend (React) in local dev mode.
+### **PHASE 5: Backend API Completion**
 
+#### **5.1 Core Endpoints (Summary)**
+```
+Existing (Enhance):
+  POST /api/spec/upload       → Add validation for column mapping
+  POST /api/spec/parse        → Add variable extraction and naming validation
+  GET  /api/rules/adam/adsl   → Add rule categorization and filtering
+
+New (Critical):
+  POST /api/spec/categorize   → Categorize variables using VariablesMapping.xlsx
+  GET  /api/spec/{id}/dependencies → Return dependency graph
+  GET  /api/progress/validate → Return stage completion and blockers
+  POST /api/generate/preview  → Dry-run generation (return summary, no LLM call)
+
+Existing (Keep):
+  POST /api/generate/code     → Main generation endpoint (add context assembly)
+  POST /api/validate/code     → Static validation (future)
+```
+
+#### **5.2 Enhanced Generate Endpoint**
+```python
+# Enhance: POST /api/generate/code
+
+New Flow:
+  1. Validate request (all stages complete via progress_validator)
+  2. Load specification and categorized variables
+  3. Build dataset-specific context (dataset_context.py)
+  4. Select applicable rules (rule_selector.py)
+  5. Resolve variable dependencies (dependency_resolver.py)
+  6. Assemble prompt (prompt_builder.py with enhanced templates)
+  7. Call LLM (Gemini 2.5 Flash with structured output)
+  8. Parse response (code + validation + derivation sequence)
+  9. Validate generated code structure (variable count, syntax check)
+  10. Return comprehensive response
+
+Enhanced Response:
+{
+  code: "...",  # R or SAS code
+  language: "R",
+  validation_results: {
+    syntax_valid: true,
+    variables_created: ["STUDYID", "USUBJID", ...],
+    missing_variables: [],
+    warnings: ["TRT01PN not used in derivations"]
+  },
+  derivation_sequence: [
+    {step: 1, variable: "STUDYID", source: "DM.STUDYID", logic: "Direct mapping"},
+    ...
+  ],
+  metadata: {
+    tokens_used: 4523,
+    generation_time_ms: 12450,
+    model: "gemini-2.5-flash",
+    rules_applied: ["Variable Naming", "ADSL Macro Logic"]
+  },
+  documentation: {
+    summary: "Generated ADSL with 45 variables...",
+    input_datasets: ["DM", "DS", "EX"],
+    assumptions: ["Treatment start date imputed from first EX record"],
+    limitations: ["Requires SDTM v2.0 compliance"]
+  }
+}
+```
+
+---
+
+### **PHASE 6: Frontend Polish & Integration**
+
+#### **6.1 Store Enhancements**
+```typescript
+// Update: frontend/src/store/projectStore.ts
+
+Add to ProjectStore:
+  // Variables Analysis
+  categorizedVariables: CategorizedVariable[] | null
+  selectedVariableNames: string[]
+  variableAnalysisComplete: boolean
+  dependencyGraph: {[variable: string]: string[]} | null
+  
+  // Progress Tracking
+  stageCompletions: {
+    project: boolean
+    specification: boolean
+    variables: boolean
+    standards: boolean
+    rules: boolean
+  }
+  
+  // Generation State
+  generationSummary: GenerationSummary | null
+  generationInProgress: boolean
+
+Actions:
+  setCategorizedVariables(vars: CategorizedVariable[])
+  toggleVariableSelection(name: string)
+  confirmVariableAnalysis()
+  loadDependencyGraph(graph: object)
+  updateStageCompletion(stage: string, complete: boolean)
+```
+
+#### **6.2 Completion Percentage Update**
+```typescript
+// Update calculation in projectStore.ts
+
+New Formula (6 tabs):
+  - Project Info: 15%
+  - Dataset Selection: 10%
+  - Specification Upload: 20%
+  - Variables Analysis: 20%  ← NEW
+  - Standards: 15%
+  - Rules: 20%
+
+Total = 100%
+Generation enabled at ≥ 80% (all except Rules optional)
+```
+
+#### **6.3 Visual Consistency**
+```css
+/* Ensure Variables Analysis Tab matches design system */
+
+Categories:
+  - Use existing FormBlock component
+  - Tab styling matches TabNavigation component
+  - Variable cards use card component styles
+  - Checkboxes use design tokens (--primary-600)
+
+Responsive:
+  - Grid layout for variable cards (3 cols desktop, 2 tablet, 1 mobile)
+  - Sticky category tabs on scroll
+  - Collapsible derivation previews
+```
+
+---
+
+### **PHASE 7: Testing & Validation**
+
+#### **7.1 Backend Tests**
+```python
+# Test Suite Structure
+
+Unit Tests:
+  - test_mapping_loader.py: VariablesMapping.xlsx parsing
+  - test_categorizer.py: Variable categorization logic
+  - test_dependency_resolver.py: Circular dependency detection
+  - test_dataset_context.py: Context assembly per dataset
+  - test_rule_selector.py: Rule filtering and prioritization
+
+Integration Tests:
+  - test_spec_flow.py: Upload → Parse → Categorize → Dependencies
+  - test_generate_flow.py: Full generation with mocked LLM
+  - test_validation_flow.py: Progress validation across stages
+
+Acceptance Tests:
+  - test_adsl_e2e.py: Full ADSL workflow with sample spec
+  - test_edge_cases.py: Missing vars, invalid specs, circular deps
+```
+
+#### **7.2 Frontend Tests**
+```typescript
+// Test Suite Structure
+
+Unit Tests:
+  - VariablesAnalysisTab.test.tsx: Component rendering, interactions
+  - projectStore.test.ts: Store actions and state updates
+  - categorization.test.ts: Variable selection logic
+
+Integration Tests:
+  - spec-upload-flow.test.tsx: Upload → categorize → confirm
+  - generation-flow.test.tsx: Complete workflow simulation
+  - tab-navigation.test.tsx: Tab enabling/disabling logic
+
+E2E Tests (Playwright):
+  - adsl-workflow.spec.ts: Full user journey from landing to generation
+  - variable-selection.spec.ts: Category navigation, search, selection
+```
+
+---
+
+### **PHASE 8: Documentation & User Guidance**
+
+#### **8.1 In-App Help**
+```typescript
+// Add contextual help throughout Variables Analysis
+
+Components:
+  - Tooltip on variable cards (explain type, source)
+  - Collapsible "What are these categories?" panel
+  - Inline help for required variables (why they're locked)
+  - Empty state guidance if no variables match spec
+
+Messages:
+  - "These variables are required by ADaM IG v1.3"
+  - "Dependencies: TRT01PN requires TRT01P to be selected"
+  - "Uncategorized: 3 variables don't match standard naming"
+```
+
+#### **8.2 Error Messaging**
+```typescript
+// Clear, actionable error messages
+
+Upload Errors:
+  ✗ "Column 'Variable' not found. Expected columns: Variable, Label, Type, Source"
+  → Action: "Download template" button
+
+Categorization Errors:
+  ⚠ "5 variables couldn't be categorized. They may use non-standard names."
+  → Action: Show list, allow manual category assignment
+
+Generation Blockers:
+  ✗ "Cannot generate: 3 required variables not selected"
+  → Action: Link to Variables Analysis tab with list highlighted
+```
+
+---
+
+## Implementation Timeline
+
+### **Sprint 1 (Week 1-2): Variables Analysis Foundation**
+- Backend: Mapping loader, categorization endpoint, dependency resolver
+- Frontend: Variables Analysis Tab component (basic version)
+- Testing: Unit tests for categorization logic
+- Milestone: Can upload spec and see categorized variables
+
+### **Sprint 2 (Week 3-4): Integration & Enhancement**
+- Backend: Enhanced spec parser, progress validator
+- Frontend: Tab navigation updates, store enhancements
+- Testing: Integration tests for full spec flow
+- Milestone: Complete workflow from upload to variable confirmation
+
+### **Sprint 3 (Week 5-6): Context Assembly & Generation**
+- Backend: Dataset context builder, rule selector, enhanced generate endpoint
+- Frontend: Pre-generation summary, improved Generate tab
+- Testing: E2E tests with mocked LLM
+- Milestone: Can generate code with proper context assembly
+
+### **Sprint 4 (Week 7-8): Polish, Testing & Documentation**
+- Backend: LLM integration (real Gemini calls), error handling
+- Frontend: Visual polish, accessibility audit, help content
+- Testing: Full E2E tests with real specs
+- Milestone: Production-ready ADSL generation
+
+---
+
+## Risk Mitigation
+
+### **Risk 1: VariablesMapping.xlsx Variability**
+**Impact:** High  
+**Mitigation:**
+- Version VariablesMapping.xlsx (include version field)
+- Provide mapping editor UI for admins (future)
+- Fallback: If variable not in mapping, show in "Other" category
+- Validation: Warn user of unmapped variables, allow manual assignment
+
+### **Risk 2: Complex Dependency Graphs**
+**Impact:** Medium  
+**Mitigation:**
+- Implement cycle detection with clear error messages
+- Visualize dependency graph (optional, future)
+- Allow user override of auto-detected dependencies
+- Fallback: Generate in spec order if dependency resolution fails
+
+### **Risk 3: LLM Output Variability**
+**Impact:** Medium  
+**Mitigation:**
+- Use structured output mode (JSON schema)
+- Post-process: Extract code blocks, validate structure
+- Retry logic: If output malformed, retry with stricter prompt
+- Fallback: Allow user to edit malformed code in UI
+
+### **Risk 4: Performance with Large Specs**
+**Impact:** Low  
+**Mitigation:**
+- Pagination: Show variables in batches (50 per page)
+- Lazy loading: Load categories on-demand
+- Backend caching: Cache parsed specs and categorizations
+- Progress indicators: Show parsing/categorization progress
+
+---
+
+## Success Metrics
+
+### **User Experience**
+- ✓ Users can understand variable categories intuitively
+- ✓ < 2 clicks to review all variables
+- ✓ Clear indication of progress (completion percentage)
+- ✓ Generation only possible when ready (no premature attempts)
+
+### **Technical**
+- ✓ Categorization: > 95% accuracy for standard variable names
+- ✓ Performance: Categorization completes in < 3 seconds
+- ✓ Robustness: Handle specs with up to 200 variables
+- ✓ Test coverage: > 80% for critical paths
+
+### **Business**
+- ✓ Generated ADSL code compiles without syntax errors
+- ✓ Variables created match specification (100% match)
+- ✓ Code follows naming conventions per ADAM_VariablenamingRules.md
+- ✓ No regressions in existing functionality
+
+---
+
+## Future Enhancements (Post-MVP)
+
+1. **Variable Mapping Editor**
+   - Admin UI to edit VariablesMapping.xlsx
+   - Version control for mapping changes
+   - A/B testing different categorizations
+
+2. **Dependency Visualization**
+   - Interactive graph showing variable dependencies
+   - Highlight critical path for derivation order
+   - Allow manual adjustment of execution order
+
+3. **Smart Categorization**
+   - ML model to suggest categories for unmapped variables
+   - Learn from user corrections
+   - Auto-update mapping from user patterns
+
+4. **Template Library**
+   - Pre-configured specs for common studies (Phase I, III, etc.)
+   - Variable set templates (Oncology, Cardiology, etc.)
+   - Quick-start workflows
+
+5. **Collaborative Features**
+   - Share specs and variable selections with team
+   - Comments on specific variables
+   - Approval workflow for generation
+
+---
+
+## Appendix: Key File Locations
+
+### **Context Files (Reference)**
+```
+Context/
+├── 0_MyRequirement_planner.md        # Original requirement (Variables Analysis)
+├── My_Initial_Plan.md                 # Original plan (missing Variables Analysis)
+├── My_Revised_Plan.md                 # This document
+├── ADAMRules/
+│   ├── ADAM_VariablenamingRules.md   # Naming conventions
+│   ├── ADSL_ApplicationBehaviourRules.md # UI behavior rules
+│   ├── ADSL_MacroLogic.md            # Programming flow
+│   ├── ADSL_IGSpecificRules.md       # IG compliance rules
+│   └── VariablesMapping.xlsx          # ★ Critical: Variable categories
+└── ProjectArchitecture/
+    ├── ProjectArchitecture.md         # Overall design principles
+    └── ProjectRequirements.md         # Workflow and behavior spec
+```
+
+### **Frontend Files (Implementation)**
+```
+frontend/src/
+├── components/
+│   ├── LeftPanel.tsx                  # Update: Add Variables Analysis tab
+│   └── tabs/
+│       ├── SpecificationUploadTab.tsx # Enhance: Trigger categorization
+│       ├── VariablesAnalysisTab.tsx   # ★ NEW: Main Variables Analysis UI
+│       ├── GenerateTab.tsx            # Enhance: Add summary panel
+│       └── VariablesTab.tsx           # ★ Replace with dynamic loading
+└── store/
+    └── projectStore.ts                # Update: Add variables state
+```
+
+### **Backend Files (Implementation)**
+```
+backend/app/
+├── api/v1/
+│   ├── specification.py               # Add: /categorize, /dependencies
+│   └── progress.py                    # ★ NEW: /validate endpoint
+└── modules/
+    ├── variable_categorizer/          # ★ NEW MODULE
+    │   ├── mapping_loader.py
+    │   ├── categorizer.py
+    │   └── dependency_resolver.py
+    ├── context_builder/               # Enhance existing
+    │   ├── dataset_context.py         # ★ NEW
+    │   └── rule_selector.py           # ★ NEW
+    └── confirmation_tracker/          # ★ NEW MODULE
+        └── progress_validator.py
+```
+
+---
+
+## Clarifications Needed (Before Implementation)
+
+Please confirm or clarify the following before implementation begins:
+
+### **1. VariablesMapping.xlsx Structure**
+**Question:** What is the exact structure of VariablesMapping.xlsx?
+- Column names: Category, Variable, Group, Priority, Description?
+- How many categories are defined?
+- Are there multiple sheets (one per dataset type)?
+
+**Action Required:** Please share the file or describe its structure.
+
+### **2. Variable Selection Behavior**
+**Question:** For variables in the spec but not in VariablesMapping.xlsx:
+- Should they appear in an "Uncategorized" category?
+- Should user be allowed to manually assign category?
+- Should generation be blocked if uncategorized variables exist?
+
+**Assumption (if no answer):** Show in "Other" category, allow generation with warning.
+
+### **3. Dependency Detection Logic**
+**Question:** How should dependencies be detected?
+- Parse derivation logic column for variable names?
+- Use explicit "Dependencies" column in spec?
+- Rely on VariablesMapping.xlsx for known dependencies?
+
+**Assumption (if no answer):** Parse derivation logic column using regex to extract variable names.
+
+### **4. Multiple Dataset Support Timeline**
+**Question:** When should ADAE and ADLB support be added?
+- In same sprint as ADSL?
+- In future phases?
+
+**Assumption (if no answer):** ADSL-only for Sprint 1-4, ADAE/ADLB in Phase 2 (Sprints 5-8).
+
+### **5. Variable Card Detail Level**
+**Question:** How much information should each variable card show?
+- Minimal: Name, Label, Type
+- Medium: + Source, Required flag
+- Detailed: + Derivation logic preview, Dependencies
+
+**Assumption (if no answer):** Medium level by default, derivation logic in collapsible section.
+
+---
+
+## Conclusion
+
+This revised plan addresses all critical gaps identified in the initial plan:
+
+✓ **Variables Analysis Page** – Full specification with tabbed UI  
+✓ **VariablesMapping.xlsx Integration** – Backend service and endpoint  
+✓ **Progressive Confirmation** – Stage-based validation and blockers  
+✓ **Dataset-Specific Context** – Enhanced context assembly and rule selection  
+✓ **Dependency Resolution** – Graph building and topological sorting  
+
+The plan is structured for incremental delivery, with each sprint producing a testable milestone. All components are aligned with:
+- ADSL_ApplicationBehaviourRules.md (categorized variable display)
+- ProjectRequirements.md (stage-based workflow)
+- ProjectArchitecture.md (domain-focused, user-friendly design)
+
+**Next Step:** Await clarifications on the 5 questions above, then proceed with Sprint 1 implementation.

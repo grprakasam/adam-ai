@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill /F /PID 44900)",
+      "Bash(taskkill /F /PID 37416)",
+      "Bash(Stop-Process -Id 44900 -Force)",
+      "Bash(Stop-Process -Id 37416 -Force)",
+      "Bash(taskkill //F //PID 44900)",
+      "Bash(taskkill //F //PID 37416)",
+      "Bash(..\\prakenv\\Scripts\\python.exe:*)",
+      "Bash(timeout:*)",
+      "Bash(../prakenv/Scripts/python.exe:*)",
+      "Bash(python -c:*)",
+      "Bash(Get-Process -Id 44900 -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Id, ProcessName)",
+      "Bash(backend/app/api/v1/endpoints/specification.py)",
+      "Bash(wmic process:*)",
+      "Bash(npm run dev:*)",
+      "Bash(start http://localhost:5173)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

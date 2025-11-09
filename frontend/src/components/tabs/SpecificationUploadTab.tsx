@@ -7,6 +7,7 @@ import './SpecificationUploadTab.css';
 const SpecificationUploadTab: React.FC = () => {
   const specificationFile = useProjectStore((state) => state.specificationFile);
   const setSpecificationFile = useProjectStore((state) => state.setSpecificationFile);
+  const setTempSpecFile = useProjectStore((state) => state.setTempSpecFile);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBrowseClick = () => {
@@ -30,6 +31,8 @@ const SpecificationUploadTab: React.FC = () => {
           size: file.size,
           uploadedAt: new Date().toISOString(),
         });
+        // Store the transient file blob for later upload during analysis
+        setTempSpecFile(file);
       } else {
         alert('Please select a valid Excel file (.xlsx or .xls)');
       }
@@ -41,8 +44,8 @@ const SpecificationUploadTab: React.FC = () => {
     if (!specificationFile) {
       // Default to specification file in Content\UserInputs
       setSpecificationFile({
-        name: 'ADSL_Specification.xlsx',
-        path: 'Content\\UserInputs\\ADAMSpecifications\\ADSL_Specification.xlsx',
+        name: 'ADSLSpec.xlsx',
+        path: 'Content\\UserInputs\\ADAMSpecifications\\ADSLSpec.xlsx',
         size: 0,
         uploadedAt: new Date().toISOString(),
         isDefault: true,

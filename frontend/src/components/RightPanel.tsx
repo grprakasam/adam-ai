@@ -1,27 +1,40 @@
-import { Card, Button, Space, Empty } from 'antd';
+import { Card, Button, Space, Empty, Spin } from 'antd';
 import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
+import { useProjectStore } from '../store/projectStore';
+import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import './RightPanel.css';
 
 interface RightPanelProps {
   generationResult: GenerationResponse | null;
   language: ProgrammingLanguage;
+  activeTab: string;
 }
 
-const RightPanel = ({ generationResult, language }: RightPanelProps) => {
+const RightPanel = ({ generationResult, language, activeTab }: RightPanelProps) => {
+
+  // Show Variables Analysis Tab in main panel when that tab is active
+  if (activeTab === 'variables') {
+    return (
+      <div className="right-panel">
+        <VariablesAnalysisTab />
+      </div>
+    );
+  }
+
   if (!generationResult) {
     return (
       <div className="right-panel">
         <Card className="empty-state">
-          <Empty 
+          <Empty
             description={
               <div style={{ color: '#6b7280' }}>
                 <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px' }}>
                   No code generated yet
                 </div>
                 <div style={{ fontSize: '13px' }}>
-                  Configure your study settings and click "Generate ADSL Code" to begin
+                  Configure your study settings and click "Get Started" to begin
                 </div>
               </div>
             }
@@ -150,4 +163,3 @@ const MetricCard = ({ label, value }: { label: string; value: string }) => (
 );
 
 export default RightPanel;
-
