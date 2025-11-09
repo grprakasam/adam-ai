@@ -1,0 +1,49 @@
+/* Progress Indicator Styles */
+
+.progress-indicator {
+  padding: var(--space-5) var(--space-6);
+  background: white;
+  border-top: var(--border-width) solid var(--border-color);
+}
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.progress-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--gray-700);
+}
+
+.progress-icon {
+  flex-shrink: 0;
+}
+
+.progress-icon.success {
+  color: var(--success-600);
+}
+
+.progress-icon.warning {
+  color: var(--warning-600);
+}
+
+.progress-icon.neutral {
+  color: var(--gray-400);
+}
+
+.progress-percentage {
+  font-size: var(--text-base);
+  font-weight: var(--font-bold);
+  color: var(--primary-600);
+}
+
+.progress-percentage.complete {
+  color: var(--success-600);
+}

@@ -1,0 +1,7 @@
+/* TextField Styles */
+
+.text-field {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}

@@ -1,102 +1,86 @@
 import { useState } from 'react';
-import { Tabs, Button } from 'antd';
+import { TabNavigation, Tab } from './TabNavigation';
 import ProjectConfigTab from './tabs/ProjectConfigTab';
-import SetupTab from './tabs/SetupTab';
-import DatasetsTab from './tabs/DatasetsTab';
-import VariablesTab from './tabs/VariablesTab';
+import StandardsTab from './tabs/StandardsTab';
+import DataTab from './tabs/DataTab';
 import RulesTab from './tabs/RulesTab';
-import type { StudyMetadata, GenerationOptions, ProjectConfiguration } from '../types';
+import GenerateTab from './tabs/GenerateTab';
+import ProgressIndicator from './ProgressIndicator';
+import { useProjectStore } from '../store/projectStore';
 import './LeftPanel.css';
 
 interface LeftPanelProps {
-  projectConfig: ProjectConfiguration;
-  studyMetadata: StudyMetadata;
-  selectedDatasets: string[];
-  selectedVariables: string[];
-  generationOptions: GenerationOptions;
-  onProjectConfigChange: (config: ProjectConfiguration) => void;
-  onStudyMetadataChange: (metadata: StudyMetadata) => void;
-  onDatasetsChange: (datasets: string[]) => void;
-  onVariablesChange: (variables: string[]) => void;
-  onOptionsChange: (options: GenerationOptions) => void;
-  onGenerate: () => void;
-  isGenerating: boolean;
+  onGenerate: () => Promise<void>;
 }
 
-const LeftPanel = (props: LeftPanelProps) => {
+const LeftPanel = ({ onGenerate }: LeftPanelProps) => {
   const [activeTab, setActiveTab] = useState('project');
 
-  const tabItems = [
+  // Fixed: Use separate selectors instead of creating new object on every render
+  const selectedDatasets = useProjectStore((state) => state.selectedDatasets);
+  const selectedVariables = useProjectStore((state) => state.selectedVariables);
+  const getTabStatus = useProjectStore((state) => state.getTabStatus);
+  const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
+
+  const tabs: Tab[] = [
     {
       key: 'project',
-      label: 'Project Config',
-      children: (
-        <ProjectConfigTab
-          projectConfig={props.projectConfig}
-          onConfigChange={props.onProjectConfigChange}
-        />
-      ),
+      label: 'Project',
+      status: getTabStatus('project'),
     },
     {
-      key: 'setup',
-      label: 'Setup',
-      children: (
-        <SetupTab
-          studyMetadata={props.studyMetadata}
-          generationOptions={props.generationOptions}
-          onStudyMetadataChange={props.onStudyMetadataChange}
-          onOptionsChange={props.onOptionsChange}
-        />
-      ),
+      key: 'standards',
+      label: 'Standards',
+      status: getTabStatus('standards'),
     },
     {
-      key: 'datasets',
-      label: 'Datasets',
-      children: (
-        <DatasetsTab
-          selectedDatasets={props.selectedDatasets}
-          onDatasetsChange={props.onDatasetsChange}
-        />
-      ),
-    },
-    {
-      key: 'variables',
-      label: 'Variables',
-      children: (
-        <VariablesTab
-          selectedVariables={props.selectedVariables}
-          onVariablesChange={props.onVariablesChange}
-        />
-      ),
+      key: 'data',
+      label: 'Data',
+      // No count - SDTM datasets are no longer tracked
+      status: getTabStatus('data'),
     },
     {
       key: 'rules',
       label: 'Rules',
-      children: <RulesTab />,
+      status: getTabStatus('rules'),
+    },
+    {
+      key: 'generate',
+      label: 'Generate',
+      status: getTabStatus('generate'),
     },
   ];
 
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'project':
+        return <ProjectConfigTab />;
+      case 'standards':
+        return <StandardsTab />;
+      case 'data':
+        return <DataTab />;
+      case 'rules':
+        return <RulesTab />;
+      case 'generate':
+        return <GenerateTab onGenerate={onGenerate} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="left-panel">
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-        className="config-tabs"
+      <TabNavigation
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
       
-      <div className="generate-button-container">
-        <Button
-          type="primary"
-          size="large"
-          onClick={props.onGenerate}
-          loading={props.isGenerating}
-          className="generate-button"
-          block
-        >
-          ✨ Generate ADSL Code
-        </Button>
+      <div className="tab-panel" role="tabpanel" id={`panel-${activeTab}`}>
+        {renderTabContent()}
       </div>
+      
+      <ProgressIndicator percentage={getCompletionPercentage()} />
     </div>
   );
 };

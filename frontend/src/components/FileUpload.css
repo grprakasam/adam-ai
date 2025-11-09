@@ -1,0 +1,140 @@
+/* FileUpload Styles */
+
+.file-upload-field {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.file-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 160px;
+  padding: var(--space-6);
+  background: white;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.file-upload-zone:hover {
+  border-color: var(--primary-400);
+  background: var(--primary-50);
+}
+
+.file-upload-zone.dragging {
+  border-color: var(--primary-600);
+  background: var(--primary-100);
+}
+
+.file-upload-zone:focus {
+  outline: none;
+  border-color: var(--primary-600);
+  box-shadow: var(--shadow-focus);
+}
+
+.upload-icon {
+  color: var(--gray-400);
+  transition: color var(--transition-base);
+}
+
+.file-upload-zone:hover .upload-icon,
+.file-upload-zone.dragging .upload-icon {
+  color: var(--primary-600);
+}
+
+.upload-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.upload-primary {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--primary-600);
+}
+
+.upload-secondary {
+  font-size: var(--text-sm);
+  color: var(--gray-500);
+}
+
+.upload-meta {
+  font-size: var(--text-xs);
+  color: var(--gray-400);
+}
+
+.file-input {
+  display: none;
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--gray-50);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.file-icon {
+  color: var(--primary-600);
+  flex-shrink: 0;
+}
+
+.file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.file-name {
+  font-size: var(--text-sm);
+  color: var(--gray-900);
+  font-weight: var(--font-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-size {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+}
+
+.file-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--gray-400);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.file-remove:hover {
+  background: var(--error-100);
+  color: var(--error-600);
+}
