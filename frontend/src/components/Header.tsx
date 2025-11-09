@@ -1,5 +1,5 @@
 import { Select, Button, Space, Tag } from 'antd';
-import { SettingOutlined, BarChartOutlined, UserOutlined } from '@ant-design/icons';
+import { SettingOutlined, BarChartOutlined, UserOutlined, HomeOutlined } from '@ant-design/icons';
 import type { ProgrammingLanguage, LLMProvider } from '../types';
 import './Header.css';
 import { useEffect, useState } from 'react';
@@ -10,9 +10,16 @@ interface HeaderProps {
   llmProvider: LLMProvider;
   onLanguageChange: (language: ProgrammingLanguage) => void;
   onLlmProviderChange: (provider: LLMProvider) => void;
+  onBackToLanding?: () => void;
 }
 
-const Header = ({ language, llmProvider, onLanguageChange, onLlmProviderChange }: HeaderProps) => {
+const Header = ({
+  language,
+  llmProvider,
+  onLanguageChange,
+  onLlmProviderChange,
+  onBackToLanding
+}: HeaderProps) => {
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState<string | null>(null);
 
@@ -34,7 +41,19 @@ const Header = ({ language, llmProvider, onLanguageChange, onLlmProviderChange }
 
   return (
     <div className="header">
-      <div className="header-title">ADAM AI Code Generator</div>
+      <div className="header-left">
+        {onBackToLanding && (
+          <Button
+            className="back-button"
+            icon={<HomeOutlined />}
+            onClick={onBackToLanding}
+            size="middle"
+          >
+            Back to Landing
+          </Button>
+        )}
+        <div className="header-title">ADAM AI Code Generator</div>
+      </div>
       
       <Space size="middle" className="header-controls">
         {activeProvider && activeModel && (

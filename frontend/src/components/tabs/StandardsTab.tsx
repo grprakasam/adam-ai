@@ -74,25 +74,8 @@ const StandardsTab: React.FC = () => {
         />
       </FormBlock>
 
-      <div className="standards-info">
-        <div className="info-card">
-          <h4>Version Compatibility</h4>
-          <p>
-            The selected SDTM and ADaM versions must be compatible. ADaM v1.3 is compatible with 
-            SDTM v2.0 and v1.7. Ensure your selection aligns with regulatory submission requirements.
-          </p>
-        </div>
-        <div className="info-card">
-          <h4>Standards Updates</h4>
-          <p>
-            CDISC regularly publishes updated versions. Using the latest versions is recommended 
-            for new studies, but existing studies should maintain consistency throughout.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };
 
 export default StandardsTab;
-

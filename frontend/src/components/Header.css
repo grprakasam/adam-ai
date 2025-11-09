@@ -9,10 +9,32 @@
   z-index: 100;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header-title {
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.5px;
+}
+
+.back-button {
+  background: white !important;
+  color: #4f46e5 !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.back-button:hover {
+  color: #312e81 !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
 }
 
 .header-controls {

@@ -6,31 +6,3 @@
   gap: var(--space-6);
 }
 
-.standards-info {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
-}
-
-.info-card {
-  padding: var(--space-5);
-  background: var(--info-50);
-  border: var(--border-width) solid var(--info-500);
-  border-left: 4px solid var(--info-500);
-  border-radius: var(--radius-md);
-}
-
-.info-card h4 {
-  margin: 0 0 var(--space-3) 0;
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--info-600);
-}
-
-.info-card p {
-  margin: 0;
-  font-size: var(--text-sm);
-  color: var(--gray-700);
-  line-height: var(--leading-relaxed);
-}

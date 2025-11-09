@@ -10,6 +10,14 @@ export interface Rule {
   predefined?: boolean;
 }
 
+export interface SpecificationFile {
+  name: string;
+  path: string;
+  size: number;
+  uploadedAt: string;
+  isDefault?: boolean;
+}
+
 interface ProjectStore {
   // Project Configuration
   projectConfig: ProjectConfiguration;
@@ -25,17 +33,15 @@ interface ProjectStore {
   medraVersion: string;
   setStandards: (standards: { sdtmVersion?: string; adamIgVersion?: string; medraVersion?: string }) => void;
 
-  // Data Selection
-  selectedDatasets: string[];
-  selectedVariables: string[];
-  setDatasets: (datasets: string[]) => void;
-  setVariables: (variables: string[]) => void;
-
   // Rules
   rules: Rule[];
   addRule: (rule: Rule) => void;
   updateRule: (id: string, updates: Partial<Rule>) => void;
   deleteRule: (id: string) => void;
+
+  // Specification File
+  specificationFile: SpecificationFile | null;
+  setSpecificationFile: (file: SpecificationFile | null) => void;
 
   // Generation Options
   generationOptions: GenerationOptions;
@@ -64,6 +70,7 @@ const initialState = {
     sdtmVersion: 'SDTM v2.0',
     adamIgVersion: 'ADaM IG v1.3',
     medraVersion: 'MedDRA v27.0',
+    adamDataset: '', // ADSL, ADAE, ADLB
   },
   studyMetadata: {
     studyId: '',
@@ -74,9 +81,8 @@ const initialState = {
   sdtmVersion: 'SDTM v2.0',
   adamIgVersion: 'ADaM IG v1.3',
   medraVersion: 'MedDRA v27.0',
-  selectedDatasets: [],
-  selectedVariables: [],
   rules: [],
+  specificationFile: null,
   generationOptions: {
     includeComments: 'comprehensive' as const,
     codeStyle: 'standard' as const,
@@ -107,10 +113,6 @@ export const useProjectStore = create<ProjectStore>()(
           medraVersion: standards.medraVersion || state.medraVersion,
         })),
 
-      setDatasets: (datasets) => set({ selectedDatasets: datasets }),
-
-      setVariables: (variables) => set({ selectedVariables: variables }),
-
       addRule: (rule) =>
         set((state) => ({
           rules: [...state.rules, rule],
@@ -128,6 +130,9 @@ export const useProjectStore = create<ProjectStore>()(
           rules: state.rules.filter((rule) => rule.id !== id),
         })),
 
+      setSpecificationFile: (file) =>
+        set({ specificationFile: file }),
+
       setGenerationOptions: (options) =>
         set((state) => ({
           generationOptions: { ...state.generationOptions, ...options },
@@ -138,18 +143,24 @@ export const useProjectStore = create<ProjectStore>()(
       getCompletionPercentage: () => {
         const state = get();
         let completed = 0;
-        let total = 3; // Reduced from 5: Project Config, Standards, Rules only
+        let total = 5; // Project Config, Dataset, Specification, Standards, Rules
 
-        // Check project config (33.33%)
-        if (
-          state.projectConfig.studyId &&
-          state.projectConfig.protocolNumber &&
-          state.projectConfig.sponsor
-        ) {
+        // Check project config (20%)
+        if (state.projectConfig.studyId) {
           completed += 1;
         }
 
-        // Check standards (33.33%)
+        // Check dataset selection (20%)
+        if (state.projectConfig.adamDataset) {
+          completed += 1;
+        }
+
+        // Check specification upload (20%)
+        if (state.specificationFile) {
+          completed += 1;
+        }
+
+        // Check standards (20%)
         if (
           state.sdtmVersion &&
           state.adamIgVersion &&
@@ -158,12 +169,10 @@ export const useProjectStore = create<ProjectStore>()(
           completed += 1;
         }
 
-        // Check rules (33.33%)
+        // Check rules (20%)
         if (state.rules.length > 0) {
           completed += 1;
         }
-
-        // SDTM datasets and variables are NO LONGER required for completion
 
         return Math.round((completed / total) * 100);
       },
@@ -173,15 +182,23 @@ export const useProjectStore = create<ProjectStore>()(
 
         switch (tabKey) {
           case 'project':
-            if (
-              state.projectConfig.studyId &&
-              state.projectConfig.protocolNumber &&
-              state.projectConfig.sponsor
-            ) {
+            // Only Study ID is required
+            if (state.projectConfig.studyId) {
               return 'complete';
             }
-            if (state.projectConfig.studyId || state.projectConfig.protocolNumber) {
-              return 'incomplete';
+            return 'not-started';
+
+          case 'dataset':
+            // Check if ADAM dataset is selected
+            if (state.projectConfig.adamDataset) {
+              return 'complete';
+            }
+            return 'not-started';
+
+          case 'specification':
+            // Check if specification file is uploaded
+            if (state.specificationFile) {
+              return 'complete';
             }
             return 'not-started';
 
@@ -190,10 +207,6 @@ export const useProjectStore = create<ProjectStore>()(
               return 'complete';
             }
             return 'incomplete';
-
-          case 'data':
-            // Data tab is now OPTIONAL - always show as complete/info-only
-            return 'complete';
 
           case 'rules':
             if (state.rules.length > 0) {

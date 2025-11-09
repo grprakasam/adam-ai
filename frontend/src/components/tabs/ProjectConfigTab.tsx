@@ -51,7 +51,6 @@ const ProjectConfigTab: React.FC = () => {
           value={projectConfig.protocolNumber}
           onChange={(value) => setProjectConfig({ protocolNumber: value })}
           placeholder="e.g., PROTO-2024-001"
-          required
           helpText="Official protocol document number"
         />
         <TextField
@@ -59,7 +58,6 @@ const ProjectConfigTab: React.FC = () => {
           value={projectConfig.sponsor}
           onChange={(value) => setProjectConfig({ sponsor: value })}
           placeholder="e.g., Pharma Corporation"
-          required
           helpText="Organization sponsoring the study"
         />
       </FormBlock>
@@ -74,7 +72,6 @@ const ProjectConfigTab: React.FC = () => {
           options={therapeuticAreas}
           onChange={(value) => setProjectConfig({ therapeuticArea: value })}
           placeholder="Select therapeutic area"
-          required
           helpText="Primary disease or condition being studied"
         />
         <SelectField
@@ -83,7 +80,6 @@ const ProjectConfigTab: React.FC = () => {
           options={studyPhases}
           onChange={(value) => setProjectConfig({ studyPhase: value })}
           placeholder="Select study phase"
-          required
           helpText="Clinical development phase"
         />
         <SelectField
@@ -91,7 +87,6 @@ const ProjectConfigTab: React.FC = () => {
           value={projectConfig.programmingLanguage}
           options={programmingLanguages}
           onChange={(value) => setProjectConfig({ programmingLanguage: value })}
-          required
           helpText="Language for generated code"
         />
       </FormBlock>

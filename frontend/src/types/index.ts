@@ -28,6 +28,7 @@ export interface ProjectConfiguration {
   adamIgVersion: string;
   medraVersion: string;
   programmingLanguage: string;
+  adamDataset?: string; // ADSL, ADAE, ADLB
 }
 
 export interface SDTMDataset {

@@ -1,10 +1,11 @@
 import React from 'react';
-import { 
-  FolderKanban, 
-  Database, 
-  FileSpreadsheet, 
-  FileCode, 
-  Play 
+import {
+  FolderKanban,
+  Database,
+  FileCode,
+  Play,
+  LayoutGrid,
+  FileText
 } from 'lucide-react';
 import './TabNavigation.css';
 
@@ -31,8 +32,9 @@ const statusConfig = {
 
 const defaultIcons: Record<string, React.ReactNode> = {
   project: <FolderKanban size={20} />,
+  dataset: <LayoutGrid size={20} />,
+  specification: <FileText size={20} />,
   standards: <Database size={20} />,
-  data: <FileSpreadsheet size={20} />,
   rules: <FileCode size={20} />,
   generate: <Play size={20} />,
 };
@@ -97,4 +99,3 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
     </nav>
   );
 };
-

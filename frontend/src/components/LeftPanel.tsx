@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { Play } from 'lucide-react';
 import { TabNavigation, Tab } from './TabNavigation';
 import ProjectConfigTab from './tabs/ProjectConfigTab';
+import DatasetSelectionTab from './tabs/DatasetSelectionTab';
+import SpecificationUploadTab from './tabs/SpecificationUploadTab';
 import StandardsTab from './tabs/StandardsTab';
-import DataTab from './tabs/DataTab';
 import RulesTab from './tabs/RulesTab';
-import GenerateTab from './tabs/GenerateTab';
-import ProgressIndicator from './ProgressIndicator';
 import { useProjectStore } from '../store/projectStore';
 import './LeftPanel.css';
 
@@ -17,37 +17,37 @@ const LeftPanel = ({ onGenerate }: LeftPanelProps) => {
   const [activeTab, setActiveTab] = useState('project');
 
   // Fixed: Use separate selectors instead of creating new object on every render
-  const selectedDatasets = useProjectStore((state) => state.selectedDatasets);
-  const selectedVariables = useProjectStore((state) => state.selectedVariables);
   const getTabStatus = useProjectStore((state) => state.getTabStatus);
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
+  const isGenerating = useProjectStore((state) => state.isGenerating);
+  const completionPercentage = getCompletionPercentage();
+  const isReadyToGenerate = completionPercentage >= 80;
 
   const tabs: Tab[] = [
     {
       key: 'project',
-      label: 'Project',
+      label: 'Project Information',
       status: getTabStatus('project'),
     },
     {
+      key: 'specification',
+      label: 'ADAM Specification',
+      status: getTabStatus('specification'),
+    },
+    {
       key: 'standards',
-      label: 'Standards',
+      label: 'Select Standards Version',
       status: getTabStatus('standards'),
     },
     {
-      key: 'data',
-      label: 'Data',
-      // No count - SDTM datasets are no longer tracked
-      status: getTabStatus('data'),
-    },
-    {
       key: 'rules',
-      label: 'Rules',
+      label: 'Congire Rules',
       status: getTabStatus('rules'),
     },
     {
-      key: 'generate',
-      label: 'Generate',
-      status: getTabStatus('generate'),
+      key: 'dataset',
+      label: 'Enter ADAM Dataset Name',
+      status: getTabStatus('dataset'),
     },
   ];
 
@@ -55,14 +55,14 @@ const LeftPanel = ({ onGenerate }: LeftPanelProps) => {
     switch (activeTab) {
       case 'project':
         return <ProjectConfigTab />;
+      case 'dataset':
+        return <DatasetSelectionTab />;
+      case 'specification':
+        return <SpecificationUploadTab />;
       case 'standards':
         return <StandardsTab />;
-      case 'data':
-        return <DataTab />;
       case 'rules':
         return <RulesTab />;
-      case 'generate':
-        return <GenerateTab onGenerate={onGenerate} />;
       default:
         return null;
     }
@@ -80,7 +80,34 @@ const LeftPanel = ({ onGenerate }: LeftPanelProps) => {
         {renderTabContent()}
       </div>
       
-      <ProgressIndicator percentage={getCompletionPercentage()} />
+      <div className="generate-cta">
+        <div className="generate-meta">
+          <span className={`generate-status ${isReadyToGenerate ? 'ready' : ''}`}>
+            {isReadyToGenerate ? 'Configuration complete' : 'Configuration progress'}
+          </span>
+          <span className={`generate-percentage ${isReadyToGenerate ? 'ready' : ''}`}>
+            {completionPercentage}%
+          </span>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-lg generate-button"
+          onClick={() => {
+            if (!isReadyToGenerate || isGenerating) return;
+            void onGenerate();
+          }}
+          disabled={!isReadyToGenerate || isGenerating}
+        >
+          <Play size={18} />
+          {isGenerating ? 'Generating...' : 'Get Started'}
+        </button>
+        {!isReadyToGenerate && (
+          <p className="generate-hint">
+            Complete all required tabs (Project Information, ADAM Specification, Select Standards Version, Congire Rules, Enter ADAM Dataset Name) to unlock code generation.
+          </p>
+        )}
+      </div>
+      
     </div>
   );
 };

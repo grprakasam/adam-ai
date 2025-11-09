@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Plus, FileCode, Trash2, Check, X } from 'lucide-react';
 import { FormBlock } from '../FormBlock';
 import { useProjectStore, Rule } from '../../store/projectStore';
@@ -7,44 +7,11 @@ import './RulesTab.css';
 const RulesTab: React.FC = () => {
   const rules = useProjectStore((state) => state.rules);
   const addRule = useProjectStore((state) => state.addRule);
-  const updateRule = useProjectStore((state) => state.updateRule);
   const deleteRule = useProjectStore((state) => state.deleteRule);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newRuleName, setNewRuleName] = useState('');
   const [newRuleDescription, setNewRuleDescription] = useState('');
-
-  // Predefined ADAM rules loaded from Context/ADAMRules
-  const predefinedRules: Rule[] = [
-    {
-      id: 'adsl-app-behaviour',
-      name: 'ADSL Application Behaviour Rules',
-      description: 'Rules for ADSL dataset structure, mandatory variables, and standard derivations as per CDISC ADAM IG.',
-      enabled: true,
-      predefined: true,
-    },
-    {
-      id: 'adsl-ig-specific',
-      name: 'ADSL IG-Specific Rules',
-      description: 'Implementation Guide specific requirements for ADSL including naming conventions, formats, and metadata.',
-      enabled: true,
-      predefined: true,
-    },
-    {
-      id: 'adsl-macro-logic',
-      name: 'ADSL Macro Logic',
-      description: 'Reusable logic patterns for common ADSL derivations including treatment assignment, population flags, and date imputations.',
-      enabled: true,
-      predefined: true,
-    },
-  ];
-
-  // Load predefined rules if not already in store
-  React.useEffect(() => {
-    if (rules.length === 0) {
-      predefinedRules.forEach((rule) => addRule(rule));
-    }
-  }, []);
 
   const handleAddCustomRule = () => {
     if (newRuleName.trim() && newRuleDescription.trim()) {
@@ -63,33 +30,12 @@ const RulesTab: React.FC = () => {
   };
 
   const customRules = rules.filter((r) => !r.predefined);
-  const activeRules = rules.filter((r) => r.predefined);
 
   return (
     <div className="rules-tab">
       <FormBlock
-        title="CDISC ADAM Derivation Rules"
-        description="Predefined rules loaded from ADAM Implementation Guide"
-      >
-        <div className="rules-list">
-          {activeRules.map((rule) => (
-            <div key={rule.id} className="rule-item predefined">
-              <div className="rule-header">
-                <FileCode size={16} className="rule-icon" />
-                <div className="rule-content">
-                  <div className="rule-name">{rule.name}</div>
-                  <div className="rule-description">{rule.description}</div>
-                </div>
-                <div className="rule-badge">Active</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </FormBlock>
-
-      <FormBlock
         title="Custom Derivation Rules"
-        description="Add your own project-specific derivation logic"
+        description="Add project-specific or derived logic that complements the CDISC baseline"
       >
         {customRules.length > 0 && (
           <div className="rules-list">
@@ -173,13 +119,11 @@ const RulesTab: React.FC = () => {
 
       <div className="rules-summary">
         <div className="summary-card">
-          <h4>📋 Rules Summary</h4>
-          <p>
-            <strong>{activeRules.length}</strong> predefined ADAM rules active
-          </p>
+          <h4>Rules Summary</h4>
           <p>
             <strong>{customRules.length}</strong> custom rule{customRules.length !== 1 ? 's' : ''} defined
           </p>
+          <p>Custom rules complement CDISC guidance and can be added or removed per project needs.</p>
         </div>
       </div>
     </div>
