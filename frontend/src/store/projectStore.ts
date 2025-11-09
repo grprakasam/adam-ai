@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ProjectConfiguration, StudyMetadata, GenerationOptions } from '../types';
+import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult } from '../types';
 
 export interface Rule {
   id: string;
@@ -43,6 +43,16 @@ interface ProjectStore {
   specificationFile: SpecificationFile | null;
   setSpecificationFile: (file: SpecificationFile | null) => void;
 
+  // Transient spec file blob (not persisted)
+  tempSpecFile: File | null;
+  setTempSpecFile: (file: File | null) => void;
+
+  // Categorized Variables
+  categorizedVariables: CategorizationResult | null;
+  setCategorizedVariables: (result: CategorizationResult | null) => void;
+  isCategorizingVariables: boolean;
+  setIsCategorizingVariables: (categorizing: boolean) => void;
+
   // Generation Options
   generationOptions: GenerationOptions;
   setGenerationOptions: (options: Partial<GenerationOptions>) => void;
@@ -83,6 +93,9 @@ const initialState = {
   medraVersion: 'MedDRA v27.0',
   rules: [],
   specificationFile: null,
+  tempSpecFile: null,
+  categorizedVariables: null,
+  isCategorizingVariables: false,
   generationOptions: {
     includeComments: 'comprehensive' as const,
     codeStyle: 'standard' as const,
@@ -133,6 +146,14 @@ export const useProjectStore = create<ProjectStore>()(
       setSpecificationFile: (file) =>
         set({ specificationFile: file }),
 
+      setTempSpecFile: (file) => set({ tempSpecFile: file }),
+
+      setCategorizedVariables: (result) =>
+        set({ categorizedVariables: result }),
+
+      setIsCategorizingVariables: (categorizing) =>
+        set({ isCategorizingVariables: categorizing }),
+
       setGenerationOptions: (options) =>
         set((state) => ({
           generationOptions: { ...state.generationOptions, ...options },
@@ -143,24 +164,29 @@ export const useProjectStore = create<ProjectStore>()(
       getCompletionPercentage: () => {
         const state = get();
         let completed = 0;
-        let total = 5; // Project Config, Dataset, Specification, Standards, Rules
+        let total = 6; // Project Config, Dataset, Specification, Variables, Standards, Rules
 
-        // Check project config (20%)
+        // Check project config (16.67%)
         if (state.projectConfig.studyId) {
           completed += 1;
         }
 
-        // Check dataset selection (20%)
+        // Check dataset selection (16.67%)
         if (state.projectConfig.adamDataset) {
           completed += 1;
         }
 
-        // Check specification upload (20%)
+        // Check specification upload (16.67%)
         if (state.specificationFile) {
           completed += 1;
         }
 
-        // Check standards (20%)
+        // Check variables categorization (16.67%)
+        if (state.categorizedVariables && state.categorizedVariables.total_variables > 0) {
+          completed += 1;
+        }
+
+        // Check standards (16.67%)
         if (
           state.sdtmVersion &&
           state.adamIgVersion &&
@@ -169,7 +195,7 @@ export const useProjectStore = create<ProjectStore>()(
           completed += 1;
         }
 
-        // Check rules (20%)
+        // Check rules (16.67%)
         if (state.rules.length > 0) {
           completed += 1;
         }
@@ -199,6 +225,17 @@ export const useProjectStore = create<ProjectStore>()(
             // Check if specification file is uploaded
             if (state.specificationFile) {
               return 'complete';
+            }
+            return 'not-started';
+
+          case 'variables':
+            // Check if variables have been categorized
+            if (state.categorizedVariables && state.categorizedVariables.total_variables > 0) {
+              return 'complete';
+            }
+            // Show incomplete if spec is uploaded but not categorized yet
+            if (state.specificationFile) {
+              return 'incomplete';
             }
             return 'not-started';
 
@@ -233,7 +270,11 @@ export const useProjectStore = create<ProjectStore>()(
     }),
     {
       name: 'adam-ai-storage',
-      version: 1,
+      version: 2,
+      partialize: (state) => {
+        const { tempSpecFile, ...rest } = state as any;
+        return rest;
+      },
     }
   )
 );

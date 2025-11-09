@@ -47,6 +47,33 @@ export interface Variable {
   selected: boolean;
 }
 
+// Variable Categorization Types
+export interface VariableInfo {
+  name: string;
+  label?: string;
+  type?: string;
+  length?: string;
+  format?: string;
+  category: string;
+  derivation?: string;
+  is_required: boolean;
+}
+
+export interface VariableCategory {
+  name: string;
+  description?: string;
+  variables: VariableInfo[];
+  count: number;
+}
+
+export interface CategorizationResult {
+  categories: VariableCategory[];
+  total_variables: number;
+  categorized_count: number;
+  uncategorized_count: number;
+  dataset_type: string;
+}
+
 export interface GenerationOptions {
   includeComments: 'comprehensive' | 'minimal' | 'none';
   codeStyle: 'standard' | 'compact' | 'verbose';
