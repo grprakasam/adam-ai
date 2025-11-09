@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import { ConfigProvider, theme, Button } from 'antd';
+import { ConfigProvider, theme, Button, message } from 'antd';
 import { HomeOutlined } from '@ant-design/icons';
 import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import ChatPanel from './components/ChatPanel';
 import LandingPage from './components/LandingPage';
-import type { 
-  ProgrammingLanguage, 
-  LLMProvider, 
-  StudyMetadata,
-  GenerationOptions,
+import { useProjectStore } from './store/projectStore';
+import api from './services/api';
+import type {
+  ProgrammingLanguage,
+  LLMProvider,
   GenerationResponse,
-  ProjectConfiguration
+  GenerationRequest
 } from './types';
 import './App.css';
 
@@ -22,66 +22,102 @@ function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('landing');
   const [language, setLanguage] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [llmProvider, setLlmProvider] = useState<LLMProvider>('google' as LLMProvider);
-  const [projectConfig, setProjectConfig] = useState<ProjectConfiguration>({
-    studyId: '',
-    protocolNumber: '',
-    sponsor: '',
-    therapeuticArea: 'Oncology',
-    studyPhase: 'Phase III',
-    sdtmVersion: 'SDTM v2.0',
-    adamIgVersion: 'ADaM IG v1.3',
-    medraVersion: 'MedDRA v26.1',
-    programmingLanguage: 'R'
-  });
-  const [studyMetadata, setStudyMetadata] = useState<StudyMetadata>({
-    studyId: '',
-    protocolNumber: '',
-    therapeuticArea: '',
-    studyPhase: ''
-  });
-  const [selectedDatasets, setSelectedDatasets] = useState<string[]>(['DM']);
-  const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
-  const [generationOptions, setGenerationOptions] = useState<GenerationOptions>({
-    includeComments: 'comprehensive',
-    codeStyle: 'standard',
-    optimizationLevel: 'balanced'
-  });
   const [generationResult, setGenerationResult] = useState<GenerationResponse | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
 
+  // Access Zustand store
+  const projectConfig = useProjectStore((state) => state.projectConfig);
+  const studyMetadata = useProjectStore((state) => state.studyMetadata);
+  const generationOptions = useProjectStore((state) => state.generationOptions);
+  const setIsGenerating = useProjectStore((state) => state.setIsGenerating);
+
   const handleGenerate = async () => {
-    setIsGenerating(true);
-    // API call will be implemented
-    console.log('Generating code...', {
-      studyMetadata,
-      selectedDatasets,
-      selectedVariables,
-      language,
-      llmProvider,
-      generationOptions
-    });
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      setIsGenerating(true);
+      message.loading({ content: 'Generating ADAM code...', key: 'generate', duration: 0 });
+
+      const request: GenerationRequest = {
+        studyMetadata: {
+          studyId: projectConfig.studyId,
+          protocolNumber: projectConfig.protocolNumber,
+          therapeuticArea: projectConfig.therapeuticArea,
+          studyPhase: projectConfig.studyPhase,
+        },
+        // SDTM datasets and variables are NO LONGER required
+        selectedDatasets: [],
+        selectedVariables: [],
+        language: language as ProgrammingLanguage,
+        llmProvider: llmProvider as LLMProvider,
+        options: generationOptions,
+      };
+
+      const result = await api.generateCode(request);
+      setGenerationResult(result);
+      message.success({ content: 'Code generated successfully!', key: 'generate', duration: 3 });
+    } catch (error) {
+      console.error('Generation error:', error);
+      message.error({
+        content: 'Failed to generate code. Backend endpoint not yet implemented.',
+        key: 'generate',
+        duration: 5
+      });
+      // For demo purposes, set mock data
       setGenerationResult({
-        code: '# Generated ADSL code will appear here...',
-        validationResults: [],
-        derivationSequence: [],
+        code: `# ADSL Dataset Generation
+# Study: ${projectConfig.studyId}
+# Protocol: ${projectConfig.protocolNumber}
+
+library(dplyr)
+library(haven)
+
+# Read SDTM DM dataset
+dm <- read_sas("path/to/dm.sas7bdat")
+
+# Derive ADSL variables
+adsl <- dm %>%
+  mutate(
+    TRTSDT = as.Date(RFSTDTC),
+    TRTEDT = as.Date(RFENDTC),
+    TRTDUR = as.numeric(TRTEDT - TRTSDT + 1),
+    SAFFL = if_else(!is.na(TRTSDT), "Y", "N"),
+    ITTFL = if_else(!is.na(TRTSDT), "Y", "N"),
+    AGEGR1 = case_when(
+      AGE < 18 ~ "<18",
+      AGE >= 18 & AGE < 65 ~ "18-64",
+      AGE >= 65 ~ ">=65"
+    )
+  )
+
+# Write ADSL dataset
+write_sas(adsl, "path/to/adsl.sas7bdat")`,
+        validationResults: [
+          { category: 'CDISC Compliance', status: 'pass', message: 'All rules passed' },
+          { category: 'Required Variables', status: 'pass', message: 'Complete' },
+          { category: 'Data Types', status: 'warning', message: '1 warning' },
+          { category: 'Derivation Logic', status: 'pass', message: 'Valid' },
+        ],
+        derivationSequence: [
+          { sequence: 1, variable: 'STUDYID, USUBJID, SUBJID', dependencies: 'Source: DM (no dependencies)' },
+          { sequence: 2, variable: 'AGE, AGEGR1', dependencies: 'Source: DM.AGE' },
+          { sequence: 3, variable: 'TRTSDT, TRTEDT', dependencies: 'Source: DM.RFSTDTC, DM.RFENDTC' },
+          { sequence: 4, variable: 'TRTDUR', dependencies: 'Derived from TRTSDT, TRTEDT' },
+          { sequence: 5, variable: 'SAFFL, ITTFL', dependencies: 'Derived from TRTSDT' },
+        ],
         qualityMetrics: {
           compliance: 98,
           efficiency: 95,
-          coverage: '12/13',
-          readability: 'A+'
+          coverage: '100%',
+          readability: 'A',
         },
         documentation: {
-          variableDetails: '',
-          dataSources: '',
-          implementationNotes: ''
-        }
+          variableDetails: 'All ADSL variables derived per CDISC standards',
+          dataSources: 'DM dataset',
+          implementationNotes: 'Standard ADSL derivations applied',
+        },
       });
+    } finally {
       setIsGenerating(false);
-    }, 2000);
+    }
   };
 
   return (
@@ -99,13 +135,13 @@ function App() {
           <LandingPage onStartProject={() => setViewMode('workspace')} />
         ) : (
           <>
-            <div style={{ 
-              position: 'fixed', 
-              top: 20, 
-              right: 20, 
-              zIndex: 1000 
+            <div style={{
+              position: 'fixed',
+              top: 20,
+              right: 20,
+              zIndex: 1000
             }}>
-              <Button 
+              <Button
                 icon={<HomeOutlined />}
                 onClick={() => setViewMode('landing')}
                 size="large"
@@ -113,36 +149,24 @@ function App() {
                 Back to Landing
               </Button>
             </div>
-            <Header 
+
+            <Header
               language={language}
               llmProvider={llmProvider}
               onLanguageChange={setLanguage}
               onLlmProviderChange={setLlmProvider}
             />
-            
+
             <div className="main-content">
-              <LeftPanel
-                projectConfig={projectConfig}
-                studyMetadata={studyMetadata}
-                selectedDatasets={selectedDatasets}
-                selectedVariables={selectedVariables}
-                generationOptions={generationOptions}
-                onProjectConfigChange={setProjectConfig}
-                onStudyMetadataChange={setStudyMetadata}
-                onDatasetsChange={setSelectedDatasets}
-                onVariablesChange={setSelectedVariables}
-                onOptionsChange={setGenerationOptions}
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-              />
-              
+              <LeftPanel onGenerate={handleGenerate} />
+
               <RightPanel
                 generationResult={generationResult}
                 language={language}
               />
             </div>
 
-            <ChatPanel 
+            <ChatPanel
               isOpen={chatOpen}
               onToggle={() => setChatOpen(!chatOpen)}
             />

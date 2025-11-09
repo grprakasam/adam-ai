@@ -1,0 +1,142 @@
+/* Dataset Explorer Styles */
+
+.dataset-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.dataset-item {
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: white;
+}
+
+.dataset-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.dataset-header:hover {
+  background: var(--gray-50);
+}
+
+.dataset-header.selected {
+  background: var(--primary-50);
+}
+
+.expand-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--gray-500);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.expand-button:hover {
+  background: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.dataset-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.dataset-icon {
+  color: var(--primary-600);
+  flex-shrink: 0;
+}
+
+.dataset-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.dataset-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--gray-900);
+}
+
+.dataset-description {
+  font-size: var(--text-xs);
+  color: var(--gray-600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.variables-list {
+  padding: var(--space-4);
+  background: var(--gray-50);
+  border-top: var(--border-width) solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.variable-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: white;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.variable-icon {
+  color: var(--gray-400);
+  flex-shrink: 0;
+}
+
+.variable-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.variable-name {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--gray-900);
+  font-family: var(--font-mono);
+}
+
+.variable-label {
+  font-size: var(--text-xs);
+  color: var(--gray-600);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.variable-type {
+  font-size: var(--text-xs);
+  color: var(--gray-500);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}

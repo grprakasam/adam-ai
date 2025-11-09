@@ -71,21 +71,27 @@ const RightPanel = ({ generationResult, language }: RightPanelProps) => {
         title="Validation Results"
         extra={
           <Space size="small">
-            <span style={{ color: '#16a34a', fontSize: '12px' }}>✓ {validationStats.pass}</span>
-            <span style={{ color: '#ca8a04', fontSize: '12px' }}>! {validationStats.warning}</span>
-            <span style={{ color: '#dc2626', fontSize: '12px' }}>✗ {validationStats.error}</span>
+            <span style={{ color: '#16a34a', fontSize: '12px' }}>
+              <CheckCircleOutlined /> {validationStats.pass}
+            </span>
+            <span style={{ color: '#ca8a04', fontSize: '12px' }}>
+              <WarningOutlined /> {validationStats.warning}
+            </span>
+            <span style={{ color: '#dc2626', fontSize: '12px' }}>
+              <CloseCircleOutlined /> {validationStats.error}
+            </span>
           </Space>
         }
         size="small"
         className="validation-card"
       >
         <div className="validation-grid">
-          <ValidationItem icon="✓" status="pass" label="CDISC Compliance" message="All rules passed" />
-          <ValidationItem icon="✓" status="pass" label="Required Variables" message="Complete" />
+          <ValidationItem icon="OK" status="pass" label="CDISC Compliance" message="All rules passed" />
+          <ValidationItem icon="OK" status="pass" label="Required Variables" message="Complete" />
           <ValidationItem icon="!" status="warning" label="Data Types" message="1 warning" />
-          <ValidationItem icon="✓" status="pass" label="Derivation Logic" message="Valid" />
-          <ValidationItem icon="✓" status="pass" label="Syntax Check" message="No errors" />
-          <ValidationItem icon="✓" status="pass" label="Dependencies" message="Resolved" />
+          <ValidationItem icon="OK" status="pass" label="Derivation Logic" message="Valid" />
+          <ValidationItem icon="OK" status="pass" label="Syntax Check" message="No errors" />
+          <ValidationItem icon="OK" status="pass" label="Dependencies" message="Resolved" />
         </div>
       </Card>
 
@@ -144,3 +150,4 @@ const MetricCard = ({ label, value }: { label: string; value: string }) => (
 );
 
 export default RightPanel;
+

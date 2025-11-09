@@ -1,154 +1,100 @@
-import { Form, Input, Select, Card, Row, Col } from 'antd';
-import type { ProjectConfiguration } from '../../types';
+import React from 'react';
+import { FormBlock } from '../FormBlock';
+import { TextField } from '../TextField';
+import { SelectField } from '../SelectField';
+import { useProjectStore } from '../../store/projectStore';
+import './ProjectConfigTab.css';
 
-interface ProjectConfigTabProps {
-  projectConfig: ProjectConfiguration;
-  onConfigChange: (config: ProjectConfiguration) => void;
-}
+const ProjectConfigTab: React.FC = () => {
+  const projectConfig = useProjectStore((state) => state.projectConfig);
+  const setProjectConfig = useProjectStore((state) => state.setProjectConfig);
 
-const ProjectConfigTab = ({ projectConfig, onConfigChange }: ProjectConfigTabProps) => {
-  const handleFieldChange = (field: keyof ProjectConfiguration, value: string) => {
-    onConfigChange({ ...projectConfig, [field]: value });
-  };
+  const therapeuticAreas = [
+    { value: 'Oncology', label: 'Oncology' },
+    { value: 'Cardiology', label: 'Cardiology' },
+    { value: 'Neurology', label: 'Neurology' },
+    { value: 'Immunology', label: 'Immunology' },
+    { value: 'Respiratory', label: 'Respiratory' },
+    { value: 'Endocrinology', label: 'Endocrinology' },
+    { value: 'Infectious Disease', label: 'Infectious Disease' },
+    { value: 'Dermatology', label: 'Dermatology' },
+  ];
+
+  const studyPhases = [
+    { value: 'Phase I', label: 'Phase I - First-in-Human' },
+    { value: 'Phase II', label: 'Phase II - Proof of Concept' },
+    { value: 'Phase III', label: 'Phase III - Pivotal' },
+    { value: 'Phase IV', label: 'Phase IV - Post-Marketing' },
+  ];
+
+  const programmingLanguages = [
+    { value: 'R', label: 'R (Recommended)' },
+    { value: 'SAS', label: 'SAS' },
+  ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <Card 
-        title={<div style={{ fontSize: '14px', fontWeight: 600 }}>Project Information</div>}
-        size="small"
-        styles={{ body: { padding: '16px' } }}
+    <div className="project-config-tab">
+      <FormBlock
+        title="Study Identification"
+        description="Basic information to identify your clinical study"
       >
-        <Form layout="vertical" size="small">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="Study ID">
-                <Input 
-                  value={projectConfig.studyId}
-                  onChange={(e) => handleFieldChange('studyId', e.target.value)}
-                  placeholder="e.g., CDISC01"
-                />
-              </Form.Item>
-            </Col>
-            
-            <Col span={12}>
-              <Form.Item label="Protocol Number">
-                <Input 
-                  value={projectConfig.protocolNumber}
-                  onChange={(e) => handleFieldChange('protocolNumber', e.target.value)}
-                  placeholder="e.g., PROTO-2024-001"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
+        <TextField
+          label="Study ID"
+          value={projectConfig.studyId}
+          onChange={(value) => setProjectConfig({ studyId: value })}
+          placeholder="e.g., CDISC01"
+          required
+          helpText="Unique identifier for your clinical study"
+        />
+        <TextField
+          label="Protocol Number"
+          value={projectConfig.protocolNumber}
+          onChange={(value) => setProjectConfig({ protocolNumber: value })}
+          placeholder="e.g., PROTO-2024-001"
+          required
+          helpText="Official protocol document number"
+        />
+        <TextField
+          label="Sponsor"
+          value={projectConfig.sponsor}
+          onChange={(value) => setProjectConfig({ sponsor: value })}
+          placeholder="e.g., Pharma Corporation"
+          required
+          helpText="Organization sponsoring the study"
+        />
+      </FormBlock>
 
-          <Form.Item label="Sponsor">
-            <Input 
-              value={projectConfig.sponsor}
-              onChange={(e) => handleFieldChange('sponsor', e.target.value)}
-              placeholder="e.g., Pharma Corp"
-            />
-          </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="Therapeutic Area">
-                <Select
-                  value={projectConfig.therapeuticArea}
-                  onChange={(value) => handleFieldChange('therapeuticArea', value)}
-                  options={[
-                    { value: 'Oncology', label: 'Oncology' },
-                    { value: 'Cardiology', label: 'Cardiology' },
-                    { value: 'Neurology', label: 'Neurology' },
-                    { value: 'Immunology', label: 'Immunology' },
-                    { value: 'Respiratory', label: 'Respiratory' },
-                    { value: 'Endocrinology', label: 'Endocrinology' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            
-            <Col span={12}>
-              <Form.Item label="Study Phase">
-                <Select
-                  value={projectConfig.studyPhase}
-                  onChange={(value) => handleFieldChange('studyPhase', value)}
-                  options={[
-                    { value: 'Phase I', label: 'Phase I' },
-                    { value: 'Phase II', label: 'Phase II' },
-                    { value: 'Phase III', label: 'Phase III' },
-                    { value: 'Phase IV', label: 'Phase IV' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item label="Programming Language">
-            <Select
-              value={projectConfig.programmingLanguage}
-              onChange={(value) => handleFieldChange('programmingLanguage', value)}
-              options={[
-                { value: 'R', label: 'R' },
-                { value: 'SAS', label: 'SAS' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Card>
-
-      <Card 
-        title={<div style={{ fontSize: '14px', fontWeight: 600 }}>CDISC Standards & Dictionaries</div>}
-        size="small"
-        styles={{ body: { padding: '16px' } }}
+      <FormBlock
+        title="Study Details"
+        description="Clinical and operational study characteristics"
       >
-        <Form layout="vertical" size="small">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item label="SDTM Version">
-                <Select
-                  value={projectConfig.sdtmVersion}
-                  onChange={(value) => handleFieldChange('sdtmVersion', value)}
-                  options={[
-                    { value: 'SDTM v2.0', label: 'SDTM v2.0' },
-                    { value: 'SDTM v1.7', label: 'SDTM v1.7' },
-                    { value: 'SDTM v1.6', label: 'SDTM v1.6' },
-                    { value: 'SDTM v1.5', label: 'SDTM v1.5' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            
-            <Col span={12}>
-              <Form.Item label="ADaM IG Version">
-                <Select
-                  value={projectConfig.adamIgVersion}
-                  onChange={(value) => handleFieldChange('adamIgVersion', value)}
-                  options={[
-                    { value: 'ADaM IG v1.3', label: 'ADaM IG v1.3' },
-                    { value: 'ADaM IG v1.2', label: 'ADaM IG v1.2' },
-                    { value: 'ADaM IG v1.1', label: 'ADaM IG v1.1' },
-                    { value: 'ADaM IG v1.0', label: 'ADaM IG v1.0' },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item label="MedDRA Version">
-            <Select
-              value={projectConfig.medraVersion}
-              onChange={(value) => handleFieldChange('medraVersion', value)}
-              options={[
-                { value: 'MedDRA v27.0', label: 'MedDRA v27.0' },
-                { value: 'MedDRA v26.1', label: 'MedDRA v26.1' },
-                { value: 'MedDRA v26.0', label: 'MedDRA v26.0' },
-                { value: 'MedDRA v25.1', label: 'MedDRA v25.1' },
-                { value: 'MedDRA v25.0', label: 'MedDRA v25.0' },
-              ]}
-            />
-          </Form.Item>
-        </Form>
-      </Card>
+        <SelectField
+          label="Therapeutic Area"
+          value={projectConfig.therapeuticArea}
+          options={therapeuticAreas}
+          onChange={(value) => setProjectConfig({ therapeuticArea: value })}
+          placeholder="Select therapeutic area"
+          required
+          helpText="Primary disease or condition being studied"
+        />
+        <SelectField
+          label="Study Phase"
+          value={projectConfig.studyPhase}
+          options={studyPhases}
+          onChange={(value) => setProjectConfig({ studyPhase: value })}
+          placeholder="Select study phase"
+          required
+          helpText="Clinical development phase"
+        />
+        <SelectField
+          label="Programming Language"
+          value={projectConfig.programmingLanguage}
+          options={programmingLanguages}
+          onChange={(value) => setProjectConfig({ programmingLanguage: value })}
+          required
+          helpText="Language for generated code"
+        />
+      </FormBlock>
     </div>
   );
 };
