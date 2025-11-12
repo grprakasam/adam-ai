@@ -3,12 +3,11 @@ import { ConfigProvider, theme, message } from 'antd';
 import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
-import ChatPanel from './components/ChatPanel';
 import LandingPage from './components/LandingPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useProjectStore } from './store/projectStore';
-import type { ProgrammingLanguage, LLMProvider, GenerationResponse } from './types';
+import type { ProgrammingLanguage, GenerationResponse } from './types';
 import './App.css';
 
 type ViewMode = 'landing' | 'workspace';
@@ -16,9 +15,7 @@ type ViewMode = 'landing' | 'workspace';
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('landing');
   const [language, setLanguage] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
-  const [llmProvider, setLlmProvider] = useState<LLMProvider>('google' as LLMProvider);
   const [generationResult] = useState<GenerationResponse | null>(null);
-  const [chatOpen, setChatOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('project');
 
   // Access Zustand store
@@ -28,6 +25,8 @@ function App() {
   const setSpecificationFile = useProjectStore((state) => state.setSpecificationFile);
   const specificationFile = useProjectStore((state) => state.specificationFile);
   const initializeWorkspace = useProjectStore((state) => state.initializeWorkspace);
+  const llmProvider = useProjectStore((state) => state.llmProvider);
+  const setLlmProvider = useProjectStore((state) => state.setLlmProvider);
 
   const handleGenerate = async () => {
     // Track all state changes for cleanup
@@ -131,11 +130,6 @@ function App() {
                   language={language}
                 />
               </div>
-
-              <ChatPanel
-                isOpen={chatOpen}
-                onToggle={() => setChatOpen(!chatOpen)}
-              />
 
               {/* Approval Progress Bar - visible after spec upload */}
               <ApprovalProgressBar />

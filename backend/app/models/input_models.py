@@ -203,6 +203,7 @@ class CodeSnippetRequest(BaseModel):
     standards: dict = Field(..., description="Standards versions (SDTM, ADaM IG, MedDRA)")
     language: str = Field(default="R", description="Programming language (R or SAS)")
     context: Optional[dict] = Field(default=None, description="Additional context (available domains, required variables, category)")
+    llm_provider: Optional[str] = Field(default=None, description="LLM provider to use (groq, openai, anthropic, google)")
 
 
 class CodeSnippetResponse(BaseModel):
@@ -245,7 +246,8 @@ class BulkCodeGenerationRequest(BaseModel):
                 "sdtm_version": "3.4",
                 "adam_ig_version": "1.3",
                 "meddra_version": "26.0"
-            }
+            },
+            "llm_provider": "groq"
         }
     })
 
@@ -254,3 +256,4 @@ class BulkCodeGenerationRequest(BaseModel):
     categorized_variables: dict = Field(..., description="Categorization result with all variables")
     language: str = Field(default="R", description="Programming language (R or SAS)")
     standards: dict = Field(..., description="Standards versions (SDTM, ADaM IG, MedDRA)")
+    llm_provider: Optional[str] = Field(default=None, description="LLM provider to use (groq, openai, anthropic, google)")

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { message } from 'antd';
-import { Code2, Copy, Check, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { message, Tooltip } from 'antd';
+import { Code2, Copy, Check, Loader2, AlertCircle, RefreshCw, Eye, EyeOff, ChevronDown, ChevronUp, Maximize2, Info } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import { showRegenerateConfirmation } from './ConfirmationDialog';
@@ -28,6 +28,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
   const [copiedVariable, setCopiedVariable] = useState<string | null>(null);
   const [expandedRationale, setExpandedRationale] = useState<Set<string>>(new Set());
+  const [expandedCode, setExpandedCode] = useState<Set<string>>(new Set());
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
   const isAnyVariableGenerating = Object.values(pairProgramming.isGenerating).some(v => v);
 
@@ -89,7 +91,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         codeSnippet: response.code_snippet,
         rationale: response.coding_rationale,
         userNotes: '',
-        accepted: false,
+        accepted: 'accept',
         generatedAt: new Date(),
         language: programmingLanguage,
         metadata: response.metadata
@@ -106,7 +108,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         codeSnippet: '',
         rationale: '',
         userNotes: '',
-        accepted: false,
+        accepted: null,
         generatedAt: new Date(),
         language: programmingLanguage,
         error: errorMsg
@@ -166,7 +168,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     setPairProgrammingNotes(variable, notes);
   };
 
-  const handleAcceptanceChange = (variable: string, accepted: boolean) => {
+  const handleAcceptanceChange = (variable: string, accepted: 'accept' | 'modify') => {
     setPairProgrammingAcceptance(variable, accepted);
   };
 
@@ -231,10 +233,12 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           <thead>
             <tr>
               <th className="col-variable">Variable Name</th>
-              <th className="col-derivation">Derivation Logic</th>
               <th className="col-type">Type</th>
-              <th className="col-code">Code Snippet ({programmingLanguage})</th>
+              <th className="col-length-format">Length/Format</th>
+              <th className="col-origin">Origin</th>
+              <th className="col-derivation">Derivation Logic</th>
               <th className="col-rationale">Coding Rationale</th>
+              <th className="col-code">Code Snippet ({programmingLanguage})</th>
               <th className="col-acceptance">Acceptance</th>
               <th className="col-notes">User Notes</th>
             </tr>
@@ -258,7 +262,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
               }
 
               return (
-                <tr key={variable.name} className="variable-row">
+                <tr key={variable.name} className={`variable-row ${snippet?.accepted === 'modify' ? 'needs-modification' : ''}`}>
                   {/* Variable Name */}
                   <td className="col-variable">
                     <div className="variable-name-cell">
@@ -266,13 +270,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       {variable.is_required && (
                         <span className="required-badge">Required</span>
                       )}
-                    </div>
-                  </td>
-
-                  {/* Derivation Logic */}
-                  <td className="col-derivation">
-                    <div className="derivation-text">
-                      {getDerivationText(variable)}
                     </div>
                   </td>
 
@@ -287,6 +284,62 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                         <span className="no-data">—</span>
                       )}
                     </div>
+                  </td>
+
+                  {/* Length/Format */}
+                  <td className="col-length-format">
+                    <div className="length-format-cell">
+                      {variable.length || variable.format ? (
+                        <>
+                          <span>{variable.length || '—'}</span>
+                          <span className="separator">/</span>
+                          <span>{variable.format || '—'}</span>
+                        </>
+                      ) : (
+                        <span className="no-data">—</span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Origin */}
+                  <td className="col-origin">
+                    <div className="origin-cell">
+                      {variable.origin || variable.extra?.Origin || variable.extra?.origin ? (
+                        <span className="origin-text">
+                          {variable.origin || variable.extra?.Origin || variable.extra?.origin}
+                        </span>
+                      ) : (
+                        <span className="no-data">—</span>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Derivation Logic */}
+                  <td className="col-derivation">
+                    <div className="derivation-text">
+                      {getDerivationText(variable)}
+                    </div>
+                  </td>
+
+                  {/* Coding Rationale */}
+                  <td className="col-rationale">
+                    {snippet?.rationale ? (
+                      <div className="rationale-cell">
+                        <div className={`rationale-text ${isExpanded ? 'expanded' : ''}`}>
+                          {snippet.rationale}
+                        </div>
+                        {snippet.rationale.length > 150 && (
+                          <button
+                            className="expand-button"
+                            onClick={() => toggleRationale(variable.name)}
+                          >
+                            {isExpanded ? 'Show less' : 'Show more'}
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="no-data">—</span>
+                    )}
                   </td>
 
                   {/* Code Snippet */}
@@ -336,52 +389,45 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                     )}
                   </td>
 
-                  {/* Coding Rationale */}
-                  <td className="col-rationale">
-                    {snippet?.rationale ? (
-                      <div className="rationale-cell">
-                        <div className={`rationale-text ${isExpanded ? 'expanded' : ''}`}>
-                          {snippet.rationale}
-                        </div>
-                        {snippet.rationale.length > 150 && (
-                          <button
-                            className="expand-button"
-                            onClick={() => toggleRationale(variable.name)}
-                          >
-                            {isExpanded ? 'Show less' : 'Show more'}
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="no-data">—</span>
-                    )}
-                  </td>
-
                   {/* Acceptance */}
                   <td className="col-acceptance">
                     <div className="acceptance-cell">
-                      <label className="acceptance-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={snippet?.accepted || false}
-                          onChange={(e) => handleAcceptanceChange(variable.name, e.target.checked)}
-                          disabled={!snippet?.codeSnippet}
-                        />
-                        <span className="checkbox-label">
-                          {snippet?.accepted ? 'Accepted' : 'Accept'}
-                        </span>
-                      </label>
+                      <div className="radio-group">
+                        <label className="radio-option">
+                          <input
+                            type="radio"
+                            name={`acceptance-${variable.name}`}
+                            value="accept"
+                            checked={snippet?.accepted === 'accept'}
+                            onChange={() => handleAcceptanceChange(variable.name, 'accept')}
+                            disabled={!snippet?.codeSnippet}
+                          />
+                          <span className="radio-label">Accept</span>
+                        </label>
+                        <label className="radio-option">
+                          <input
+                            type="radio"
+                            name={`acceptance-${variable.name}`}
+                            value="modify"
+                            checked={snippet?.accepted === 'modify'}
+                            onChange={() => handleAcceptanceChange(variable.name, 'modify')}
+                            disabled={!snippet?.codeSnippet}
+                          />
+                          <span className="radio-label">Modify</span>
+                        </label>
+                      </div>
                     </div>
                   </td>
 
                   {/* User Notes */}
                   <td className="col-notes">
                     <textarea
-                      className="notes-textarea"
-                      placeholder="Add notes..."
+                      className={`notes-textarea ${snippet?.accepted === 'modify' ? 'modify-required' : ''}`}
+                      placeholder={snippet?.accepted === 'modify' ? 'Notes required for modifications...' : 'Add notes...'}
                       value={snippet?.userNotes || ''}
                       onChange={(e) => handleNotesChange(variable.name, e.target.value)}
                       rows={3}
+                      disabled={snippet?.accepted === 'accept' || !snippet?.codeSnippet}
                     />
                   </td>
                 </tr>

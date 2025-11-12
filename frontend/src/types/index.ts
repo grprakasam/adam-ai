@@ -6,6 +6,7 @@ export enum ProgrammingLanguage {
 }
 
 export enum LLMProvider {
+  GROQ = 'groq',
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
   GOOGLE = 'google'
@@ -54,6 +55,7 @@ export interface VariableInfo {
   type?: string;
   length?: string;
   format?: string;
+  origin?: string;
   category: string;
   derivation?: string;
   is_required: boolean;

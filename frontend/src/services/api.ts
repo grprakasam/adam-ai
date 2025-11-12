@@ -148,6 +148,7 @@ export const adamApi = {
       adam_ig_version: string;
       meddra_version: string;
     };
+    llm_provider?: string;
   }): Promise<CodeSnippetResponse[]> => {
     return await codeGenerationThrottler.throttle(async () => {
       const response = await apiClient.post('/code-generation/generate-code-bulk', request, {

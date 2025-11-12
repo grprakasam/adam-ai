@@ -13,11 +13,12 @@ export interface ApprovalProgress {
  * 
  * Calculates:
  * - Total count of all variables across all categories
- * - Count of approved variables (with accepted: true)
+ * - Count of approved variables (with accepted: 'accept')
  * - Percentage of approval
  * - Whether ready for generation (≥80% threshold)
  * 
- * Updates in real-time when approval checkboxes change
+ * Variables marked 'modify' do NOT count toward approval percentage
+ * Updates in real-time when approval radio buttons change
  */
 export const useApprovalProgress = (): ApprovalProgress => {
   const categorizedVariables = useProjectStore((state) => state.categorizedVariables);
@@ -34,7 +35,7 @@ export const useApprovalProgress = (): ApprovalProgress => {
           category.variables.forEach((variable) => {
             totalVariables++;
             const varName = variable.name;
-            if (varName && snippets[varName]?.accepted) {
+            if (varName && snippets[varName]?.accepted === 'accept') {
               approvedVariables++;
             }
           });

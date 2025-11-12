@@ -48,7 +48,7 @@ export const FinalCodeGenerationDialog: React.FC<FinalCodeGenerationDialogProps>
         if (Array.isArray(variables)) {
           variables.forEach((variable) => {
             const varName = variable.name || variable.variable_name;
-            if (varName && snippets[varName]?.accepted) {
+            if (varName && snippets[varName]?.accepted === 'accept') {
               approved.push({
                 name: varName,
                 category,
