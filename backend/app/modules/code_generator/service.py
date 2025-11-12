@@ -1,17 +1,16 @@
 """
 Code Generator Service
 
-Main service for AI-powered ADAM code generation using Google Gemini.
+Main service for AI-powered ADAM code generation using configurable LLM providers.
 Orchestrates template selection, prompt building, and batch processing.
 """
 
 from typing import List, Dict, Any
 from loguru import logger
 from app.config import settings
-from .gemini_client import GeminiClient
+from app.modules.llm_integration.service import get_llm_service, LLMIntegrationService
 from .prompt_builder import PromptBuilder
 from .cache_manager import CacheManager
-from .batch_processor import BatchProcessor
 
 
 class CodeGeneratorService:
@@ -19,13 +18,8 @@ class CodeGeneratorService:
     
     def __init__(self):
         """Initialize code generation service"""
-        # Initialize components
-        self.gemini_client = GeminiClient(
-            api_key=settings.GEMINI_API_KEY,
-            model=getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash-exp'),
-            max_retries=3,
-            timeout=30
-        )
+        # Initialize LLM integration service (supports Groq, OpenAI, Anthropic, Google)
+        self.llm_service: LLMIntegrationService = get_llm_service()
         
         self.prompt_builder = PromptBuilder()
         
@@ -33,15 +27,16 @@ class CodeGeneratorService:
             ttl=getattr(settings, 'CACHE_TTL', 3600)
         )
         
-        self.batch_processor = BatchProcessor(
-            gemini_client=self.gemini_client,
-            prompt_builder=self.prompt_builder,
-            cache_manager=self.cache_manager,
-            batch_size=getattr(settings, 'BATCH_SIZE', 10),
-            max_concurrent=getattr(settings, 'MAX_CONCURRENT_REQUESTS', 5)
-        )
+        # Configuration
+        self.batch_size = getattr(settings, 'BATCH_SIZE', 10)
+        self.max_concurrent = getattr(settings, 'MAX_CONCURRENT_REQUESTS', 5)
         
-        logger.info("Initialized CodeGeneratorService")
+        # Create semaphore for concurrency control
+        import asyncio
+        self.semaphore = asyncio.Semaphore(self.max_concurrent)
+        
+        logger.info(f"✅ Initialized CodeGeneratorService with LLM provider: {settings.DEFAULT_LLM_PROVIDER}")
+        logger.info(f"   Batch size: {self.batch_size}, Max concurrent: {self.max_concurrent}")
     
     async def generate_code_for_all_variables(
         self,
@@ -89,8 +84,8 @@ class CodeGeneratorService:
                 categorized_variables=categorized_variables
             )
             
-            # Process in batches with caching
-            results = await self.batch_processor.process_variables_batch(
+            # Process variables using new LLM service
+            results = await self.process_variables_with_llm(
                 variables=all_variables,
                 language=language,
                 context=context
@@ -120,19 +115,138 @@ class CodeGeneratorService:
         Returns:
             CodeSnippetResponse dictionary
         """
-        logger.info(f"Generating code for single variable: {variable.get('name', 'Unknown')}")
+        variable_name = variable.get('name', 'Unknown')
         
-        try:
-            result = await self.batch_processor.generate_single_variable(
-                variable=variable,
-                language=language,
-                context=context
-            )
-            return result
+        # Use semaphore to control concurrency
+        async with self.semaphore:
+            logger.info(f"Generating code for variable: {variable_name}")
             
-        except Exception as e:
-            logger.error(f"Single variable generation failed: {str(e)}")
-            raise
+            try:
+                variable_label = variable.get('label', '')
+                variable_type = variable.get('type', '')
+                derivation = variable.get('derivation', '')
+                
+                # Build prompt for code generation
+                code_prompt = await self.prompt_builder.build_code_generation_prompt(
+                    variable_name=variable_name,
+                    variable_label=variable_label,
+                    variable_type=variable_type,
+                    derivation_logic=derivation,
+                    language=language,
+                    context=context
+                )
+                
+                # Generate code using LLM service
+                code_response = await self.llm_service.generate(
+                    prompt=code_prompt,
+                    temperature=0.2,
+                    max_tokens=2000
+                )
+                code_snippet = code_response.get('content', '')
+                
+                # Build prompt for rationale
+                rationale_prompt = self.prompt_builder.build_rationale_prompt(
+                    variable_name=variable_name,
+                    code_snippet=code_snippet,
+                    derivation_logic=derivation,
+                    language=language
+                )
+                
+                # Generate rationale using LLM service
+                rationale_response = await self.llm_service.generate(
+                    prompt=rationale_prompt,
+                    temperature=0.3,
+                    max_tokens=500
+                )
+                coding_rationale = rationale_response.get('content', '')
+                
+                logger.info(f"✅ Successfully generated code for {variable_name}")
+                
+                # Build result matching old format
+                result = {
+                    'variable': variable_name,
+                    'code_snippet': code_snippet,
+                    'coding_rationale': coding_rationale,
+                    'metadata': {
+                        'provider': settings.DEFAULT_LLM_PROVIDER,
+                        'model': code_response.get('model', settings.DEFAULT_MODEL),
+                        'language': language,
+                        'variable_type': variable_type
+                    },
+                    'validated': True,  # Basic validation
+                    'warnings': [],
+                    'error': None
+                }
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"❌ Failed to generate code for {variable_name}: {str(e)}")
+                return {
+                    'variable': variable_name,
+                    'code_snippet': '',
+                    'coding_rationale': '',
+                    'error': str(e),
+                    'validated': False
+                }
+    
+    async def process_variables_with_llm(
+        self,
+        variables: List[Dict[str, Any]],
+        language: str,
+        context: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """
+        Process multiple variables using LLM service
+        
+        Args:
+            variables: List of variable dictionaries
+            language: Programming language
+            context: Generation context
+            
+        Returns:
+            List of CodeSnippetResponse dictionaries
+        """
+        import asyncio
+        
+        results = []
+        total_vars = len(variables)
+        
+        logger.info(f"Starting to process {total_vars} variables with LLM service")
+        
+        # Process in batches
+        for i in range(0, len(variables), self.batch_size):
+            batch = variables[i:i + self.batch_size]
+            batch_num = i // self.batch_size + 1
+            total_batches = (len(variables) + self.batch_size - 1) // self.batch_size
+            
+            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} variables)")
+            
+            # Create tasks for ALL variables in batch (not just max_concurrent)
+            tasks = []
+            for variable in batch:
+                tasks.append(self.generate_single_variable(variable, language, context))
+            
+            # Execute tasks with concurrency control via semaphore in generate_single_variable
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Process results
+            for idx, result in enumerate(batch_results):
+                if isinstance(result, Exception):
+                    logger.error(f"Failed to generate code for {batch[idx].get('name', 'Unknown')}: {str(result)}")
+                    # Add error result with correct field names
+                    results.append({
+                        'variable': batch[idx].get('name', 'Unknown'),
+                        'code_snippet': '',
+                        'coding_rationale': f"Error: {str(result)}",
+                        'error': str(result),
+                        'validated': False
+                    })
+                else:
+                    results.append(result)
+        
+        logger.info(f"Completed processing: {len(results)} total results")
+        return results
     
     def collect_all_variables(
         self,
@@ -206,10 +320,13 @@ class CodeGeneratorService:
     
     def get_stats(self) -> Dict[str, Any]:
         """Get service statistics"""
+        provider_info = self.llm_service.get_provider_info()
         return {
             'service': 'code_generator',
-            'gemini_client': self.gemini_client.get_usage_stats(),
-            'batch_processor': self.batch_processor.get_stats()
+            'llm_provider': settings.DEFAULT_LLM_PROVIDER,
+            'llm_model': settings.DEFAULT_MODEL,
+            'available_providers': provider_info.get('available_providers', []),
+            'cache_stats': self.cache_manager.get_stats() if hasattr(self.cache_manager, 'get_stats') else {}
         }
 
 
