@@ -129,7 +129,7 @@
   margin-bottom: 20px;
   height: calc(100vh - 280px); /* Fixed height to enable scrolling */
   min-height: 600px; /* Minimum height for usability */
-  max-height: 800px; /* Maximum height to prevent excessive stretch */
+  max-height: calc(100vh - 250px); /* Increased max height to use more vertical space */
 }
 
 /* ========== Category Tabs Container (30% left) ========== */

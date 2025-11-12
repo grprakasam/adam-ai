@@ -81,7 +81,7 @@
   cursor: not-allowed;
 }
 
-/* Table Container - Enhanced with better shadows and FIXED HEIGHT FOR SCROLLING */
+/* Table Container - Enhanced with better shadows and INCREASED HEIGHT FOR MORE RECORDS */
 .pair-programming-table-container {
   overflow-x: scroll; /* Always show horizontal scrollbar */
   overflow-y: auto; /* Vertical scrolling within this container */
@@ -92,8 +92,8 @@
               0 8px 24px rgba(0, 0, 0, 0.04);
   border: 1px solid #e5e7eb;
   position: relative; /* Required for sticky positioning context */
-  max-height: 500px; /* Fixed height to create scrolling context */
-  height: 500px; /* Enforce the height */
+  flex: 1; /* Take remaining space in parent container */
+  min-height: 400px; /* Minimum height to ensure usability */
 }
 
 /* Custom Scrollbar Styling - Modern and Bold */
@@ -135,22 +135,37 @@
   scrollbar-color: #8B0000 #f3f4f6;
 }
 
-/* Table - Enhanced typography and spacing */
+/* Table - Enhanced typography and spacing with proper alignment */
 .pair-programming-table {
   width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
+  border-collapse: collapse; /* Ensures borders merge properly */
+  table-layout: fixed; /* Fixed layout for consistent column widths */
   min-width: 1690px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', sans-serif;
+  display: table !important; /* Force table display */
 }
 
 .pair-programming-table thead {
   position: sticky;
   top: 0;
-  z-index: 100; /* Increased z-index to ensure it stays on top */
+  z-index: 100;
   background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06),
-              0 4px 12px rgba(0, 0, 0, 0.08); /* Enhanced shadow for better visibility */
+              0 4px 12px rgba(0, 0, 0, 0.08);
+  display: table-header-group !important; /* Force proper display */
+}
+
+.pair-programming-table tbody {
+  display: table-row-group !important; /* Force proper display */
+}
+
+.pair-programming-table tr {
+  display: table-row !important; /* Force proper display */
+}
+
+.pair-programming-table th,
+.pair-programming-table td {
+  display: table-cell !important; /* Force proper display */
 }
 
 .pair-programming-table th {
@@ -164,39 +179,43 @@
   border-bottom: 3px solid #10b981;
   white-space: nowrap;
   background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
-  position: sticky; /* Make individual header cells sticky */
-  top: 0; /* Stick to top */
-  z-index: 100; /* Ensure headers stay above content */
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-right: 1px solid #e5e7eb; /* Vertical separator */
+  box-sizing: border-box; /* Include padding in width calculation */
 }
 
-/* Enhanced row hover effects with smooth transitions */
+.pair-programming-table th:last-child {
+  border-right: none;
+}
+
+/* Row styles - no borders on rows themselves */
 .pair-programming-table tbody tr {
-  border-bottom: 2px solid #1a1a1a; /* Dark black line between rows */
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
 
 .pair-programming-table tbody tr:hover {
   background: linear-gradient(90deg, #f0fdf4 0%, #f9fafb 100%);
-  box-shadow: inset 4px 0 0 #10b981, 0 2px 8px rgba(16, 185, 129, 0.08);
-  transform: scale(1.002);
-  z-index: 5; /* Lower than header z-index to prevent overlap */
+  box-shadow: inset 4px 0 0 #10b981;
 }
 
-.pair-programming-table tbody tr:last-child {
-  border-bottom: 2px solid #1a1a1a; /* Keep border on last row too */
-}
-
+/* Cell styles - all borders here for consistent alignment */
 .pair-programming-table td {
   padding: 20px;
   vertical-align: top;
   background: white;
   transition: background 0.2s ease;
-  border-right: 1px solid #e5e7eb; /* Subtle vertical lines between cells */
+  border-bottom: 3px solid #000000; /* Black horizontal line */
+  border-right: 1px solid #e5e7eb; /* Light vertical separator */
+  box-sizing: border-box; /* Include padding in width calculation */
+  overflow: hidden; /* Prevent content overflow */
+  text-overflow: ellipsis; /* Show ellipsis for long text */
 }
 
 .pair-programming-table td:last-child {
-  border-right: none; /* No border on last cell */
+  border-right: none;
 }
 
 .pair-programming-table tbody tr:hover td {
@@ -205,57 +224,65 @@
 
 /* Column Widths - Optimized for readability */
 .col-variable {
-  width: 180px;
-  min-width: 180px;
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
 }
 
 .col-type {
-  width: 100px;
-  min-width: 100px;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
   text-align: center;
 }
 
 .col-length-format {
   width: 140px;
   min-width: 140px;
+  max-width: 140px;
   text-align: center;
 }
 
 .col-origin {
   width: 150px;
   min-width: 150px;
+  max-width: 150px;
 }
 
 .col-derivation {
   width: 250px;
   min-width: 250px;
+  max-width: 250px;
 }
 
 .col-rationale {
   width: 300px;
   min-width: 300px;
+  max-width: 300px;
 }
 
 .col-code {
   width: 400px;
   min-width: 400px;
+  max-width: 400px;
 }
 
 .col-acceptance {
   width: 150px;
   min-width: 150px;
+  max-width: 150px;
 }
 
 .col-notes {
   width: 220px;
   min-width: 220px;
+  max-width: 220px;
 }
 
 /* Variable Name Cell - Enhanced with better typography */
 .variable-name-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: block; /* Changed from flex to block */
+  width: 100%;
 }
 
 .variable-name {
@@ -264,11 +291,12 @@
   font-weight: 600;
   color: #1f2937;
   letter-spacing: -0.2px;
+  display: block;
+  margin-bottom: 8px;
 }
 
 .required-badge {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block; /* Changed from inline-flex */
   padding: 4px 10px;
   background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
   color: #dc2626;
@@ -278,20 +306,17 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  width: fit-content;
   box-shadow: 0 1px 2px rgba(220, 38, 38, 0.1);
 }
 
 /* Type Badge - Enhanced with colors */
 .type-cell {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  text-align: center;
+  width: 100%;
 }
 
 .type-badge {
-  display: inline-flex;
-  align-items: center;
+  display: inline-block; /* Changed from inline-flex */
   padding: 6px 14px;
   border-radius: 8px;
   font-size: 11px;
@@ -456,6 +481,21 @@
   border-color: #9ca3af;
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.regenerate-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f3f4f6;
+  color: #9ca3af;
+  border-color: #e5e7eb;
+  pointer-events: none;
+}
+
+.regenerate-button:disabled:hover {
+  transform: none;
+  background: #f3f4f6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .copy-button svg,
