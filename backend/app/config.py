@@ -37,14 +37,15 @@ class Settings(BaseSettings):
         return v
     
     # LLM API Keys
+    GROQ_API_KEY: Optional[str] = None  # Free tier: 30 req/min, 14,400 req/day
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None  # Primary key for Gemini
     
     # Default LLM Configuration
-    DEFAULT_LLM_PROVIDER: str = "google"  # openai, anthropic, google
-    DEFAULT_MODEL: str = "gemini-2.5-flash"
+    DEFAULT_LLM_PROVIDER: str = "groq"  # groq, openai, anthropic, google
+    DEFAULT_MODEL: str = "llama-3.3-70b-versatile"  # Groq's fastest 70B model
     DEFAULT_TEMPERATURE: float = 0.2
     DEFAULT_MAX_TOKENS: int = 4000
     

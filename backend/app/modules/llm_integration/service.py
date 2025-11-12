@@ -1,21 +1,193 @@
 """
-LLM Integration Service
-Manages interactions with OpenAI, Anthropic, and Google LLM providers
+LLM Integration Service - Production-Ready Implementation
+Manages interactions with OpenAI, Anthropic, Google, and Groq LLM providers
+
+Features:
+- Custom exception hierarchy for precise error handling
+- Automatic retry logic with exponential backoff
+- Input validation and type safety
+- Configurable timeouts
+- DRY principle with base classes for similar providers
+- Comprehensive logging
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TypedDict
 from abc import ABC, abstractmethod
 from loguru import logger
+from functools import wraps
+import asyncio
 
 from app.config import settings
 
+
+# ============================================================================
+# Custom Exceptions
+# ============================================================================
+
+class LLMProviderError(Exception):
+    """Base exception for LLM provider errors"""
+    pass
+
+
+class LLMConnectionError(LLMProviderError):
+    """Raised when unable to connect to LLM provider"""
+    pass
+
+
+class LLMRateLimitError(LLMProviderError):
+    """Raised when rate limit is exceeded"""
+    pass
+
+
+class LLMValidationError(LLMProviderError):
+    """Raised when input validation fails"""
+    pass
+
+
+# ============================================================================
+# Type Definitions
+# ============================================================================
+
+class UsageMetrics(TypedDict):
+    """Token usage metrics from LLM response"""
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+class LLMResponse(TypedDict):
+    """Standard LLM response structure"""
+    content: str
+    model: str
+    usage: UsageMetrics
+    finish_reason: str
+
+
+# ============================================================================
+# Configuration Constants
+# ============================================================================
+
+# System prompt for ADAM code generation
+SYSTEM_PROMPT = (
+    "You are an expert R programmer specializing in clinical trial ADAM datasets "
+    "following CDISC standards. Generate clean, efficient, and well-documented R code."
+)
+
+# Retry configuration
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0  # seconds
+RETRY_BACKOFF = 2.0  # exponential backoff multiplier
+
+# Request timeout (seconds)
+REQUEST_TIMEOUT = getattr(settings, 'REQUEST_TIMEOUT', 30)
+
+
+# ============================================================================
+# Retry Decorator
+# ============================================================================
+
+def retry_on_failure(max_retries: int = MAX_RETRIES):
+    """
+    Decorator to retry failed async operations with exponential backoff
+    
+    Args:
+        max_retries: Maximum number of retry attempts
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            last_exception = None
+            delay = RETRY_DELAY
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except LLMRateLimitError:
+                    # Don't retry rate limit errors immediately
+                    raise
+                except LLMConnectionError as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        logger.warning(
+                            f"Connection failed (attempt {attempt + 1}/{max_retries + 1}), "
+                            f"retrying in {delay}s: {str(e)}"
+                        )
+                        await asyncio.sleep(delay)
+                        delay *= RETRY_BACKOFF
+                    else:
+                        logger.error(f"All retry attempts failed: {str(e)}")
+                except Exception as e:
+                    # For unknown errors, retry but log
+                    last_exception = e
+                    if attempt < max_retries:
+                        logger.warning(
+                            f"Request failed (attempt {attempt + 1}/{max_retries + 1}), "
+                            f"retrying in {delay}s: {str(e)}"
+                        )
+                        await asyncio.sleep(delay)
+                        delay *= RETRY_BACKOFF
+                    else:
+                        logger.error(f"All retry attempts failed: {str(e)}")
+            
+            raise last_exception
+        
+        return wrapper
+    return decorator
+
+
+# ============================================================================
+# Input Validation
+# ============================================================================
+
+def validate_generation_params(
+    prompt: str,
+    temperature: float,
+    max_tokens: int
+) -> None:
+    """
+    Validate generation parameters
+    
+    Args:
+        prompt: Input prompt text
+        temperature: Temperature value (0.0 - 2.0)
+        max_tokens: Maximum tokens to generate
+        
+    Raises:
+        LLMValidationError: If validation fails
+    """
+    if not prompt or not isinstance(prompt, str):
+        raise LLMValidationError("Prompt must be a non-empty string")
+    
+    if len(prompt.strip()) == 0:
+        raise LLMValidationError("Prompt cannot be empty or whitespace only")
+    
+    if not 0.0 <= temperature <= 2.0:
+        raise LLMValidationError(f"Temperature must be between 0.0 and 2.0, got {temperature}")
+    
+    if not 1 <= max_tokens <= 32000:
+        raise LLMValidationError(f"Max tokens must be between 1 and 32000, got {max_tokens}")
+    
+    # Warn if prompt is very large
+    if len(prompt) > 50000:
+        logger.warning(f"Large prompt detected: {len(prompt)} characters")
+
+
+# ============================================================================
+# Base Provider Classes
+# ============================================================================
 
 class BaseLLMProvider(ABC):
     """Abstract base class for LLM providers"""
     
     def __init__(self, api_key: str, model: str):
+        if not api_key or not isinstance(api_key, str):
+            raise LLMValidationError("API key must be a non-empty string")
+        if not model or not isinstance(model, str):
+            raise LLMValidationError("Model name must be a non-empty string")
+            
         self.api_key = api_key
         self.model = model
+        self.provider_name = self.__class__.__name__.replace("Provider", "").lower()
     
     @abstractmethod
     async def generate(
@@ -24,53 +196,72 @@ class BaseLLMProvider(ABC):
         temperature: float = 0.2,
         max_tokens: int = 4000,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> LLMResponse:
         """
         Generate response from LLM
         
         Args:
             prompt: The prompt to send to the LLM
-            temperature: Temperature parameter for generation
+            temperature: Temperature parameter for generation (0.0-2.0)
             max_tokens: Maximum tokens in response
             **kwargs: Additional provider-specific parameters
             
         Returns:
-            Dictionary with response and metadata
+            LLMResponse dictionary with content, model, usage, and finish_reason
+            
+        Raises:
+            LLMConnectionError: If connection to provider fails
+            LLMRateLimitError: If rate limit is exceeded
+            LLMValidationError: If input validation fails
         """
         pass
     
     @abstractmethod
     async def validate_connection(self) -> bool:
-        """Validate that the provider is accessible"""
+        """
+        Validate that the provider is accessible
+        
+        Returns:
+            True if connection is valid, False otherwise
+        """
         pass
 
 
-class OpenAIProvider(BaseLLMProvider):
-    """OpenAI GPT provider"""
+class OpenAICompatibleProvider(BaseLLMProvider):
+    """
+    Base class for OpenAI-compatible API providers (OpenAI, Groq)
+    Reduces code duplication by implementing shared logic
+    """
     
-    def __init__(self, api_key: str, model: str = "gpt-4"):
+    def __init__(self, api_key: str, model: str, client_class, base_url: Optional[str] = None):
         super().__init__(api_key, model)
         try:
-            from openai import AsyncOpenAI
-            self.client = AsyncOpenAI(api_key=self.api_key)
-            logger.info(f"Initialized OpenAI provider with model: {self.model}")
-        except ImportError:
-            logger.error("OpenAI package not installed")
-            raise
+            client_kwargs = {"api_key": self.api_key, "timeout": REQUEST_TIMEOUT}
+            if base_url:
+                client_kwargs["base_url"] = base_url
+            self.client = client_class(**client_kwargs)
+            logger.info(f"✅ Initialized {self.provider_name} provider with model: {self.model}")
+        except ImportError as e:
+            logger.error(f"❌ {self.provider_name} package not installed: {str(e)}")
+            raise LLMConnectionError(f"{self.provider_name} package not installed")
     
+    @retry_on_failure(max_retries=MAX_RETRIES)
     async def generate(
         self,
         prompt: str,
         temperature: float = 0.2,
         max_tokens: int = 4000,
         **kwargs
-    ) -> Dict[str, Any]:
-        """Generate response using OpenAI GPT"""
+    ) -> LLMResponse:
+        """Generate response using OpenAI-compatible API"""
+        # Validate inputs
+        validate_generation_params(prompt, temperature, max_tokens)
+        
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are an expert R programmer specializing in clinical trial ADAM datasets following CDISC standards."},
+                    {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=temperature,
@@ -78,8 +269,8 @@ class OpenAIProvider(BaseLLMProvider):
                 **kwargs
             )
             
-            result = {
-                "content": response.choices[0].message.content,
+            result: LLMResponse = {
+                "content": response.choices[0].message.content or "",
                 "model": response.model,
                 "usage": {
                     "prompt_tokens": response.usage.prompt_tokens,
@@ -89,27 +280,59 @@ class OpenAIProvider(BaseLLMProvider):
                 "finish_reason": response.choices[0].finish_reason
             }
             
-            logger.info(f"OpenAI generation completed: {result['usage']['total_tokens']} tokens")
+            logger.info(
+                f"✅ {self.provider_name} generation completed: "
+                f"{result['usage']['total_tokens']} tokens, "
+                f"finish_reason: {result['finish_reason']}"
+            )
             return result
             
         except Exception as e:
-            logger.error(f"OpenAI generation error: {str(e)}")
-            raise
+            error_msg = str(e).lower()
+            
+            # Check for rate limit errors
+            if "rate limit" in error_msg or "429" in error_msg or "quota" in error_msg:
+                logger.error(f"❌ {self.provider_name} rate limit exceeded: {str(e)}")
+                raise LLMRateLimitError(f"Rate limit exceeded for {self.provider_name}: {str(e)}")
+            
+            # Check for connection errors
+            if any(term in error_msg for term in ["connection", "timeout", "network", "unreachable"]):
+                logger.error(f"❌ {self.provider_name} connection error: {str(e)}")
+                raise LLMConnectionError(f"Connection failed for {self.provider_name}: {str(e)}")
+            
+            # Generic error
+            logger.error(f"❌ {self.provider_name} generation error: {str(e)}")
+            raise LLMProviderError(f"{self.provider_name} error: {str(e)}")
     
     async def validate_connection(self) -> bool:
-        """Validate OpenAI connection"""
+        """Validate provider connection"""
         try:
-            # Make a minimal API call to test connection
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": "test"}],
                 max_tokens=5
             )
-            logger.info("OpenAI connection validated")
+            logger.info(f"✅ {self.provider_name} connection validated successfully")
             return True
         except Exception as e:
-            logger.error(f"OpenAI connection validation failed: {str(e)}")
+            logger.error(f"❌ {self.provider_name} connection validation failed: {str(e)}")
             return False
+
+
+class OpenAIProvider(OpenAICompatibleProvider):
+    """OpenAI GPT provider"""
+    
+    def __init__(self, api_key: str, model: str = "gpt-4"):
+        from openai import AsyncOpenAI
+        super().__init__(api_key, model, AsyncOpenAI)
+
+
+class GroqProvider(OpenAICompatibleProvider):
+    """Groq provider with Llama, Mixtral, and Gemma models"""
+    
+    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
+        from groq import AsyncGroq
+        super().__init__(api_key, model, AsyncGroq)
 
 
 class AnthropicProvider(BaseLLMProvider):
@@ -119,49 +342,67 @@ class AnthropicProvider(BaseLLMProvider):
         super().__init__(api_key, model)
         try:
             from anthropic import AsyncAnthropic
-            self.client = AsyncAnthropic(api_key=self.api_key)
-            logger.info(f"Initialized Anthropic provider with model: {self.model}")
-        except ImportError:
-            logger.error("Anthropic package not installed")
-            raise
+            self.client = AsyncAnthropic(api_key=self.api_key, timeout=REQUEST_TIMEOUT)
+            logger.info(f"✅ Initialized Anthropic provider with model: {self.model}")
+        except ImportError as e:
+            logger.error(f"❌ Anthropic package not installed: {str(e)}")
+            raise LLMConnectionError("Anthropic package not installed")
     
+    @retry_on_failure(max_retries=MAX_RETRIES)
     async def generate(
         self,
         prompt: str,
         temperature: float = 0.2,
         max_tokens: int = 4000,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> LLMResponse:
         """Generate response using Anthropic Claude"""
+        # Validate inputs
+        validate_generation_params(prompt, temperature, max_tokens)
+        
         try:
             response = await self.client.messages.create(
                 model=self.model,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                system="You are an expert R programmer specializing in clinical trial ADAM datasets following CDISC standards.",
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
                 **kwargs
             )
             
-            result = {
-                "content": response.content[0].text,
+            result: LLMResponse = {
+                "content": response.content[0].text if response.content else "",
                 "model": response.model,
                 "usage": {
                     "prompt_tokens": response.usage.input_tokens,
                     "completion_tokens": response.usage.output_tokens,
                     "total_tokens": response.usage.input_tokens + response.usage.output_tokens
                 },
-                "finish_reason": response.stop_reason
+                "finish_reason": response.stop_reason or "completed"
             }
             
-            logger.info(f"Anthropic generation completed: {result['usage']['total_tokens']} tokens")
+            logger.info(
+                f"✅ Anthropic generation completed: "
+                f"{result['usage']['total_tokens']} tokens, "
+                f"finish_reason: {result['finish_reason']}"
+            )
             return result
             
         except Exception as e:
-            logger.error(f"Anthropic generation error: {str(e)}")
-            raise
+            error_msg = str(e).lower()
+            
+            # Check for rate limit errors
+            if "rate limit" in error_msg or "429" in error_msg or "overload" in error_msg:
+                logger.error(f"❌ Anthropic rate limit exceeded: {str(e)}")
+                raise LLMRateLimitError(f"Rate limit exceeded for Anthropic: {str(e)}")
+            
+            # Check for connection errors
+            if any(term in error_msg for term in ["connection", "timeout", "network"]):
+                logger.error(f"❌ Anthropic connection error: {str(e)}")
+                raise LLMConnectionError(f"Connection failed for Anthropic: {str(e)}")
+            
+            logger.error(f"❌ Anthropic generation error: {str(e)}")
+            raise LLMProviderError(f"Anthropic error: {str(e)}")
     
     async def validate_connection(self) -> bool:
         """Validate Anthropic connection"""
@@ -171,10 +412,10 @@ class AnthropicProvider(BaseLLMProvider):
                 max_tokens=5,
                 messages=[{"role": "user", "content": "test"}]
             )
-            logger.info("Anthropic connection validated")
+            logger.info("✅ Anthropic connection validated successfully")
             return True
         except Exception as e:
-            logger.error(f"Anthropic connection validation failed: {str(e)}")
+            logger.error(f"❌ Anthropic connection validation failed: {str(e)}")
             return False
 
 
@@ -182,32 +423,32 @@ class GoogleProvider(BaseLLMProvider):
     """Google Gemini provider"""
 
     def __init__(self, api_key: str, model: str = None):
-        # default model will be provided by settings.DEFAULT_MODEL when constructing
         model_to_use = model or getattr(settings, 'DEFAULT_MODEL', 'gemini-pro')
         super().__init__(api_key, model_to_use)
         try:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
             self.client = genai.GenerativeModel(self.model)
-            logger.info(f"Initialized Google provider with model: {self.model}")
-        except ImportError:
-            logger.error("Google Generative AI package not installed")
-            raise
+            logger.info(f"✅ Initialized Google provider with model: {self.model}")
+        except ImportError as e:
+            logger.error(f"❌ Google Generative AI package not installed: {str(e)}")
+            raise LLMConnectionError("Google Generative AI package not installed")
     
+    @retry_on_failure(max_retries=MAX_RETRIES)
     async def generate(
         self,
         prompt: str,
         temperature: float = 0.2,
         max_tokens: int = 4000,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> LLMResponse:
         """Generate response using Google Gemini"""
+        # Validate inputs
+        validate_generation_params(prompt, temperature, max_tokens)
+        
         try:
             # Add system context to the prompt
-            full_prompt = (
-                "You are an expert R programmer specializing in clinical trial ADAM datasets "
-                "following CDISC standards.\n\n" + prompt
-            )
+            full_prompt = f"{SYSTEM_PROMPT}\n\n{prompt}"
 
             generation_config = {
                 "temperature": temperature,
@@ -223,42 +464,83 @@ class GoogleProvider(BaseLLMProvider):
             # Check if response has candidates and extract text safely
             if not response.candidates or len(response.candidates) == 0:
                 logger.error("Google API returned no candidates. Response may be blocked.")
-                raise ValueError("Google API returned no candidates. The prompt may have been blocked due to safety filters.")
+                raise LLMProviderError(
+                    "Google API returned no candidates. "
+                    "The prompt may have been blocked due to safety filters."
+                )
 
             # Extract text from first candidate
-            text_content = response.candidates[0].content.parts[0].text if response.candidates[0].content.parts else ""
+            text_content = (
+                response.candidates[0].content.parts[0].text 
+                if response.candidates[0].content.parts 
+                else ""
+            )
 
             if not text_content:
                 logger.error("Google API returned empty response")
-                raise ValueError("Google API returned empty response")
+                raise LLMProviderError("Google API returned empty response")
 
-            result = {
+            result: LLMResponse = {
                 "content": text_content,
                 "model": self.model,
                 "usage": {
-                    "prompt_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0,
-                    "completion_tokens": response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0,
-                    "total_tokens": response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') else 0
+                    "prompt_tokens": (
+                        response.usage_metadata.prompt_token_count 
+                        if hasattr(response, 'usage_metadata') else 0
+                    ),
+                    "completion_tokens": (
+                        response.usage_metadata.candidates_token_count 
+                        if hasattr(response, 'usage_metadata') else 0
+                    ),
+                    "total_tokens": (
+                        response.usage_metadata.total_token_count 
+                        if hasattr(response, 'usage_metadata') else 0
+                    )
                 },
-                "finish_reason": response.candidates[0].finish_reason.name if hasattr(response.candidates[0], 'finish_reason') else "completed"
+                "finish_reason": (
+                    response.candidates[0].finish_reason.name 
+                    if hasattr(response.candidates[0], 'finish_reason') 
+                    else "completed"
+                )
             }
 
-            logger.info(f"Google generation completed: {result['usage']['total_tokens']} tokens")
+            logger.info(
+                f"✅ Google generation completed: "
+                f"{result['usage']['total_tokens']} tokens, "
+                f"finish_reason: {result['finish_reason']}"
+            )
             return result
 
         except Exception as e:
-            logger.error(f"Google generation error: {str(e)}")
-            raise
+            error_msg = str(e).lower()
+            
+            # Check for rate limit/quota errors
+            if any(term in error_msg for term in ["rate limit", "429", "quota", "resource exhausted"]):
+                logger.error(f"❌ Google rate limit/quota exceeded: {str(e)}")
+                raise LLMRateLimitError(f"Rate limit/quota exceeded for Google: {str(e)}")
+            
+            # Check for connection errors
+            if any(term in error_msg for term in ["connection", "timeout", "network"]):
+                logger.error(f"❌ Google connection error: {str(e)}")
+                raise LLMConnectionError(f"Connection failed for Google: {str(e)}")
+            
+            logger.error(f"❌ Google generation error: {str(e)}")
+            raise LLMProviderError(f"Google error: {str(e)}")
     
     async def validate_connection(self) -> bool:
         """Validate Google connection"""
         try:
             response = await self.client.generate_content_async("test")
-            logger.info("Google connection validated")
+            logger.info("✅ Google connection validated successfully")
             return True
         except Exception as e:
-            logger.error(f"Google connection validation failed: {str(e)}")
+            logger.error(f"❌ Google connection validation failed: {str(e)}")
             return False
+
+
+# ============================================================================
+# LLM Integration Service
+# ============================================================================
 
 
 class LLMIntegrationService:
@@ -268,40 +550,92 @@ class LLMIntegrationService:
         self.providers: Dict[str, BaseLLMProvider] = {}
         self._initialize_providers()
     
+    def _initialize_provider(
+        self, 
+        name: str, 
+        provider_class: type, 
+        api_key: Optional[str], 
+        model: str
+    ) -> None:
+        """
+        Initialize a single provider with error handling
+        
+        Args:
+            name: Provider name (e.g., "groq", "openai")
+            provider_class: Provider class to instantiate
+            api_key: API key for the provider
+            model: Model name to use
+        """
+        if not api_key:
+            logger.debug(f"Skipping {name} provider: No API key configured")
+            return
+        
+        try:
+            self.providers[name] = provider_class(api_key=api_key, model=model)
+            logger.info(f"✅ Successfully initialized {name} provider")
+        except LLMValidationError as e:
+            logger.error(f"❌ Validation error initializing {name} provider: {str(e)}")
+        except LLMConnectionError as e:
+            logger.error(f"❌ Connection error initializing {name} provider: {str(e)}")
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize {name} provider: {str(e)}")
+    
     def _initialize_providers(self):
         """Initialize available LLM providers based on API keys"""
+        logger.info("🚀 Initializing LLM providers...")
+        
+        # Initialize Groq (Priority: Free tier with high limits)
+        self._initialize_provider(
+            name="groq",
+            provider_class=GroqProvider,
+            api_key=getattr(settings, 'GROQ_API_KEY', None),
+            model=(
+                getattr(settings, 'DEFAULT_MODEL') 
+                if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'groq' 
+                else 'llama-3.3-70b-versatile'
+            )
+        )
         
         # Initialize OpenAI
-        if settings.OPENAI_API_KEY:
-            try:
-                self.providers["openai"] = OpenAIProvider(
-                    api_key=settings.OPENAI_API_KEY,
-                    model=(getattr(settings, 'DEFAULT_MODEL') if getattr(settings, 'DEFAULT_LLM_PROVIDER', 'openai') == 'openai' else 'gpt-4')
-                )
-            except Exception as e:
-                logger.error(f"Failed to initialize OpenAI provider: {str(e)}")
+        self._initialize_provider(
+            name="openai",
+            provider_class=OpenAIProvider,
+            api_key=settings.OPENAI_API_KEY,
+            model=(
+                getattr(settings, 'DEFAULT_MODEL') 
+                if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'openai' 
+                else 'gpt-4'
+            )
+        )
         
         # Initialize Anthropic
-        if settings.ANTHROPIC_API_KEY:
-            try:
-                self.providers["anthropic"] = AnthropicProvider(
-                    api_key=settings.ANTHROPIC_API_KEY,
-                    model=(getattr(settings, 'DEFAULT_MODEL') if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'anthropic' else 'claude-3-5-sonnet-20241022')
-                )
-            except Exception as e:
-                logger.error(f"Failed to initialize Anthropic provider: {str(e)}")
+        self._initialize_provider(
+            name="anthropic",
+            provider_class=AnthropicProvider,
+            api_key=settings.ANTHROPIC_API_KEY,
+            model=(
+                getattr(settings, 'DEFAULT_MODEL') 
+                if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'anthropic' 
+                else 'claude-3-5-sonnet-20241022'
+            )
+        )
         
         # Initialize Google
-        if settings.GOOGLE_API_KEY:
-            try:
-                self.providers["google"] = GoogleProvider(
-                    api_key=settings.GOOGLE_API_KEY,
-                    model=(getattr(settings, 'DEFAULT_MODEL') if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'google' else 'gemini-pro')
-                )
-            except Exception as e:
-                logger.error(f"Failed to initialize Google provider: {str(e)}")
+        self._initialize_provider(
+            name="google",
+            provider_class=GoogleProvider,
+            api_key=settings.GOOGLE_API_KEY,
+            model=(
+                getattr(settings, 'DEFAULT_MODEL') 
+                if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'google' 
+                else 'gemini-pro'
+            )
+        )
         
-        logger.info(f"Initialized {len(self.providers)} LLM providers: {list(self.providers.keys())}")
+        if not self.providers:
+            logger.error("⚠️  WARNING: No LLM providers initialized! Please configure at least one API key in .env")
+        else:
+            logger.info(f"✅ Initialized {len(self.providers)} LLM provider(s): {list(self.providers.keys())}")
     
     async def generate(
         self,
@@ -311,43 +645,75 @@ class LLMIntegrationService:
         temperature: float = 0.2,
         max_tokens: int = 4000,
         **kwargs
-    ) -> Dict[str, Any]:
+    ) -> LLMResponse:
         """
         Generate response using specified LLM provider
         
         Args:
             prompt: The prompt to send
-            provider: Provider name (openai, anthropic, google)
+            provider: Provider name (groq, openai, anthropic, google)
             model: Optional specific model override
             temperature: Temperature parameter
             max_tokens: Maximum tokens
             **kwargs: Additional provider-specific parameters
             
         Returns:
-            Generation result dictionary
+            LLMResponse dictionary with content, model, usage, and finish_reason
+            
+        Raises:
+            LLMValidationError: If provider not available or inputs invalid
+            LLMConnectionError: If connection to provider fails
+            LLMRateLimitError: If rate limit is exceeded
         """
-        # If provider not specified, fall back to default from settings
-        provider_to_use = provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'openai')
+        # Determine provider to use
+        provider_to_use = provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'groq')
+        
+        if not self.providers:
+            raise LLMValidationError(
+                "No LLM providers configured. Please set up at least one API key in .env file."
+            )
+        
         if provider_to_use not in self.providers:
-            raise ValueError(f"Provider '{provider_to_use}' not available. Available: {list(self.providers.keys())}")
+            available = list(self.providers.keys())
+            raise LLMValidationError(
+                f"Provider '{provider_to_use}' not available. "
+                f"Available providers: {available}. "
+                f"Please configure the API key in .env file."
+            )
         
         llm_provider = self.providers[provider_to_use]
         
         # Override model if specified
-        # Override model if specified, otherwise keep provider default
+        original_model = None
         if model:
+            original_model = llm_provider.model
             llm_provider.model = model
+            logger.debug(f"Model override: {original_model} -> {model}")
         
-        return await llm_provider.generate(
-            prompt=prompt,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            **kwargs
-        )
+        try:
+            return await llm_provider.generate(
+                prompt=prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                **kwargs
+            )
+        finally:
+            # Restore original model if it was overridden
+            if original_model:
+                llm_provider.model = original_model
     
     async def validate_provider(self, provider: str) -> bool:
-        """Validate that a specific provider is accessible"""
+        """
+        Validate that a specific provider is accessible
+        
+        Args:
+            provider: Provider name to validate
+            
+        Returns:
+            True if provider is available and connection is valid
+        """
         if provider not in self.providers:
+            logger.warning(f"Provider '{provider}' not initialized")
             return False
         return await self.providers[provider].validate_connection()
     
@@ -361,10 +727,16 @@ class LLMIntegrationService:
         for provider_name, provider in self.providers.items():
             info[provider_name] = {
                 "model": provider.model,
-                "available": True
+                "available": True,
+                "provider_class": provider.__class__.__name__
             }
         return info
 
 
 # Global service instance
 llm_service = LLMIntegrationService()
+
+
+def get_llm_service() -> LLMIntegrationService:
+    """Get the global LLM service instance"""
+    return llm_service
