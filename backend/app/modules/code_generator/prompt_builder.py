@@ -159,40 +159,29 @@ class PromptBuilder:
         rules_context = self._format_rules_context(adam_dataset)
         
         # Build prompt
-        prompt = f"""You are an expert CDISC ADAM programmer specializing in {language}.
+        prompt = f"""You are an expert CDISC ADAM programmer. Generate ONLY the essential {language} code to implement the derivation logic - nothing more.
 
-Generate production-ready {language} code for the following ADAM variable.
-
-**Variable Information:**
-- Variable Name: {variable_name}
-- Variable Label: {variable_label}
-- Variable Type: {variable_type}
-- Derivation Logic: {derivation_logic}
-
-**Dataset Context:**
-- ADAM Dataset: {adam_dataset}
-- Available SDTM Domains: {', '.join(context.get('sdtm_domains', []))}
-- CDISC ADAM IG Version: {context.get('adam_ig_version', 'Unknown')}
-- CDISC SDTM Version: {context.get('sdtm_version', 'Unknown')}
+**Variable:** {variable_name} ({variable_label})
+**Type:** {variable_type}
+**Derivation:** {derivation_logic}
+**Dataset:** {adam_dataset}
+**Standards:** ADAM IG v{context.get('adam_ig_version', '1.3')}, SDTM v{context.get('sdtm_version', 'Unknown')}
 
 {rules_context}
 
-**Programming Requirements:**
-1. Follow CDISC ADAM Implementation Guide v{context.get('adam_ig_version', '1.3')} standards
-2. Apply CDISC variable naming conventions (see ADAM Standards and Rules above)
-3. Handle missing values appropriately (use NA in R, . or "" in SAS)
-4. Include clear, concise comments
-5. Use consistent indentation and formatting
-6. Code must be executable and production-ready
-7. Follow best practices for {language} programming
-8. Ensure compliance with all ADAM rules and standards listed above
-
 {template_hint}
 
-**Instructions:**
-Generate ONLY the code snippet. Do not include explanations, markdown formatting, or additional commentary.
-The code should be directly executable in {language}.
-"""
+**CRITICAL REQUIREMENTS:**
+1. Generate ONLY the core derivation code - the direct conversion of the derivation logic into {language}
+2. NO introductory comments (e.g., "Derivation of variable...", "Based on standards...")
+3. NO library loading statements (e.g., library(dplyr))
+4. NO example usage code (e.g., "Example usage:", test data frames, print statements)
+5. NO explanatory text before or after the code
+6. Include ONLY minimal inline comments for complex logic
+7. The code must be a pure function or logic block that can be directly integrated
+8. Follow CDISC standards and variable naming conventions
+
+Return ONLY executable {language} code that implements the derivation logic."""
         
         return prompt.strip()
     

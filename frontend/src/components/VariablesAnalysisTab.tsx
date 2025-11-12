@@ -55,6 +55,7 @@ export const VariablesAnalysisTab: React.FC = () => {
     adamIgVersion,
     medraVersion,
     tempSpecFile,
+    llmProvider,
   } = useProjectStore();
 
   const [activeCategory, setActiveCategory] = useState<string>('0');
@@ -213,7 +214,7 @@ export const VariablesAnalysisTab: React.FC = () => {
       content: (
         <div style={{ padding: '16px 0' }}>
           <p style={{ marginBottom: '12px' }}>
-            This will generate code snippets for <strong>{totalVariables} variables</strong> using Google Gemini AI.
+            This will generate code snippets for <strong>{totalVariables} variables</strong> using <strong>Groq AI (llama-3.3-70b)</strong>.
           </p>
           <div style={{ 
             background: '#f0f5ff', 
@@ -227,7 +228,7 @@ export const VariablesAnalysisTab: React.FC = () => {
             </div>
             <ul style={{ margin: '8px 0', paddingLeft: '24px' }}>
               <li>Code will be generated in <strong>{programmingLanguage}</strong></li>
-              <li>Estimated time: <strong>~{estimatedTime} seconds</strong></li>
+              <li>Estimated time: <strong>~{estimatedTime} seconds</strong> (Groq is fast!)</li>
               <li>Each variable will get code + rationale</li>
               <li>You can review and edit in Pair Programming Area</li>
             </ul>
@@ -323,6 +324,7 @@ export const VariablesAnalysisTab: React.FC = () => {
               adam_ig_version: adamIgVersion,
               meddra_version: medraVersion,
             },
+            llm_provider: llmProvider,
           });
 
           stopTimer();
@@ -401,7 +403,7 @@ export const VariablesAnalysisTab: React.FC = () => {
       // Collect approved variables and their data
       const pairProgramming = useProjectStore.getState().pairProgramming;
       const approvedVarNames = Object.entries(pairProgramming.snippets)
-        .filter(([_, snippet]) => snippet.accepted)
+        .filter(([_, snippet]) => snippet.accepted === 'accept')
         .map(([name, _]) => name);
 
       // Collect user notes for approved variables
@@ -455,101 +457,6 @@ export const VariablesAnalysisTab: React.FC = () => {
     } finally {
       setIsGeneratingFinalCode(false);
     }
-  };
-
-  const getTypeBadge = (type?: string) => {
-    if (!type) return <span className="type-badge type-unknown">N/A</span>;
-    const typeUpper = type.toUpperCase();
-    if (typeUpper.includes('CHAR') || typeUpper.includes('TEXT')) {
-      return <span className="type-badge type-char">Text</span>;
-    }
-    if (typeUpper.includes('NUM') || typeUpper.includes('NUMBER')) {
-      return <span className="type-badge type-num">Numeric</span>;
-    }
-    if (typeUpper.includes('DATE')) {
-      return <span className="type-badge type-date">Date</span>;
-    }
-    return <span className="type-badge type-other">{type}</span>;
-  };
-
-  const renderVariablesTable = (variables: VariableInfo[], extraCols: string[]) => {
-    // Build dynamic grid template: base 5 columns + extras
-    const baseTemplate = '200px 120px 100px 150px 1fr';
-    const extraTemplate = extraCols.map(() => '180px').join(' ');
-    const gridTemplate = extraTemplate ? `${baseTemplate} ${extraTemplate}` : baseTemplate;
-
-    return (
-      <div className="variables-table">
-        <div className="table-header" style={{ gridTemplateColumns: gridTemplate }}>
-          <div className="col-variable">Variable Name</div>
-          <div className="col-type">Type</div>
-          <div className="col-length">Length</div>
-          <div className="col-format">Format</div>
-          <div className="col-label">Label / Description</div>
-          {extraCols.map((col) => (
-            <div key={`h-${col}`} className="col-extra">{col}</div>
-          ))}
-        </div>
-        <div className="table-body">
-          {variables.map((variable) => (
-            <div key={variable.name} className="table-row" style={{ gridTemplateColumns: gridTemplate }}>
-              <div className="col-variable">
-                <div className="variable-name-wrapper">
-                  <span className="variable-name">{variable.name}</span>
-                  {variable.is_required && (
-                    <span className="required-indicator" title="Required Variable">
-                      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                        <circle cx="6" cy="6" r="5" />
-                      </svg>
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="col-type">
-                {getTypeBadge(variable.type)}
-              </div>
-              <div className="col-length">
-                {variable.length ? (
-                  <span className="length-value">{variable.length}</span>
-                ) : (
-                  <span className="na-value">—</span>
-                )}
-              </div>
-              <div className="col-format">
-                {variable.format ? (
-                  <code className="format-code">{variable.format}</code>
-                ) : (
-                  <span className="na-value">—</span>
-                )}
-              </div>
-              <div className="col-label">
-                <div className="label-content">
-                  {variable.label && (
-                    <span className="label-text">{variable.label}</span>
-                  )}
-                  {variable.derivation && (
-                    <div className="derivation-info">
-                      <Info size={12} />
-                      <span>{variable.derivation}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              {/* Extra columns from specification */}
-              {extraCols.map((col) => (
-                <div key={`${variable.name}-${col}`} className="col-extra">
-                  {variable.extra && variable.extra[col] ? (
-                    <span className="label-text">{variable.extra[col]}</span>
-                  ) : (
-                    <span className="na-value">—</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
   };
 
   const renderCategoryContent = (category: DisplayCategory) => {
@@ -631,16 +538,8 @@ export const VariablesAnalysisTab: React.FC = () => {
   }
 
   // Main content with categorized variables
-  // Get active category for pair programming panel and analysis table
+  // Get active category for pair programming panel
   const activeCategoryData = sortedCategories[parseInt(activeCategory, 10)] || null;
-
-  // Build list of extra columns from spec for analysis table
-  const specCols = categorizedVariables?.spec_columns || [];
-  const baseCols = new Set(
-    ['variable', 'variable name', 'name', 'label', 'description', 'type', 'length', 'format']
-      .map((s) => s.toLowerCase())
-  );
-  const extraCols = specCols.filter((c) => !baseCols.has(String(c).toLowerCase()));
 
   return (
     <div className="variables-analysis-tab">
@@ -824,15 +723,6 @@ export const VariablesAnalysisTab: React.FC = () => {
               )}
             </div>
           </div>
-
-          {/* Bottom Section: Analysis Table (Full Width) */}
-          {activeCategoryData && (
-            <div className="analysis-table-section">
-              <div className="analysis-panel" role="region" aria-label="Variables Analysis Table">
-                {renderVariablesTable(activeCategoryData.variables, extraCols)}
-              </div>
-            </div>
-          )}
         </>
       ) : (
         <div className="no-categories">

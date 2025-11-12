@@ -5,12 +5,78 @@ Main service for AI-powered ADAM code generation using configurable LLM provider
 Orchestrates template selection, prompt building, and batch processing.
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from loguru import logger
+import re
 from app.config import settings
 from app.modules.llm_integration.service import get_llm_service, LLMIntegrationService
 from .prompt_builder import PromptBuilder
 from .cache_manager import CacheManager
+
+
+def clean_generated_code(code: str, language: str) -> str:
+    """
+    Clean generated code by removing unwanted sections
+    
+    Args:
+        code: Raw generated code
+        language: Programming language ('R' or 'SAS')
+    
+    Returns:
+        Cleaned code with only essential derivation logic
+    """
+    lines = code.split('\n')
+    cleaned_lines = []
+    skip_mode = False
+    
+    for line in lines:
+        line_stripped = line.strip().lower()
+        
+        # Skip library/package loading statements
+        if language.upper() == 'R':
+            if line_stripped.startswith('library(') or line_stripped.startswith('require('):
+                continue
+        
+        # Skip example usage sections (common patterns)
+        if any(pattern in line_stripped for pattern in [
+            'example usage:', 
+            '# example', 
+            'example:',
+            'test data',
+            'for testing',
+            'sample usage'
+        ]):
+            skip_mode = True
+            continue
+        
+        # Skip print/cat statements that are clearly for testing
+        if skip_mode:
+            # Look for end of example section (blank line or start of new section)
+            if line_stripped == '' or (line_stripped.startswith('#') and 'example' not in line_stripped):
+                skip_mode = False
+            continue
+        
+        # Skip introductory comment headers
+        if any(pattern in line_stripped for pattern in [
+            'derivation of',
+            'based on adam',
+            'based on sdtm',
+            'based on standards',
+            'load necessary',
+            'load required'
+        ]):
+            continue
+        
+        # Keep the line
+        cleaned_lines.append(line)
+    
+    # Remove leading/trailing blank lines
+    while cleaned_lines and cleaned_lines[0].strip() == '':
+        cleaned_lines.pop(0)
+    while cleaned_lines and cleaned_lines[-1].strip() == '':
+        cleaned_lines.pop()
+    
+    return '\n'.join(cleaned_lines)
 
 
 class CodeGeneratorService:
@@ -44,7 +110,8 @@ class CodeGeneratorService:
         dataset: str,
         categorized_variables: Dict[str, Any],
         language: str,
-        standards: Dict[str, Any]
+        standards: Dict[str, Any],
+        llm_provider: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Generate code for ALL variables across ALL categories
@@ -57,6 +124,7 @@ class CodeGeneratorService:
             categorized_variables: Categorization result with all variables
             language: Programming language (R or SAS)
             standards: Standards information (SDTM version, ADAM IG version, etc.)
+            llm_provider: LLM provider to use (groq, openai, anthropic, google). If None, uses default.
             
         Returns:
             List of CodeSnippetResponse dictionaries
@@ -88,7 +156,8 @@ class CodeGeneratorService:
             results = await self.process_variables_with_llm(
                 variables=all_variables,
                 language=language,
-                context=context
+                context=context,
+                llm_provider=llm_provider
             )
             
             logger.info(f"Bulk code generation complete: {len(results)} results")
@@ -102,7 +171,8 @@ class CodeGeneratorService:
         self,
         variable: Dict[str, Any],
         language: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        llm_provider: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate code for a single variable (for retry/regeneration)
@@ -140,9 +210,13 @@ class CodeGeneratorService:
                 code_response = await self.llm_service.generate(
                     prompt=code_prompt,
                     temperature=0.2,
-                    max_tokens=2000
+                    max_tokens=2000,
+                    provider=llm_provider
                 )
-                code_snippet = code_response.get('content', '')
+                raw_code = code_response.get('content', '')
+                
+                # Clean the generated code to remove unwanted sections
+                code_snippet = clean_generated_code(raw_code, language)
                 
                 # Build prompt for rationale
                 rationale_prompt = self.prompt_builder.build_rationale_prompt(
@@ -156,7 +230,8 @@ class CodeGeneratorService:
                 rationale_response = await self.llm_service.generate(
                     prompt=rationale_prompt,
                     temperature=0.3,
-                    max_tokens=500
+                    max_tokens=500,
+                    provider=llm_provider
                 )
                 coding_rationale = rationale_response.get('content', '')
                 
@@ -194,7 +269,8 @@ class CodeGeneratorService:
         self,
         variables: List[Dict[str, Any]],
         language: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        llm_provider: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Process multiple variables using LLM service
@@ -203,6 +279,7 @@ class CodeGeneratorService:
             variables: List of variable dictionaries
             language: Programming language
             context: Generation context
+            llm_provider: LLM provider to use (groq, openai, anthropic, google). If None, uses default.
             
         Returns:
             List of CodeSnippetResponse dictionaries
@@ -225,7 +302,7 @@ class CodeGeneratorService:
             # Create tasks for ALL variables in batch (not just max_concurrent)
             tasks = []
             for variable in batch:
-                tasks.append(self.generate_single_variable(variable, language, context))
+                tasks.append(self.generate_single_variable(variable, language, context, llm_provider))
             
             # Execute tasks with concurrency control via semaphore in generate_single_variable
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)

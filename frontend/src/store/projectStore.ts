@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult, CodeSnippetResponse } from '../types';
+import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult, CodeSnippetResponse, LLMProvider } from '../types';
 
 export interface Rule {
   id: string;
@@ -23,7 +23,7 @@ export interface VariableSnippet {
   codeSnippet: string;
   rationale: string;
   userNotes: string;
-  accepted: boolean;
+  accepted: 'accept' | 'modify' | null;
   generatedAt: Date;
   language: 'R' | 'SAS';
   error?: string;
@@ -80,11 +80,13 @@ interface ProjectStore {
   // Pair Programming State
   pairProgramming: PairProgrammingState;
   programmingLanguage: 'R' | 'SAS';
+  llmProvider: LLMProvider;
   setProgrammingLanguage: (language: 'R' | 'SAS') => void;
+  setLlmProvider: (provider: LLMProvider) => void;
   setPairProgrammingSnippet: (variable: string, snippet: VariableSnippet) => void;
   setGeneratingSnippet: (variable: string, isGenerating: boolean) => void;
   setPairProgrammingNotes: (variable: string, notes: string) => void;
-  setPairProgrammingAcceptance: (variable: string, accepted: boolean) => void;
+  setPairProgrammingAcceptance: (variable: string, accepted: 'accept' | 'modify' | null) => void;
   setBulkCodeSnippets: (snippets: CodeSnippetResponse[]) => void;
 
   // Generation Options
@@ -144,6 +146,7 @@ const initialState = {
     isGenerating: {},
   },
   programmingLanguage: 'R' as 'R' | 'SAS',
+  llmProvider: 'groq' as LLMProvider,
   generationOptions: {
     includeComments: 'comprehensive' as const,
     codeStyle: 'standard' as const,
@@ -206,6 +209,9 @@ export const useProjectStore = create<ProjectStore>()(
       // Pair Programming Actions
       setProgrammingLanguage: (language) =>
         set({ programmingLanguage: language }),
+
+      setLlmProvider: (provider) =>
+        set({ llmProvider: provider }),
 
       setPairProgrammingSnippet: (variable, snippet) =>
         set((state) => ({
@@ -275,7 +281,7 @@ export const useProjectStore = create<ProjectStore>()(
               codeSnippet: snippet.code_snippet || '',
               rationale: snippet.coding_rationale || '',
               userNotes: state.pairProgramming.snippets[variable]?.userNotes || '',
-              accepted: state.pairProgramming.snippets[variable]?.accepted || false,
+              accepted: state.pairProgramming.snippets[variable]?.accepted || 'accept',
               generatedAt: new Date(),
               language: state.programmingLanguage,
               error: snippet.error,

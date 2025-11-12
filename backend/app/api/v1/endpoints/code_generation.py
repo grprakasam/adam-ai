@@ -77,7 +77,8 @@ async def generate_code_bulk(
             dataset=dataset,
             categorized_variables=request.categorized_variables,
             language=language,
-            standards=request.standards
+            standards=request.standards,
+            llm_provider=request.llm_provider
         )
         
         logger.info(f"Successfully generated {len(results)} code snippets")
@@ -150,7 +151,8 @@ async def generate_code_snippet(
         result = await service.generate_single_variable(
             variable=variable,
             language=request.language,
-            context=context
+            context=context,
+            llm_provider=request.llm_provider
         )
         
         logger.info(f"Successfully generated code for {request.variable}")
