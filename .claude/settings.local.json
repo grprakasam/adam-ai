@@ -19,7 +19,14 @@
       "Bash(backend/app/api/v1/endpoints/specification.py)",
       "Bash(wmic process:*)",
       "Bash(npm run dev:*)",
-      "Bash(start http://localhost:5173)"
+      "Bash(start http://localhost:5173)",
+      "Bash(Get-Process -Id 24288,23840,25920 -ErrorAction SilentlyContinue)",
+      "Bash(taskkill:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(..prakenvScriptspython.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000)",
+      "Bash(python -m uvicorn:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

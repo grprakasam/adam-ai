@@ -1,45 +1,24 @@
-import { Card, Button, Space, Empty, Spin } from 'antd';
+import { Card, Button, Space } from 'antd';
 import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
-import { useProjectStore } from '../store/projectStore';
+// no store selectors required in this file
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import './RightPanel.css';
 
 interface RightPanelProps {
   generationResult: GenerationResponse | null;
   language: ProgrammingLanguage;
-  activeTab: string;
 }
 
-const RightPanel = ({ generationResult, language, activeTab }: RightPanelProps) => {
-
-  // Show Variables Analysis Tab in main panel when that tab is active
-  if (activeTab === 'variables') {
-    return (
-      <div className="right-panel">
-        <VariablesAnalysisTab />
-      </div>
-    );
-  }
+const RightPanel = ({ generationResult, language }: RightPanelProps) => {
+  // Using VariablesAnalysisTab directly; local store selectors not needed here
 
   if (!generationResult) {
     return (
       <div className="right-panel">
-        <Card className="empty-state">
-          <Empty
-            description={
-              <div style={{ color: '#6b7280' }}>
-                <div style={{ fontSize: '16px', fontWeight: 500, marginBottom: '8px' }}>
-                  No code generated yet
-                </div>
-                <div style={{ fontSize: '13px' }}>
-                  Configure your study settings and click "Get Started" to begin
-                </div>
-              </div>
-            }
-          />
-        </Card>
+        {/* Variables Analysis (shown in main panel when available) */}
+        <VariablesAnalysisTab />
       </div>
     );
   }
@@ -79,6 +58,9 @@ const RightPanel = ({ generationResult, language, activeTab }: RightPanelProps) 
         />
       </Card>
 
+      {/* Variables Analysis below the generated code */}
+      <VariablesAnalysisTab />
+
       {/* Validation Results */}
       <Card 
         title="Validation Results"
@@ -94,7 +76,7 @@ const RightPanel = ({ generationResult, language, activeTab }: RightPanelProps) 
               <CloseCircleOutlined /> {validationStats.error}
             </span>
           </Space>
-        }
+}
         size="small"
         className="validation-card"
       >

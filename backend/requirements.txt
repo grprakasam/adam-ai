@@ -13,7 +13,7 @@ pydantic==2.10.5
 pydantic-settings==2.7.1
 
 # Database (Optional - for future enhancements)
-sqlalchemy==2.ī0.23
+sqlalchemy==2.0.23
 
 # File Processing
 python-docx==1.1.0

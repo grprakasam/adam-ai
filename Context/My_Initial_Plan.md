@@ -1,136 +1,59 @@
-# ADAM AI – Initial Execution Plan (ADSL‑First)
+﻿# ADAM AI - Approval Progress & Code Generation Plan (Initial)
 
-## Objectives
-- Deliver an ADSL‑first, domain‑friendly AI pair‑programming web app that generates ADaM programs via LLM.
-- Adhere to Context/ProjectArchitecture/ProjectArchitecture.md and ProjectRequirements.md without breaking existing UX flows.
-- Implement both frontend and backend for the full page workflow, using Google Gemini 2.5 Flash as the only LLM provider initially.
-- Treat Context/ADAMRules/* as the master rule source for prompts, checks, and UI guidance.
-- Parse user‑uploaded ADaM specification Excel (stored under `Content/UserInputs/ADAMSpecifications/`) to drive variable‑level code generation.
+Plan created per `Context/0_MyRequirement_planner.md`, `Context/ProjectArchitecture/*`, all Context/ADAMRules docs, repository phase summaries, backend/frontend READMEs, Quick Reference, and external UX research (Nielsen Norman Group 2024 guidance on progress indicators plus Material Design 3 progress specs). Scope limited to current ADSL workflow with Google Gemini 2.5 Flash as the primary LLM.
 
-## Non‑Breaking Principles
-- Keep current component structure and state store (Zustand) intact; extend via well‑scoped modules.
-- No regressions to navigation, theming, or stored state. Feature‑flag or route‑gate any new flows that could be disruptive.
-- Preserve tab semantics and keyboard accessibility (ARIA, focus states) in any UI additions.
-- Avoid renaming public API routes or changing response shapes without compatibility shims.
+## 1. Inputs & Constraints Reviewed
+- Repository markdowns: BUGFIX_BACKEND_ENDPOINT, IMPLEMENTATION_PROGRESS/COMPLETE, LANDING_PAGE_LAYOUT, REFACTORING_PLAN, PHASE_* & PHASES_* reports, Context/{1a_Planner,1b_Plan_reviewer,My_*_Plan}, Context/ADAMRules/*.md, Context/ProjectArchitecture/*.md, backend/frontend READMEs, backend QUICK_REFERENCE.
+- Data sources: `Content\UserInputs\ADAMSpecifications\*.xlsx` (ADSL default) + `Context\ADAMRules` as master rule source; rules file set remains source of truth for derivations per user note.
+- Operational directives: full-page frontend scope, current release focuses on ADSL, continue using Gemini 2.5 Flash without provider overrides, minimize API calls, derive logic from any "Source/Derivation/Coding logic/Derivation logic/Programming notes" column, persist approvals per Study ID, ensure backend updates happen in this phase, validation against IG versions acknowledged as future enhancement, incorporate lightweight access control/logging hooks, do not run app while planning.
 
-## Scope & Deliverables
-- Frontend: Entire UI (Landing + Workspace) with tabs for Project Information, ADAM Specification, Standards, Rules, and Enter ADAM Dataset Name (kept last).
-- Backend: FastAPI endpoints for spec upload/parse, rule loading, prompt assembly, LLM invocation, and code/validation payloads.
-- LLM: Single provider integration (Gemini 2.5 Flash) with robust prompt templates and JSON‑structured output.
-- Data: Normalized in‑memory model for ADSL specification rows and rule artifacts derived from Context/ADAMRules/.
+## 2. Target Experience & Guardrails
+- UX: Always-visible high-contrast progress bar anchored near workspace bottom (per NN/g progress-indicator heuristics), tooltip with exact percent plus counts, responsive layout that respects existing vertical tabs plus two-column workspace, large legible typography, and WCAG AA contrast.
+- Workflow: "Generate ADAM Code" button disabled until >=80% of variables are approved across tabs; tooltip explains requirement; confirmation modal previews steps, packages or PROC preferences, and any blocking conflicts before hitting backend.
+- Data accuracy: Only approved variables feed final code generation; derivation text plus user notes flow through unchanged. Variable Analysis tab must remain accessible but no longer auto-load outside workspace, aligning with prior bugfix instructions.
+- Performance: Cache by Study ID + dataset + standards + derivation hash to avoid redundant LLM calls, cap concurrency (3-4) with exponential backoff to avoid FastAPI 429 errors noted in logs, reuse cached snippets until invalidated.
+- Security/compliance: Keep PHI/PII local, redact oversized fields, add request-id logging plus minimal auditing without introducing new auth flows yet.
 
-## Architecture Alignment
-- Frontend: React 18 + TypeScript + Vite, Zustand for app state, Ant Design selectively. Reuse existing components and TabNavigation.
-- Backend: Python 3 + FastAPI, Pydantic v2 models, modular services (input collection, rule loading, llm), logging.
-- Filesystem: Persist uploads to `Content/UserInputs/ADAMSpecifications/` and reference `Context/StandardDocuments/` and `Context/ADAMRules/` for rule/context loading.
+## 3. Implementation Phases
 
-## Primary User Journeys
-1) Landing → Start Project → Workspace with tabs.
-2) Configure Project Information → Select Standards → Review/Enable Rules → Upload ADaM Specification Excel → Choose Dataset (ADSL) → Generate → Review code & validation.
-3) Optional: Use chat assistant to clarify missing metadata and confirm assumptions.
+### Phase A - Data & State Instrumentation
+1. **Study-scoped store upgrades**: Extend Zustand store with `approvalsByStudy[studyId][variableId] = { approved, notes, derivationSource, updatedAt }`, track `totalVariables` plus `approvedVariables` snapshots, and persist via localStorage or IndexedDB with versioning to honor REFACTORING_PLAN guidance.
+2. **Derivation resolver utility**: Build helper that scans spec row columns using ordered alias list and caches the resolved column/value per variable, logging which column satisfied the "Derivation source" rule for traceability.
+3. **Backend contract alignment**: Confirm FastAPI bulk endpoint accepts `{study_id,dataset,language,standards,variables:[{name,derivation,userNotes,metadata}]}`. Add `derivation_source_column` plus `approval_status` fields so backend audits logic without extra calls.
 
-## Frontend Plan
-- Navigation & Layout
-  - Keep current left tab order with labels updated; ensure dataset name tab remains last.
-  - Header contains Back to Landing and LLM/provider status per existing UI.
-- Project Information Tab
-  - Keep current fields (studyId, protocolNumber, therapeuticArea, studyPhase). Add inline validation and helpful descriptions.
-- ADAM Specification Tab
-  - File uploader (xlsx primary). Show file name, size, validation status.
-  - On successful upload, call backend parse endpoint → show parsed variable table preview (variable, type, label, derivation summary, dependencies).
-  - Persist specId returned by backend in store.
-- Standards Tab
-  - Maintain selection of SDTM, ADaM IG, MedDRA versions. Surface compatibility hints.
-- Rules Tab
-  - Load ADSL rules from backend (which aggregates Context/ADAMRules/*). Display grouped by category (e.g., Variable Naming, IG‑Specific, Macro Logic, App Behaviour).
-  - Allow enabling/disabling rule groups and show badges for coverage.
-- Enter ADAM Dataset Name (Last)
-  - Radio/select preset: ADSL (default). Leave ADAE/ADLB placeholders disabled for future.
-- Generate CTA & Right Panel
-  - Keep Get Started primary CTA (disabled <80% completion). On click, call generate endpoint.
-  - Right panel: code (Monaco), validation results, derivation sequence, metrics, documentation; hydrate from backend response.
-- Accessibility & UX
-  - Ensure tablist/tabpanel semantics, focus rings, and keyboard navigation. Color contrast for badges/borders meets reasonable standards.
+### Phase B - Progress Telemetry & UI
+1. **`useApprovalProgress` hook**: Memoized hook calculates totals, percentage, deficit to reach 80%, and boolean `isReadyForGeneration`, emitting aria-friendly data. Hook listens to approval toggles plus categorizedVariables updates.
+2. **Progress bar component**: Fixed bottom rail with high contrast, gradient shift when threshold reached, tooltip showing `X of Y approved` plus Study ID and dataset, and ARIA `progressbar` semantics per Material Design 3 spec.
+3. **Contextual cues**: Inject micro-copy in Variables and Rules tabs referencing progress (for example, chips per category) and short reminder banner in Standards tab so the user knows what remains.
 
-## Backend Plan
-- API Routes (initial)
-  - POST `/api/spec/upload` (multipart/form‑data): save Excel → returns `{specId, filename, size, datasetGuess}`.
-  - POST `/api/spec/parse`: `{specId}` → parses Excel into normalized rows → `{variables: [...], warnings: [...]}`.
-  - GET `/api/rules/adam/adsl`: returns canonical rule set merged from Context/ADAMRules/.
-  - POST `/api/generate/code`:
-    - Input: `{specId, dataset: "ADSL", standards, rulesEnabled, options: {language: "R"|"SAS", comments, style, optimization}}`
-    - Flow: load spec + rules → build prompt → call Gemini 2.5 Flash → return `{code, validationResults, derivationSequence, metrics, documentation}`.
-  - POST `/api/validate/code` (optional early): static checks/lints; returns structured findings.
-- Services
-  - Specification Service: load/save metadata, parse Excel (openpyxl/pandas), validate required columns, map to ADSL entities.
-  - Rules Service: read Context/ADAMRules/*, build typed structures (categories, conditions, precedence), expose query helpers.
-  - Prompt Builder: dataset‑aware templates; inject standards versions, rule constraints, and spec rows; request JSON‑structured auxiliary output.
-  - LLM Provider: Gemini 2.5 Flash client wrapper with retries, timeouts, and token accounting; redact sensitive paths.
-- Models (Pydantic v2)
-  - SpecVariable: `name, label, type, source, derivationLogic, dependencies[], controlledTerms?, comments?`.
-  - Standards: `sdtmVersion, adamIgVersion, medraVersion`.
-  - Rule: `id, category, title, description, severity, references[]`.
-  - GenerationRequest/Response (mirror FE contracts above).
-- Files & Security
-  - Save uploads under `Content/UserInputs/ADAMSpecifications/` with UUID filenames; enforce size/type checks.
-  - Sanitize paths; never execute uploaded content.
+### Phase C - CTA Gating & Confirmation Flow
+1. **Button enablement**: Tie "Generate ADAM Code" (or renamed CTA per latest UI) to hook output; tooltip clarifies requirement when disabled; include analytics event when threshold met.
+2. **Confirmation modal**: Summaries include total approved variables, standards selections, package or PROC preferences (tidyverse vs data.table; PROC SQL vs Data Step), and high-level plan steps. Provide editing shortcuts (jump to first unapproved variable, view notes).
+3. **Loading states & feedback**: Within modal, show stepper (Collect Inputs -> Detect Conflicts -> Call Gemini -> Compile Program -> Display Output). Disable dismissal until request finishes; on success, scroll to code output pane and show toast plus download link; on failure, display actionable error referencing request id.
 
-## LLM Prompting (ADSL‑First)
-- System intent: “You are a senior ADaM programmer generating ADSL in strict compliance with ADaM IG and provided rules.”
-- Context blocks:
-  - Standards snapshot (SDTM/ADaM IG/MedDRA versions).
-  - ADSL‑specific rules (from Context/ADAMRules/ categories).
-  - Minimized spec rows (only what’s needed per variable).
-- Output policy:
-  - Return final code only (no chain‑of‑thought), with optional descriptive comments controlled by `options.comments`.
-  - Use consistent dataset in code, strong typing, and defensives (missing values, date handling).
-- Structured side output (JSON): validation findings, derivation sequence, and variable docs for the UI panels.
+### Phase D - Backend & Generation Enhancements
+1. **Payload shaping & caching**: Client sends only approved rows with resolved derivation plus notes; backend caches by `(study_id,dataset,variable,derivationHash,userNotesHash)` to minimize repeated calls and returns cached snippets until invalidated.
+2. **Conflict detection**: Client-side keyword or regex scanner flags contradictory or ambiguous notes; modal blocks progression when `blocking` conflicts exist until user edits notes, satisfying requirement for pre-generation validation. Optionally log conflict summary to backend for auditing.
+3. **Rate-limit resilience**: Backend adds guard to reject duplicate inflight requests per Study ID with 202/409 plus retry-after to avoid loops seen in `/categorize-path` 429 errors; client respects headers and surfaces countdown.
+4. **Code assembly**: Backend ensures generated program (R or SAS) includes only approved variables, with comments referencing user notes and derivation source; incorporate package preferences and note warnings when packages absent.
+5. **Access & logging**: Add middleware to stamp request ids, log studyId/dataset/language, and stub hook for future auth; ensure logs exclude PHI.
 
-## Data & Parsing Expectations
-- Excel input (xlsx) contains rows mapping to variables with derivation guidance.
-- Parser validates required columns (name, label, type, derivation/source/conditions). Non‑critical gaps become warnings.
-- Map variable names to ADSL conventions; apply Context/ADAMRules/VariableNaming.
+### Phase E - Persistence, Resilience & Performance
+1. **Local persistence**: Store approvals, notes, cached snippets, and progress per Study ID in localStorage (or IndexedDB if more than 5 MB). Implement expiry plus manual "Reset study" action to clear stale data.
+2. **Network orchestration**: Queue categorize and generation calls with concurrency cap and exponential backoff plus jitter; implement cancellation if user navigates away; display retry controls and offline-safe messaging.
+3. **Instrumentation**: Capture metrics (cache hits, API calls, average latency, error codes) and expose via diagnostics drawer for QA; send minimal telemetry to backend only if request id/logging available.
 
-## Validation & Quality
-- Frontend
-  - Form validation; disable CTA until 80% completion (project info, standards, rules selection, spec uploaded, dataset chosen).
-  - Graceful error toasts with retry.
-- Backend
-  - Unit tests: spec parsing, rule loading, prompt builder (golden template test), LLM client errors.
-  - Integration tests: upload → parse → generate (mock LLM) → verify response shapes.
-  - Static analysis: ruff/flake8, mypy; TypeScript `tsc --noEmit`.
+### Phase F - Testing, Accessibility & Rollout
+1. **Unit tests**: Cover approval math, derivation resolver, conflict detector, store migrations, modal state machine.
+2. **Integration/E2E**: Simulate user uploading spec, approving variables, dropping below threshold to confirm auto-disable, regenerating after notes change, and verifying payload contains only approved rows.
+3. **Accessibility**: Validate keyboard navigation, focus trapping in modal, screen reader announcements for progress updates, and contrast ratios.
+4. **Docs & rollout**: Update README/help to describe new workflow, add feature flag for gradual release, document recovery steps if persistence corrupts, and align with ProjectArchitecture emphasis on user-friendly flow.
 
-## Observability & Logging
-- Correlate requests via requestId; log phases (upload/parse/build/generate) with durations.
-- Capture LLM call metadata (model, tokens, latency) without persisting prompt contents by default.
+## 4. Known Gaps / Clarifications Needed
+1. **Study/user identity**: Is client-side persistence sufficient, or should approvals be saved server-side against authenticated users or roles?
+2. **Specification variants**: Do we expect non-English column headers or sheet names beyond current alias list that require configuration?
+3. **Default package/PROC preferences**: Are there sponsor-mandated defaults we must set per Study ID, or is user selection remembered per browser only?
+4. **IG validation assets**: Are machine-readable IG or terminology files already in `Content\StandardDocuments` for the "validate against IG version" stretch goal, or should we design a stub for future releases?
+5. **Access control scope**: Should we integrate existing auth/logging infrastructure now (if available) or simply add request-id logging and revisit later?
 
-## Performance & UX Targets
-- Upload/parse under 3–5s for typical specs (<5MB).
-- LLM generation <10–15s; show progress/streaming and allow cancel.
-- Code‑split editor and heavy panels; lazy‑load only when needed.
-
-## Security Considerations
-- Enforce file type/size; quarantine unknown types.
-- Validate and sanitize all user inputs; never evaluate uploaded code.
-- Keep API keys in env vars; never send to client.
-
-## Milestones (Two Sprints)
-- Sprint 1 (Backend foundations)
-  - Upload/parse endpoints, rule loader, prompt builder scaffold, mock LLM, API contracts, unit/integration tests.
-- Sprint 2 (Frontend & LLM integration)
-  - Spec tab wiring, rules UI from backend, generate flow to Gemini 2.5 Flash, right‑panel hydration, validations, polish.
-
-## Acceptance Criteria
-- Can upload real ADSL specification Excel and see a parsed preview with warnings.
-- Can select standards and rules; completion reaches ≥80% when inputs are sufficient.
-- Clicking Get Started returns syntactically correct ADSL code and companion JSON payloads for validation/sequence/docs.
-- No regressions in navigation, theming, or saved state across refresh.
-
-## Risks & Mitigations
-- Spec variability → defensive parser + clear warnings.
-- LLM determinism → template‑driven prompts, sampling controls, and linting.
-- Rule/version drift → centralize rule metadata with version tags and tests.
-
-## Open Items (Future)
-- Expand beyond ADSL (ADAE/ADLB), richer validations (runtime with sample SDTM), export packages, and multi‑provider LLM abstraction.
-
+Clarifying the above will enable a refined version in `Context/My_Revised_Plan.md` before implementation.

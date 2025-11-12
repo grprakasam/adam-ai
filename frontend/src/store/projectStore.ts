@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult } from '../types';
+import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult, CodeSnippetResponse } from '../types';
 
 export interface Rule {
   id: string;
@@ -16,6 +16,30 @@ export interface SpecificationFile {
   size: number;
   uploadedAt: string;
   isDefault?: boolean;
+}
+
+export interface VariableSnippet {
+  variable: string;
+  codeSnippet: string;
+  rationale: string;
+  userNotes: string;
+  accepted: boolean;
+  generatedAt: Date;
+  language: 'R' | 'SAS';
+  error?: string;
+  metadata?: {
+    provider?: string;
+    model?: string;
+    tokens_used?: number;
+    latency_ms?: number;
+    template_used?: string;
+    confidence_score?: number;
+  };
+}
+
+export interface PairProgrammingState {
+  snippets: Record<string, VariableSnippet>;
+  isGenerating: Record<string, boolean>;
 }
 
 interface ProjectStore {
@@ -53,6 +77,16 @@ interface ProjectStore {
   isCategorizingVariables: boolean;
   setIsCategorizingVariables: (categorizing: boolean) => void;
 
+  // Pair Programming State
+  pairProgramming: PairProgrammingState;
+  programmingLanguage: 'R' | 'SAS';
+  setProgrammingLanguage: (language: 'R' | 'SAS') => void;
+  setPairProgrammingSnippet: (variable: string, snippet: VariableSnippet) => void;
+  setGeneratingSnippet: (variable: string, isGenerating: boolean) => void;
+  setPairProgrammingNotes: (variable: string, notes: string) => void;
+  setPairProgrammingAcceptance: (variable: string, accepted: boolean) => void;
+  setBulkCodeSnippets: (snippets: CodeSnippetResponse[]) => void;
+
   // Generation Options
   generationOptions: GenerationOptions;
   setGenerationOptions: (options: Partial<GenerationOptions>) => void;
@@ -67,6 +101,10 @@ interface ProjectStore {
 
   // Reset
   reset: () => void;
+
+  // Cleanup helpers
+  cleanupLoadingStates: () => void;
+  cleanupGenerationStates: () => void;
 }
 
 const initialState = {
@@ -96,6 +134,11 @@ const initialState = {
   tempSpecFile: null,
   categorizedVariables: null,
   isCategorizingVariables: false,
+  pairProgramming: {
+    snippets: {},
+    isGenerating: {},
+  },
+  programmingLanguage: 'R' as 'R' | 'SAS',
   generationOptions: {
     includeComments: 'comprehensive' as const,
     codeStyle: 'standard' as const,
@@ -153,6 +196,89 @@ export const useProjectStore = create<ProjectStore>()(
 
       setIsCategorizingVariables: (categorizing) =>
         set({ isCategorizingVariables: categorizing }),
+
+      // Pair Programming Actions
+      setProgrammingLanguage: (language) =>
+        set({ programmingLanguage: language }),
+
+      setPairProgrammingSnippet: (variable, snippet) =>
+        set((state) => ({
+          pairProgramming: {
+            ...state.pairProgramming,
+            snippets: {
+              ...state.pairProgramming.snippets,
+              [variable]: snippet,
+            },
+          },
+        })),
+
+      setGeneratingSnippet: (variable, isGenerating) =>
+        set((state) => ({
+          pairProgramming: {
+            ...state.pairProgramming,
+            isGenerating: {
+              ...state.pairProgramming.isGenerating,
+              [variable]: isGenerating,
+            },
+          },
+        })),
+
+      setPairProgrammingNotes: (variable, notes) =>
+        set((state) => ({
+          pairProgramming: {
+            ...state.pairProgramming,
+            snippets: {
+              ...state.pairProgramming.snippets,
+              [variable]: {
+                ...state.pairProgramming.snippets[variable],
+                userNotes: notes,
+              },
+            },
+          },
+        })),
+
+      setPairProgrammingAcceptance: (variable, accepted) =>
+        set((state) => ({
+          pairProgramming: {
+            ...state.pairProgramming,
+            snippets: {
+              ...state.pairProgramming.snippets,
+              [variable]: {
+                ...state.pairProgramming.snippets[variable],
+                accepted,
+              },
+            },
+          },
+        })),
+
+      setBulkCodeSnippets: (snippets) =>
+        set((state) => {
+          const newSnippets: Record<string, VariableSnippet> = {};
+          snippets.forEach((snippet: any) => {
+            const variable = snippet.variable;
+            newSnippets[variable] = {
+              variable: variable,
+              codeSnippet: snippet.code_snippet || '',
+              rationale: snippet.coding_rationale || '',
+              userNotes: state.pairProgramming.snippets[variable]?.userNotes || '',
+              accepted: state.pairProgramming.snippets[variable]?.accepted || false,
+              generatedAt: new Date(),
+              language: state.programmingLanguage,
+              error: snippet.error,
+              metadata: snippet.metadata,
+            };
+          });
+          
+          return {
+            pairProgramming: {
+              ...state.pairProgramming,
+              snippets: {
+                ...state.pairProgramming.snippets,
+                ...newSnippets,
+              },
+            },
+          };
+        }),
 
       setGenerationOptions: (options) =>
         set((state) => ({
@@ -267,6 +393,26 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       reset: () => set(initialState),
+
+      // Cleanup all loading states
+      cleanupLoadingStates: () =>
+        set((state) => ({
+          isGenerating: false,
+          isCategorizingVariables: false,
+          pairProgramming: {
+            ...state.pairProgramming,
+            isGenerating: {},
+          },
+        })),
+
+      // Cleanup only code generation states
+      cleanupGenerationStates: () =>
+        set((state) => ({
+          pairProgramming: {
+            ...state.pairProgramming,
+            isGenerating: {},
+          },
+        })),
     }),
     {
       name: 'adam-ai-storage',

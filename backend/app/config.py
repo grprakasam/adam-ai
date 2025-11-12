@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # CORS
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:3000,https://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,https://localhost:4173,http://127.0.0.1:4173,http://localhost:4174,https://localhost:4174,http://127.0.0.1:4174"
     
     @field_validator('CORS_ORIGINS')
     @classmethod
@@ -40,12 +40,24 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None  # Primary key for Gemini
     
     # Default LLM Configuration
     DEFAULT_LLM_PROVIDER: str = "google"  # openai, anthropic, google
     DEFAULT_MODEL: str = "gemini-2.5-flash"
     DEFAULT_TEMPERATURE: float = 0.2
     DEFAULT_MAX_TOKENS: int = 4000
+    
+    # Gemini Configuration
+    GEMINI_MODEL: str = "gemini-2.0-flash-exp"
+    GEMINI_TEMPERATURE: float = 0.2
+    GEMINI_MAX_TOKENS: int = 2048
+    
+    # Code Generation Configuration
+    BATCH_SIZE: int = 10
+    MAX_CONCURRENT_REQUESTS: int = 5
+    REQUEST_TIMEOUT: int = 30
+    CACHE_TTL: int = 3600  # 1 hour
     
     # File Paths
     CONTENT_DIR: str = "../Content"

@@ -4,6 +4,8 @@ import type { ProgrammingLanguage, LLMProvider } from '../types';
 import './Header.css';
 import { useEffect, useState } from 'react';
 import api from '../services/api';
+import { useProjectStore } from '../store/projectStore';
+import { showNavigationConfirmation } from './ConfirmationDialog';
 
 interface HeaderProps {
   language: ProgrammingLanguage;
@@ -22,6 +24,7 @@ const Header = ({
 }: HeaderProps) => {
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState<string | null>(null);
+  const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
 
   useEffect(() => {
     let mounted = true;
@@ -39,6 +42,23 @@ const Header = ({
     return () => { mounted = false; };
   }, []);
 
+  const handleBackToLanding = async () => {
+    if (!onBackToLanding) return;
+
+    const completionPercentage = getCompletionPercentage();
+
+    // If user has made progress, show confirmation
+    if (completionPercentage > 0) {
+      await showNavigationConfirmation(
+        onBackToLanding,
+        'You have unsaved work. Going back to the landing page will not save your current configuration. Are you sure you want to leave?'
+      );
+    } else {
+      // No work in progress, navigate directly
+      onBackToLanding();
+    }
+  };
+
   return (
     <div className="header">
       <div className="header-left">
@@ -46,7 +66,7 @@ const Header = ({
           <Button
             className="back-button"
             icon={<HomeOutlined />}
-            onClick={onBackToLanding}
+            onClick={handleBackToLanding}
             size="middle"
           >
             Back to Landing
