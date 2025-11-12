@@ -365,15 +365,10 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       <div className="code-snippet-cell">
                         <div className="code-actions">
                           <button
-                            className="copy-button"
-                            onClick={() => handleCopyCode(variable.name, snippet.codeSnippet)}
-                          >
-                            {isCopied ? <Check size={14} /> : <Copy size={14} />}
-                            {isCopied ? 'Copied' : 'Copy'}
-                          </button>
-                          <button
                             className="regenerate-button"
                             onClick={() => handleRegenerateWithConfirmation(variable)}
+                            disabled={snippet?.accepted === 'accept'}
+                            title={snippet?.accepted === 'accept' ? 'Refresh disabled - Code is accepted. Select "Modify" to enable refresh.' : 'Regenerate code snippet'}
                           >
                             <RefreshCw size={14} />
                           </button>
