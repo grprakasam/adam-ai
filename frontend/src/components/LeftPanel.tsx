@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Play } from 'lucide-react';
 import { TabNavigation, Tab } from './TabNavigation';
 import ProjectConfigTab from './tabs/ProjectConfigTab';
@@ -10,16 +11,26 @@ import './LeftPanel.css';
 
 interface LeftPanelProps {
   onGenerate: () => Promise<void>;
-  activeTab: string;
-  onTabChange: (tab: string) => void;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-const LeftPanel = ({ onGenerate, activeTab, onTabChange }: LeftPanelProps) => {
+const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange }: LeftPanelProps) => {
+  // Support both controlled and uncontrolled usage
+  const [uncontrolledActive, setUncontrolledActive] = useState<string>(controlledActiveTab || 'project');
+  const activeTab = controlledActiveTab ?? uncontrolledActive;
+  const changeTab = (tab: string) => {
+    if (onTabChange) onTabChange(tab);
+    else setUncontrolledActive(tab);
+  };
 
   // Fixed: Use separate selectors instead of creating new object on every render
   const getTabStatus = useProjectStore((state) => state.getTabStatus);
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const isGenerating = useProjectStore((state) => state.isGenerating);
+  const setProjectConfig = useProjectStore((state) => state.setProjectConfig);
+  const setSpecificationFile = useProjectStore((state) => state.setSpecificationFile);
+  const projectConfig = useProjectStore((state) => state.projectConfig);
   const completionPercentage = getCompletionPercentage();
   const isReadyToGenerate = completionPercentage >= 80;
 
@@ -30,19 +41,9 @@ const LeftPanel = ({ onGenerate, activeTab, onTabChange }: LeftPanelProps) => {
       status: getTabStatus('project'),
     },
     {
-      key: 'dataset',
-      label: 'ADAM Dataset Name',
-      status: getTabStatus('dataset'),
-    },
-    {
       key: 'specification',
       label: 'ADAM Specification',
       status: getTabStatus('specification'),
-    },
-    {
-      key: 'variables',
-      label: 'Variables Analysis',
-      status: getTabStatus('variables'),
     },
     {
       key: 'standards',
@@ -54,6 +55,11 @@ const LeftPanel = ({ onGenerate, activeTab, onTabChange }: LeftPanelProps) => {
       label: 'Configure Rules',
       status: getTabStatus('rules'),
     },
+    {
+      key: 'dataset',
+      label: 'Enter ADAM Dataset Name',
+      status: getTabStatus('dataset'),
+    },
   ];
 
   const renderTabContent = () => {
@@ -64,9 +70,6 @@ const LeftPanel = ({ onGenerate, activeTab, onTabChange }: LeftPanelProps) => {
         return <DatasetSelectionTab />;
       case 'specification':
         return <SpecificationUploadTab />;
-      case 'variables':
-        // Variables Analysis now shown in RightPanel for more space
-        return null;
       case 'standards':
         return <StandardsTab />;
       case 'rules':
@@ -76,12 +79,29 @@ const LeftPanel = ({ onGenerate, activeTab, onTabChange }: LeftPanelProps) => {
     }
   };
 
+  const handleGetStarted = () => {
+    // Pre-populate sensible defaults so the workspace can demonstrate functionality immediately
+    if (!projectConfig.adamDataset) {
+      setProjectConfig({ adamDataset: 'ADSL' });
+    }
+    // Attach default specification path (relative to project root)
+    setSpecificationFile({
+      name: 'ADSLSpec.xlsx',
+      path: 'Content/UserInputs/ADAMSpecifications/ADSLSpec.xlsx',
+      size: 0,
+      uploadedAt: new Date().toISOString(),
+      isDefault: true,
+    } as any);
+    // Guide user to Specification tab next
+    changeTab('specification');
+  };
+
   return (
     <div className="left-panel">
       <TabNavigation
         tabs={tabs}
         activeTab={activeTab}
-        onTabChange={onTabChange}
+        onTabChange={changeTab}
       />
       
       <div className="tab-panel" role="tabpanel" id={`panel-${activeTab}`}>
@@ -101,17 +121,21 @@ const LeftPanel = ({ onGenerate, activeTab, onTabChange }: LeftPanelProps) => {
           type="button"
           className="btn btn-primary btn-lg generate-button"
           onClick={() => {
-            if (!isReadyToGenerate || isGenerating) return;
-            void onGenerate();
+            if (isGenerating) return;
+            if (isReadyToGenerate) {
+              void onGenerate();
+            } else {
+              handleGetStarted();
+            }
           }}
-          disabled={!isReadyToGenerate || isGenerating}
+          disabled={isGenerating}
         >
           <Play size={18} />
-          {isGenerating ? 'Generating...' : 'Get Started'}
+          {isGenerating ? 'Generating...' : (isReadyToGenerate ? 'Generate ADAM Code' : 'Get Started')}
         </button>
         {!isReadyToGenerate && (
           <p className="generate-hint">
-            Complete all required tabs (Project Information, ADAM Dataset Name, ADAM Specification, Variables Analysis, Select Standards Version, Configure Rules) to unlock code generation.
+            We’ll pre-load a sample specification (ADSLSpec.xlsx). Complete the tabs to unlock code generation.
           </p>
         )}
       </div>

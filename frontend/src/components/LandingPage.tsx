@@ -34,7 +34,7 @@ const LandingPage = ({ onStartProject }: LandingPageProps) => {
               onClick={onStartProject}
               className="cta-button"
             >
-              Start New Project
+              Get Started
             </Button>
             <Button 
               size="large"
