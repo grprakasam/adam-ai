@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Tabs, message, Modal, Tooltip } from 'antd';
-import { FileSearch, AlertCircle, Loader2, Info, Zap, CheckCircle, Download } from 'lucide-react';
+import { FileSearch, AlertCircle, Loader2, Info, Zap, Download } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
-import type { VariableCategory, VariableInfo } from '../types';
+import type { CodeSnippetResponse, VariableCategory, VariableInfo } from '../types';
 import { PairProgrammingArea } from './PairProgrammingArea';
 import { useApprovalProgress } from '../hooks/useApprovalProgress';
 import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGenerationDialog';
@@ -11,6 +11,34 @@ import { ProgramDownloadModal } from './ProgramDownloadModal';
 import './VariablesAnalysisTab.css';
 
 const { TabPane } = Tabs;
+
+const CATEGORY_DISPLAY_OVERRIDES: Record<string, string> = {
+  'Baseline Characteristic Variables': 'Baseline Characteristics',
+  'Disposition Variables': 'Disposition',
+  'Phase/Period Variables': 'Phase / Period Variables',
+};
+
+const formatCategoryName = (name: string): string => {
+  if (!name) return 'Uncategorized';
+  let cleaned = name.trim();
+  cleaned = cleaned.replace(/^[0-9]+[-_]?/, '');
+  cleaned = cleaned.replace(/_/g, ' ').replace(/\s{2,}/g, ' ').trim();
+
+  const override = CATEGORY_DISPLAY_OVERRIDES[cleaned];
+  if (override) {
+    return override;
+  }
+
+  return cleaned;
+};
+
+const getCategorySortKey = (name: string, fallbackIndex: number) => {
+  if (!name) return fallbackIndex + 100;
+  const match = name.match(/^(\d+)/);
+  return match ? parseInt(match[1], 10) : fallbackIndex + 100;
+};
+
+type DisplayCategory = VariableCategory & { displayName: string; sortKey: number };
 
 export const VariablesAnalysisTab: React.FC = () => {
   const {
@@ -26,6 +54,7 @@ export const VariablesAnalysisTab: React.FC = () => {
     sdtmVersion,
     adamIgVersion,
     medraVersion,
+    tempSpecFile,
   } = useProjectStore();
 
   const [activeCategory, setActiveCategory] = useState<string>('0');
@@ -51,6 +80,31 @@ export const VariablesAnalysisTab: React.FC = () => {
   // Get approval progress
   const { percentage, isReadyForGeneration } = useApprovalProgress();
 
+  const sortedCategories: DisplayCategory[] = useMemo(() => {
+    if (!categorizedVariables?.categories) {
+      return [];
+    }
+
+    return categorizedVariables.categories
+      .map((category, index) => ({
+        ...category,
+        displayName: formatCategoryName(category.name),
+        sortKey: getCategorySortKey(category.name, index),
+      }))
+      .sort((a, b) => a.sortKey - b.sortKey || a.displayName.localeCompare(b.displayName));
+  }, [categorizedVariables]);
+
+  useEffect(() => {
+    if (sortedCategories.length === 0) {
+      setActiveCategory('0');
+      return;
+    }
+    const index = parseInt(activeCategory, 10);
+    if (Number.isNaN(index) || index >= sortedCategories.length) {
+      setActiveCategory('0');
+    }
+  }, [sortedCategories.length, activeCategory]);
+
   useEffect(() => {
     // Auto-categorize when spec file is uploaded
     if (specificationFile && !categorizedVariables && !isCategorizingVariables && projectConfig.adamDataset) {
@@ -58,6 +112,46 @@ export const VariablesAnalysisTab: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specificationFile, categorizedVariables, isCategorizingVariables, projectConfig.adamDataset]);
+
+  const formatDuration = (seconds: number) => {
+    const safeSeconds = Math.max(0, Math.round(seconds));
+    const mins = Math.floor(safeSeconds / 60);
+    const secs = safeSeconds % 60;
+    if (mins > 0) {
+      return `${mins}m ${secs.toString().padStart(2, '0')}s`;
+    }
+    return `${secs}s`;
+  };
+
+  const generateMockSnippet = (variable: VariableInfo, categoryName: string): CodeSnippetResponse & { variable: string } => {
+    const baseName = variable.name || 'VARIABLE';
+    const label = variable.label ? `/* ${variable.label} */\n` : '';
+    const derivationComment = variable.derivation ? `// Derived from: ${variable.derivation}\n` : '';
+    const placeholderCode = programmingLanguage === 'SAS'
+      ? `${label}data ${projectConfig.adamDataset || 'ADAM_DATASET'};\n    set ${projectConfig.adamDataset || 'ADAM_DATASET'};\n    * TODO: implement derivation for ${baseName};\nrun;`
+      : `${label}${derivationComment}const ${baseName.toLowerCase()} = /* TODO: derive ${baseName} */ null;`;
+
+    return {
+      variable: baseName,
+      code_snippet: placeholderCode,
+      coding_rationale: `Offline mock snippet generated for ${baseName} (${categoryName}). Replace with real logic when AI service is available.`,
+      metadata: {
+        provider: 'offline-simulator',
+        model: 'mock-generator',
+        fallback: true,
+      } as any,
+    };
+  };
+
+  const generateMockBulkSnippets = (): Array<CodeSnippetResponse & { variable: string }> => {
+    const results: Array<CodeSnippetResponse & { variable: string }> = [];
+    (categorizedVariables?.categories || []).forEach((category) => {
+      category.variables.forEach((variable) => {
+        results.push(generateMockSnippet(variable, formatCategoryName(category.name)));
+      });
+    });
+    return results;
+  };
 
   const handleCategorizeVariables = async () => {
     if (!specificationFile) {
@@ -77,11 +171,23 @@ export const VariablesAnalysisTab: React.FC = () => {
       console.log('Starting categorization...');
       console.log('Spec file path:', specificationFile.path);
       console.log('Dataset type:', projectConfig.adamDataset);
-      
-      const result = await adamApi.categorizeSpecification(
-        specificationFile.path,
-        projectConfig.adamDataset
-      );
+
+      let result;
+      const canUseServerPath = specificationFile.isDefault || specificationFile.path?.startsWith('Content/');
+
+      if (canUseServerPath) {
+        result = await adamApi.categorizeSpecification(
+          specificationFile.path,
+          projectConfig.adamDataset
+        );
+      } else if (tempSpecFile) {
+        result = await adamApi.categorizeSpecificationFile(
+          tempSpecFile,
+          projectConfig.adamDataset
+        );
+      } else {
+        throw new Error('Specification file not accessible. Please upload the file again so we can process it.');
+      }
 
       console.log('=== CATEGORIZATION RESULT ===');
       console.log('Total variables:', result.total_variables);
@@ -91,7 +197,7 @@ export const VariablesAnalysisTab: React.FC = () => {
 
       setCategorizedVariables(result);
       message.success(
-        `Successfully categorized ${result.total_variables} variables into ${result.categories.length} categories`
+        `Categorized ${result.total_variables} variables into ${result.categories.length} categories using VariablesMapping.xlsx`
       );
     } catch (err: any) {
       console.error('=== CATEGORIZATION ERROR ===');
@@ -114,8 +220,13 @@ export const VariablesAnalysisTab: React.FC = () => {
       return;
     }
 
-    if (!projectConfig.studyId) {
-      message.warning('Please configure Study ID in Project Configuration first');
+    if (!projectConfig.studyId || projectConfig.studyId.trim().length < 3) {
+      message.warning('Please configure a valid Study ID (minimum 3 characters) in Project Configuration tab');
+      return;
+    }
+
+    if (!projectConfig.adamDataset) {
+      message.warning('Please select an ADAM dataset first');
       return;
     }
 
@@ -165,22 +276,73 @@ export const VariablesAnalysisTab: React.FC = () => {
       },
       cancelButtonProps: { style: { height: '36px' } },
       onOk: async () => {
-        try {
-          setIsGenerating(true);
+        const total = categorizedVariables.total_variables;
+        if (total === 0) {
+          message.info('No variables available for AI generation.');
+          return;
+        }
+
+        const progressKey = 'bulk-ai-inputs';
+        const startTime = Date.now();
+        let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+        const stopTimer = () => {
+          if (progressTimer) {
+            clearInterval(progressTimer);
+            progressTimer = null;
+          }
+        };
+
+        const updateProgressState = (completed: number, statusLabel: string) => {
           setBulkGenerationProgress({
             isGenerating: true,
-            current: 0,
-            total: totalVariables,
-            currentVariable: 'Initializing...',
+            current: Math.min(completed, total),
+            total,
+            currentVariable: statusLabel,
           });
+        };
 
-          // Show progress message
-          const hideProgress = message.loading({
-            content: `Generating code for ${totalVariables} variables...`,
+        const updateToast = (completed: number, statusLabel: string) => {
+          const elapsedSeconds = (Date.now() - startTime) / 1000;
+          const etaSeconds = Math.max(0, estimatedTime - elapsedSeconds);
+
+          message.open({
+            key: progressKey,
+            type: 'loading',
             duration: 0,
+            content: (
+              <div className="bulk-progress-message">
+                <div style={{ fontWeight: 600 }}>Getting AI inputs</div>
+                <div>{completed}/{total} variables (est.)</div>
+                <div>Status: {statusLabel}</div>
+                <div>
+                  Elapsed: {formatDuration(elapsedSeconds)} • ETA: ~{formatDuration(etaSeconds)}
+                </div>
+              </div>
+            ),
           });
+        };
 
-          // Call bulk generation API
+        try {
+          setIsGenerating(true);
+          updateProgressState(0, 'Initializing...');
+          updateToast(0, 'Initializing...');
+
+          progressTimer = window.setInterval(() => {
+            setBulkGenerationProgress((prev) => {
+              if (!prev.isGenerating) return prev;
+              const elapsedSeconds = (Date.now() - startTime) / 1000;
+              const ratio = Math.min(0.95, elapsedSeconds / estimatedTime);
+              const estimatedCompleted = Math.max(prev.current, Math.round(ratio * total));
+              updateToast(estimatedCompleted, 'Processing...');
+              return {
+                ...prev,
+                current: estimatedCompleted,
+                currentVariable: 'Processing...'
+              };
+            });
+          }, 1000);
+
           const results = await adamApi.generateCodeBulk({
             categorized_variables: categorizedVariables,
             study_id: projectConfig.studyId,
@@ -193,51 +355,77 @@ export const VariablesAnalysisTab: React.FC = () => {
             },
           });
 
-          // Update store with all generated snippets
+          stopTimer();
+
           setBulkCodeSnippets(results);
 
-          // Hide progress and show success
-          hideProgress();
-          
           const successCount = results.filter(r => !r.error).length;
           const errorCount = results.filter(r => r.error).length;
 
-          if (errorCount === 0) {
-            message.success({
-              content: (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <CheckCircle size={16} />
-                  <span>Successfully generated code for all {successCount} variables!</span>
-                </div>
-              ),
-              duration: 5,
-            });
-          } else {
-            message.warning({
-              content: `Generated code for ${successCount} variables. ${errorCount} failed.`,
-              duration: 6,
-            });
-          }
-
           setBulkGenerationProgress({
             isGenerating: false,
-            current: 0,
-            total: 0,
-            currentVariable: '',
+            current: total,
+            total,
+            currentVariable: 'Completed',
+          });
+
+          message.success({
+            key: progressKey,
+            duration: 5,
+            content: (
+              <div className="bulk-progress-message">
+                <div style={{ fontWeight: 600 }}>AI inputs ready</div>
+                <div>
+                  Generated code for {successCount} of {total} variables
+                  {errorCount ? ` (${errorCount} need attention)` : ''}.
+                </div>
+                <div>Total time: {formatDuration((Date.now() - startTime) / 1000)}</div>
+              </div>
+            ),
           });
 
         } catch (err: any) {
+          stopTimer();
+          const status = err.response?.status;
           const errorMsg = err.response?.data?.detail || err.message || 'Failed to generate code';
-          message.error(`Code generation failed: ${errorMsg}`);
-          console.error('Bulk generation error:', err);
-          
-          setBulkGenerationProgress({
-            isGenerating: false,
-            current: 0,
-            total: 0,
-            currentVariable: '',
-          });
+
+          if (status === 404 || errorMsg === 'Not Found') {
+            console.warn('AI endpoint not available. Falling back to offline generator.');
+            const mockSnippets = generateMockBulkSnippets();
+            setBulkCodeSnippets(mockSnippets);
+            setBulkGenerationProgress({
+              isGenerating: false,
+              current: total,
+              total,
+              currentVariable: 'Offline fallback',
+            });
+            message.warning({
+              key: progressKey,
+              duration: 6,
+              content: (
+                <div className="bulk-progress-message">
+                  <div style={{ fontWeight: 600 }}>AI service unavailable</div>
+                  <div>Generated placeholder snippets for {total} variables so you can continue reviewing.</div>
+                  <div>Backend response: {errorMsg}</div>
+                </div>
+              ),
+            });
+          } else {
+            message.error({
+              key: progressKey,
+              content: `Code generation failed: ${errorMsg}`,
+              duration: 5,
+            });
+            console.error('Bulk generation error:', err);
+            setBulkGenerationProgress({
+              isGenerating: false,
+              current: 0,
+              total: 0,
+              currentVariable: '',
+            });
+          }
         } finally {
+          stopTimer();
           setIsGenerating(false);
         }
       },
@@ -410,7 +598,7 @@ export const VariablesAnalysisTab: React.FC = () => {
     );
   };
 
-  const renderCategoryContent = (category: VariableCategory) => {
+  const renderCategoryContent = (category: DisplayCategory) => {
     if (category.count === 0) {
       return (
         <div className="empty-category">
@@ -490,7 +678,7 @@ export const VariablesAnalysisTab: React.FC = () => {
 
   // Main content with categorized variables
   // Get active category for pair programming panel and analysis table
-  const activeCategoryData = categorizedVariables?.categories[parseInt(activeCategory)] || null;
+  const activeCategoryData = sortedCategories[parseInt(activeCategory, 10)] || null;
 
   // Build list of extra columns from spec for analysis table
   const specCols = categorizedVariables?.spec_columns || [];
@@ -641,7 +829,7 @@ export const VariablesAnalysisTab: React.FC = () => {
         </div>
       </div>
 
-      {categorizedVariables.categories.length > 0 ? (
+      {sortedCategories.length > 0 ? (
         <>
           {/* Top Section: Tabs (30%) + Pair Programming (70%) */}
           <div className="tabs-and-pair-programming">
@@ -654,11 +842,11 @@ export const VariablesAnalysisTab: React.FC = () => {
                 className="category-tabs category-tabs-vertical"
                 tabBarGutter={8}
               >
-                {categorizedVariables.categories.map((category, index) => (
+                {sortedCategories.map((category, index) => (
                   <TabPane
                     tab={
                       <div className="tab-label">
-                        <span className="tab-name">{category.name}</span>
+                        <span className="tab-name">{category.displayName}</span>
                         <span className="tab-count">{category.count}</span>
                       </div>
                     }
@@ -676,7 +864,7 @@ export const VariablesAnalysisTab: React.FC = () => {
                 <div className="pair-programming-panel" role="region" aria-label="Pair Programming Area">
                   <PairProgrammingArea
                     variables={activeCategoryData.variables}
-                    categoryName={activeCategoryData.name}
+                    categoryName={activeCategoryData.displayName || activeCategoryData.name}
                   />
                 </div>
               )}

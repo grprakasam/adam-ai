@@ -177,13 +177,17 @@ export const ConfirmationDialogComponent: React.FC<ConfirmationDialogComponentPr
   return (
     <Modal
       open={visible}
-      title={title}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ExclamationCircleOutlined />
+          <span>{title}</span>
+        </div>
+      }
       okText={okText}
       cancelText={cancelText}
       okType={okType}
       onOk={handleOk}
       onCancel={handleCancel}
-      icon={<ExclamationCircleOutlined />}
     >
       <p>{message}</p>
     </Modal>

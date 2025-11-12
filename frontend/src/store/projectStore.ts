@@ -94,6 +94,11 @@ interface ProjectStore {
   // UI State
   isGenerating: boolean;
   setIsGenerating: (generating: boolean) => void;
+  
+  // Workspace Initialization
+  isWorkspaceInitialized: boolean;
+  initializeWorkspace: () => void;
+  resetWorkspace: () => void;
 
   // Computed values
   getCompletionPercentage: () => number;
@@ -145,6 +150,7 @@ const initialState = {
     optimizationLevel: 'balanced' as const,
   },
   isGenerating: false,
+  isWorkspaceInitialized: false,
 };
 
 export const useProjectStore = create<ProjectStore>()(
@@ -393,6 +399,14 @@ export const useProjectStore = create<ProjectStore>()(
       },
 
       reset: () => set(initialState),
+      
+      // Workspace initialization
+      initializeWorkspace: () => set({ isWorkspaceInitialized: true }),
+      
+      resetWorkspace: () => set({
+        ...initialState,
+        isWorkspaceInitialized: false,
+      }),
 
       // Cleanup all loading states
       cleanupLoadingStates: () =>

@@ -284,6 +284,17 @@
   box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
 }
 
+.code-placeholder {
+  padding: var(--spacing-md);
+  border: 1px dashed #cbd5ff;
+  border-radius: var(--radius-md);
+  background: #f5f7ff;
+  color: #64748b;
+  font-size: var(--font-size-sm);
+  text-align: center;
+  line-height: 1.5;
+}
+
 .code-loading {
   display: flex;
   align-items: center;

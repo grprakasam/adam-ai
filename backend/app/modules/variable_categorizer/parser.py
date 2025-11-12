@@ -30,6 +30,7 @@ class VariablesMappingParser:
         self.mapping_file_path = Path(mapping_file_path)
         self._mapping_data: Optional[pd.DataFrame] = None
         self._category_map: Optional[Dict[str, str]] = None
+        self._category_order: List[str] = []
 
     def load_mapping(self) -> None:
         """Load and parse the VariablesMapping.xlsx file"""
@@ -76,6 +77,7 @@ class VariablesMappingParser:
 
         # Build map
         self._category_map = {}
+        self._category_order = []
         for _, row in self._mapping_data.iterrows():
             var_name = row[variable_col]
             category = row[category_col]
@@ -85,6 +87,8 @@ class VariablesMappingParser:
                 var_name = str(var_name).strip().upper()
                 category = str(category).strip()
                 self._category_map[var_name] = category
+                if category not in self._category_order:
+                    self._category_order.append(category)
 
         logger.info(f"Built category map with {len(self._category_map)} variables")
 
@@ -119,6 +123,16 @@ class VariablesMappingParser:
         if self._category_map is None:
             raise ValueError("Mapping not loaded. Call load_mapping() first.")
 
+        if self._category_order:
+            return list(self._category_order)
+        return sorted(set(self._category_map.values()))
+
+    def get_category_order(self) -> List[str]:
+        """Return categories in the order they appear in the mapping file"""
+        if self._category_map is None:
+            raise ValueError("Mapping not loaded. Call load_mapping() first.")
+        if self._category_order:
+            return list(self._category_order)
         return sorted(set(self._category_map.values()))
 
     def get_variable_details(self, variable_name: str) -> Optional[Dict[str, str]]:

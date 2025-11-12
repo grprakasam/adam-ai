@@ -239,19 +239,17 @@ class VariableCategorizerService:
         Returns:
             List of category names in display order
         """
-        # Preferred order based on common ADSL categories
-        return [
-            "Identifier Variables",
-            "Treatment Variables",
-            "Population Flags",
-            "Demographics",
-            "Study Dates",
-            "Treatment Dates",
-            "Disposition",
-            "Derived Variables",
-            "Study-Specific Variables",
-            self.OTHER_CATEGORY,
-        ]
+        # Use category order from mapping to mirror VariablesMapping.xlsx sections
+        try:
+            order = self.mapping_parser.get_category_order()
+        except Exception as exc:
+            logger.warning(f"Failed to derive category order from mapping: {exc}")
+            order = self.mapping_parser.get_all_categories()
+
+        if self.OTHER_CATEGORY not in order:
+            order = list(order) + [self.OTHER_CATEGORY]
+
+        return order
 
     def _get_category_description(self, category_name: str) -> str:
         """

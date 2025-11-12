@@ -9,6 +9,11 @@ const ProjectConfigTab: React.FC = () => {
   const projectConfig = useProjectStore((state) => state.projectConfig);
   const setProjectConfig = useProjectStore((state) => state.setProjectConfig);
 
+  // Validate Study ID length
+  const studyIdError = projectConfig.studyId && projectConfig.studyId.trim().length > 0 && projectConfig.studyId.trim().length < 3
+    ? 'Study ID must be at least 3 characters'
+    : undefined;
+
   const therapeuticAreas = [
     { value: 'Oncology', label: 'Oncology' },
     { value: 'Cardiology', label: 'Cardiology' },
@@ -44,7 +49,8 @@ const ProjectConfigTab: React.FC = () => {
           onChange={(value) => setProjectConfig({ studyId: value })}
           placeholder="e.g., CDISC01"
           required
-          helpText="Unique identifier for your clinical study"
+          error={studyIdError}
+          helpText="Unique identifier for your clinical study (minimum 3 characters)"
         />
         <TextField
           label="Protocol Number"

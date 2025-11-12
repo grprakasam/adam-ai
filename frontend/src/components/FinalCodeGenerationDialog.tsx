@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Modal, Button, Alert, Collapse, Checkbox, Input, Statistic, Tag, Divider } from 'antd';
 import { Download, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
-import { detectConflictingNotes, hasBlockingConflicts, getConflictSummary } from '../utils/notesConflictDetector';
+import { detectConflictingNotes, hasBlockingConflicts } from '../utils/notesConflictDetector';
 import type { ConflictDetection } from '../utils/notesConflictDetector';
 import './FinalCodeGenerationDialog.css';
 

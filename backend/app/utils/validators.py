@@ -178,13 +178,15 @@ def validate_categorized_variables(categorized_vars: Dict[str, Any]) -> None:
     if not isinstance(categorized_vars.get("categories"), list):
         raise HTTPException(status_code=400, detail="Categories must be a list")
 
-    if len(categorized_vars["categories"]) == 0:
-        raise HTTPException(status_code=400, detail="No categories found in categorized variables")
+    # Allow empty categories (no variables to process)
+    categories = categorized_vars.get("categories", [])
+    if categories:
+        logger.info(f"Categorized variables validation: {len(categories)} categories found")
 
-    # Validate total_variables
+    # Validate total_variables (can be 0 for empty specifications)
     total_vars = categorized_vars.get("total_variables", 0)
-    if not isinstance(total_vars, int) or total_vars <= 0:
-        raise HTTPException(status_code=400, detail="Invalid total_variables count")
+    if not isinstance(total_vars, int) or total_vars < 0:
+        raise HTTPException(status_code=400, detail="Invalid total_variables count (must be non-negative integer)")
 
     logger.info(f"Categorized variables validation passed: {total_vars} total variables")
 

@@ -28,6 +28,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
   const [copiedVariable, setCopiedVariable] = useState<string | null>(null);
   const [expandedRationale, setExpandedRationale] = useState<Set<string>>(new Set());
+  const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
+  const isAnyVariableGenerating = Object.values(pairProgramming.isGenerating).some(v => v);
 
   // Auto-detect derivation column from spec
   const getDerivationText = (variable: VariableInfo): string => {
@@ -205,10 +207,11 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           <button 
             className="generate-all-button"
             onClick={handleGenerateAll}
-            disabled={Object.values(pairProgramming.isGenerating).some(v => v)}
+            disabled={!hasAnySnippets || isAnyVariableGenerating}
+            title={!hasAnySnippets ? 'Run "Get AI Inputs" to populate this panel before refreshing.' : undefined}
           >
             <Code2 size={16} />
-            Generate All Visible
+            {hasAnySnippets ? 'Refresh Visible' : 'Awaiting AI Inputs'}
           </button>
         </div>
       </div>
@@ -307,13 +310,9 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                         </pre>
                       </div>
                     ) : (
-                      <button
-                        className="generate-button"
-                        onClick={() => handleGenerateSnippet(variable)}
-                      >
-                        <Code2 size={16} />
-                        Generate Code
-                      </button>
+                      <div className="code-placeholder">
+                        AI inputs will appear here after you click "Get AI Inputs".
+                      </div>
                     )}
                   </td>
 

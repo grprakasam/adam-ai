@@ -76,6 +76,11 @@ class CodeGeneratorService:
             all_variables = self.collect_all_variables(categorized_variables)
             logger.info(f"Collected {len(all_variables)} total variables")
             
+            # Return empty list if no variables to process
+            if not all_variables:
+                logger.warning("No variables to process - returning empty results")
+                return []
+            
             # Build generation context
             context = self.build_generation_context(
                 study_id=study_id,
@@ -95,7 +100,7 @@ class CodeGeneratorService:
             return results
             
         except Exception as e:
-            logger.error(f"Bulk code generation failed: {str(e)}")
+            logger.error(f"Bulk code generation failed: {str(e)}", exc_info=True)
             raise
     
     async def generate_single_variable(

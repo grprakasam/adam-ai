@@ -27,6 +27,7 @@ function App() {
   const setProjectConfig = useProjectStore((state) => state.setProjectConfig);
   const setSpecificationFile = useProjectStore((state) => state.setSpecificationFile);
   const specificationFile = useProjectStore((state) => state.specificationFile);
+  const initializeWorkspace = useProjectStore((state) => state.initializeWorkspace);
 
   const handleGenerate = async () => {
     // Track all state changes for cleanup
@@ -65,7 +66,10 @@ function App() {
   };
 
   const handleStartProject = async () => {
-    // Move to workspace and preconfigure sensible defaults to help users get started
+    // Initialize workspace
+    initializeWorkspace();
+    
+    // Move to workspace view
     setViewMode('workspace');
 
     // Set default dataset if not selected
@@ -88,8 +92,7 @@ function App() {
     }
 
     // Friendly UX messaging
-    message.loading({ content: 'Preparing workspace...', key: 'start', duration: 0 });
-    message.success({ content: 'Workspace ready! Complete all tabs to generate code.', key: 'start', duration: 2 });
+    message.success({ content: 'Workspace initialized! Configure your project to generate code.', duration: 2 });
   };
 
   return (

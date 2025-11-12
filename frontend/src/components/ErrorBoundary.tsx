@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { Component, ErrorInfo, ReactNode } from 'react';
 import { Result, Button } from 'antd';
 import { AlertTriangle } from 'lucide-react';
 
@@ -12,6 +12,15 @@ interface State {
   error: Error | null;
   errorInfo: ErrorInfo | null;
 }
+
+const isDevelopment = (): boolean => {
+  const viteMode = (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.MODE) || '';
+  if (viteMode) {
+    return viteMode === 'development';
+  }
+  const nodeEnv = (globalThis as any)?.process?.env?.NODE_ENV;
+  return nodeEnv === 'development';
+};
 
 /**
  * Error Boundary Component
@@ -38,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevelopment()) {
       console.error('Error caught by boundary:', error, errorInfo);
     }
 
@@ -93,7 +102,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </Button>
             ]}
           >
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {isDevelopment() && this.state.error && (
               <div style={{
                 marginTop: '20px',
                 padding: '16px',

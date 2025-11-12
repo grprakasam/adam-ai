@@ -6,6 +6,15 @@
 import { message } from 'antd';
 import axios, { AxiosError } from 'axios';
 
+const isDevelopment = (): boolean => {
+  const viteMode = (typeof import.meta !== 'undefined' && (import.meta as any)?.env?.MODE) || '';
+  if (viteMode) {
+    return viteMode === 'development';
+  }
+  const nodeEnv = (globalThis as any)?.process?.env?.NODE_ENV;
+  return nodeEnv === 'development';
+};
+
 export interface APIError {
   message: string;
   status?: number;
@@ -126,7 +135,7 @@ export function handleAPIError(error: unknown, customMessage?: string): APIError
   }
 
   // Log error in development
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevelopment()) {
     console.error('API Error:', parsedError);
   }
 
