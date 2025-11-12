@@ -123,36 +123,6 @@ export const VariablesAnalysisTab: React.FC = () => {
     return `${secs}s`;
   };
 
-  const generateMockSnippet = (variable: VariableInfo, categoryName: string): CodeSnippetResponse & { variable: string } => {
-    const baseName = variable.name || 'VARIABLE';
-    const label = variable.label ? `/* ${variable.label} */\n` : '';
-    const derivationComment = variable.derivation ? `// Derived from: ${variable.derivation}\n` : '';
-    const placeholderCode = programmingLanguage === 'SAS'
-      ? `${label}data ${projectConfig.adamDataset || 'ADAM_DATASET'};\n    set ${projectConfig.adamDataset || 'ADAM_DATASET'};\n    * TODO: implement derivation for ${baseName};\nrun;`
-      : `${label}${derivationComment}const ${baseName.toLowerCase()} = /* TODO: derive ${baseName} */ null;`;
-
-    return {
-      variable: baseName,
-      code_snippet: placeholderCode,
-      coding_rationale: `Offline mock snippet generated for ${baseName} (${categoryName}). Replace with real logic when AI service is available.`,
-      metadata: {
-        provider: 'offline-simulator',
-        model: 'mock-generator',
-        fallback: true,
-      } as any,
-    };
-  };
-
-  const generateMockBulkSnippets = (): Array<CodeSnippetResponse & { variable: string }> => {
-    const results: Array<CodeSnippetResponse & { variable: string }> = [];
-    (categorizedVariables?.categories || []).forEach((category) => {
-      category.variables.forEach((variable) => {
-        results.push(generateMockSnippet(variable, formatCategoryName(category.name)));
-      });
-    });
-    return results;
-  };
-
   const handleCategorizeVariables = async () => {
     if (!specificationFile) {
       setError('No specification file uploaded');
@@ -357,10 +327,15 @@ export const VariablesAnalysisTab: React.FC = () => {
 
           stopTimer();
 
+          console.log('[Bulk Generation] API returned results:', results.length);
+          console.log('[Bulk Generation] Sample result:', results[0]);
+
           setBulkCodeSnippets(results);
 
           const successCount = results.filter(r => !r.error).length;
           const errorCount = results.filter(r => r.error).length;
+
+          console.log('[Bulk Generation] Success:', successCount, 'Errors:', errorCount);
 
           setBulkGenerationProgress({
             isGenerating: false,
@@ -389,41 +364,20 @@ export const VariablesAnalysisTab: React.FC = () => {
           const status = err.response?.status;
           const errorMsg = err.response?.data?.detail || err.message || 'Failed to generate code';
 
-          if (status === 404 || errorMsg === 'Not Found') {
-            console.warn('AI endpoint not available. Falling back to offline generator.');
-            const mockSnippets = generateMockBulkSnippets();
-            setBulkCodeSnippets(mockSnippets);
-            setBulkGenerationProgress({
-              isGenerating: false,
-              current: total,
-              total,
-              currentVariable: 'Offline fallback',
-            });
-            message.warning({
-              key: progressKey,
-              duration: 6,
-              content: (
-                <div className="bulk-progress-message">
-                  <div style={{ fontWeight: 600 }}>AI service unavailable</div>
-                  <div>Generated placeholder snippets for {total} variables so you can continue reviewing.</div>
-                  <div>Backend response: {errorMsg}</div>
-                </div>
-              ),
-            });
-          } else {
-            message.error({
-              key: progressKey,
-              content: `Code generation failed: ${errorMsg}`,
-              duration: 5,
-            });
-            console.error('Bulk generation error:', err);
-            setBulkGenerationProgress({
-              isGenerating: false,
-              current: 0,
-              total: 0,
-              currentVariable: '',
-            });
-          }
+          // Don't populate with mock snippets - just show error and keep cells empty
+          setBulkGenerationProgress({
+            isGenerating: false,
+            current: 0,
+            total,
+            currentVariable: 'Failed',
+          });
+
+          message.error({
+            key: progressKey,
+            content: `Code generation failed: ${errorMsg}`,
+            duration: 5,
+          });
+          console.error('Bulk generation error:', err);
         } finally {
           stopTimer();
           setIsGenerating(false);
