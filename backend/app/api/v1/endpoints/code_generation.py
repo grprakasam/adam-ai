@@ -51,6 +51,9 @@ async def generate_code_bulk(
         HTTPException: If generation fails
     """
     try:
+        logger.info(f"Received bulk generation request: study_id={request.study_id}, dataset={request.dataset}")
+        logger.debug(f"Request data: categorized_variables keys={list(request.categorized_variables.keys()) if isinstance(request.categorized_variables, dict) else 'not a dict'}")
+        
         # Validate inputs
         study_id = validate_study_id(request.study_id)
         dataset = validate_dataset_type(request.dataset)
@@ -62,6 +65,12 @@ async def generate_code_bulk(
             f"Bulk code generation request: study={study_id}, "
             f"dataset={dataset}, language={language}"
         )
+        
+        # Check if there are any variables to process
+        total_vars = request.categorized_variables.get('total_variables', 0)
+        if total_vars == 0:
+            logger.warning("No variables to generate code for")
+            return []
 
         results = await service.generate_code_for_all_variables(
             study_id=study_id,
@@ -74,11 +83,20 @@ async def generate_code_bulk(
         logger.info(f"Successfully generated {len(results)} code snippets")
         return results
         
+    except CustomValidationError as e:
+        logger.error(f"Validation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+    except LLMError as e:
+        logger.error(f"LLM error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=503, detail=f"LLM service error: {str(e)}")
+    except HTTPException:
+        raise  # Re-raise HTTPExceptions as-is
     except Exception as e:
-        logger.error(f"Bulk code generation failed: {str(e)}", exc_info=True)
+        error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
+        logger.error(f"Bulk code generation failed: {error_msg}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Code generation failed: {str(e)}"
+            detail=f"Code generation failed: {error_msg}"
         )
 
 

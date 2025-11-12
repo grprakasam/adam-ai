@@ -1,7 +1,6 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError } from 'axios';
 import type { GenerationRequest, GenerationResponse, CategorizationResult, CodeSnippetRequest, CodeSnippetResponse } from '../types';
-import { handleAPIError, retryWithBackoff } from '../utils/apiErrorHandler';
-import { codeGenerationThrottler, fileUploadThrottler, generalThrottler } from '../utils/requestThrottler';
+import { codeGenerationThrottler, fileUploadThrottler } from '../utils/requestThrottler';
 
 const getApiBaseUrl = () => {
   const envUrl =
@@ -59,9 +58,7 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     // Log errors in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('API Error:', error);
-    }
+    console.error('API Error:', error);
     return Promise.reject(error);
   }
 );
@@ -153,7 +150,9 @@ export const adamApi = {
     };
   }): Promise<CodeSnippetResponse[]> => {
     return await codeGenerationThrottler.throttle(async () => {
-      const response = await apiClient.post('/code-generation/generate-code-bulk', request);
+      const response = await apiClient.post('/code-generation/generate-code-bulk', request, {
+        timeout: 120000, // 120 seconds for bulk generation
+      });
       return response.data;
     });
   },

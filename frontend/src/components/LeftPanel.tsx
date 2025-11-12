@@ -28,9 +28,6 @@ const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange }: 
   const getTabStatus = useProjectStore((state) => state.getTabStatus);
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const isGenerating = useProjectStore((state) => state.isGenerating);
-  const setProjectConfig = useProjectStore((state) => state.setProjectConfig);
-  const setSpecificationFile = useProjectStore((state) => state.setSpecificationFile);
-  const projectConfig = useProjectStore((state) => state.projectConfig);
   const completionPercentage = getCompletionPercentage();
   const isReadyToGenerate = completionPercentage >= 80;
 
@@ -79,25 +76,8 @@ const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange }: 
     }
   };
 
-  const handleGetStarted = () => {
-    // Pre-populate sensible defaults so the workspace can demonstrate functionality immediately
-    if (!projectConfig.adamDataset) {
-      setProjectConfig({ adamDataset: 'ADSL' });
-    }
-    // Attach default specification path (relative to project root)
-    setSpecificationFile({
-      name: 'ADSLSpec.xlsx',
-      path: 'Content/UserInputs/ADAMSpecifications/ADSLSpec.xlsx',
-      size: 0,
-      uploadedAt: new Date().toISOString(),
-      isDefault: true,
-    } as any);
-    // Guide user to Specification tab next
-    changeTab('specification');
-  };
-
   return (
-    <div className="left-panel">
+    <div className="left-panel">\
       <TabNavigation
         tabs={tabs}
         activeTab={activeTab}
@@ -122,20 +102,16 @@ const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange }: 
           className="btn btn-primary btn-lg generate-button"
           onClick={() => {
             if (isGenerating) return;
-            if (isReadyToGenerate) {
-              void onGenerate();
-            } else {
-              handleGetStarted();
-            }
+            void onGenerate();
           }}
-          disabled={isGenerating}
+          disabled={isGenerating || !isReadyToGenerate}
         >
           <Play size={18} />
-          {isGenerating ? 'Generating...' : (isReadyToGenerate ? 'Generate ADAM Code' : 'Get Started')}
+          {isGenerating ? 'Generating...' : 'Generate ADAM Code'}
         </button>
         {!isReadyToGenerate && (
           <p className="generate-hint">
-            We’ll pre-load a sample specification (ADSLSpec.xlsx). Complete the tabs to unlock code generation.
+            Complete at least 80% of the configuration to enable code generation.
           </p>
         )}
       </div>
