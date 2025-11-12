@@ -64,8 +64,8 @@ class VariablesMappingParser:
             raise ValueError("Mapping data not loaded. Call load_mapping() first.")
 
         # Expected columns (case-insensitive matching)
-        variable_col = self._find_column(["Variable", "variable", "VARIABLE", "Variable Name"])
-        category_col = self._find_column(["Category", "category", "CATEGORY", "Variable Category"])
+        variable_col = self._find_column(["Variable", "variable", "VARIABLE", "Variable Name", "variable_name", "VariableName"])
+        category_col = self._find_column(["Category", "category", "CATEGORY", "Variable Category", "variable_category"])
 
         if variable_col is None or category_col is None:
             available_cols = ", ".join(self._mapping_data.columns)
@@ -137,7 +137,7 @@ class VariablesMappingParser:
         var_upper = variable_name.strip().upper()
 
         # Find variable column
-        variable_col = self._find_column(["Variable", "variable", "VARIABLE", "Variable Name"])
+        variable_col = self._find_column(["Variable", "variable", "VARIABLE", "Variable Name", "variable_name", "VariableName"])
         if variable_col is None:
             return None
 
@@ -238,7 +238,7 @@ class SpecificationParser:
 
         # Find variable name column
         variable_col = self._find_column(
-            ["Variable", "variable", "VARIABLE", "Variable Name", "variable_name"]
+            ["Variable", "variable", "VARIABLE", "Variable Name", "variable_name", "VariableName", "VAR", "Var"]
         )
 
         if variable_col is None:
@@ -248,29 +248,32 @@ class SpecificationParser:
             )
             return []
 
+        # Pre-detect commonly mapped columns by intent
+        label_col = self._find_column(
+            ["Label", "label", "LABEL", "Variable Label", "Description"]
+        )
+        type_col = self._find_column(
+            ["Type", "type", "TYPE", "Data Type", "Variable Type", "SAS Type", "SAS_Type"]
+        )
+        length_col = self._find_column(
+            ["Length", "length", "LENGTH", "Variable Length", "SAS Length", "SAS Length/Display Format", "SAS_Length"]
+        )
+        format_col = self._find_column(
+            ["Format", "format", "FORMAT", "Variable Format", "Display Format", "SAS Format", "SAS Length/Display Format"]
+        )
+        derivation_col = self._find_column(
+            ["Derivation", "derivation", "DERIVATION", "Source", "Algorithm", "Source/Derivation", "Source_Derivation"]
+        )
+        required_col = self._find_column(
+            ["Required", "REQUIRED", "CDISC Core", "Core", "Mandatory"]
+        )
+
         # Extract variable information
         for _, row in self._spec_data.iterrows():
             var_name = row[variable_col]
 
             if pd.notna(var_name):
                 var_info = {"name": str(var_name).strip()}
-
-                # Try to extract additional fields
-                label_col = self._find_column(
-                    ["Label", "label", "LABEL", "Variable Label", "Description"]
-                )
-                type_col = self._find_column(
-                    ["Type", "type", "TYPE", "Data Type", "Variable Type"]
-                )
-                length_col = self._find_column(
-                    ["Length", "length", "LENGTH", "Variable Length"]
-                )
-                format_col = self._find_column(
-                    ["Format", "format", "FORMAT", "Variable Format"]
-                )
-                derivation_col = self._find_column(
-                    ["Derivation", "derivation", "DERIVATION", "Source", "Algorithm"]
-                )
 
                 if label_col and pd.notna(row[label_col]):
                     var_info["label"] = str(row[label_col]).strip()
@@ -279,14 +282,45 @@ class SpecificationParser:
                 if length_col and pd.notna(row[length_col]):
                     var_info["length"] = str(row[length_col]).strip()
                 if format_col and pd.notna(row[format_col]):
-                    var_info["format"] = str(row[format_col]).strip()
+                    # If length_col and format_col point to same column (SAS Length/Display Format),
+                    # only set if not already set by length
+                    if format_col != length_col or "format" not in var_info:
+                        var_info["format"] = str(row[format_col]).strip()
                 if derivation_col and pd.notna(row[derivation_col]):
                     var_info["derivation"] = str(row[derivation_col]).strip()
+
+                # Check if variable is required based on CDISC Core column
+                if required_col and pd.notna(row[required_col]):
+                    req_value = str(row[required_col]).strip().upper()
+                    var_info["is_required"] = req_value in ["REQ", "REQUIRED", "YES", "Y", "MANDATORY"]
+                else:
+                    var_info["is_required"] = False
+
+                # Capture all remaining columns verbatim into `extra`
+                extras: Dict[str, str] = {}
+                for col in self._spec_data.columns:
+                    if col == variable_col:
+                        continue
+                    # Skip columns we already mapped above
+                    if col in [label_col, type_col, length_col, format_col, derivation_col, required_col]:
+                        continue
+                    val = row[col]
+                    if pd.notna(val):
+                        extras[str(col)] = str(val).strip()
+
+                if extras:
+                    var_info["extra"] = extras
 
                 variables.append(var_info)
 
         logger.info(f"Extracted {len(variables)} variables from specification")
         return variables
+
+    def get_columns(self) -> List[str]:
+        """Return all column names from the loaded specification in order"""
+        if self._spec_data is None:
+            raise ValueError("Specification not loaded. Call load_specification() first.")
+        return list(map(str, list(self._spec_data.columns)))
 
     def _find_column(self, possible_names: List[str]) -> Optional[str]:
         """Find column by trying multiple possible names"""

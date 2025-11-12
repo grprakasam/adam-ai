@@ -4,13 +4,24 @@ Entry point for the ADAM AI Code Generator backend
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from loguru import logger
 import sys
+import asyncio
 
 from app.config import settings
 from app.api.v1 import api_router
+from app.utils.error_handlers import (
+    adam_error_handler,
+    http_exception_handler,
+    validation_exception_handler,
+    general_exception_handler,
+    ADAMError
+)
+from app.utils.health_check import HealthCheck
+from app.middleware import RateLimitMiddleware, cleanup_rate_limiter
 
 
 @asynccontextmanager
@@ -20,10 +31,19 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Debug mode: {settings.DEBUG}")
     logger.info(f"Default LLM Provider: {settings.DEFAULT_LLM_PROVIDER}")
-    
+
+    # Start background task for rate limiter cleanup
+    cleanup_task = asyncio.create_task(cleanup_rate_limiter())
+    logger.info("Rate limiter cleanup task started")
+
     yield
-    
+
     # Shutdown
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
     logger.info(f"Shutting down {settings.APP_NAME}")
 
 
@@ -63,6 +83,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add rate limiting middleware
+app.add_middleware(RateLimitMiddleware)
+
+
+# Register error handlers
+app.add_exception_handler(ADAMError, adam_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
+
 
 # Include API routers
 app.include_router(api_router, prefix="/api/v1")
@@ -79,12 +109,15 @@ async def root():
 
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "version": settings.APP_VERSION
-    }
+async def health_check_quick():
+    """Quick health check endpoint (non-blocking)"""
+    return HealthCheck.get_quick_status()
+
+
+@app.get("/health/detailed")
+async def health_check_detailed():
+    """Detailed health check endpoint with component status"""
+    return await HealthCheck.check_all()
 
 
 if __name__ == "__main__":

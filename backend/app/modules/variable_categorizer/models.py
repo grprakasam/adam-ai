@@ -2,7 +2,7 @@
 Pydantic models for variable categorization
 """
 
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 
 
@@ -22,6 +22,10 @@ class VariableInfo(BaseModel):
     )
     is_required: bool = Field(
         default=False, description="Whether this is a required variable"
+    )
+    # Additional raw columns from the specification row (key = original column name)
+    extra: Optional[Dict[str, str]] = Field(
+        default=None, description="All additional columns from the specification"
     )
 
     class Config:
@@ -74,6 +78,10 @@ class CategorizationResult(BaseModel):
         default=0, description="Number of uncategorized variables"
     )
     dataset_type: str = Field(default="ADSL", description="Dataset type (ADSL, ADAE, ADLB)")
+    # Ordered list of columns detected in the specification (original names)
+    spec_columns: Optional[List[str]] = Field(
+        default=None, description="All columns found in the uploaded specification in order"
+    )
 
     class Config:
         json_schema_extra = {

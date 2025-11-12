@@ -57,6 +57,7 @@ export interface VariableInfo {
   category: string;
   derivation?: string;
   is_required: boolean;
+  extra?: Record<string, string>;
 }
 
 export interface VariableCategory {
@@ -72,6 +73,43 @@ export interface CategorizationResult {
   categorized_count: number;
   uncategorized_count: number;
   dataset_type: string;
+  spec_columns?: string[];
+}
+
+// Code Snippet Generation Types
+export interface CodeSnippetRequest {
+  study_id: string;
+  dataset: string;
+  variable: string;
+  derivation: string;
+  spec_row: Record<string, string>;
+  standards: {
+    sdtm_version: string;
+    adam_ig_version: string;
+    meddra_version: string;
+  };
+  language: 'R' | 'SAS';
+  context: {
+    available_sdtm_domains: string[];
+    required_variables: string[];
+    category: string;
+  };
+}
+
+export interface CodeSnippetResponse {
+  code_snippet: string;
+  coding_rationale: string;
+  metadata?: {
+    provider?: string;
+    model?: string;
+    tokens_used?: number;
+    latency_ms?: number;
+    template_used?: string;
+    confidence_score?: number;
+  };
+  warnings?: string[];
+  validated?: boolean;
+  error?: string;
 }
 
 export interface GenerationOptions {

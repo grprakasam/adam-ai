@@ -14,6 +14,8 @@ from app.modules.variable_categorizer import (
     VariableCategorizerService,
     CategorizationResult,
 )
+from app.utils.validators import validate_file_upload, validate_dataset_type
+from app.utils.error_handlers import FileProcessingError
 
 
 class CategorizeByPathRequest(BaseModel):
@@ -54,22 +56,14 @@ async def categorize_specification(
     """
     logger.info(f"Received specification file: {file.filename} for dataset: {dataset_type}")
 
-    # Validate file type
-    if not file.filename.endswith((".xlsx", ".xls")):
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid file type. Only .xlsx and .xls files are supported.",
-        )
+    # Validate file upload
+    validate_file_upload(file, allowed_extensions=[".xlsx", ".xls"], max_size_mb=50)
 
     # Validate dataset type
-    valid_datasets = ["ADSL", "ADAE", "ADLB"]
-    if dataset_type.upper() not in valid_datasets:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid dataset_type. Must be one of: {', '.join(valid_datasets)}",
-        )
+    dataset_type = validate_dataset_type(dataset_type)
 
     # Save uploaded file to temporary location
+    temp_file_path = None
     try:
         with tempfile.NamedTemporaryFile(
             delete=False, suffix=Path(file.filename).suffix
@@ -118,12 +112,12 @@ async def categorize_specification(
 
     finally:
         # Clean up temporary file
-        try:
-            if "temp_file_path" in locals():
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
                 os.unlink(temp_file_path)
                 logger.debug(f"Cleaned up temporary file: {temp_file_path}")
-        except Exception as e:
-            logger.warning(f"Failed to clean up temporary file: {str(e)}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up temporary file: {str(e)}")
 
 
 @router.post("/categorize-path", response_model=CategorizationResult)

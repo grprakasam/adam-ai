@@ -56,6 +56,7 @@ class VariableCategorizerService:
         spec_parser = SpecificationParser(spec_file_path)
         spec_parser.load_specification()
         spec_variables = spec_parser.get_variables()
+        spec_columns = spec_parser.get_columns()
 
         logger.info(
             f"Categorizing {len(spec_variables)} variables for {dataset_type}"
@@ -66,6 +67,8 @@ class VariableCategorizerService:
 
         # Build result
         result = self._build_categorization_result(categorized_vars, dataset_type)
+        # Attach spec columns ordering so UI can render all columns
+        result.spec_columns = spec_columns
 
         logger.info(
             f"Categorization complete: {result.categorized_count} categorized, "

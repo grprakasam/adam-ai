@@ -163,3 +163,94 @@ class FileUploadResponse(BaseModel):
     success: bool
     message: str
     file_path: Optional[str] = None
+
+
+class CodeSnippetRequest(BaseModel):
+    """Request model for generating code snippet for a single variable"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "study_id": "STUDY123",
+            "dataset": "ADSL",
+            "variable": "AGE",
+            "derivation": "Age in years at time of informed consent",
+            "spec_row": {
+                "Variable": "AGE",
+                "Label": "Age",
+                "Type": "Num",
+                "Length": "8",
+                "Format": "",
+                "Source/Derivation": "DM.AGE"
+            },
+            "standards": {
+                "sdtm_version": "3.4",
+                "adam_ig_version": "1.3",
+                "meddra_version": "26.0"
+            },
+            "language": "R",
+            "context": {
+                "available_sdtm_domains": ["DM", "EX", "AE"],
+                "required_variables": ["AGE"],
+                "category": "Demographics"
+            }
+        }
+    })
+
+    study_id: str = Field(..., description="Study identifier")
+    dataset: str = Field(..., description="ADAM dataset name (e.g., ADSL)")
+    variable: str = Field(..., description="Variable name to generate code for")
+    derivation: str = Field(..., description="Derivation logic for the variable")
+    spec_row: dict = Field(..., description="Full specification row for the variable")
+    standards: dict = Field(..., description="Standards versions (SDTM, ADaM IG, MedDRA)")
+    language: str = Field(default="R", description="Programming language (R or SAS)")
+    context: Optional[dict] = Field(default=None, description="Additional context (available domains, required variables, category)")
+
+
+class CodeSnippetResponse(BaseModel):
+    """Response model for generated code snippet"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "variable": "AGE",
+            "code_snippet": "# Derive AGE from DM domain\nADSL$AGE <- DM$AGE",
+            "coding_rationale": "Age is directly mapped from the Demographics (DM) domain.",
+            "metadata": {
+                "llm_provider": "google",
+                "model": "gemini-2.5-flash",
+                "tokens_used": 450,
+                "generation_time": 1.2
+            }
+        }
+    })
+
+    variable: str = Field(..., description="Variable name")
+    code_snippet: str = Field(..., description="Generated code snippet")
+    coding_rationale: str = Field(..., description="Explanation of the coding logic")
+    metadata: Optional[dict] = Field(default=None, description="Metadata about the generation (model, tokens, etc.)")
+
+
+class BulkCodeGenerationRequest(BaseModel):
+    """Request model for bulk code generation for all variables"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "study_id": "STUDY123",
+            "dataset": "ADSL",
+            "categorized_variables": {
+                "categories": [],
+                "total_variables": 45,
+                "categorized_count": 42,
+                "uncategorized_count": 3,
+                "dataset_type": "ADSL"
+            },
+            "language": "R",
+            "standards": {
+                "sdtm_version": "3.4",
+                "adam_ig_version": "1.3",
+                "meddra_version": "26.0"
+            }
+        }
+    })
+
+    study_id: str = Field(..., description="Study identifier")
+    dataset: str = Field(..., description="ADAM dataset name (e.g., ADSL)")
+    categorized_variables: dict = Field(..., description="Categorization result with all variables")
+    language: str = Field(default="R", description="Programming language (R or SAS)")
+    standards: dict = Field(..., description="Standards versions (SDTM, ADaM IG, MedDRA)")

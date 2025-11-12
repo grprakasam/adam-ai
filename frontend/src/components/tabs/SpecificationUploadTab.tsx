@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
 import { FormBlock } from '../FormBlock';
 import { useProjectStore } from '../../store/projectStore';
+import { showFileUploadConfirmation } from '../ConfirmationDialog';
 import './SpecificationUploadTab.css';
 
 const SpecificationUploadTab: React.FC = () => {
@@ -14,17 +15,22 @@ const SpecificationUploadTab: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       // Check if it's an Excel file
       const validExtensions = ['.xlsx', '.xls'];
       const fileExtension = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-      
-      if (validExtensions.includes(fileExtension)) {
-        // Get the file path from the input or construct default path
-        const filePath = `Content\\UserInputs\\ADAMSpecifications\\${file.name}`;
-        
+
+      if (!validExtensions.includes(fileExtension)) {
+        alert('Please select a valid Excel file (.xlsx or .xls)');
+        return;
+      }
+
+      // Function to update the file
+      const updateFile = () => {
+        const filePath = `Content/UserInputs/ADAMSpecifications/${file.name}`;
+
         setSpecificationFile({
           name: file.name,
           path: filePath,
@@ -33,8 +39,14 @@ const SpecificationUploadTab: React.FC = () => {
         });
         // Store the transient file blob for later upload during analysis
         setTempSpecFile(file);
+      };
+
+      // If there's already a file uploaded (and it's not the default), show confirmation
+      if (specificationFile && !specificationFile.isDefault) {
+        await showFileUploadConfirmation(file.name, updateFile);
       } else {
-        alert('Please select a valid Excel file (.xlsx or .xls)');
+        // No existing file or it's the default, upload directly
+        updateFile();
       }
     }
   };
@@ -45,7 +57,7 @@ const SpecificationUploadTab: React.FC = () => {
       // Default to specification file in Content\UserInputs
       setSpecificationFile({
         name: 'ADSLSpec.xlsx',
-        path: 'Content\\UserInputs\\ADAMSpecifications\\ADSLSpec.xlsx',
+        path: 'Content/UserInputs/ADAMSpecifications/ADSLSpec.xlsx',
         size: 0,
         uploadedAt: new Date().toISOString(),
         isDefault: true,

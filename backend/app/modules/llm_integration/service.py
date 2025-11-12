@@ -208,32 +208,44 @@ class GoogleProvider(BaseLLMProvider):
                 "You are an expert R programmer specializing in clinical trial ADAM datasets "
                 "following CDISC standards.\n\n" + prompt
             )
-            
+
             generation_config = {
                 "temperature": temperature,
                 "max_output_tokens": max_tokens,
                 **kwargs
             }
-            
+
             response = await self.client.generate_content_async(
                 full_prompt,
                 generation_config=generation_config
             )
-            
+
+            # Check if response has candidates and extract text safely
+            if not response.candidates or len(response.candidates) == 0:
+                logger.error("Google API returned no candidates. Response may be blocked.")
+                raise ValueError("Google API returned no candidates. The prompt may have been blocked due to safety filters.")
+
+            # Extract text from first candidate
+            text_content = response.candidates[0].content.parts[0].text if response.candidates[0].content.parts else ""
+
+            if not text_content:
+                logger.error("Google API returned empty response")
+                raise ValueError("Google API returned empty response")
+
             result = {
-                "content": response.text,
+                "content": text_content,
                 "model": self.model,
                 "usage": {
                     "prompt_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0,
                     "completion_tokens": response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0,
                     "total_tokens": response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') else 0
                 },
-                "finish_reason": "completed"
+                "finish_reason": response.candidates[0].finish_reason.name if hasattr(response.candidates[0], 'finish_reason') else "completed"
             }
-            
+
             logger.info(f"Google generation completed: {result['usage']['total_tokens']} tokens")
             return result
-            
+
         except Exception as e:
             logger.error(f"Google generation error: {str(e)}")
             raise

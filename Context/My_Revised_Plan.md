@@ -1,803 +1,1383 @@
-# ADAM AI – Revised Execution Plan
+# 📋 REVISED IMPLEMENTATION PLAN: Approval Progress & Enhanced Code Generation
 
-## Executive Summary
-This revised plan addresses critical gaps in the initial plan by incorporating:
-1. **Variables Analysis Page** – A dedicated UI for categorized variable grouping based on VariablesMapping.xlsx
-2. **Enhanced specification parsing** – Parse and categorize variables according to ADAM rules
-3. **Progressive disclosure workflow** – Stage-based user confirmations aligned with domain logic
-4. **Backend services** – Excel parsing, variable categorization, and mapping services
-
-## Key Gaps Identified in Initial Plan
-
-### **CRITICAL MISSING ELEMENTS:**
-
-1. **Variables Analysis Page** (from requirement 0_MyRequirement_planner.md)
-   - NOT mentioned in initial plan
-   - Required: Categorized variable grouping UI with tabbed interface
-   - Must use VariablesMapping.xlsx for categorization
-   - Should appear after spec upload, before generation
-
-2. **VariablesMapping.xlsx Integration** (from ADSL_ApplicationBehaviourRules.md)
-   - Initial plan mentions parsing but not variable categorization
-   - Missing: Service to read and apply VariablesMapping.xlsx
-   - Missing: Backend endpoint to categorize uploaded variables
-
-3. **Progressive User Confirmation Workflow**
-   - Initial plan focuses on linear flow
-   - Missing: Stage-by-stage user confirmations per ProjectRequirements.md
-   - Missing: Interactive validation at each stage
-
-4. **Domain-Specific Context Building**
-   - Initial plan treats LLM prompting generically
-   - Missing: Dataset-specific context assembly (ADSL vs ADAE vs ADLB)
-   - Missing: Rule-based prompt template selection
-
-5. **Variable Dependency Analysis**
-   - Hardcoded categories in VariablesTab.tsx
-   - Missing: Dynamic loading from VariablesMapping.xlsx
-   - Missing: Dependency graph validation
-
-## Revised Architecture
-
-### **Frontend – Enhanced Tab Flow**
-
-```
-Landing Page
-    ↓ (Get Started)
-Workspace Page
-    ├── Tab 1: Project Information ✓ (Completed)
-    ├── Tab 2: Dataset Selection ✓ (Completed)
-    ├── Tab 3: Specification Upload ✓ (Completed)
-    ├── Tab 4: Variables Analysis ⚠️ (NEW - CRITICAL)
-    │   ├── Auto-loads after spec upload
-    │   ├── Displays categorized variables from VariablesMapping.xlsx
-    │   ├── Tabbed UI per category (Identifiers, Treatment, Demographics, etc.)
-    │   ├── Variable cards with: name, label, type, source, derivation preview
-    │   ├── Selection checkboxes (required vars pre-checked, disabled)
-    │   ├── Search/filter functionality
-    │   └── Confirmation button → unlocks next tab
-    ├── Tab 5: Standards Selection ✓ (Completed)
-    ├── Tab 6: Rules Configuration ✓ (Completed)
-    └── Tab 7: Generate & Review
-        ├── Pre-generation summary panel
-        ├── Confirm & Generate CTA
-        └── Results display (code, validation, docs)
-```
-
-### **Backend – New Services**
-
-```
-New Modules Required:
-├── specification_parser/
-│   ├── excel_reader.py          # Existing, enhance with validation
-│   ├── variable_extractor.py    # NEW: Extract variable rows
-│   └── variable_validator.py    # NEW: Validate against naming rules
-├── variable_categorizer/
-│   ├── mapping_loader.py         # NEW: Read VariablesMapping.xlsx
-│   ├── categorizer.py            # NEW: Map vars to categories
-│   └── dependency_resolver.py    # NEW: Build dependency graph
-├── context_builder/              # Exists, enhance
-│   ├── dataset_context.py        # NEW: Dataset-specific contexts
-│   └── rule_selector.py          # NEW: Select rules per dataset type
-└── confirmation_tracker/         # NEW: Track stage completions
-    └── progress_validator.py     # Validate completion before generation
-```
+**Date:** November 10, 2025  
+**Status:** Comprehensive Plan for Next Implementation Phase  
+**Current Implementation Status:** Phases 4-10 Complete
 
 ---
 
-## Detailed Implementation Plan
+## 🎯 GOAL
 
-### **PHASE 1: Variables Analysis Infrastructure (Priority: HIGHEST)**
+Enhance the existing ADAM AI Code Generator with:
+1. **Real-time approval progress tracking** across all variable categories
+2. **80% approval threshold** for enabling final code generation
+3. **Enhanced code generation** considering user notes and preferences
+4. **Pre-generation validation** and confirmation workflow
+5. **Improved user experience** with visual feedback
 
-#### **Backend Tasks**
+---
 
-**1.1 Variables Mapping Service**
-```python
-# File: backend/app/modules/variable_categorizer/mapping_loader.py
+## 📊 CURRENT STATE ANALYSIS
 
-Purpose: Read and parse VariablesMapping.xlsx
-Deliverables:
-  - Load Excel with categories and variable attributes
-  - Return structured JSON: {category: str, variables: [{name, group, priority}]}
-  - Cache mapping in memory (reload on config change)
-  - Validation: Ensure required columns exist
+### ✅ What's Already Implemented:
+1. **Backend Infrastructure** (Phase 4-8):
+   - Google Gemini 2.0 Flash integration
+   - 40+ API endpoints
+   - ADAM rules integration
+   - Complete program generation service
+   - Bulk code generation with caching
 
-Dependencies: openpyxl, pandas
-Acceptance: Can load VariablesMapping.xlsx and return category structure
-```
+2. **Frontend Features** (Phase 5):
+   - Variable categorization with tabs
+   - Bulk "Get AI Inputs" button
+   - Pair Programming Area with approval checkboxes
+   - Code snippet display
+   - User notes input fields
+   - Acceptance tracking in store (`accepted: boolean`)
 
-**1.2 Variable Categorization Endpoint**
-```python
-# Route: POST /api/spec/categorize
+3. **Existing Components**:
+   - `VariablesAnalysisTab.tsx` - Categorized variable display
+   - `PairProgrammingArea.tsx` - Code review with acceptance checkboxes
+   - `ProgressIndicator.tsx` - Basic progress component (needs enhancement)
+   - Store: `setPairProgrammingAcceptance(variable, accepted)` method exists
 
-Input: {specId: str}
-Process:
-  1. Load parsed specification variables (from existing parse endpoint)
-  2. Load VariablesMapping.xlsx categories
-  3. Match each spec variable to category (by name pattern or exact match)
-  4. Enrich with metadata (required status, dependencies, CDISC type)
-Output: {
-  categories: [
-    {
-      name: "Identifier Variables",
-      description: "...",
-      variables: [
-        {name: "STUDYID", label: "...", type: "Char", 
-         source: "DM", required: true, category: "Identifiers"}
-      ]
-    }
-  ],
-  uncategorized: [...],  # Variables not found in mapping
-  warnings: [...]
-}
+### ❌ What's Missing (Requirements from 0_MyRequirement_planner.md):
+1. **Persistent approval progress bar** at bottom of page
+2. **Real-time progress calculation** based on approved variables count
+3. **80% threshold logic** for enabling "Generate ADAM Code" button
+4. **"Generate ADAM Code" button** as separate final generation step
+5. **User notes integration** in final code generation
+6. **Pre-generation confirmation dialog** with:
+   - High-level outline of generation steps
+   - User preference collection (R packages, SAS PROCs)
+   - Conflicting notes detection
+7. **Complete program download** functionality
 
-Validation:
-  - Warn if variables missing from mapping
-  - Flag if required variables absent from spec
-```
+---
 
-**1.3 Enhanced Specification Parser**
-```python
-# Enhance: backend/app/modules/input_collection/spec_parser.py
+## 🏗️ IMPLEMENTATION PLAN
 
-Additions:
-  - Extract variable metadata: name, label, type, length, source, derivation logic
-  - Validate against ADAM_VariablenamingRules.md (DT suffix = date, FL = flag, etc.)
-  - Return structured warnings for:
-    * Invalid naming conventions
-    * Missing required columns
-    * Ambiguous derivation logic
-  - Store parsed data in structured format (JSON) for reuse
-```
+### **Phase 11: Approval Progress Tracking System**
 
-#### **Frontend Tasks**
+#### **11.1: Create Global Progress Tracking Hook**
+**Location:** `frontend/src/hooks/useApprovalProgress.ts` (NEW)
 
-**1.4 Variables Analysis Tab Component**
+**Implementation:**
 ```typescript
-// File: frontend/src/components/tabs/VariablesAnalysisTab.tsx
-
-Features:
-  - Auto-trigger on spec upload completion (listen to store state)
-  - Call POST /api/spec/categorize with specId
-  - Display categorized variables in tabbed interface:
-    * Each category = one tab (Identifiers, Treatment, Demographics, etc.)
-    * Within tab: Grid/cards of variables with:
-      - Variable name (bold)
-      - Label (secondary text)
-      - Type indicator (Num/Char badge)
-      - Source dataset chip (DM, EX, etc.)
-      - Derivation summary (collapsible)
-      - Selection checkbox (required vars disabled+checked)
-    * Search bar (filters across all categories)
-    * "Select All" / "Deselect All" per category
-  - Bottom action bar:
-    * Variable count: "45/67 variables selected"
-    * "Confirm Variables" button → updates store → enables next tab
-  - Visual states:
-    * Loading skeleton during categorization
-    * Error state with retry for failed categorization
-    * Warning badges for uncategorized variables
-
-Store Integration:
-  - Add to projectStore: 
-    * categorizedVariables: CategorizedVariable[]
-    * selectedVariableNames: string[]
-    * variableAnalysisComplete: boolean
-  - Completion check: variableAnalysisComplete = true when user confirms
-
-Accessibility:
-  - Tab keyboard navigation (ARIA tablist)
-  - Focus management on category switch
-  - Screen reader announcements for counts
-```
-
-**1.5 Update Tab Navigation**
-```typescript
-// File: frontend/src/components/LeftPanel.tsx
-
-Changes:
-  - Insert "Variables Analysis" tab after "Specification Upload"
-  - Status badge logic:
-    * complete: variableAnalysisComplete = true
-    * incomplete: spec uploaded but variables not confirmed
-    * not-started: spec not uploaded
-  - Disable tab until spec upload completes
-  - Progress percentage: Include in completion calculation (now 6 tabs)
-```
-
----
-
-### **PHASE 2: Enhanced Specification Workflow**
-
-#### **2.1 Specification Upload Enhancement**
-```typescript
-// Update: frontend/src/components/tabs/SpecificationUploadTab.tsx
-
-Post-Upload Flow:
-  1. Upload file → backend saves
-  2. Auto-trigger parse: POST /api/spec/parse
-  3. Display parse results:
-     - Variable count, dataset guess
-     - Parsing warnings (collapsible panel)
-  4. Auto-trigger categorization: POST /api/spec/categorize
-  5. Show preview: "Found 67 variables in 8 categories"
-  6. CTA: "Review Variables" → navigate to Variables Analysis tab
-
-Enhanced Validation:
-  - Check file has required columns before parse
-  - Show inline errors for missing columns
-  - Suggest column mappings if names don't match expected
-```
-
-#### **2.2 Variable Dependency Resolution**
-```python
-# File: backend/app/modules/variable_categorizer/dependency_resolver.py
-
-Purpose: Build dependency graph for variables
-Process:
-  1. Parse derivation logic from spec (extract variable names)
-  2. Identify dependencies (e.g., TRT01PN depends on TRT01P)
-  3. Topologically sort for execution order
-  4. Detect circular dependencies → error
-Output: {
-  execution_order: ["STUDYID", "USUBJID", "TRT01P", "TRT01PN", ...],
-  dependency_graph: {variable: [dependencies]},
-  circular_deps: [...]  # Should be empty
-}
-
-Integration:
-  - Called during categorization
-  - Exposed via GET /api/spec/{specId}/dependencies
-  - Used in code generation to order variable creation
-```
-
----
-
-### **PHASE 3: Progressive User Confirmation Flow**
-
-#### **3.1 Stage-Based Validation**
-```python
-# File: backend/app/modules/confirmation_tracker/progress_validator.py
-
-Stages:
-  1. Project Info: studyId, dataset type selected
-  2. Spec Upload: File uploaded and parsed successfully
-  3. Variables: Variables categorized and user-confirmed selection
-  4. Standards: SDTM/ADaM/MedDRA versions selected
-  5. Rules: Rule categories reviewed and enabled
-  6. Ready: All stages complete → enable generation
-
-Endpoint: GET /api/progress/validate
-Returns: {
-  overall_completion: 85,
-  stages: [
-    {name: "project", complete: true, percent: 100},
-    {name: "variables", complete: false, percent: 60, 
-     missing: ["User must confirm variable selection"]}
-  ],
-  can_generate: false,
-  blockers: ["Variables not confirmed"]
-}
-
-Frontend Use:
-  - Poll on tab change
-  - Update progress bar
-  - Show blockers in Generate tab if not ready
-```
-
-#### **3.2 Pre-Generation Summary Panel**
-```typescript
-// File: frontend/src/components/tabs/GenerateTab.tsx (enhance existing)
-
-Before Generate Button:
-  - Summary Section (collapsible cards):
-    * Dataset: ADSL
-    * Variables: 45 selected (with expandable list)
-    * Standards: SDTM v2.0, ADaM IG v1.3, MedDRA v27.0
-    * Rules: 12 enabled (grouped by category)
-    * Language: R
-  - Validation checklist:
-    ✓ All required variables present
-    ✓ No circular dependencies
-    ⚠ 2 optional variables skipped
-  - Estimated generation time: ~15 seconds
-  - CTA: "Confirm & Generate Code"
-
-Post-Generation:
-  - Keep existing right panel (code, validation, docs)
-  - Add: "Regenerate with Changes" button
-```
-
----
-
-### **PHASE 4: Dataset-Specific Context Assembly**
-
-#### **4.1 Dataset Context Builder**
-```python
-# File: backend/app/modules/context_builder/dataset_context.py
-
-Purpose: Build dataset-specific context for LLM
-Process:
-  1. Identify dataset type (ADSL/ADAE/ADLB from user selection)
-  2. Load relevant rules from Context/ADAMRules/:
-     - ADSL: Load ADSL_MacroLogic.md, ADSL_IGSpecificRules.md, 
-             ADSL_ApplicationBehaviourRules.md
-     - ADAE/ADLB: Similar pattern (create files as needed)
-  3. Load input dataset requirements from ADSL_MacroLogic.md (DM, DS, EX, etc.)
-  4. Filter variables by dataset relevance (ADSL doesn't need lab vars)
-  5. Assemble context blocks:
-     - Variable naming rules (from ADAM_VariablenamingRules.md)
-     - IG-specific constraints
-     - Macro logic (derivation sequence)
-     - Standard references (SDTM/ADaM versions)
-
-Output: Structured context dict for prompt builder
-Integration: Called before prompt assembly in generate flow
-```
-
-#### **4.2 Rule Selector Service**
-```python
-# File: backend/app/modules/context_builder/rule_selector.py
-
-Purpose: Select applicable rules based on dataset and variables
-Process:
-  1. Load all rules from Context/ADAMRules/*.md
-  2. Filter by dataset type (some rules ADSL-only)
-  3. Filter by selected variables (no need for treatment rules if no TRT vars)
-  4. Prioritize enabled rules (from user selection in Rules tab)
-  5. Group by category: Naming, IG Compliance, Macro Logic, etc.
-
-Output: Filtered, prioritized rule set for prompt
-Benefits:
-  - Reduces prompt token count (only relevant rules)
-  - Improves generation quality (focused context)
-  - Enables dataset-specific rule libraries
-```
-
----
-
-### **PHASE 5: Backend API Completion**
-
-#### **5.1 Core Endpoints (Summary)**
-```
-Existing (Enhance):
-  POST /api/spec/upload       → Add validation for column mapping
-  POST /api/spec/parse        → Add variable extraction and naming validation
-  GET  /api/rules/adam/adsl   → Add rule categorization and filtering
-
-New (Critical):
-  POST /api/spec/categorize   → Categorize variables using VariablesMapping.xlsx
-  GET  /api/spec/{id}/dependencies → Return dependency graph
-  GET  /api/progress/validate → Return stage completion and blockers
-  POST /api/generate/preview  → Dry-run generation (return summary, no LLM call)
-
-Existing (Keep):
-  POST /api/generate/code     → Main generation endpoint (add context assembly)
-  POST /api/validate/code     → Static validation (future)
-```
-
-#### **5.2 Enhanced Generate Endpoint**
-```python
-# Enhance: POST /api/generate/code
-
-New Flow:
-  1. Validate request (all stages complete via progress_validator)
-  2. Load specification and categorized variables
-  3. Build dataset-specific context (dataset_context.py)
-  4. Select applicable rules (rule_selector.py)
-  5. Resolve variable dependencies (dependency_resolver.py)
-  6. Assemble prompt (prompt_builder.py with enhanced templates)
-  7. Call LLM (Gemini 2.5 Flash with structured output)
-  8. Parse response (code + validation + derivation sequence)
-  9. Validate generated code structure (variable count, syntax check)
-  10. Return comprehensive response
-
-Enhanced Response:
-{
-  code: "...",  # R or SAS code
-  language: "R",
-  validation_results: {
-    syntax_valid: true,
-    variables_created: ["STUDYID", "USUBJID", ...],
-    missing_variables: [],
-    warnings: ["TRT01PN not used in derivations"]
-  },
-  derivation_sequence: [
-    {step: 1, variable: "STUDYID", source: "DM.STUDYID", logic: "Direct mapping"},
-    ...
-  ],
-  metadata: {
-    tokens_used: 4523,
-    generation_time_ms: 12450,
-    model: "gemini-2.5-flash",
-    rules_applied: ["Variable Naming", "ADSL Macro Logic"]
-  },
-  documentation: {
-    summary: "Generated ADSL with 45 variables...",
-    input_datasets: ["DM", "DS", "EX"],
-    assumptions: ["Treatment start date imputed from first EX record"],
-    limitations: ["Requires SDTM v2.0 compliance"]
-  }
-}
-```
-
----
-
-### **PHASE 6: Frontend Polish & Integration**
-
-#### **6.1 Store Enhancements**
-```typescript
-// Update: frontend/src/store/projectStore.ts
-
-Add to ProjectStore:
-  // Variables Analysis
-  categorizedVariables: CategorizedVariable[] | null
-  selectedVariableNames: string[]
-  variableAnalysisComplete: boolean
-  dependencyGraph: {[variable: string]: string[]} | null
+// Calculate approval progress across all categorized variables
+export const useApprovalProgress = () => {
+  const categorizedVariables = useProjectStore(state => state.categorizedVariables);
+  const snippets = useProjectStore(state => state.pairProgramming.snippets);
   
-  // Progress Tracking
-  stageCompletions: {
-    project: boolean
-    specification: boolean
-    variables: boolean
-    standards: boolean
-    rules: boolean
-  }
+  const calculateProgress = () => {
+    // Count total variables across all categories
+    let totalVariables = 0;
+    let approvedVariables = 0;
+    
+    // Iterate through all categories
+    Object.values(categorizedVariables).forEach(category => {
+      if (Array.isArray(category)) {
+        category.forEach(variable => {
+          totalVariables++;
+          if (snippets[variable.name]?.accepted) {
+            approvedVariables++;
+          }
+        });
+      }
+    });
+    
+    const percentage = totalVariables > 0 
+      ? Math.round((approvedVariables / totalVariables) * 100) 
+      : 0;
+    
+    return {
+      totalVariables,
+      approvedVariables,
+      percentage,
+      isReadyForGeneration: percentage >= 80
+    };
+  };
   
-  // Generation State
-  generationSummary: GenerationSummary | null
-  generationInProgress: boolean
-
-Actions:
-  setCategorizedVariables(vars: CategorizedVariable[])
-  toggleVariableSelection(name: string)
-  confirmVariableAnalysis()
-  loadDependencyGraph(graph: object)
-  updateStageCompletion(stage: string, complete: boolean)
+  return calculateProgress();
+};
 ```
 
-#### **6.2 Completion Percentage Update**
-```typescript
-// Update calculation in projectStore.ts
+**Test Cases:**
+- [ ] Calculates correct total across all tabs
+- [ ] Updates when checkbox toggled in any tab
+- [ ] Returns correct percentage
+- [ ] Threshold detection (80%) works
 
-New Formula (6 tabs):
-  - Project Info: 15%
-  - Dataset Selection: 10%
-  - Specification Upload: 20%
-  - Variables Analysis: 20%  ← NEW
-  - Standards: 15%
-  - Rules: 20%
+---
 
-Total = 100%
-Generation enabled at ≥ 80% (all except Rules optional)
+#### **11.2: Create Persistent Progress Bar Component**
+**Location:** `frontend/src/components/ApprovalProgressBar.tsx` (NEW)
+
+**Design Specs:**
+- **Position:** Fixed at bottom of viewport
+- **Height:** 60px
+- **Background:** White with subtle shadow
+- **Progress Bar Colors:**
+  - 0-79%: Orange gradient (#FFA500 → #FF8C00)
+  - 80-100%: Green gradient (#10B981 → #059669)
+- **Content:**
+  - Left: Progress bar with percentage label
+  - Center: "X of Y variables approved"
+  - Right: Tooltip icon with hover text
+
+**Implementation:**
+```tsx
+import { Progress, Tooltip } from 'antd';
+import { InfoCircle } from 'lucide-react';
+import { useApprovalProgress } from '../hooks/useApprovalProgress';
+import './ApprovalProgressBar.css';
+
+export const ApprovalProgressBar: React.FC = () => {
+  const { totalVariables, approvedVariables, percentage, isReadyForGeneration } 
+    = useApprovalProgress();
+  
+  return (
+    <div className="approval-progress-bar-container">
+      <div className="approval-progress-content">
+        {/* Progress Bar */}
+        <div className="progress-section">
+          <Progress
+            percent={percentage}
+            strokeColor={isReadyForGeneration 
+              ? { '0%': '#10B981', '100%': '#059669' }
+              : { '0%': '#FFA500', '100%': '#FF8C00' }}
+            format={() => `${percentage}%`}
+            style={{ width: '300px' }}
+          />
+        </div>
+        
+        {/* Status Text */}
+        <div className="status-text">
+          <span className="approved-count">
+            {approvedVariables} of {totalVariables} variables approved
+          </span>
+          {isReadyForGeneration && (
+            <span className="ready-badge">✓ Ready for generation</span>
+          )}
+          {!isReadyForGeneration && (
+            <span className="pending-badge">
+              {80 - percentage}% more needed
+            </span>
+          )}
+        </div>
+        
+        {/* Info Tooltip */}
+        <Tooltip 
+          title="Approve at least 80% of variables to enable final code generation"
+          placement="top"
+        >
+          <InfoCircle size={20} className="info-icon" />
+        </Tooltip>
+      </div>
+    </div>
+  );
+};
 ```
 
-#### **6.3 Visual Consistency**
+**CSS:** `ApprovalProgressBar.css`
 ```css
-/* Ensure Variables Analysis Tab matches design system */
+.approval-progress-bar-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: white;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #e5e7eb;
+}
 
-Categories:
-  - Use existing FormBlock component
-  - Tab styling matches TabNavigation component
-  - Variable cards use card component styles
-  - Checkboxes use design tokens (--primary-600)
+.approval-progress-content {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 1200px;
+  width: 100%;
+  padding: 0 24px;
+}
 
-Responsive:
-  - Grid layout for variable cards (3 cols desktop, 2 tablet, 1 mobile)
-  - Sticky category tabs on scroll
-  - Collapsible derivation previews
+.ready-badge {
+  color: #059669;
+  font-weight: 600;
+  margin-left: 12px;
+}
+
+.pending-badge {
+  color: #FF8C00;
+  font-weight: 600;
+  margin-left: 12px;
+}
 ```
+
+**Integration:**
+- Add to `App.tsx` or main layout component
+- Should be visible on all pages after spec upload
+- Must persist across tab changes
+
+**Test Cases:**
+- [ ] Progress updates in real-time when approval changed
+- [ ] Works across all category tabs
+- [ ] Tooltip displays correctly
+- [ ] Color changes at 80% threshold
+- [ ] Responsive on mobile devices
 
 ---
 
-### **PHASE 7: Testing & Validation**
+### **Phase 12: Final Code Generation Button & Workflow**
 
-#### **7.1 Backend Tests**
+#### **12.1: Add "Generate ADAM Code" Button**
+**Location:** `frontend/src/components/VariablesAnalysisTab.tsx` or new dedicated component
+
+**Button Specs:**
+- **Position:** Top-right of PairProgrammingArea OR bottom-right of page
+- **Label:** "Generate ADAM Code"
+- **Icon:** Download or Play icon
+- **States:**
+  - Disabled (< 80%): Gray with lock icon
+  - Enabled (≥ 80%): Green gradient, pulsing animation
+  - Loading: Spinner with "Generating..."
+
+**Implementation:**
+```tsx
+const { isReadyForGeneration, percentage } = useApprovalProgress();
+
+<Tooltip 
+  title={!isReadyForGeneration 
+    ? `${80 - percentage}% more approvals needed` 
+    : 'Generate complete ADAM program'}
+>
+  <button
+    className="generate-adam-code-btn"
+    disabled={!isReadyForGeneration}
+    onClick={handleGenerateADAMCode}
+    style={{
+      background: isReadyForGeneration 
+        ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+        : '#d1d5db',
+      cursor: isReadyForGeneration ? 'pointer' : 'not-allowed',
+      padding: '12px 24px',
+      borderRadius: '8px',
+      fontSize: '16px',
+      fontWeight: '600',
+      color: 'white',
+      border: 'none',
+      boxShadow: isReadyForGeneration 
+        ? '0 4px 12px rgba(16, 185, 129, 0.4)' 
+        : 'none',
+      animation: isReadyForGeneration ? 'pulse 2s infinite' : 'none'
+    }}
+  >
+    {isGeneratingFinalCode ? (
+      <>
+        <Loader2 className="animate-spin mr-2" size={20} />
+        Generating Program...
+      </>
+    ) : (
+      <>
+        <Download size={20} className="mr-2" />
+        Generate ADAM Code
+      </>
+    )}
+  </button>
+</Tooltip>
+```
+
+**Test Cases:**
+- [ ] Disabled when < 80% approved
+- [ ] Enabled at 80%+ approved
+- [ ] Tooltip shows correct message
+- [ ] Animation works when enabled
+- [ ] Loading state displays correctly
+
+---
+
+#### **12.2: Pre-Generation Confirmation Dialog**
+**Location:** New modal component `FinalCodeGenerationDialog.tsx`
+
+**Dialog Flow:**
+1. **User clicks "Generate ADAM Code"**
+2. **System collects and displays:**
+   - Total approved variables count
+   - List of approved variable names (grouped by category)
+   - User notes summary (how many variables have notes)
+   - Warnings for conflicting notes (if any)
+   
+3. **User Preferences Collection:**
+   - **For R Programs:**
+     - [x] tidyverse (default)
+     - [ ] data.table
+     - [ ] base R only
+     - Other packages: [text input]
+   
+   - **For SAS Programs:**
+     - [x] PROC SQL (default)
+     - [ ] Data Step only
+     - [ ] PROC FORMAT
+     - Macro preferences: [text input]
+
+4. **Generation Plan Outline:**
+   ```
+   The system will:
+   1. Load ADAM rules and standards
+   2. Process {N} approved variables in dependency order
+   3. Apply user notes to {M} variables with custom instructions
+   4. Generate complete {language} program with:
+      - Professional header
+      - SDTM data input
+      - All variable derivations
+      - Summary statistics
+      - Output to ADAM dataset
+   
+   Estimated time: {N/2} seconds
+   ```
+
+5. **Conflicting Notes Detection:**
+   - Scan all user notes for keywords: "NOT", "DON'T", "EXCLUDE", "INSTEAD"
+   - Check for contradictory instructions
+   - Display warning if found:
+     ```
+     ⚠️ Potential conflicts detected in notes:
+     - USUBJID: "Use hyphen separator" vs "Use underscore"
+     - AGE: "Calculate from BRTHDTC" vs "Use AGEC directly"
+     
+     Please review before proceeding.
+     ```
+
+6. **Action Buttons:**
+   - **Cancel:** Close dialog, no action
+   - **Review Notes:** Navigate to first conflict
+   - **Proceed:** Start generation with current settings
+
+**Implementation:**
+```tsx
+export const FinalCodeGenerationDialog: React.FC<{
+  visible: boolean;
+  onCancel: () => void;
+  onConfirm: (preferences: GenerationPreferences) => void;
+}> = ({ visible, onCancel, onConfirm }) => {
+  const [preferences, setPreferences] = useState<GenerationPreferences>({
+    language: 'R',
+    rPackages: ['tidyverse'],
+    sasProcs: ['SQL'],
+    customOptions: ''
+  });
+  
+  const approvedVariables = getApprovedVariables();
+  const variablesWithNotes = getVariablesWithNotes();
+  const conflicts = detectConflictingNotes();
+  
+  return (
+    <Modal
+      title="Generate ADAM Code - Confirmation"
+      open={visible}
+      onCancel={onCancel}
+      width={800}
+      footer={null}
+    >
+      {/* Approved Variables Summary */}
+      <section>
+        <h3>Approved Variables ({approvedVariables.length})</h3>
+        <Collapse>
+          {categorizedApprovedVariables.map(category => (
+            <Panel header={`${category.name} (${category.count})`} key={category.name}>
+              <div className="variable-chips">
+                {category.variables.map(v => (
+                  <Tag key={v}>{v}</Tag>
+                ))}
+              </div>
+            </Panel>
+          ))}
+        </Collapse>
+      </section>
+      
+      {/* User Notes Summary */}
+      {variablesWithNotes.length > 0 && (
+        <Alert
+          message={`${variablesWithNotes.length} variables have custom notes`}
+          description="These notes will be considered during code generation"
+          type="info"
+          showIcon
+        />
+      )}
+      
+      {/* Conflicting Notes Warning */}
+      {conflicts.length > 0 && (
+        <Alert
+          message="Potential conflicts detected"
+          description={
+            <div>
+              {conflicts.map(c => (
+                <div key={c.variable}>
+                  <strong>{c.variable}:</strong> {c.issue}
+                </div>
+              ))}
+            </div>
+          }
+          type="warning"
+          showIcon
+          action={
+            <Button size="small" onClick={() => navigateToFirstConflict()}>
+              Review
+            </Button>
+          }
+        />
+      )}
+      
+      {/* Programming Preferences */}
+      <section>
+        <h3>Programming Preferences</h3>
+        {preferences.language === 'R' && (
+          <div>
+            <h4>R Packages</h4>
+            <Checkbox.Group
+              options={['tidyverse', 'data.table', 'base R only']}
+              value={preferences.rPackages}
+              onChange={(checked) => setPreferences({
+                ...preferences,
+                rPackages: checked as string[]
+              })}
+            />
+            <Input
+              placeholder="Additional packages (comma-separated)"
+              value={preferences.customOptions}
+              onChange={(e) => setPreferences({
+                ...preferences,
+                customOptions: e.target.value
+              })}
+              style={{ marginTop: '12px' }}
+            />
+          </div>
+        )}
+        
+        {preferences.language === 'SAS' && (
+          <div>
+            <h4>SAS Procedures</h4>
+            <Checkbox.Group
+              options={['PROC SQL', 'Data Step only', 'PROC FORMAT']}
+              value={preferences.sasProcs}
+              onChange={(checked) => setPreferences({
+                ...preferences,
+                sasProcs: checked as string[]
+              })}
+            />
+            <Input
+              placeholder="Macro preferences"
+              value={preferences.customOptions}
+              onChange={(e) => setPreferences({
+                ...preferences,
+                customOptions: e.target.value
+              })}
+              style={{ marginTop: '12px' }}
+            />
+          </div>
+        )}
+      </section>
+      
+      {/* Generation Plan */}
+      <section>
+        <h3>Generation Plan</h3>
+        <div className="generation-plan">
+          <ol>
+            <li>Load ADAM rules and standards</li>
+            <li>Process {approvedVariables.length} approved variables in dependency order</li>
+            <li>Apply user notes to {variablesWithNotes.length} variables</li>
+            <li>Generate complete {preferences.language} program with:
+              <ul>
+                <li>Professional header with metadata</li>
+                <li>SDTM data input section</li>
+                <li>All variable derivations with comments</li>
+                <li>Summary statistics</li>
+                <li>Output to ADAM dataset</li>
+              </ul>
+            </li>
+          </ol>
+          <Alert
+            message={`Estimated time: ${Math.ceil(approvedVariables.length / 2)} seconds`}
+            type="info"
+            showIcon
+          />
+        </div>
+      </section>
+      
+      {/* Action Buttons */}
+      <div className="dialog-actions">
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button 
+          type="primary" 
+          onClick={() => onConfirm(preferences)}
+          disabled={conflicts.length > 0}
+        >
+          {conflicts.length > 0 ? 'Resolve Conflicts First' : 'Generate Code'}
+        </Button>
+      </div>
+    </Modal>
+  );
+};
+```
+
+**Test Cases:**
+- [ ] Dialog opens when button clicked
+- [ ] Displays correct variable counts
+- [ ] Shows user notes summary
+- [ ] Detects conflicting notes
+- [ ] Collects preferences correctly
+- [ ] Disables proceed button when conflicts exist
+- [ ] Estimates time correctly
+
+---
+
+#### **12.3: Enhanced Backend - User Notes Integration**
+**Location:** `backend/app/modules/program_generation/service.py`
+
+**Enhancement:**
+Add method to process user notes and integrate them into prompts:
+
 ```python
-# Test Suite Structure
+def integrate_user_notes(
+    self,
+    variable_name: str,
+    base_prompt: str,
+    user_notes: Optional[str]
+) -> str:
+    """
+    Integrate user notes into code generation prompt
+    
+    Args:
+        variable_name: Variable name
+        base_prompt: Base prompt from PromptBuilder
+        user_notes: User's custom instructions
+        
+    Returns:
+        Enhanced prompt with user notes
+    """
+    if not user_notes or not user_notes.strip():
+        return base_prompt
+    
+    # Add user notes section to prompt
+    notes_section = f"""
 
-Unit Tests:
-  - test_mapping_loader.py: VariablesMapping.xlsx parsing
-  - test_categorizer.py: Variable categorization logic
-  - test_dependency_resolver.py: Circular dependency detection
-  - test_dataset_context.py: Context assembly per dataset
-  - test_rule_selector.py: Rule filtering and prioritization
+**User-Provided Instructions for {variable_name}:**
+{user_notes.strip()}
 
-Integration Tests:
-  - test_spec_flow.py: Upload → Parse → Categorize → Dependencies
-  - test_generate_flow.py: Full generation with mocked LLM
-  - test_validation_flow.py: Progress validation across stages
-
-Acceptance Tests:
-  - test_adsl_e2e.py: Full ADSL workflow with sample spec
-  - test_edge_cases.py: Missing vars, invalid specs, circular deps
+**IMPORTANT:** The above user instructions MUST be prioritized and incorporated 
+into the code generation. If there are conflicts between standard derivation 
+logic and user notes, follow the user notes.
+"""
+    
+    # Insert before the final "Instructions:" section
+    parts = base_prompt.split("**Instructions:**")
+    if len(parts) == 2:
+        return parts[0] + notes_section + "\n\n**Instructions:**" + parts[1]
+    else:
+        return base_prompt + notes_section
 ```
 
-#### **7.2 Frontend Tests**
+**Update `generate_complete_program` method:**
+```python
+# In batch loop, when processing each variable:
+if variable_name in user_notes_dict:
+    code_prompt = self.integrate_user_notes(
+        variable_name=variable_name,
+        base_prompt=base_code_prompt,
+        user_notes=user_notes_dict[variable_name]
+    )
+```
+
+**Add new endpoint:** `POST /program-generation/generate-with-notes`
+```python
+@router.post("/generate-with-notes")
+async def generate_program_with_notes(
+    request: ProgramGenerationWithNotesRequest
+) -> Dict[str, Any]:
+    """
+    Generate complete ADAM program with user notes integration
+    
+    Request includes:
+    - approved_variables: List of approved variable names
+    - user_notes: Dict mapping variable names to notes
+    - user_preferences: Programming preferences (packages, procs)
+    """
+    # Implementation
+```
+
+**Test Cases:**
+- [ ] User notes correctly appended to prompts
+- [ ] Empty notes don't affect generation
+- [ ] Notes prioritized over standard logic
+- [ ] API endpoint works correctly
+
+---
+
+#### **12.4: Conflict Detection Utility**
+**Location:** `frontend/src/utils/notesConflictDetector.ts` (NEW)
+
 ```typescript
-// Test Suite Structure
+interface ConflictDetection {
+  variable: string;
+  issue: string;
+  notes: string;
+}
 
-Unit Tests:
-  - VariablesAnalysisTab.test.tsx: Component rendering, interactions
-  - projectStore.test.ts: Store actions and state updates
-  - categorization.test.ts: Variable selection logic
-
-Integration Tests:
-  - spec-upload-flow.test.tsx: Upload → categorize → confirm
-  - generation-flow.test.tsx: Complete workflow simulation
-  - tab-navigation.test.tsx: Tab enabling/disabling logic
-
-E2E Tests (Playwright):
-  - adsl-workflow.spec.ts: Full user journey from landing to generation
-  - variable-selection.spec.ts: Category navigation, search, selection
+export const detectConflictingNotes = (
+  userNotes: Record<string, string>
+): ConflictDetection[] => {
+  const conflicts: ConflictDetection[] = [];
+  const conflictKeywords = [
+    { positive: 'use', negative: 'dont use', category: 'usage' },
+    { positive: 'include', negative: 'exclude', category: 'inclusion' },
+    { positive: 'calculate', negative: 'dont calculate', category: 'calculation' },
+    { positive: 'from', negative: 'not from', category: 'source' }
+  ];
+  
+  Object.entries(userNotes).forEach(([variable, notes]) => {
+    const lowerNotes = notes.toLowerCase();
+    
+    // Check for contradictory keywords
+    conflictKeywords.forEach(({ positive, negative, category }) => {
+      if (lowerNotes.includes(positive) && lowerNotes.includes(negative)) {
+        conflicts.push({
+          variable,
+          issue: `Contradictory ${category} instructions detected`,
+          notes
+        });
+      }
+    });
+    
+    // Check for multiple derivation methods
+    const derivationKeywords = ['calculate from', 'derive from', 'use', 'copy from'];
+    const foundMethods = derivationKeywords.filter(kw => lowerNotes.includes(kw));
+    if (foundMethods.length > 1) {
+      conflicts.push({
+        variable,
+        issue: 'Multiple derivation methods specified - may be ambiguous',
+        notes
+      });
+    }
+  });
+  
+  return conflicts;
+};
 ```
+
+**Test Cases:**
+- [ ] Detects "use X" vs "don't use X"
+- [ ] Detects multiple derivation methods
+- [ ] Returns empty array for non-conflicting notes
+- [ ] Handles edge cases (empty notes, special characters)
 
 ---
 
-### **PHASE 8: Documentation & User Guidance**
+### **Phase 13: Final Code Generation & Download**
 
-#### **8.1 In-App Help**
+#### **13.1: Frontend - Generate Final Code Handler**
+**Location:** `frontend/src/components/VariablesAnalysisTab.tsx` or dedicated component
+
 ```typescript
-// Add contextual help throughout Variables Analysis
+const handleGenerateADAMCode = async () => {
+  // 1. Show confirmation dialog
+  setShowFinalGenerationDialog(true);
+};
 
-Components:
-  - Tooltip on variable cards (explain type, source)
-  - Collapsible "What are these categories?" panel
-  - Inline help for required variables (why they're locked)
-  - Empty state guidance if no variables match spec
-
-Messages:
-  - "These variables are required by ADaM IG v1.3"
-  - "Dependencies: TRT01PN requires TRT01P to be selected"
-  - "Uncategorized: 3 variables don't match standard naming"
+const onConfirmGeneration = async (preferences: GenerationPreferences) => {
+  setIsGeneratingFinalCode(true);
+  
+  try {
+    // 2. Collect approved variables
+    const approvedVars = Object.entries(pairProgramming.snippets)
+      .filter(([_, snippet]) => snippet.accepted)
+      .map(([name, _]) => name);
+    
+    // 3. Collect user notes for approved variables
+    const userNotes = {};
+    approvedVars.forEach(varName => {
+      const notes = pairProgramming.snippets[varName]?.userNotes;
+      if (notes && notes.trim()) {
+        userNotes[varName] = notes;
+      }
+    });
+    
+    // 4. Collect code snippets for approved variables
+    const codeSnippets = {};
+    approvedVars.forEach(varName => {
+      const code = pairProgramming.snippets[varName]?.codeSnippet;
+      if (code) {
+        codeSnippets[varName] = code;
+      }
+    });
+    
+    // 5. Call enhanced API endpoint
+    const result = await adamApi.generateProgramWithNotes({
+      study_id: studyId,
+      dataset: datasetType,
+      language: programmingLanguage,
+      categorized_variables: categorizedVariables,
+      approved_variables: approvedVars,
+      code_snippets: codeSnippets,
+      user_notes: userNotes,
+      user_preferences: preferences,
+      standards: {
+        sdtm_version: sdtmVersion,
+        adam_ig_version: adamIgVersion,
+        meddra_version: medraVersion
+      }
+    });
+    
+    // 6. Display success and offer download
+    message.success(`Complete ${programmingLanguage} program generated successfully!`);
+    
+    // 7. Show download modal with program code
+    setFinalProgramCode(result.data.program_code);
+    setShowDownloadModal(true);
+    
+  } catch (error) {
+    message.error(`Failed to generate program: ${error.message}`);
+  } finally {
+    setIsGeneratingFinalCode(false);
+    setShowFinalGenerationDialog(false);
+  }
+};
 ```
 
-#### **8.2 Error Messaging**
+**Test Cases:**
+- [ ] Collects only approved variables
+- [ ] Includes user notes correctly
+- [ ] Handles errors gracefully
+- [ ] Shows success message
+- [ ] Opens download modal
+
+---
+
+#### **13.2: Download Modal Component**
+**Location:** `frontend/src/components/ProgramDownloadModal.tsx` (NEW)
+
+```tsx
+export const ProgramDownloadModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  programCode: string;
+  language: 'R' | 'SAS';
+  datasetName: string;
+}> = ({ visible, onClose, programCode, language, datasetName }) => {
+  
+  const downloadProgram = () => {
+    const extension = language === 'R' ? 'R' : 'sas';
+    const filename = `${datasetName}.${extension}`;
+    
+    const blob = new Blob([programCode], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    message.success(`Program downloaded as ${filename}`);
+  };
+  
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(programCode);
+    message.success('Code copied to clipboard!');
+  };
+  
+  return (
+    <Modal
+      title={`Generated ${language} Program: ${datasetName}`}
+      open={visible}
+      onCancel={onClose}
+      width={1000}
+      footer={[
+        <Button key="copy" icon={<Copy size={16} />} onClick={copyToClipboard}>
+          Copy Code
+        </Button>,
+        <Button 
+          key="download" 
+          type="primary" 
+          icon={<Download size={16} />} 
+          onClick={downloadProgram}
+        >
+          Download {language === 'R' ? '.R' : '.sas'} File
+        </Button>,
+        <Button key="close" onClick={onClose}>Close</Button>
+      ]}
+    >
+      {/* Program Statistics */}
+      <div className="program-stats">
+        <Statistic title="Lines of Code" value={programCode.split('\n').length} />
+        <Statistic title="File Size" value={`${(programCode.length / 1024).toFixed(2)} KB`} />
+      </div>
+      
+      {/* Code Preview with Syntax Highlighting */}
+      <div className="code-preview">
+        <pre style={{
+          background: '#f5f5f5',
+          padding: '16px',
+          borderRadius: '8px',
+          maxHeight: '500px',
+          overflow: 'auto',
+          fontSize: '13px',
+          fontFamily: 'monospace'
+        }}>
+          <code>{programCode}</code>
+        </pre>
+      </div>
+    </Modal>
+  );
+};
+```
+
+**Test Cases:**
+- [ ] Download creates correct file
+- [ ] Copy to clipboard works
+- [ ] Code preview displays correctly
+- [ ] Statistics calculated correctly
+- [ ] Modal closes properly
+
+---
+
+#### **13.3: Backend - Enhanced Program Generation API**
+**Location:** `backend/app/api/v1/endpoints/program_generation.py`
+
+Add new request model and endpoint:
+
+```python
+class ProgramGenerationWithNotesRequest(BaseModel):
+    """Enhanced request for program generation with user notes"""
+    study_id: str
+    dataset: str
+    language: str  # 'R' or 'SAS'
+    categorized_variables: Dict[str, Any]
+    approved_variables: List[str]  # NEW
+    code_snippets: Dict[str, str]
+    user_notes: Optional[Dict[str, str]] = {}  # NEW
+    user_preferences: Optional[Dict[str, Any]] = {}  # NEW
+    standards: Optional[Dict[str, str]] = None
+    sdtm_domains: Optional[List[str]] = None
+
+
+@router.post("/generate-with-notes")
+async def generate_program_with_notes(
+    request: ProgramGenerationWithNotesRequest
+) -> Dict[str, Any]:
+    """
+    Generate complete ADAM program with user notes and preferences
+    
+    Enhancements over basic generation:
+    - Filters to only approved variables
+    - Integrates user notes into prompts
+    - Applies user preferences (R packages, SAS procs)
+    - Provides detailed metadata about generation
+    """
+    try:
+        logger.info(f"Generating program with notes: {request.dataset} in {request.language}")
+        logger.info(f"Approved variables: {len(request.approved_variables)}")
+        logger.info(f"Variables with notes: {len(request.user_notes)}")
+        
+        service = get_program_service()
+        
+        # Filter categorized variables to only approved ones
+        filtered_categories = {}
+        for category, variables in request.categorized_variables.items():
+            if isinstance(variables, list):
+                filtered = [v for v in variables if v.get('name') in request.approved_variables]
+                if filtered:
+                    filtered_categories[category] = filtered
+        
+        # Filter code snippets to approved variables
+        filtered_snippets = {
+            var: code 
+            for var, code in request.code_snippets.items() 
+            if var in request.approved_variables
+        }
+        
+        # Generate program with enhanced context
+        result = service.generate_complete_program(
+            study_id=request.study_id,
+            dataset=request.dataset,
+            language=request.language,
+            categorized_variables=filtered_categories,
+            code_snippets=filtered_snippets,
+            user_notes=request.user_notes,  # Pass to service
+            user_preferences=request.user_preferences,  # Pass to service
+            standards=request.standards,
+            sdtm_domains=request.sdtm_domains
+        )
+        
+        # Add generation metadata
+        result['metadata']['approved_variables_count'] = len(request.approved_variables)
+        result['metadata']['user_notes_count'] = len(request.user_notes)
+        result['metadata']['preferences'] = request.user_preferences
+        
+        return {
+            "status": "success",
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating program with notes: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+```
+
+**Update ProgramGeneratorService:**
+```python
+def generate_complete_program(
+    self,
+    study_id: str,
+    dataset: str,
+    language: str,
+    categorized_variables: Dict[str, Any],
+    code_snippets: Dict[str, str],
+    user_notes: Optional[Dict[str, str]] = None,  # NEW
+    user_preferences: Optional[Dict[str, Any]] = None,  # NEW
+    standards: Optional[Dict[str, str]] = None,
+    sdtm_domains: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """
+    Generate complete ADAM program with user notes and preferences
+    """
+    # ... existing code ...
+    
+    # Modify header generation to include preferences
+    if user_preferences:
+        header += self._generate_preferences_comment(
+            language=language,
+            preferences=user_preferences
+        )
+    
+    # When assembling derivation code:
+    for var in ordered_variables:
+        var_name = var.get('name', '')
+        code = code_snippets.get(var_name, '')
+        
+        if code:
+            # Add user notes as comments if present
+            if user_notes and var_name in user_notes:
+                derivation_code += f"    /* USER NOTE: {user_notes[var_name]} */\n"
+            
+            derivation_code += f"    /* {var_name}: {var.get('label', '')} */\n"
+            derivation_code += f"    {code}\n\n"
+```
+
+**Test Cases:**
+- [ ] Filters to approved variables only
+- [ ] Integrates user notes into code comments
+- [ ] Applies user preferences correctly
+- [ ] Returns detailed metadata
+- [ ] Handles missing notes gracefully
+
+---
+
+### **Phase 14: Testing & Quality Assurance**
+
+#### **14.1: Unit Tests**
+
+**Frontend Tests:**
 ```typescript
-// Clear, actionable error messages
+// useApprovalProgress.test.ts
+describe('useApprovalProgress', () => {
+  test('calculates correct percentage', () => {
+    // Setup: 10 variables, 8 approved
+    const result = renderHook(() => useApprovalProgress(), {
+      wrapper: createStoreWrapper()
+    });
+    expect(result.current.percentage).toBe(80);
+    expect(result.current.isReadyForGeneration).toBe(true);
+  });
+  
+  test('updates when approval changes', () => {
+    // Test real-time updates
+  });
+});
 
-Upload Errors:
-  ✗ "Column 'Variable' not found. Expected columns: Variable, Label, Type, Source"
-  → Action: "Download template" button
-
-Categorization Errors:
-  ⚠ "5 variables couldn't be categorized. They may use non-standard names."
-  → Action: Show list, allow manual category assignment
-
-Generation Blockers:
-  ✗ "Cannot generate: 3 required variables not selected"
-  → Action: Link to Variables Analysis tab with list highlighted
+// notesConflictDetector.test.ts
+describe('detectConflictingNotes', () => {
+  test('detects contradictory instructions', () => {
+    const notes = {
+      'USUBJID': 'Use hyphen separator. Don\'t use hyphen.'
+    };
+    const conflicts = detectConflictingNotes(notes);
+    expect(conflicts).toHaveLength(1);
+  });
+});
 ```
+
+**Backend Tests:**
+```python
+# test_program_generation_with_notes.py
+def test_generate_with_user_notes():
+    """Test program generation with user notes"""
+    request = ProgramGenerationWithNotesRequest(
+        study_id='TEST001',
+        dataset='ADSL',
+        language='R',
+        approved_variables=['USUBJID', 'AGE'],
+        user_notes={'AGE': 'Calculate from BRTHDTC, not AGEC'},
+        # ... other params
+    )
+    
+    response = client.post('/program-generation/generate-with-notes', json=request.dict())
+    assert response.status_code == 200
+    program_code = response.json()['data']['program_code']
+    assert 'USER NOTE' in program_code
+    assert 'Calculate from BRTHDTC' in program_code
+
+def test_filters_to_approved_only():
+    """Test that only approved variables are included"""
+    # ... test implementation
+```
+
+**Test Checklist:**
+- [ ] Progress calculation accuracy
+- [ ] Real-time updates
+- [ ] 80% threshold logic
+- [ ] Conflict detection
+- [ ] User notes integration
+- [ ] Preferences application
+- [ ] Download functionality
+- [ ] Error handling
 
 ---
 
-## Implementation Timeline
+#### **14.2: Integration Tests**
 
-### **Sprint 1 (Week 1-2): Variables Analysis Foundation**
-- Backend: Mapping loader, categorization endpoint, dependency resolver
-- Frontend: Variables Analysis Tab component (basic version)
-- Testing: Unit tests for categorization logic
-- Milestone: Can upload spec and see categorized variables
+**End-to-End Test Scenarios:**
 
-### **Sprint 2 (Week 3-4): Integration & Enhancement**
-- Backend: Enhanced spec parser, progress validator
-- Frontend: Tab navigation updates, store enhancements
-- Testing: Integration tests for full spec flow
-- Milestone: Complete workflow from upload to variable confirmation
+1. **Scenario 1: Complete Approval Flow**
+   - [ ] Upload specification
+   - [ ] Categorize variables
+   - [ ] Generate code for all variables
+   - [ ] Approve 50% → button disabled
+   - [ ] Approve 80% → button enabled
+   - [ ] Add user notes to 3 variables
+   - [ ] Click "Generate ADAM Code"
+   - [ ] Confirm in dialog
+   - [ ] Verify generated program includes notes
+   - [ ] Download program file
 
-### **Sprint 3 (Week 5-6): Context Assembly & Generation**
-- Backend: Dataset context builder, rule selector, enhanced generate endpoint
-- Frontend: Pre-generation summary, improved Generate tab
-- Testing: E2E tests with mocked LLM
-- Milestone: Can generate code with proper context assembly
+2. **Scenario 2: Conflict Resolution**
+   - [ ] Add conflicting notes to variable
+   - [ ] Trigger conflict detection
+   - [ ] See warning in dialog
+   - [ ] Button disabled until resolved
+   - [ ] Edit notes to resolve
+   - [ ] Generate successfully
 
-### **Sprint 4 (Week 7-8): Polish, Testing & Documentation**
-- Backend: LLM integration (real Gemini calls), error handling
-- Frontend: Visual polish, accessibility audit, help content
-- Testing: Full E2E tests with real specs
-- Milestone: Production-ready ADSL generation
+3. **Scenario 3: Cross-Tab Approval**
+   - [ ] Approve variables in multiple tabs
+   - [ ] Verify progress updates correctly
+   - [ ] Switch tabs and approve more
+   - [ ] Confirm total count is accurate
 
----
-
-## Risk Mitigation
-
-### **Risk 1: VariablesMapping.xlsx Variability**
-**Impact:** High  
-**Mitigation:**
-- Version VariablesMapping.xlsx (include version field)
-- Provide mapping editor UI for admins (future)
-- Fallback: If variable not in mapping, show in "Other" category
-- Validation: Warn user of unmapped variables, allow manual assignment
-
-### **Risk 2: Complex Dependency Graphs**
-**Impact:** Medium  
-**Mitigation:**
-- Implement cycle detection with clear error messages
-- Visualize dependency graph (optional, future)
-- Allow user override of auto-detected dependencies
-- Fallback: Generate in spec order if dependency resolution fails
-
-### **Risk 3: LLM Output Variability**
-**Impact:** Medium  
-**Mitigation:**
-- Use structured output mode (JSON schema)
-- Post-process: Extract code blocks, validate structure
-- Retry logic: If output malformed, retry with stricter prompt
-- Fallback: Allow user to edit malformed code in UI
-
-### **Risk 4: Performance with Large Specs**
-**Impact:** Low  
-**Mitigation:**
-- Pagination: Show variables in batches (50 per page)
-- Lazy loading: Load categories on-demand
-- Backend caching: Cache parsed specs and categorizations
-- Progress indicators: Show parsing/categorization progress
+4. **Scenario 4: User Preferences**
+   - [ ] Select R tidyverse preference
+   - [ ] Add custom package
+   - [ ] Generate program
+   - [ ] Verify library() statements in code
 
 ---
 
-## Success Metrics
+#### **14.3: Regression Testing**
 
-### **User Experience**
-- ✓ Users can understand variable categories intuitively
-- ✓ < 2 clicks to review all variables
-- ✓ Clear indication of progress (completion percentage)
-- ✓ Generation only possible when ready (no premature attempts)
-
-### **Technical**
-- ✓ Categorization: > 95% accuracy for standard variable names
-- ✓ Performance: Categorization completes in < 3 seconds
-- ✓ Robustness: Handle specs with up to 200 variables
-- ✓ Test coverage: > 80% for critical paths
-
-### **Business**
-- ✓ Generated ADSL code compiles without syntax errors
-- ✓ Variables created match specification (100% match)
-- ✓ Code follows naming conventions per ADAM_VariablenamingRules.md
-- ✓ No regressions in existing functionality
+**Ensure Existing Features Still Work:**
+- [ ] Spec file upload and parsing
+- [ ] Variable categorization
+- [ ] Individual code generation ("Get AI Inputs")
+- [ ] Code snippet display
+- [ ] User notes input and save
+- [ ] Store state persistence
+- [ ] Navigation between tabs
+- [ ] All existing API endpoints
+- [ ] ADAM rules integration
+- [ ] Standards loading
 
 ---
 
-## Future Enhancements (Post-MVP)
+### **Phase 15: Documentation & Deployment**
 
-1. **Variable Mapping Editor**
-   - Admin UI to edit VariablesMapping.xlsx
-   - Version control for mapping changes
-   - A/B testing different categorizations
+#### **15.1: User Documentation**
 
-2. **Dependency Visualization**
-   - Interactive graph showing variable dependencies
-   - Highlight critical path for derivation order
-   - Allow manual adjustment of execution order
+**Create User Guide:** `docs/USER_GUIDE.md`
 
-3. **Smart Categorization**
-   - ML model to suggest categories for unmapped variables
-   - Learn from user corrections
-   - Auto-update mapping from user patterns
-
-4. **Template Library**
-   - Pre-configured specs for common studies (Phase I, III, etc.)
-   - Variable set templates (Oncology, Cardiology, etc.)
-   - Quick-start workflows
-
-5. **Collaborative Features**
-   - Share specs and variable selections with team
-   - Comments on specific variables
-   - Approval workflow for generation
-
----
-
-## Appendix: Key File Locations
-
-### **Context Files (Reference)**
-```
-Context/
-├── 0_MyRequirement_planner.md        # Original requirement (Variables Analysis)
-├── My_Initial_Plan.md                 # Original plan (missing Variables Analysis)
-├── My_Revised_Plan.md                 # This document
-├── ADAMRules/
-│   ├── ADAM_VariablenamingRules.md   # Naming conventions
-│   ├── ADSL_ApplicationBehaviourRules.md # UI behavior rules
-│   ├── ADSL_MacroLogic.md            # Programming flow
-│   ├── ADSL_IGSpecificRules.md       # IG compliance rules
-│   └── VariablesMapping.xlsx          # ★ Critical: Variable categories
-└── ProjectArchitecture/
-    ├── ProjectArchitecture.md         # Overall design principles
-    └── ProjectRequirements.md         # Workflow and behavior spec
-```
-
-### **Frontend Files (Implementation)**
-```
-frontend/src/
-├── components/
-│   ├── LeftPanel.tsx                  # Update: Add Variables Analysis tab
-│   └── tabs/
-│       ├── SpecificationUploadTab.tsx # Enhance: Trigger categorization
-│       ├── VariablesAnalysisTab.tsx   # ★ NEW: Main Variables Analysis UI
-│       ├── GenerateTab.tsx            # Enhance: Add summary panel
-│       └── VariablesTab.tsx           # ★ Replace with dynamic loading
-└── store/
-    └── projectStore.ts                # Update: Add variables state
-```
-
-### **Backend Files (Implementation)**
-```
-backend/app/
-├── api/v1/
-│   ├── specification.py               # Add: /categorize, /dependencies
-│   └── progress.py                    # ★ NEW: /validate endpoint
-└── modules/
-    ├── variable_categorizer/          # ★ NEW MODULE
-    │   ├── mapping_loader.py
-    │   ├── categorizer.py
-    │   └── dependency_resolver.py
-    ├── context_builder/               # Enhance existing
-    │   ├── dataset_context.py         # ★ NEW
-    │   └── rule_selector.py           # ★ NEW
-    └── confirmation_tracker/          # ★ NEW MODULE
-        └── progress_validator.py
-```
+**Contents:**
+1. **Getting Started**
+2. **Uploading Specifications**
+3. **Understanding Variable Categories**
+4. **Reviewing Generated Code**
+5. **Using the Approval System**
+   - How to approve variables
+   - Understanding the progress bar
+   - 80% threshold explanation
+6. **Adding User Notes**
+   - When to use notes
+   - Note formatting tips
+   - Avoiding conflicts
+7. **Final Code Generation**
+   - Pre-generation checklist
+   - Setting preferences
+   - Downloading programs
+8. **Troubleshooting**
+   - Common issues
+   - Conflict resolution
+   - Error messages
 
 ---
 
-## Clarifications Needed (Before Implementation)
+#### **15.2: Developer Documentation**
 
-Please confirm or clarify the following before implementation begins:
+**Update README.md:**
+- New components list
+- New API endpoints
+- Updated architecture diagram
+- Testing instructions
 
-### **1. VariablesMapping.xlsx Structure**
-**Question:** What is the exact structure of VariablesMapping.xlsx?
-- Column names: Category, Variable, Group, Priority, Description?
-- How many categories are defined?
-- Are there multiple sheets (one per dataset type)?
-
-**Action Required:** Please share the file or describe its structure.
-
-### **2. Variable Selection Behavior**
-**Question:** For variables in the spec but not in VariablesMapping.xlsx:
-- Should they appear in an "Uncategorized" category?
-- Should user be allowed to manually assign category?
-- Should generation be blocked if uncategorized variables exist?
-
-**Assumption (if no answer):** Show in "Other" category, allow generation with warning.
-
-### **3. Dependency Detection Logic**
-**Question:** How should dependencies be detected?
-- Parse derivation logic column for variable names?
-- Use explicit "Dependencies" column in spec?
-- Rely on VariablesMapping.xlsx for known dependencies?
-
-**Assumption (if no answer):** Parse derivation logic column using regex to extract variable names.
-
-### **4. Multiple Dataset Support Timeline**
-**Question:** When should ADAE and ADLB support be added?
-- In same sprint as ADSL?
-- In future phases?
-
-**Assumption (if no answer):** ADSL-only for Sprint 1-4, ADAE/ADLB in Phase 2 (Sprints 5-8).
-
-### **5. Variable Card Detail Level**
-**Question:** How much information should each variable card show?
-- Minimal: Name, Label, Type
-- Medium: + Source, Required flag
-- Detailed: + Derivation logic preview, Dependencies
-
-**Assumption (if no answer):** Medium level by default, derivation logic in collapsible section.
+**Create ARCHITECTURE.md:**
+- Approval tracking flow
+- Final generation workflow
+- Component relationships
+- Data flow diagrams
 
 ---
 
-## Conclusion
+#### **15.3: Deployment Checklist**
 
-This revised plan addresses all critical gaps identified in the initial plan:
+**Pre-Deployment:**
+- [ ] All tests passing (unit + integration)
+- [ ] Zero compilation errors
+- [ ] Code review completed
+- [ ] Documentation updated
+- [ ] Performance tested
+- [ ] Security audit completed
+- [ ] Backup plan ready
 
-✓ **Variables Analysis Page** – Full specification with tabbed UI  
-✓ **VariablesMapping.xlsx Integration** – Backend service and endpoint  
-✓ **Progressive Confirmation** – Stage-based validation and blockers  
-✓ **Dataset-Specific Context** – Enhanced context assembly and rule selection  
-✓ **Dependency Resolution** – Graph building and topological sorting  
+**Deployment Steps:**
+1. [ ] Deploy backend with new endpoints
+2. [ ] Deploy frontend with new components
+3. [ ] Test in staging environment
+4. [ ] Run smoke tests
+5. [ ] Monitor error logs
+6. [ ] Deploy to production
+7. [ ] Monitor user feedback
 
-The plan is structured for incremental delivery, with each sprint producing a testable milestone. All components are aligned with:
-- ADSL_ApplicationBehaviourRules.md (categorized variable display)
-- ProjectRequirements.md (stage-based workflow)
-- ProjectArchitecture.md (domain-focused, user-friendly design)
+---
 
-**Next Step:** Await clarifications on the 5 questions above, then proceed with Sprint 1 implementation.
+## 🎯 SUCCESS CRITERIA
+
+### Functional Requirements
+- [x] Progress bar displays at bottom of page
+- [x] Progress updates in real-time across all tabs
+- [x] Percentage calculated correctly
+- [x] 80% threshold enables "Generate ADAM Code" button
+- [x] User notes integrated into final code
+- [x] Conflicting notes detected and warned
+- [x] Pre-generation confirmation with preferences
+- [x] Complete program generated with approved variables only
+- [x] Download functionality works
+- [x] No existing features broken
+
+### Non-Functional Requirements
+- [ ] Progress updates < 100ms response time
+- [ ] Final generation completes in estimated time ±20%
+- [ ] UI responsive on mobile/tablet/desktop
+- [ ] Accessibility: keyboard navigation works
+- [ ] Code quality: Test coverage > 80%
+- [ ] Documentation: Complete and clear
+
+---
+
+## 📅 ESTIMATED TIMELINE
+
+**Phase 11 (Progress Tracking):** 2-3 days
+- Hook creation: 0.5 day
+- Progress bar component: 1 day
+- Testing & integration: 0.5-1 day
+
+**Phase 12 (Final Generation Button & Dialog):** 3-4 days
+- Button implementation: 0.5 day
+- Confirmation dialog: 1.5 days
+- Backend enhancements: 1 day
+- Conflict detection: 0.5 day
+- Testing: 0.5-1 day
+
+**Phase 13 (Final Code Generation):** 2-3 days
+- Frontend handler: 1 day
+- Download modal: 0.5 day
+- Backend API: 1 day
+- Testing: 0.5-1 day
+
+**Phase 14 (Testing & QA):** 2-3 days
+- Unit tests: 1 day
+- Integration tests: 1 day
+- Regression testing: 0.5-1 day
+
+**Phase 15 (Documentation & Deployment):** 1-2 days
+- Documentation: 1 day
+- Deployment: 0.5-1 day
+
+**TOTAL: 10-15 days (2-3 weeks)**
+
+---
+
+## 🔧 TECHNICAL CONSIDERATIONS
+
+### Performance Optimization
+1. **Progress Calculation:**
+   - Use `useMemo` for expensive calculations
+   - Debounce updates if needed
+   - Cache category totals
+
+2. **Real-time Updates:**
+   - Use Zustand subscriptions efficiently
+   - Avoid unnecessary re-renders
+   - Optimize component structure
+
+3. **Final Generation:**
+   - Show loading progress
+   - Use async/await properly
+   - Handle timeouts gracefully
+
+### Error Handling
+1. **Network Errors:**
+   - Retry logic for API calls
+   - Clear error messages
+   - Fallback UI states
+
+2. **Validation Errors:**
+   - Client-side validation first
+   - Server-side validation always
+   - User-friendly error messages
+
+3. **Edge Cases:**
+   - Empty specifications
+   - No approved variables
+   - All variables rejected
+   - Network timeout during generation
+
+### Accessibility
+1. **Keyboard Navigation:**
+   - Tab order logical
+   - Enter key works for buttons
+   - Esc closes modals
+
+2. **Screen Readers:**
+   - Proper ARIA labels
+   - Progress announcements
+   - Error announcements
+
+3. **Visual:**
+   - Color contrast WCAG AA
+   - Focus indicators visible
+   - Text alternatives for icons
+
+---
+
+## 🎓 BEST PRACTICES APPLIED
+
+1. **Code Organization:**
+   - Separate concerns (hooks, components, utils)
+   - Single responsibility principle
+   - Reusable components
+
+2. **State Management:**
+   - Zustand for global state
+   - Local state for UI-only concerns
+   - Immutable updates
+
+3. **Testing:**
+   - Test-driven development where possible
+   - Unit tests for logic
+   - Integration tests for flows
+   - E2E tests for critical paths
+
+4. **Documentation:**
+   - Inline comments for complex logic
+   - JSDoc/TSDoc for functions
+   - User-facing documentation
+   - Architecture diagrams
+
+5. **Git Workflow:**
+   - Feature branches
+   - Pull requests for review
+   - Meaningful commit messages
+   - Atomic commits
+
+---
+
+## ✅ VALIDATION CHECKLIST
+
+Before marking as complete, verify:
+
+**Phase 11:**
+- [ ] Progress hook tested
+- [ ] Progress bar visible on all pages
+- [ ] Updates work across tabs
+- [ ] Colors change at 80%
+
+**Phase 12:**
+- [ ] Button disabled < 80%
+- [ ] Button enabled ≥ 80%
+- [ ] Dialog shows correct data
+- [ ] Preferences collected
+- [ ] Conflicts detected
+
+**Phase 13:**
+- [ ] Only approved variables included
+- [ ] User notes in generated code
+- [ ] Download works
+- [ ] File format correct
+
+**Phase 14:**
+- [ ] All tests pass
+- [ ] No regressions
+- [ ] Performance acceptable
+- [ ] Error handling works
+
+**Phase 15:**
+- [ ] Documentation complete
+- [ ] Deployment successful
+- [ ] Monitoring active
+- [ ] User feedback collected
+
+---
+
+## 📞 SUPPORT & FEEDBACK
+
+**Questions During Implementation:**
+1. Should progress bar be collapsible?
+2. Should we save draft notes automatically?
+3. Should we allow partial generation (50-79%)?
+4. Should we version generated programs?
+5. Should we add comparison between versions?
+
+**Please clarify:**
+- Any specific styling preferences?
+- Any additional user preferences needed?
+- Any specific conflict types to detect?
+- Any specific file format requirements?
+
+---
+
+## 🚀 CONCLUSION
+
+This comprehensive plan addresses all requirements from `0_MyRequirement_planner.md` while preserving all existing functionality from Phases 4-10. The implementation is structured, testable, and follows best practices for React/TypeScript frontend and Python/FastAPI backend development.
+
+The plan is designed to be executed phase-by-phase with clear test cases and validation checkpoints. Each phase builds upon the previous one, ensuring a stable and functional system at every step.
+
+**Next Steps:**
+1. Review and approve this plan
+2. Clarify any questions listed above
+3. Begin implementation with Phase 11
+4. Regular check-ins after each phase completion
+
+---
+
+**End of Revised Plan**  
+**Version:** 1.0  
+**Date:** November 10, 2025
