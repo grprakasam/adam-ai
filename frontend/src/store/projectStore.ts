@@ -259,9 +259,17 @@ export const useProjectStore = create<ProjectStore>()(
 
       setBulkCodeSnippets: (snippets) =>
         set((state) => {
+          console.log('[setBulkCodeSnippets] Received snippets:', snippets.length);
+          console.log('[setBulkCodeSnippets] First snippet sample:', snippets[0]);
+          
           const newSnippets: Record<string, VariableSnippet> = {};
           snippets.forEach((snippet: any) => {
             const variable = snippet.variable;
+            if (!variable) {
+              console.warn('[setBulkCodeSnippets] Snippet missing variable name:', snippet);
+              return;
+            }
+            
             newSnippets[variable] = {
               variable: variable,
               codeSnippet: snippet.code_snippet || '',
@@ -273,9 +281,17 @@ export const useProjectStore = create<ProjectStore>()(
               error: snippet.error,
               metadata: snippet.metadata,
             };
+            
+            console.log(`[setBulkCodeSnippets] Processed ${variable}:`, {
+              hasCode: !!snippet.code_snippet,
+              hasRationale: !!snippet.coding_rationale,
+              hasError: !!snippet.error
+            });
           });
           
-          return {
+          console.log('[setBulkCodeSnippets] Total snippets processed:', Object.keys(newSnippets).length);
+          
+          const updatedState = {
             pairProgramming: {
               ...state.pairProgramming,
               snippets: {
@@ -284,6 +300,10 @@ export const useProjectStore = create<ProjectStore>()(
               },
             },
           };
+          
+          console.log('[setBulkCodeSnippets] Updated state snippets count:', Object.keys(updatedState.pairProgramming.snippets).length);
+          
+          return updatedState;
         }),
 
       setGenerationOptions: (options) =>

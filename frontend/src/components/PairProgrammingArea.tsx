@@ -31,6 +31,15 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
   const isAnyVariableGenerating = Object.values(pairProgramming.isGenerating).some(v => v);
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log('[PairProgrammingArea] Snippets updated:', {
+      totalSnippets: Object.keys(pairProgramming.snippets).length,
+      snippetKeys: Object.keys(pairProgramming.snippets),
+      sampleSnippet: Object.values(pairProgramming.snippets)[0]
+    });
+  }, [pairProgramming.snippets]);
+
   // Auto-detect derivation column from spec
   const getDerivationText = (variable: VariableInfo): string => {
     // Return the derivation field if available, otherwise return empty string
@@ -237,6 +246,17 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
               const isCopied = copiedVariable === variable.name;
               const isExpanded = expandedRationale.has(variable.name);
 
+              // Debug log for first few variables
+              if (variables.indexOf(variable) < 3) {
+                console.log(`[PairProgrammingArea] Variable ${variable.name}:`, {
+                  hasSnippet: !!snippet,
+                  snippet: snippet,
+                  codeSnippet: snippet?.codeSnippet,
+                  rationale: snippet?.rationale,
+                  error: snippet?.error
+                });
+              }
+
               return (
                 <tr key={variable.name} className="variable-row">
                   {/* Variable Name */}
@@ -311,7 +331,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       </div>
                     ) : (
                       <div className="code-placeholder">
-                        AI inputs will appear here after you click "Get AI Inputs".
+                        —
                       </div>
                     )}
                   </td>

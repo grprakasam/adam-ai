@@ -97,6 +97,7 @@ export interface CodeSnippetRequest {
 }
 
 export interface CodeSnippetResponse {
+  variable: string;  // Variable name - REQUIRED for bulk operations
   code_snippet: string;
   coding_rationale: string;
   metadata?: {
