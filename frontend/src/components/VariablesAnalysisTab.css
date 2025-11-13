@@ -413,8 +413,8 @@
 /* ========== Top Section: Tabs + Pair Programming (Side by Side) ========== */
 .tabs-and-pair-programming {
   display: grid;
-  grid-template-columns: 30% 70%;
-  gap: 20px;
+  grid-template-columns: var(--layout-columns, 26% 74%);
+  gap: 18px;
   margin-bottom: 20px;
   height: calc(100vh - 280px); /* Fixed height to enable scrolling */
   min-height: 600px; /* Minimum height for usability */
@@ -1213,3 +1213,62 @@
   gap: 8px;
 }
 
+/* Workspace layout toggle */
+.layout-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.layout-toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+  letter-spacing: 0.3px;
+}
+
+.layout-toggle-buttons {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.layout-toggle-button {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 6px 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  min-width: 90px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.layout-toggle-button.active {
+  border-color: #2563eb;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.22);
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(59, 130, 246, 0.08));
+}
+
+.layout-toggle-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.layout-toggle-subtitle {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.layout-toggle-button.active .layout-toggle-title {
+  color: #1d4ed8;
+}
+
+.layout-toggle-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}

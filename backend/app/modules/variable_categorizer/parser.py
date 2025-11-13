@@ -293,13 +293,21 @@ class SpecificationParser:
                     var_info["label"] = str(row[label_col]).strip()
                 if type_col and pd.notna(row[type_col]):
                     var_info["type"] = str(row[type_col]).strip()
+                length_value = None
+                format_value = None
                 if length_col and pd.notna(row[length_col]):
-                    var_info["length"] = str(row[length_col]).strip()
-                if format_col and pd.notna(row[format_col]):
-                    # If length_col and format_col point to same column (SAS Length/Display Format),
-                    # only set if not already set by length
-                    if format_col != length_col or "format" not in var_info:
-                        var_info["format"] = str(row[format_col]).strip()
+                    raw_length = str(row[length_col]).strip()
+                    if length_col == format_col:
+                        length_value, format_value = self._parse_length_format(raw_length)
+                    else:
+                        length_value = raw_length
+                if format_col and format_col != length_col and pd.notna(row[format_col]):
+                    format_value = str(row[format_col]).strip()
+
+                if length_col is not None:
+                    var_info["length"] = length_value
+                if format_col is not None:
+                    var_info["format"] = format_value
                 if derivation_col and pd.notna(row[derivation_col]):
                     var_info["derivation"] = str(row[derivation_col]).strip()
 
@@ -345,3 +353,28 @@ class SpecificationParser:
             if col in possible_names:
                 return col
         return None
+
+    @staticmethod
+    def _parse_length_format(value: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Split combined SAS length/format entries.
+
+        Returns:
+            Tuple[length, format] with None when not present.
+        """
+        if value is None:
+            return None, None
+
+        text = str(value).strip()
+        if not text:
+            return None, None
+
+        if "/" in text:
+            left, right = text.split("/", 1)
+            return left.strip() or None, right.strip() or None
+
+        numeric_candidate = text.replace(".", "", 1)
+        if numeric_candidate.isdigit():
+            return text, None
+
+        return None, text

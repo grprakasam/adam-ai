@@ -49,6 +49,19 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     });
   }, [pairProgramming.snippets]);
 
+  // Debug logging for variables length/format
+  React.useEffect(() => {
+    const armVars = variables.filter(v => v.name.includes('ARM'));
+    if (armVars.length > 0) {
+      console.log('[PairProgrammingArea] ARM variables length/format:', armVars.map(v => ({
+        name: v.name,
+        type: v.type,
+        length: v.length,
+        format: v.format
+      })));
+    }
+  }, [variables]);
+
   // Auto-detect derivation column from spec
   const getDerivationText = (variable: VariableInfo): string => {
     // Return the derivation field if available, otherwise return empty string
@@ -276,9 +289,11 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         <table className="pair-programming-table">
           <thead>
             <tr>
-              <th className="col-variable">Variable Name</th>
+              <th className="col-variable">Variable</th>
+              <th className="col-label">Label</th>
               <th className="col-type">Type</th>
-              <th className="col-length-format">Length/Format</th>
+              <th className="col-length">Length</th>
+              <th className="col-format">Format</th>
               <th className="col-origin">Origin</th>
               <th className="col-derivation">Derivation Logic</th>
               <th className="col-rationale">Coding Rationale</th>
@@ -342,12 +357,23 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
               return (
                 <tr key={variable.name} className={`variable-row ${snippet?.accepted === 'modify' ? 'needs-modification' : ''}`}>
-                  {/* Variable Name */}
+                  {/* Variable + Label */}
                   <td className="col-variable">
                     <div className="variable-name-cell">
                       <span className="variable-name">{variable.name}</span>
                       {variable.is_required && (
                         <span className="required-badge">Required</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="col-label">
+                    <div className="label-cell">
+                      {variable.label ? (
+                        <Tooltip title={variable.label}>
+                          <span className="variable-label">{variable.label}</span>
+                        </Tooltip>
+                      ) : (
+                        <span className="no-data">—</span>
                       )}
                     </div>
                   </td>
@@ -365,15 +391,21 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                     </div>
                   </td>
 
-                  {/* Length/Format */}
-                  <td className="col-length-format">
-                    <div className="length-format-cell">
-                      {variable.length || variable.format ? (
-                        <>
-                          <span>{variable.length || '—'}</span>
-                          <span className="separator">/</span>
-                          <span>{variable.format || '—'}</span>
-                        </>
+                  {/* Length */}
+                  <td className="col-length">
+                    <div className="length-chip">
+                      {variable.length ? (
+                        <span className="chip chip-length">{variable.length}</span>
+                      ) : (
+                        <span className="no-data">—</span>
+                      )}
+                    </div>
+                  </td>
+                  {/* Format */}
+                  <td className="col-format">
+                    <div className="format-chip">
+                      {variable.format ? (
+                        <span className="chip chip-format">{variable.format}</span>
                       ) : (
                         <span className="no-data">—</span>
                       )}

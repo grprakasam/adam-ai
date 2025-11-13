@@ -108,24 +108,43 @@ class VariableCategorizerService:
             # Get additional details from mapping (if available)
             mapping_details = self.mapping_parser.get_variable_details(var_name)
 
-            # Build VariableInfo - prefer spec details, fall back to mapping
+            # Determine required flag (prefer explicit spec flag)
+            is_required = var_dict.get("is_required")
+            if is_required is None:
+                is_required = self._is_required_variable(var_name)
+
+            label = (
+                var_dict["label"]
+                if "label" in var_dict
+                else (mapping_details.get("description") if mapping_details else None)
+            )
+            var_type = (
+                var_dict["type"]
+                if "type" in var_dict
+                else (mapping_details.get("type") if mapping_details else None)
+            )
+            length_value = (
+                var_dict["length"]
+                if "length" in var_dict
+                else (mapping_details.get("length") if mapping_details else None)
+            )
+            format_value = (
+                var_dict["format"]
+                if "format" in var_dict
+                else (mapping_details.get("format") if mapping_details else None)
+            )
+
+            # Build VariableInfo - prefer spec details, fall back to mapping only when absent
             var_info = VariableInfo(
                 name=var_name,
-                label=var_dict.get("label") or (
-                    mapping_details.get("description") if mapping_details else None
-                ),
-                type=var_dict.get("type") or (
-                    mapping_details.get("type") if mapping_details else None
-                ),
-                length=var_dict.get("length") or (
-                    mapping_details.get("length") if mapping_details else None
-                ),
-                format=var_dict.get("format") or (
-                    mapping_details.get("format") if mapping_details else None
-                ),
+                label=label,
+                type=var_type,
+                length=length_value,
+                format=format_value,
                 category=category,
                 derivation=var_dict.get("derivation"),
-                is_required=self._is_required_variable(var_name),
+                is_required=is_required,
+                extra=var_dict.get("extra"),
             )
 
             # Add to categorized dict
