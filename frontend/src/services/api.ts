@@ -129,7 +129,24 @@ export const adamApi = {
           'Content-Type': 'multipart/form-data',
         },
       });
-      return response.data;
+      
+      // Debug log to check length/format values
+      const result = response.data;
+      if (result.categories) {
+        const armVars = result.categories.flatMap((cat: any) => 
+          cat.variables.filter((v: any) => v.name.includes('ARM'))
+        );
+        if (armVars.length > 0) {
+          console.log('[API] ARM variables from backend:', armVars.map((v: any) => ({
+            name: v.name,
+            type: v.type,
+            length: v.length,
+            format: v.format
+          })));
+        }
+      }
+      
+      return result;
     });
   },
 

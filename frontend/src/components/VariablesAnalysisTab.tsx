@@ -41,6 +41,16 @@ const getCategorySortKey = (name: string, fallbackIndex: number) => {
 };
 
 type DisplayCategory = VariableCategory & { displayName: string; sortKey: number };
+type LayoutPresetKey = 'balanced' | 'focused' | 'immersive' | 'ultra';
+const LAYOUT_PRESETS: Record<
+  LayoutPresetKey,
+  { label: string; subtitle: string; columns: string; pairPercentage: number }
+> = {
+  balanced: { label: 'Balanced', subtitle: '30% / 70%', columns: '30% 70%', pairPercentage: 70 },
+  focused: { label: 'Focused', subtitle: '25% / 75%', columns: '25% 75%', pairPercentage: 75 },
+  immersive: { label: 'Immersive', subtitle: '20% / 80%', columns: '20% 80%', pairPercentage: 80 },
+  ultra: { label: 'Ultra Focus', subtitle: '5% / 95%', columns: '5% 95%', pairPercentage: 95 },
+};
 
 export const VariablesAnalysisTab: React.FC = () => {
   const {
@@ -92,6 +102,14 @@ export const VariablesAnalysisTab: React.FC = () => {
   const [isGeneratingFinalCode, setIsGeneratingFinalCode] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [finalProgramCode, setFinalProgramCode] = useState('');
+  const [layoutPreset, setLayoutPreset] = useState<LayoutPresetKey>('focused');
+  const layoutOptions = useMemo(
+    () =>
+      (Object.entries(LAYOUT_PRESETS) as [LayoutPresetKey, (typeof LAYOUT_PRESETS)[LayoutPresetKey]][]).sort(
+        (a, b) => a[1].pairPercentage - b[1].pairPercentage
+      ),
+    []
+  );
 
   // Get approval progress
   const { percentage, isReadyForGeneration } = useApprovalProgress();
@@ -1010,8 +1028,32 @@ export const VariablesAnalysisTab: React.FC = () => {
 
       {sortedCategories.length > 0 ? (
         <>
-          {/* Top Section: Tabs (30%) + Pair Programming (70%) */}
-          <div className="tabs-and-pair-programming">
+          <div className="layout-toggle">
+            <div className="layout-toggle-label">Workspace layout</div>
+            <div className="layout-toggle-buttons">
+              {layoutOptions.map(([key, preset]) => {
+                const isActive = layoutPreset === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    className={`layout-toggle-button ${isActive ? 'active' : ''}`}
+                    onClick={() => setLayoutPreset(key)}
+                    aria-pressed={isActive}
+                  >
+                    <span className="layout-toggle-title">{preset.label}</span>
+                    <span className="layout-toggle-subtitle">{preset.subtitle}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Top Section: Tabs (configurable split) + Pair Programming */}
+          <div
+            className="tabs-and-pair-programming"
+            style={{ ['--layout-columns' as any]: LAYOUT_PRESETS[layoutPreset].columns }}
+          >
             <div className="category-tabs-container">
               <Tabs
                 activeKey={activeCategory}
