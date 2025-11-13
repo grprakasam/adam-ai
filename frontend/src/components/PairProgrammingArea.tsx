@@ -10,11 +10,13 @@ import './PairProgrammingArea.css';
 interface PairProgrammingAreaProps {
   variables: VariableInfo[];
   categoryName: string;
+  getAiInputsButton?: React.ReactNode;
 }
 
 export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   variables,
-  categoryName
+  categoryName,
+  getAiInputsButton
 }) => {
   const {
     projectConfig,
@@ -215,6 +217,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           </span>
         </div>
         <div className="header-actions">
+          {getAiInputsButton}
           <button 
             className="generate-all-button"
             onClick={handleGenerateAll}
