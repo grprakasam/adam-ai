@@ -173,7 +173,8 @@ class CodeGeneratorService:
         language: str,
         context: Dict[str, Any],
         llm_provider: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        user_note: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate code for a single variable (for retry/regeneration)
@@ -184,15 +185,19 @@ class CodeGeneratorService:
             context: Generation context
             llm_provider: LLM provider to use
             model: Specific model to use (for openrouter)
+            user_note: Optional free-form instruction from the user guiding this regeneration
             
         Returns:
             CodeSnippetResponse dictionary
         """
         variable_name = variable.get('name', 'Unknown')
+        note_summary = user_note.strip() if isinstance(user_note, str) else None
         
         # Use semaphore to control concurrency
         async with self.semaphore:
             logger.info(f"Generating code for variable: {variable_name}")
+            if note_summary:
+                logger.info(f"Applying user guidance for {variable_name}: {note_summary[:120]}")
             
             try:
                 variable_label = variable.get('label', '')
@@ -206,7 +211,8 @@ class CodeGeneratorService:
                     variable_type=variable_type,
                     derivation_logic=derivation,
                     language=language,
-                    context=context
+                    context=context,
+                    user_note=note_summary
                 )
                 
                 # Generate code using LLM service
@@ -243,16 +249,21 @@ class CodeGeneratorService:
                 logger.info(f"✅ Successfully generated code for {variable_name}")
                 
                 # Build result matching old format
+                metadata = {
+                    'provider': settings.DEFAULT_LLM_PROVIDER,
+                    'model': code_response.get('model', settings.DEFAULT_MODEL),
+                    'language': language,
+                    'variable_type': variable_type,
+                    'user_note_applied': bool(note_summary)
+                }
+                if note_summary:
+                    metadata['user_note_summary'] = note_summary[:200]
+
                 result = {
                     'variable': variable_name,
                     'code_snippet': code_snippet,
                     'coding_rationale': coding_rationale,
-                    'metadata': {
-                        'provider': settings.DEFAULT_LLM_PROVIDER,
-                        'model': code_response.get('model', settings.DEFAULT_MODEL),
-                        'language': language,
-                        'variable_type': variable_type
-                    },
+                    'metadata': metadata,
                     'validated': True,  # Basic validation
                     'warnings': [],
                     'error': None

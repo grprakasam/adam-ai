@@ -122,7 +122,8 @@ class PromptBuilder:
         variable_type: str,
         derivation_logic: str,
         language: str,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        user_note: Optional[str] = None
     ) -> str:
         """
         Build comprehensive prompt for code generation
@@ -134,6 +135,7 @@ class PromptBuilder:
             derivation_logic: Derivation logic from specification
             language: Programming language (R or SAS)
             context: Additional context (dataset, standards, etc.)
+            user_note: Optional user-provided intention that should guide regeneration
             
         Returns:
             Formatted prompt for Gemini
@@ -157,6 +159,15 @@ class PromptBuilder:
         # Get ADAM rules context
         adam_dataset = context.get('adam_dataset', 'ADSL')
         rules_context = self._format_rules_context(adam_dataset)
+        user_note_section = ""
+        if user_note:
+            cleaned_note = user_note.strip()
+            if cleaned_note:
+                user_note_section = (
+                    "\n**User Intent / Requested Adjustments:**\n"
+                    f"{cleaned_note}\n"
+                    "Honor these instructions while keeping CDISC/ADaM compliance."
+                )
         
         # Build prompt
         prompt = f"""You are an expert CDISC ADAM programmer. Generate ONLY the essential {language} code to implement the derivation logic - nothing more.
@@ -168,6 +179,8 @@ class PromptBuilder:
 **Standards:** ADAM IG v{context.get('adam_ig_version', '1.3')}, SDTM v{context.get('sdtm_version', 'Unknown')}
 
 {rules_context}
+
+{user_note_section}
 
 {template_hint}
 

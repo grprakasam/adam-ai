@@ -2,19 +2,21 @@ Goal
 
 Do the following 
 
-analyse the entire codebase provided and check if there are any changes needed to be done based on the recent edits done in the files provided
+I want to take the role of an expert programmer and build the feature of the pair programming for adam variables program generation as below:
 
-ensure that the recent edits done are perfectly implemented in the codebase without breaking any existing features
+Understand that while the ai has given code snippets for each variable, there is a chance that it could be with some issues or misunderstood logic. in order to overcome this issue this app has the feature to capture the user's intention or comments under the 'User Notes' column, upon which each and every variable will be updated with the coding snippet.
 
-also ensure that the recent edits done are logically correct and makes sense in the overall codebase
+To implement the feature the code base has to carefully configured such that the code understands that while the user clicks on the refresh icon present in the code snippet , an api call has to happen and the updated code based on the user input has to be updated and repopulated in the code snippet section of that particular variable.
 
-optimise the code wherever possible based on the recent edits done
+Note that while the refresh icon is cliked the other variable code should not be impacted and only this button clicks of the refresh icon is applicable to that variable only
 
-ensure that the recent edits done are following the best coding practices
+Like wise this feature has to be applicable across all the variables
 
-ensure that the user of this app is having great user experience based on the recent edits done
 
-also check all the connection issues and cross check the modules and fix any issues found
+the overall idea is to make the programming done based on user's input to produce the code for each and every variable (if the user selects Modify in the Acceptance column)
+
+deep think to architect a workable plan and try to make a better possible approach.
+
 
 do an end to end testing of the entire codebase to ensure everything is working perfectly fine after the recent edits done
 

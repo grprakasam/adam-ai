@@ -160,3 +160,97 @@
   font-weight: 700;
   color: #4f46e5;
 }
+
+/* Validation Issues Styles */
+.validation-issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.validation-issue {
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid;
+  background: #fafafa;
+  transition: all 0.2s;
+}
+
+.validation-issue:hover {
+  background: #f3f4f6;
+}
+
+.validation-issue.error {
+  border-left-color: #dc2626;
+  background: #fef2f2;
+}
+
+.validation-issue.warning {
+  border-left-color: #ca8a04;
+  background: #fefce8;
+}
+
+.validation-issue.info,
+.validation-issue.style {
+  border-left-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.issue-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.severity-badge.error {
+  background: #dc2626;
+  color: white;
+}
+
+.severity-badge.warning {
+  background: #ca8a04;
+  color: white;
+}
+
+.severity-badge.info,
+.severity-badge.style {
+  background: #3b82f6;
+  color: white;
+}
+
+.issue-location {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.issue-message {
+  font-size: 13px;
+  color: #111827;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.issue-suggestion {
+  font-size: 12px;
+  color: #059669;
+  font-style: italic;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: #f0fdf4;
+  border-radius: 4px;
+}

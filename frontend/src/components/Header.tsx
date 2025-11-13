@@ -1,15 +1,19 @@
-import { Button, Space } from 'antd';
-import { SettingOutlined, BarChartOutlined, UserOutlined, HomeOutlined } from '@ant-design/icons';
+import { Button, Space, Dropdown, Avatar } from 'antd';
+import { SettingOutlined, BarChartOutlined, UserOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
 import './Header.css';
 import { useProjectStore } from '../store/projectStore';
 import { showNavigationConfirmation } from './ConfirmationDialog';
 
 interface HeaderProps {
   onBackToLanding?: () => void;
+  currentUser?: any;
+  onLogout?: () => void;
 }
 
 const Header = ({
-  onBackToLanding
+  onBackToLanding,
+  currentUser,
+  onLogout
 }: HeaderProps) => {
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const resetWorkspace = useProjectStore((state) => state.resetWorkspace);
@@ -55,7 +59,43 @@ const Header = ({
       <Space size="middle" className="header-right-controls">
         <Button icon={<SettingOutlined />} type="text" className="icon-btn" />
         <Button icon={<BarChartOutlined />} type="text" className="icon-btn" />
-        <Button icon={<UserOutlined />} type="text" className="icon-btn" />
+        
+        {currentUser && (
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'user',
+                  label: (
+                    <div style={{ padding: '8px 12px' }}>
+                      <div style={{ fontWeight: 600 }}>{currentUser.full_name}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>{currentUser.email}</div>
+                      <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                        Role: {currentUser.role}
+                      </div>
+                    </div>
+                  ),
+                  disabled: true,
+                },
+                {
+                  type: 'divider',
+                },
+                {
+                  key: 'logout',
+                  label: 'Logout',
+                  icon: <LogoutOutlined />,
+                  danger: true,
+                  onClick: onLogout,
+                },
+              ],
+            }}
+            trigger={['click']}
+          >
+            <Button icon={<UserOutlined />} type="text" className="icon-btn">
+              {currentUser.username}
+            </Button>
+          </Dropdown>
+        )}
       </Space>
     </div>
   );

@@ -1,0 +1,144 @@
+.cdisc-config-modal .ant-modal-content {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cdisc-config-modal .ant-modal-header {
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: none;
+}
+
+.cdisc-config-modal .ant-modal-title {
+  color: white !important;
+}
+
+.cdisc-config-modal .ant-modal-close {
+  color: white;
+}
+
+.cdisc-config-modal .ant-modal-close:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cdisc-config-modal .ant-modal-body {
+  padding: 24px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.config-section {
+  margin-bottom: 20px;
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.section-header h5 {
+  color: #1a202c;
+  font-weight: 600;
+}
+
+.cdisc-config-modal .ant-form-item-label > label {
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.cdisc-config-modal .ant-select-selector {
+  border-radius: 6px !important;
+}
+
+.cdisc-config-modal .ant-input-affix-wrapper,
+.cdisc-config-modal .ant-input {
+  border-radius: 6px;
+}
+
+.cdisc-config-modal .ant-form-item-tooltip {
+  color: #667eea;
+}
+
+/* Custom scrollbar */
+.cdisc-config-modal .ant-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.cdisc-config-modal .ant-modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.cdisc-config-modal .ant-modal-body::-webkit-scrollbar-thumb {
+  background: #667eea;
+  border-radius: 3px;
+}
+
+.cdisc-config-modal .ant-modal-body::-webkit-scrollbar-thumb:hover {
+  background: #5568d3;
+}
+
+/* Alert styling */
+.cdisc-config-modal .ant-alert {
+  border-radius: 8px;
+}
+
+/* Footer buttons */
+.cdisc-config-modal .ant-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cdisc-config-modal .ant-modal-footer .ant-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  height: 40px;
+  padding: 0 24px;
+  font-weight: 600;
+}
+
+.cdisc-config-modal .ant-modal-footer .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Select dropdown styling */
+.cdisc-config-modal .ant-select-multiple .ant-select-selection-item {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+  font-weight: 500;
+}
+
+.cdisc-config-modal .ant-select-multiple .ant-select-selection-item-remove {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.cdisc-config-modal .ant-select-multiple .ant-select-selection-item-remove:hover {
+  color: white;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.config-section {
+  animation: fadeIn 0.3s ease;
+}

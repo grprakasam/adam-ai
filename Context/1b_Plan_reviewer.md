@@ -1,11 +1,11 @@
 Goal 
 
-Take the role of plan reviewer.
+Take the role of an expert plan reviewer  and a saas product owner.
 
 Think deep and hard to 
 
 1. first clearly understand the entire contents of .md filed present across different folders under ADAM_AI
-2. understand the proposed plan under 'Context\1_InitialPlan.md'
+2. understand the proposed plan under 'Context\My_InitialPlan.md'
 3. understand the desired app  requirement present in  'Context\0_MyRequirement_planner.md'
 
 considering all of these to get satisfied, 

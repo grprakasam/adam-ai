@@ -1,20 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ConfigProvider, theme, message } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import LandingPage from './components/LandingPage';
+import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useProjectStore } from './store/projectStore';
 import type { ProgrammingLanguage, GenerationResponse } from './types';
 import './App.css';
 
-type ViewMode = 'landing' | 'workspace';
+type ViewMode = 'login' | 'landing' | 'workspace';
 
 function App() {
-  const [viewMode, setViewMode] = useState<ViewMode>('landing');
+  const [viewMode, setViewMode] = useState<ViewMode>('login');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [language, setLanguage] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
@@ -29,6 +32,40 @@ function App() {
   const initializeWorkspace = useProjectStore((state) => state.initializeWorkspace);
   const llmProvider = useProjectStore((state) => state.llmProvider);
   const setLlmProvider = useProjectStore((state) => state.setLlmProvider);
+
+  // Check for existing authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem('adam_access_token');
+    const userStr = localStorage.getItem('adam_user');
+    
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+        setViewMode('landing');
+      } catch (error) {
+        console.error('Invalid stored user data:', error);
+        localStorage.removeItem('adam_access_token');
+        localStorage.removeItem('adam_user');
+      }
+    }
+  }, []);
+
+  const handleLoginSuccess = (data: any) => {
+    setCurrentUser(data.user);
+    setIsAuthenticated(true);
+    setViewMode('landing');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adam_access_token');
+    localStorage.removeItem('adam_user');
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setViewMode('login');
+    message.info('Logged out successfully');
+  };
 
   const handleGenerate = async () => {
     // Track all state changes for cleanup
@@ -108,12 +145,20 @@ function App() {
         }}
       >
         <div className="app-container">
-          {viewMode === 'landing' ? (
-            <LandingPage onStartProject={handleStartProject} />
+          {viewMode === 'login' ? (
+            <LoginPage onLoginSuccess={handleLoginSuccess} />
+          ) : viewMode === 'landing' ? (
+            <LandingPage 
+              onStartProject={handleStartProject}
+              currentUser={currentUser}
+              onLogout={handleLogout}
+            />
           ) : (
             <>
               <Header
                 onBackToLanding={() => setViewMode('landing')}
+                currentUser={currentUser}
+                onLogout={handleLogout}
               />
 
               <div className="main-content">

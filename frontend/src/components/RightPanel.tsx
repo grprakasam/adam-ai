@@ -1,8 +1,9 @@
-import { Card, Button, Space } from 'antd';
-import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Card, Button, Space, message } from 'antd';
+import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, EditOutlined, CheckOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
+import { useState, useCallback, useRef } from 'react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
-// no store selectors required in this file
+import { api } from '../services/api';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import './RightPanel.css';
 
@@ -12,7 +13,11 @@ interface RightPanelProps {
 }
 
 const RightPanel = ({ generationResult, language }: RightPanelProps) => {
-  // Using VariablesAnalysisTab directly; local store selectors not needed here
+  const [editedCode, setEditedCode] = useState<string>('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResults, setValidationResults] = useState<any>(null);
+  const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   if (!generationResult) {
     return (
@@ -23,21 +28,96 @@ const RightPanel = ({ generationResult, language }: RightPanelProps) => {
     );
   }
 
+  // Handle code editing
+  const handleCodeChange = useCallback((value: string | undefined) => {
+    if (value !== undefined) {
+      setEditedCode(value);
+      
+      // Debounce validation
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
+      
+      validationTimeoutRef.current = setTimeout(() => {
+        validateCode(value);
+      }, 1000); // Validate after 1 second of inactivity
+    }
+  }, []);
+
+  const validateCode = async (code: string) => {
+    if (!code.trim()) return;
+    
+    setIsValidating(true);
+    try {
+      const result = await api.validateCode(code, language);
+      setValidationResults(result);
+    } catch (error) {
+      console.error('Validation failed:', error);
+      message.error('Code validation failed');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleCopyCode = () => {
+    const codeToCopy = isEditing ? editedCode : generationResult.code;
+    navigator.clipboard.writeText(codeToCopy);
+    message.success('Code copied to clipboard');
+  };
+
+  const handleSaveCode = () => {
+    const codeToSave = isEditing ? editedCode : generationResult.code;
+    const blob = new Blob([codeToSave], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `generated_code.${language.toLowerCase()}`;
+    a.click();
+    URL.revokeObjectURL(url);
+    message.success('Code saved');
+  };
+
+  const toggleEditMode = () => {
+    if (!isEditing) {
+      setEditedCode(generationResult.code);
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const currentValidationResults = validationResults || generationResult.validationResults || [];
   const validationStats = {
-    pass: generationResult.validationResults.filter(v => v.status === 'pass').length,
-    warning: generationResult.validationResults.filter(v => v.status === 'warning').length,
-    error: generationResult.validationResults.filter(v => v.status === 'error').length,
+    pass: currentValidationResults.filter((v: any) => v.status === 'pass').length,
+    warning: currentValidationResults.filter((v: any) => v.status === 'warning').length,
+    error: currentValidationResults.filter((v: any) => v.status === 'error').length,
   };
 
   return (
     <div className="right-panel">
       {/* Generated Code */}
       <Card 
-        title="Generated Code"
+        title={
+          <Space>
+            Generated Code
+            {isValidating && <span style={{ fontSize: '12px', color: '#faad14' }}>(Validating...)</span>}
+            {validationResults && !isValidating && (
+              <span style={{ fontSize: '12px', color: validationResults.isValid ? '#52c41a' : '#ff4d4f' }}>
+                {validationResults.isValid ? '\u2713 Valid' : '\u2717 Issues Found'}
+              </span>
+            )}
+          </Space>
+        }
         extra={
           <Space>
-            <Button icon={<CopyOutlined />} size="small">Copy</Button>
-            <Button icon={<SaveOutlined />} size="small">Save</Button>
+            <Button 
+              icon={isEditing ? <CheckOutlined /> : <EditOutlined />} 
+              size="small"
+              type={isEditing ? 'primary' : 'default'}
+              onClick={toggleEditMode}
+            >
+              {isEditing ? 'Done' : 'Edit'}
+            </Button>
+            <Button icon={<CopyOutlined />} size="small" onClick={handleCopyCode}>Copy</Button>
+            <Button icon={<SaveOutlined />} size="small" onClick={handleSaveCode}>Save</Button>
             <Button icon={<ReloadOutlined />} size="small">Regenerate</Button>
           </Space>
         }
@@ -46,14 +126,18 @@ const RightPanel = ({ generationResult, language }: RightPanelProps) => {
         <Editor
           height="400px"
           language={language.toLowerCase()}
-          value={generationResult.code}
+          value={isEditing ? editedCode : generationResult.code}
+          onChange={handleCodeChange}
           theme="vs-dark"
           options={{
             minimap: { enabled: false },
             fontSize: 12,
             lineNumbers: 'on',
-            readOnly: true,
+            readOnly: !isEditing,
             scrollBeyondLastLine: false,
+            automaticLayout: true,
+            tabSize: 2,
+            wordWrap: 'on',
           }}
         />
       </Card>
@@ -76,18 +160,34 @@ const RightPanel = ({ generationResult, language }: RightPanelProps) => {
               <CloseCircleOutlined /> {validationStats.error}
             </span>
           </Space>
-}
+        }
         size="small"
         className="validation-card"
       >
-        <div className="validation-grid">
-          <ValidationItem icon="OK" status="pass" label="CDISC Compliance" message="All rules passed" />
-          <ValidationItem icon="OK" status="pass" label="Required Variables" message="Complete" />
-          <ValidationItem icon="!" status="warning" label="Data Types" message="1 warning" />
-          <ValidationItem icon="OK" status="pass" label="Derivation Logic" message="Valid" />
-          <ValidationItem icon="OK" status="pass" label="Syntax Check" message="No errors" />
-          <ValidationItem icon="OK" status="pass" label="Dependencies" message="Resolved" />
-        </div>
+        {validationResults && validationResults.issues && validationResults.issues.length > 0 ? (
+          <div className="validation-issues-list">
+            {validationResults.issues.map((issue: any, idx: number) => (
+              <div key={idx} className={`validation-issue ${issue.severity}`}>
+                <div className="issue-header">
+                  <span className={`severity-badge ${issue.severity}`}>
+                    {issue.severity === 'error' ? '✕' : issue.severity === 'warning' ? '!' : 'ℹ'}
+                  </span>
+                  <span className="issue-location">Line {issue.line}{issue.column ? `, Col ${issue.column}` : ''}</span>
+                </div>
+                <div className="issue-message">{issue.message}</div>
+                {issue.suggestion && <div className="issue-suggestion">💡 {issue.suggestion}</div>}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="validation-grid">
+            <ValidationItem icon="OK" status="pass" label="CDISC Compliance" message="All rules passed" />
+            <ValidationItem icon="OK" status="pass" label="Required Variables" message="Complete" />
+            <ValidationItem icon="OK" status="pass" label="Derivation Logic" message="Valid" />
+            <ValidationItem icon="OK" status="pass" label="Syntax Check" message="No errors" />
+            <ValidationItem icon="OK" status="pass" label="Dependencies" message="Resolved" />
+          </div>
+        )}
       </Card>
 
       {/* Derivation Sequence */}

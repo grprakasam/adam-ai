@@ -34,12 +34,23 @@ export interface VariableSnippet {
     latency_ms?: number;
     template_used?: string;
     confidence_score?: number;
+    user_note_applied?: boolean;
+    user_note_summary?: string;
   };
 }
 
 export interface PairProgrammingState {
   snippets: Record<string, VariableSnippet>;
   isGenerating: Record<string, boolean>;
+}
+
+export interface CdiscConfiguration {
+  adamIgVersion: string;
+  sdtmVersion: string;
+  medraVersion: string;
+  sdtmDomains: string[];
+  controlledTerminology: string;
+  additionalNotes?: string;
 }
 
 interface ProjectStore {
@@ -56,6 +67,10 @@ interface ProjectStore {
   adamIgVersion: string;
   medraVersion: string;
   setStandards: (standards: { sdtmVersion?: string; adamIgVersion?: string; medraVersion?: string }) => void;
+
+  // CDISC Configuration
+  cdiscConfig: CdiscConfiguration | null;
+  setCdiscConfig: (config: CdiscConfiguration) => void;
 
   // Rules
   rules: Rule[];
@@ -143,6 +158,7 @@ const initialState = {
   sdtmVersion: 'SDTM v2.0',
   adamIgVersion: 'ADaM IG v1.3',
   medraVersion: 'MedDRA v27.0',
+  cdiscConfig: null,
   rules: [],
   specificationFile: null,
   tempSpecFile: null,
@@ -188,6 +204,9 @@ export const useProjectStore = create<ProjectStore>()(
           adamIgVersion: standards.adamIgVersion || state.adamIgVersion,
           medraVersion: standards.medraVersion || state.medraVersion,
         })),
+
+      setCdiscConfig: (config) =>
+        set({ cdiscConfig: config }),
 
       addRule: (rule) =>
         set((state) => ({

@@ -117,6 +117,9 @@ export interface CodeSnippetRequest {
     required_variables: string[];
     category: string;
   };
+  llm_provider?: string;
+  model?: string | null;
+  user_note?: string;
 }
 
 export interface CodeSnippetResponse {
@@ -130,6 +133,8 @@ export interface CodeSnippetResponse {
     latency_ms?: number;
     template_used?: string;
     confidence_score?: number;
+    user_note_applied?: boolean;
+    user_note_summary?: string;
   };
   warnings?: string[];
   validated?: boolean;
