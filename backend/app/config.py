@@ -3,17 +3,24 @@ Application Configuration Management
 Handles environment variables and application settings
 """
 
+import os
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict, field_validator
 from typing import Optional
+
+# Get the absolute path to the backend directory
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE = BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
     model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8"
+        env_file=str(ENV_FILE),
+        env_file_encoding="utf-8",
+        case_sensitive=True
     )
     
     # Application
@@ -42,15 +49,21 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None  # Primary key for Gemini
+    OPENROUTER_API_KEY: Optional[str] = None  # Access to 100+ models
     
     # Default LLM Configuration
-    DEFAULT_LLM_PROVIDER: str = "groq"  # groq, openai, anthropic, google
+    DEFAULT_LLM_PROVIDER: str = "groq"  # groq, openai, anthropic, google, openrouter
     DEFAULT_MODEL: str = "llama-3.3-70b-versatile"  # Groq's fastest 70B model
     DEFAULT_TEMPERATURE: float = 0.2
     DEFAULT_MAX_TOKENS: int = 4000
     
-    # Gemini Configuration
-    GEMINI_MODEL: str = "gemini-2.0-flash-exp"
+    # OpenRouter Configuration
+    OPENROUTER_MODEL: str = "meta-llama/llama-3.1-70b-instruct"  # Default model
+    OPENROUTER_SITE_URL: str = "https://adam-ai.app"  # Your site URL for OpenRouter
+    OPENROUTER_APP_NAME: str = "ADAM AI Code Generator"  # Your app name
+    
+    # Gemini Configuration (using stable model instead of experimental)
+    GEMINI_MODEL: str = "gemini-1.5-flash"  # Stable, fast, and cost-effective
     GEMINI_TEMPERATURE: float = 0.2
     GEMINI_MAX_TOKENS: int = 2048
     
@@ -72,3 +85,11 @@ class Settings(BaseSettings):
 
 # Global settings instance
 settings = Settings()
+
+# Debug logging to verify .env file is loaded
+print(f"🔧 CONFIG: Loading .env from: {ENV_FILE}")
+print(f"🔧 CONFIG: .env file exists: {ENV_FILE.exists()}")
+if settings.OPENROUTER_API_KEY:
+    print(f"✅ CONFIG: OPENROUTER_API_KEY loaded ({len(settings.OPENROUTER_API_KEY)} chars)")
+else:
+    print(f"❌ CONFIG: OPENROUTER_API_KEY not loaded!")

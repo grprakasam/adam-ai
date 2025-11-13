@@ -19,6 +19,8 @@ class LLMProvider(str, Enum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
+    GROQ = "groq"
+    OPENROUTER = "openrouter"
 
 
 class ADAMDatasetType(str, Enum):
@@ -256,4 +258,5 @@ class BulkCodeGenerationRequest(BaseModel):
     categorized_variables: dict = Field(..., description="Categorization result with all variables")
     language: str = Field(default="R", description="Programming language (R or SAS)")
     standards: dict = Field(..., description="Standards versions (SDTM, ADaM IG, MedDRA)")
-    llm_provider: Optional[str] = Field(default=None, description="LLM provider to use (groq, openai, anthropic, google)")
+    llm_provider: Optional[str] = Field(default=None, description="LLM provider to use (groq, openai, anthropic, google, openrouter)")
+    model: Optional[str] = Field(default=None, description="Specific model to use (required for openrouter)")

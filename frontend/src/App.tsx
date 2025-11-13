@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ConfigProvider, theme, message } from 'antd';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
@@ -17,6 +18,7 @@ function App() {
   const [language, setLanguage] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
+  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
 
   // Access Zustand store
   const projectConfig = useProjectStore((state) => state.projectConfig);
@@ -119,11 +121,21 @@ function App() {
               />
 
               <div className="main-content">
-                <LeftPanel
-                  onGenerate={handleGenerate}
-                  activeTab={activeTab}
-                  onTabChange={setActiveTab}
-                />
+                <div className="left-panel-wrapper">
+                  <LeftPanel
+                    onGenerate={handleGenerate}
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                    isCollapsed={isLeftPanelCollapsed}
+                  />
+                  <button 
+                    className={`panel-toggle-btn ${isLeftPanelCollapsed ? 'collapsed' : ''}`}
+                    onClick={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
+                    title={isLeftPanelCollapsed ? 'Show configuration panel' : 'Hide configuration panel'}
+                  >
+                    {isLeftPanelCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+                  </button>
+                </div>
 
                 <RightPanel
                   generationResult={generationResult}

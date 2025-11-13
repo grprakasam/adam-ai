@@ -423,7 +423,7 @@ class GoogleProvider(BaseLLMProvider):
     """Google Gemini provider"""
 
     def __init__(self, api_key: str, model: str = None):
-        model_to_use = model or getattr(settings, 'DEFAULT_MODEL', 'gemini-pro')
+        model_to_use = model or getattr(settings, 'GEMINI_MODEL', 'gemini-1.5-flash')
         super().__init__(api_key, model_to_use)
         try:
             import google.generativeai as genai
@@ -538,6 +538,142 @@ class GoogleProvider(BaseLLMProvider):
             return False
 
 
+class OpenRouterProvider(BaseLLMProvider):
+    """OpenRouter provider - Access to 100+ models via unified API"""
+
+    def __init__(self, api_key: str, model: str = None):
+        model_to_use = model or getattr(settings, 'OPENROUTER_MODEL', 'meta-llama/llama-3.1-70b-instruct')
+        super().__init__(api_key, model_to_use)
+        self.base_url = "https://openrouter.ai/api/v1"
+        self.site_url = getattr(settings, 'OPENROUTER_SITE_URL', 'https://adam-ai.app')
+        self.app_name = getattr(settings, 'OPENROUTER_APP_NAME', 'ADAM AI Code Generator')
+        logger.info(f"✅ Initialized OpenRouter provider with model: {self.model}")
+    
+    @retry_on_failure(max_retries=MAX_RETRIES)
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: str = SYSTEM_PROMPT,
+        temperature: float = 0.2,
+        max_tokens: int = 4000
+    ) -> LLMResponse:
+        """Generate text using OpenRouter"""
+        try:
+            import httpx
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "HTTP-Referer": self.site_url,
+                "X-Title": self.app_name,
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": temperature,
+                "max_tokens": max_tokens
+            }
+            
+            async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+                data = response.json()
+            
+            content = data["choices"][0]["message"]["content"]
+            usage = data.get("usage", {})
+            
+            result: LLMResponse = {
+                "content": content,
+                "model": self.model,
+                "usage": {
+                    "prompt_tokens": usage.get("prompt_tokens", 0),
+                    "completion_tokens": usage.get("completion_tokens", 0),
+                    "total_tokens": usage.get("total_tokens", 0)
+                },
+                "finish_reason": data["choices"][0].get("finish_reason", "stop")
+            }
+            
+            logger.info(
+                f"✅ OpenRouter generation completed: "
+                f"{result['usage']['total_tokens']} tokens, "
+                f"model: {self.model}"
+            )
+            return result
+
+        except Exception as e:
+            error_msg = str(e).lower()
+            
+            if any(term in error_msg for term in ["rate limit", "429", "quota"]):
+                logger.error(f"❌ OpenRouter rate limit exceeded: {str(e)}")
+                raise LLMRateLimitError(f"Rate limit exceeded for OpenRouter: {str(e)}")
+            
+            if any(term in error_msg for term in ["connection", "timeout", "network"]):
+                logger.error(f"❌ OpenRouter connection error: {str(e)}")
+                raise LLMConnectionError(f"Connection failed for OpenRouter: {str(e)}")
+            
+            logger.error(f"❌ OpenRouter generation error: {str(e)}")
+            raise LLMProviderError(f"OpenRouter error: {str(e)}")
+    
+    async def validate_connection(self) -> bool:
+        """Validate OpenRouter connection"""
+        try:
+            import httpx
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "HTTP-Referer": self.site_url,
+                "X-Title": self.app_name
+            }
+            
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.get(
+                    f"{self.base_url}/models",
+                    headers=headers
+                )
+                response.raise_for_status()
+            
+            logger.info("✅ OpenRouter connection validated successfully")
+            return True
+        except Exception as e:
+            logger.error(f"❌ OpenRouter connection validation failed: {str(e)}")
+            return False
+    
+    async def get_available_models(self) -> List[Dict[str, Any]]:
+        """Fetch list of available models from OpenRouter"""
+        try:
+            import httpx
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "HTTP-Referer": self.site_url,
+                "X-Title": self.app_name
+            }
+            
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.get(
+                    f"{self.base_url}/models",
+                    headers=headers
+                )
+                response.raise_for_status()
+                data = response.json()
+            
+            models = data.get("data", [])
+            logger.info(f"✅ Fetched {len(models)} models from OpenRouter")
+            return models
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch OpenRouter models: {str(e)}")
+            raise LLMProviderError(f"Failed to fetch models: {str(e)}")
+
+
 # ============================================================================
 # LLM Integration Service
 # ============================================================================
@@ -626,9 +762,21 @@ class LLMIntegrationService:
             provider_class=GoogleProvider,
             api_key=settings.GOOGLE_API_KEY,
             model=(
-                getattr(settings, 'DEFAULT_MODEL') 
+                getattr(settings, 'GEMINI_MODEL', 'gemini-1.5-flash')
                 if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'google' 
-                else 'gemini-pro'
+                else getattr(settings, 'GEMINI_MODEL', 'gemini-1.5-flash')
+            )
+        )
+        
+        # Initialize OpenRouter (Access to 100+ models)
+        self._initialize_provider(
+            name="openrouter",
+            provider_class=OpenRouterProvider,
+            api_key=getattr(settings, 'OPENROUTER_API_KEY', None),
+            model=(
+                getattr(settings, 'DEFAULT_MODEL') 
+                if getattr(settings, 'DEFAULT_LLM_PROVIDER', '') == 'openrouter' 
+                else getattr(settings, 'OPENROUTER_MODEL', 'meta-llama/llama-3.1-70b-instruct')
             )
         )
         
@@ -731,6 +879,22 @@ class LLMIntegrationService:
                 "provider_class": provider.__class__.__name__
             }
         return info
+    
+    async def get_openrouter_models(self) -> List[Dict[str, Any]]:
+        """
+        Get list of available models from OpenRouter
+        
+        Returns:
+            List of model dictionaries with id, name, pricing, context length, etc.
+        """
+        if 'openrouter' not in self.providers:
+            raise LLMValidationError("OpenRouter provider not initialized. Please configure OPENROUTER_API_KEY in .env")
+        
+        provider = self.providers['openrouter']
+        if not isinstance(provider, OpenRouterProvider):
+            raise LLMProviderError("OpenRouter provider not properly initialized")
+        
+        return await provider.get_available_models()
 
 
 # Global service instance

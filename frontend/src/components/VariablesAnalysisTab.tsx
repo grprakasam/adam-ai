@@ -56,6 +56,7 @@ export const VariablesAnalysisTab: React.FC = () => {
     medraVersion,
     tempSpecFile,
     llmProvider,
+    llmConnectionStatus,
   } = useProjectStore();
 
   const [activeCategory, setActiveCategory] = useState<string>('0');
@@ -299,22 +300,7 @@ export const VariablesAnalysisTab: React.FC = () => {
           updateProgressState(0, 'Initializing...');
           updateToast(0, 'Initializing...');
 
-          progressTimer = window.setInterval(() => {
-            setBulkGenerationProgress((prev) => {
-              if (!prev.isGenerating) return prev;
-              const elapsedSeconds = (Date.now() - startTime) / 1000;
-              const ratio = Math.min(0.95, elapsedSeconds / estimatedTime);
-              const estimatedCompleted = Math.max(prev.current, Math.round(ratio * total));
-              updateToast(estimatedCompleted, 'Processing...');
-              return {
-                ...prev,
-                current: estimatedCompleted,
-                currentVariable: 'Processing...'
-              };
-            });
-          }, 1000);
-
-          const results = await adamApi.generateCodeBulk({
+          const requestPayload: any = {
             categorized_variables: categorizedVariables,
             study_id: projectConfig.studyId,
             dataset: projectConfig.adamDataset || 'ADSL',
@@ -325,6 +311,43 @@ export const VariablesAnalysisTab: React.FC = () => {
               meddra_version: medraVersion,
             },
             llm_provider: llmProvider,
+          };
+
+          // Add model parameter if OpenRouter is selected
+          if (llmProvider === 'openrouter') {
+            const selectedModel = useProjectStore.getState().selectedModel;
+            if (selectedModel) {
+              requestPayload.model = selectedModel;
+            }
+          }
+
+          const results = await adamApi.generateCodeBulkStream(requestPayload, (progress) => {
+            // Real-time progress update from backend
+            const { completed, total: totalVars, variable_name, message: progressMessage } = progress;
+            
+            updateProgressState(completed, variable_name || progressMessage);
+            
+            // Update toast with real progress
+            const elapsedSeconds = (Date.now() - startTime) / 1000;
+            const avgTimePerVar = completed > 0 ? elapsedSeconds / completed : 2;
+            const remainingVars = totalVars - completed;
+            const etaSeconds = remainingVars * avgTimePerVar;
+            
+            message.open({
+              key: progressKey,
+              type: 'loading',
+              duration: 0,
+              content: (
+                <div className="bulk-progress-message">
+                  <div style={{ fontWeight: 600 }}>Generating AI Code</div>
+                  <div>{completed}/{totalVars} variables</div>
+                  {variable_name && <div style={{ fontSize: '12px', color: '#666' }}>Processing: {variable_name}</div>}
+                  <div>
+                    Elapsed: {formatDuration(elapsedSeconds)} • ETA: ~{formatDuration(etaSeconds)}
+                  </div>
+                </div>
+              ),
+            });
           });
 
           stopTimer();
@@ -569,48 +592,67 @@ export const VariablesAnalysisTab: React.FC = () => {
           </div>
         </div>
         <div className="header-right">
-          <button
-            className="generate-button primary-action"
-            onClick={handleGenerateCode}
-            disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 24px',
-              fontSize: '15px',
-              fontWeight: 600,
-              background: bulkGenerationProgress.isGenerating ? '#d9d9d9' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              border: 'none',
-              color: '#fff',
-              borderRadius: '8px',
-              cursor: bulkGenerationProgress.isGenerating ? 'not-allowed' : 'pointer',
-              boxShadow: bulkGenerationProgress.isGenerating ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)',
-              transition: 'all 0.3s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!bulkGenerationProgress.isGenerating) {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = bulkGenerationProgress.isGenerating ? 'none' : '0 4px 12px rgba(102, 126, 234, 0.4)';
-            }}
+          <Tooltip
+            title={
+              llmConnectionStatus !== 'connected'
+                ? 'Test the connection first using the "Test Connection" button in the header'
+                : bulkGenerationProgress.isGenerating
+                ? 'Generation in progress...'
+                : 'Generate code snippets for all variables using AI'
+            }
           >
-            {bulkGenerationProgress.isGenerating ? (
-              <>
-                <Loader2 size={18} className="spinning" />
-                <span>Generating... ({bulkGenerationProgress.current}/{bulkGenerationProgress.total})</span>
-              </>
-            ) : (
-              <>
-                <Zap size={18} />
-                <span>Get AI Inputs</span>
-              </>
-            )}
-          </button>
+            <button
+              className="generate-button primary-action"
+              onClick={handleGenerateCode}
+              disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables || llmConnectionStatus !== 'connected'}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 24px',
+                fontSize: '15px',
+                fontWeight: 600,
+                background: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                  ? '#d9d9d9' 
+                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                border: 'none',
+                color: '#fff',
+                borderRadius: '8px',
+                cursor: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                  ? 'not-allowed' 
+                  : 'pointer',
+                boxShadow: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                  ? 'none' 
+                  : '0 4px 12px rgba(102, 126, 234, 0.4)',
+                transition: 'all 0.3s ease',
+                opacity: llmConnectionStatus !== 'connected' ? 0.6 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!bulkGenerationProgress.isGenerating && llmConnectionStatus === 'connected') {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                  ? 'none' 
+                  : '0 4px 12px rgba(102, 126, 234, 0.4)';
+              }}
+            >
+              {bulkGenerationProgress.isGenerating ? (
+                <>
+                  <Loader2 size={18} className="spinning" />
+                  <span>Generating... ({bulkGenerationProgress.current}/{bulkGenerationProgress.total})</span>
+                </>
+              ) : (
+                <>
+                  <Zap size={18} />
+                  <span>Get AI Inputs</span>
+                </>
+              )}
+            </button>
+          </Tooltip>
 
           {/* Generate ADAM Code Button */}
           <Tooltip

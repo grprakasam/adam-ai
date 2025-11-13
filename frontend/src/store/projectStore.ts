@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult, CodeSnippetResponse, LLMProvider } from '../types';
+import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult, CodeSnippetResponse, LLMProvider, OpenRouterModel } from '../types';
 
 export interface Rule {
   id: string;
@@ -81,8 +81,15 @@ interface ProjectStore {
   pairProgramming: PairProgrammingState;
   programmingLanguage: 'R' | 'SAS';
   llmProvider: LLMProvider;
+  selectedModel: string | null;
+  availableModels: OpenRouterModel[];
+  llmConnectionStatus: 'untested' | 'testing' | 'connected' | 'failed';
+  llmConnectionMessage: string | null;
   setProgrammingLanguage: (language: 'R' | 'SAS') => void;
   setLlmProvider: (provider: LLMProvider) => void;
+  setSelectedModel: (modelId: string | null) => void;
+  setAvailableModels: (models: OpenRouterModel[]) => void;
+  setLlmConnectionStatus: (status: 'untested' | 'testing' | 'connected' | 'failed', message?: string | null) => void;
   setPairProgrammingSnippet: (variable: string, snippet: VariableSnippet) => void;
   setGeneratingSnippet: (variable: string, isGenerating: boolean) => void;
   setPairProgrammingNotes: (variable: string, notes: string) => void;
@@ -147,6 +154,10 @@ const initialState = {
   },
   programmingLanguage: 'R' as 'R' | 'SAS',
   llmProvider: 'groq' as LLMProvider,
+  selectedModel: null,
+  availableModels: [],
+  llmConnectionStatus: 'untested' as 'untested' | 'testing' | 'connected' | 'failed',
+  llmConnectionMessage: null,
   generationOptions: {
     includeComments: 'comprehensive' as const,
     codeStyle: 'standard' as const,
@@ -211,7 +222,16 @@ export const useProjectStore = create<ProjectStore>()(
         set({ programmingLanguage: language }),
 
       setLlmProvider: (provider) =>
-        set({ llmProvider: provider }),
+        set({ llmProvider: provider, llmConnectionStatus: 'untested', llmConnectionMessage: null }),
+
+      setSelectedModel: (modelId) =>
+        set({ selectedModel: modelId }),
+
+      setAvailableModels: (models) =>
+        set({ availableModels: models }),
+
+      setLlmConnectionStatus: (status, message = null) =>
+        set({ llmConnectionStatus: status, llmConnectionMessage: message }),
 
       setPairProgrammingSnippet: (variable, snippet) =>
         set((state) => ({

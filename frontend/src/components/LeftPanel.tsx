@@ -13,9 +13,10 @@ interface LeftPanelProps {
   onGenerate: () => Promise<void>;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
+  isCollapsed?: boolean;
 }
 
-const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange }: LeftPanelProps) => {
+const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange, isCollapsed = false }: LeftPanelProps) => {
   // Support both controlled and uncontrolled usage
   const [uncontrolledActive, setUncontrolledActive] = useState<string>(controlledActiveTab || 'project');
   const activeTab = controlledActiveTab ?? uncontrolledActive;
@@ -77,7 +78,7 @@ const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange }: 
   };
 
   return (
-    <div className="left-panel">\
+    <div className={`left-panel ${isCollapsed ? 'collapsed' : ''}`}>
       <TabNavigation
         tabs={tabs}
         activeTab={activeTab}
