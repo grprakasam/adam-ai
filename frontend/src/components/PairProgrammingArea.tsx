@@ -39,6 +39,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   const [expandedRationale, setExpandedRationale] = useState<Set<string>>(new Set());
   const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
   const isAnyVariableGenerating = Object.values(pairProgramming.isGenerating).some(v => v);
+  const showAdvancedColumns = hasAnySnippets;
 
   // Debug logging
   React.useEffect(() => {
@@ -286,6 +287,15 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
       {/* Table */}
       <div className="pair-programming-table-container">
+        {!showAdvancedColumns && (
+          <div className="pair-programming-hint">
+            <Info size={16} />
+            <div>
+              <div className="hint-title">Pair programming helpers will appear after AI inputs are generated.</div>
+              <div className="hint-subtitle">Click “Get AI Inputs” to reveal coding rationale, snippet previews, acceptance, and notes.</div>
+            </div>
+          </div>
+        )}
         <table className="pair-programming-table">
           <thead>
             <tr>
@@ -296,10 +306,14 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
               <th className="col-format">Format</th>
               <th className="col-origin">Origin</th>
               <th className="col-derivation">Derivation Logic</th>
-              <th className="col-rationale">Coding Rationale</th>
-              <th className="col-code">Code Snippet ({programmingLanguage})</th>
-              <th className="col-acceptance">Acceptance</th>
-              <th className="col-notes">User Notes</th>
+              {showAdvancedColumns && (
+                <>
+                  <th className="col-rationale">Coding Rationale</th>
+                  <th className="col-code">Code Snippet ({programmingLanguage})</th>
+                  <th className="col-acceptance">Acceptance</th>
+                  <th className="col-notes">User Notes</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -432,123 +446,127 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                     </div>
                   </td>
 
-                  {/* Coding Rationale */}
-                  <td className="col-rationale">
-                    {snippet?.rationale ? (
-                      <div className="rationale-cell">
-                        <div className={`rationale-text ${isExpanded ? 'expanded' : ''}`}>
-                          {snippet.rationale}
-                        </div>
-                        {snippet.rationale.length > 150 && (
-                          <button
-                            className="expand-button"
-                            onClick={() => toggleRationale(variable.name)}
-                          >
-                            {isExpanded ? 'Show less' : 'Show more'}
-                          </button>
+                  {showAdvancedColumns && (
+                    <>
+                      {/* Coding Rationale */}
+                      <td className="col-rationale">
+                        {snippet?.rationale ? (
+                          <div className="rationale-cell">
+                            <div className={`rationale-text ${isExpanded ? 'expanded' : ''}`}>
+                              {snippet.rationale}
+                            </div>
+                            {snippet.rationale.length > 150 && (
+                              <button
+                                className="expand-button"
+                                onClick={() => toggleRationale(variable.name)}
+                              >
+                                {isExpanded ? 'Show less' : 'Show more'}
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="no-data">—</span>
                         )}
-                      </div>
-                    ) : (
-                      <span className="no-data">—</span>
-                    )}
-                  </td>
+                      </td>
 
-                  {/* Code Snippet */}
-                  <td className="col-code">
-                    {isGenerating ? (
-                      <div className="code-loading">
-                        <Loader2 size={20} className="spinning" />
-                        <span>Generating code...</span>
-                      </div>
-                    ) : snippet?.error ? (
-                      <div className="code-error">
-                        <AlertCircle size={16} />
-                        <span>{snippet.error}</span>
-                        <button 
-                          className="retry-button"
-                          onClick={() => handleGenerateSnippet(variable)}
-                        >
-                          <RefreshCw size={14} />
-                          Retry
-                        </button>
-                      </div>
-                    ) : snippet?.codeSnippet ? (
-                      <div className="code-snippet-cell">
-                        <div className="code-actions">
-                          {snippet?.metadata?.user_note_applied && (
-                            <span
-                              className="code-badge note-applied"
-                              title={snippet?.metadata?.user_note_summary || 'Generated using user notes'}
+                      {/* Code Snippet */}
+                      <td className="col-code">
+                        {isGenerating ? (
+                          <div className="code-loading">
+                            <Loader2 size={20} className="spinning" />
+                            <span>Generating code...</span>
+                          </div>
+                        ) : snippet?.error ? (
+                          <div className="code-error">
+                            <AlertCircle size={16} />
+                            <span>{snippet.error}</span>
+                            <button 
+                              className="retry-button"
+                              onClick={() => handleGenerateSnippet(variable)}
                             >
-                              Notes applied
-                            </span>
-                          )}
-                          <button
-                            className="regenerate-button"
-                            onClick={() => handleRegenerateWithConfirmation(variable)}
-                            disabled={regenerateDisabled}
-                            title={regenerateTitle}
-                          >
-                            <RefreshCw size={14} />
-                          </button>
+                              <RefreshCw size={14} />
+                              Retry
+                            </button>
+                          </div>
+                        ) : snippet?.codeSnippet ? (
+                          <div className="code-snippet-cell">
+                            <div className="code-actions">
+                              {snippet?.metadata?.user_note_applied && (
+                                <span
+                                  className="code-badge note-applied"
+                                  title={snippet?.metadata?.user_note_summary || 'Generated using user notes'}
+                                >
+                                  Notes applied
+                                </span>
+                              )}
+                              <button
+                                className="regenerate-button"
+                                onClick={() => handleRegenerateWithConfirmation(variable)}
+                                disabled={regenerateDisabled}
+                                title={regenerateTitle}
+                              >
+                                <RefreshCw size={14} />
+                              </button>
+                            </div>
+                            <pre className="code-block">
+                              <code>{snippet.codeSnippet}</code>
+                            </pre>
+                          </div>
+                        ) : (
+                          <div className="code-placeholder">
+                            —
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Acceptance */}
+                      <td className="col-acceptance">
+                        <div className="acceptance-cell">
+                          <div className="radio-group">
+                            <label className="radio-option">
+                              <input
+                                type="radio"
+                                name={`acceptance-${variable.name}`}
+                                value="accept"
+                                checked={snippet?.accepted === 'accept'}
+                                onChange={() => handleAcceptanceChange(variable.name, 'accept')}
+                                disabled={!snippet?.codeSnippet}
+                              />
+                              <span className="radio-label">Accept</span>
+                            </label>
+                            <label className="radio-option">
+                              <input
+                                type="radio"
+                                name={`acceptance-${variable.name}`}
+                                value="modify"
+                                checked={snippet?.accepted === 'modify'}
+                                onChange={() => handleAcceptanceChange(variable.name, 'modify')}
+                                disabled={!snippet?.codeSnippet}
+                              />
+                              <span className="radio-label">Modify</span>
+                            </label>
+                          </div>
                         </div>
-                        <pre className="code-block">
-                          <code>{snippet.codeSnippet}</code>
-                        </pre>
-                      </div>
-                    ) : (
-                      <div className="code-placeholder">
-                        —
-                      </div>
-                    )}
-                  </td>
+                      </td>
 
-                  {/* Acceptance */}
-                  <td className="col-acceptance">
-                    <div className="acceptance-cell">
-                      <div className="radio-group">
-                        <label className="radio-option">
-                          <input
-                            type="radio"
-                            name={`acceptance-${variable.name}`}
-                            value="accept"
-                            checked={snippet?.accepted === 'accept'}
-                            onChange={() => handleAcceptanceChange(variable.name, 'accept')}
-                            disabled={!snippet?.codeSnippet}
+                      {/* User Notes */}
+                      <td className="col-notes">
+                        <div className="notes-field">
+                          <textarea
+                            className={`notes-textarea ${needsNotes ? 'modify-required' : ''}`}
+                            placeholder={notesPlaceholder}
+                            value={snippet?.userNotes || ''}
+                            onChange={(e) => handleNotesChange(variable.name, e.target.value)}
+                            rows={3}
+                            disabled={snippet?.accepted === 'accept' || !snippet?.codeSnippet}
                           />
-                          <span className="radio-label">Accept</span>
-                        </label>
-                        <label className="radio-option">
-                          <input
-                            type="radio"
-                            name={`acceptance-${variable.name}`}
-                            value="modify"
-                            checked={snippet?.accepted === 'modify'}
-                            onChange={() => handleAcceptanceChange(variable.name, 'modify')}
-                            disabled={!snippet?.codeSnippet}
-                          />
-                          <span className="radio-label">Modify</span>
-                        </label>
-                      </div>
-                    </div>
-                  </td>
-
-                  {/* User Notes */}
-                  <td className="col-notes">
-                    <div className="notes-field">
-                      <textarea
-                        className={`notes-textarea ${needsNotes ? 'modify-required' : ''}`}
-                        placeholder={notesPlaceholder}
-                        value={snippet?.userNotes || ''}
-                        onChange={(e) => handleNotesChange(variable.name, e.target.value)}
-                        rows={3}
-                        disabled={snippet?.accepted === 'accept' || !snippet?.codeSnippet}
-                      />
-                      <div className={`notes-hint ${needsNotes ? 'warning' : ''}`}>
-                        {notesHint}
-                      </div>
-                    </div>
-                  </td>
+                          <div className={`notes-hint ${needsNotes ? 'warning' : ''}`}>
+                            {notesHint}
+                          </div>
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
               );
             })}
