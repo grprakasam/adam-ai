@@ -6,6 +6,11 @@ theme
 
 openouter point to freee model
 
+display the dataset name for which study 
+
+offline code converter to be added
+
+
 regenerate code section to be added 
 
 R and sas buttons to be checked 

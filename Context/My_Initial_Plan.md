@@ -57,3 +57,77 @@ Plan created per `Context/0_MyRequirement_planner.md`, `Context/ProjectArchitect
 5. **Access control scope**: Should we integrate existing auth/logging infrastructure now (if available) or simply add request-id logging and revisit later?
 
 Clarifying the above will enable a refined version in `Context/My_Revised_Plan.md` before implementation.
+
+---
+
+# Plan v2 — Variable Refresh by User Notes and Mapping‑Driven Categorization
+
+Purpose: Incorporate the feature set from `Context/0_MyRequirement_planner.md` while preserving current behavior. This plan focuses on per‑variable regeneration driven by user notes and ensuring the Variables Analysis categories and order mirror `Context/ADAMRules/VariablesMapping.xlsx`.
+
+## 1) Scope
+- Add per‑variable "Refresh" that re‑generates only the clicked variable using the latest user notes and spec row.
+- Keep bulk "Get AI Inputs" flow unchanged for first‑time fills; allow per‑row refresh to iterate.
+- Strictly render categories and ordering in the UI according to VariablesMapping.xlsx; display names are cleaned for UX, but raw names (with numeric prefixes) are preserved for backend context.
+
+## 2) Guiding Principles (Non‑breaking)
+- Do not remove or change existing endpoints; extend request models with optional fields (e.g., `user_notes`).
+- Keep existing store fields and augment with additive keys (per‑variable `isGenerating`, `lastGeneratedAt`).
+- Maintain current toast/progress behaviors; add richer detail without changing keys used by other components.
+
+## 3) Architecture Changes
+
+### Frontend
+- Store (Zustand)
+  - Add `pairProgramming.isGenerating[variable]` (boolean), `lastGeneratedAt[variable]?: Date`.
+  - Keep `snippets[variable]` schema; add optional `history?: Array<{ts: Date; code: string; rationale: string}>` as feature‑flagged extension.
+- PairProgrammingArea
+  - Refresh button triggers `adamApi.generateCodeSnippet` with payload: study_id, dataset, language, spec_row (verbatim), derivation, standards, context(category, required vars), and `user_notes` (from notes textarea).
+  - Disable only the clicked row during generation. On success, update that row’s snippet and rationale; note `lastGeneratedAt`.
+  - Preserve existing Copy/Accept behaviors; only this variable updates.
+- VariablesAnalysisTab
+  - On "Re‑categorize", if spec path begins with `Content/` or flagged as default → call `/specification/categorize-path`; otherwise (uploaded file) → call `/specification/categorize` (multipart). This ensures the uploaded file is always used.
+  - Build `sortedCategories` via mapping names; strip numeric prefixes for display, persist raw names for backend context.
+  - Tabs render in mapping order with formatted labels, counts from categorized result.
+
+### Backend
+- input_models.CodeSnippetRequest
+  - Add optional `user_notes: Union[str, Dict[str, str]] = None` (backward compatible). If not present, legacy clients continue to work.
+- api/v1/code_generation.generate_code_snippet
+  - Read `user_notes` and incorporate into prompt context; pass study/dataset/standards as today.
+  - Return same response shape (code_snippet, coding_rationale, metadata[, error]).
+- code_generator/prompt_builder
+  - Merge `user_notes` with spec row; establish precedence rules: User Notes > Spec hints > Default rules from ADAMRules.
+  - Apply safety rails: deterministic sections, required variable checks, style preferences.
+- Caching
+  - Include user_notes and normalized derivation in cache key: `(study_id,dataset,variable,derivationHash,notesHash,language)` to avoid stale returns when notes change.
+
+## 4) UX & Data Flow
+1. User edits notes for variable `V`.
+2. Click refresh on `V` → set `isGenerating[V]=true` → POST `/code-generation/generate-code-snippet` with notes/derivation/spec_row.
+3. On success → update `snippets[V]`, `lastGeneratedAt[V]`, and clear `isGenerating[V]`.
+4. On failure → show inline error with Retry for `V` only; other rows unaffected.
+5. Re‑categorize always uses the active spec (uploaded or default) and renders categories in the exact spreadsheet order.
+
+## 5) Error Handling & Fallbacks
+- 404/Not Found on code generation (e.g., dev server without LLM): show non‑blocking toast and optionally synthesize placeholders (clearly labeled "offline mock").
+- 429 rate limits: respect Retry‑After, backoff in throttler, surface countdown.
+- Validation errors: inline error per row with actionable text (e.g., "Study ID required" link to Project tab).
+
+## 6) Testing
+- Backend unit: request model with/without `user_notes`; prompt builder includes notes; cache keys differ when notes change.
+- Integration: generate‑snippet with a mocked provider; assert only targeted variable is affected.
+- Frontend unit: per‑row spinner state, Retry flow, category order builder.
+- E2E: upload spec → recategorize → edit 2 variables notes → refresh individually → verify only those rows change; verify tab order matches VariablesMapping.xlsx.
+
+## 7) Rollout & Config
+- Env: ensure at least one provider API key; default provider set in `.env`.
+- Timeouts: per‑row 30–60s; bulk 120s+.
+- Metrics: capture timing and error rates for per‑row refresh calls.
+
+## 8) Open Questions (to confirm before implementation)
+1. Persist notes/acceptance on server or keep client‑side only in this phase?
+2. Maintain snippet history per variable for audit/compare?
+3. Which provider/model defaults should we cement for production (vs. dev)?
+4. Any sponsor‑specific templates to standardize header/comments across generated snippets?
+
+When approved, this plan will be mirrored into `Context/My_Revised_Plan.md` with any clarifications incorporated.

@@ -281,7 +281,8 @@ async def generate_code_snippet(
             variable=variable,
             language=request.language,
             context=context,
-            llm_provider=request.llm_provider
+            llm_provider=request.llm_provider,
+            user_note=request.user_note
         )
         
         logger.info(f"Successfully generated code for {request.variable}")

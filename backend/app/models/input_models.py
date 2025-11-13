@@ -193,7 +193,8 @@ class CodeSnippetRequest(BaseModel):
                 "available_sdtm_domains": ["DM", "EX", "AE"],
                 "required_variables": ["AGE"],
                 "category": "Demographics"
-            }
+            },
+            "user_note": "Ensure code uses baseline flag per user guidance."
         }
     })
 
@@ -206,6 +207,7 @@ class CodeSnippetRequest(BaseModel):
     language: str = Field(default="R", description="Programming language (R or SAS)")
     context: Optional[dict] = Field(default=None, description="Additional context (available domains, required variables, category)")
     llm_provider: Optional[str] = Field(default=None, description="LLM provider to use (groq, openai, anthropic, google)")
+    user_note: Optional[str] = Field(default=None, description="User-provided notes to guide regeneration for this variable")
 
 
 class CodeSnippetResponse(BaseModel):

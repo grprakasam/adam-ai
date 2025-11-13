@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
 import { message, Tooltip } from 'antd';
-import { Code2, Copy, Check, Loader2, AlertCircle, RefreshCw, Eye, EyeOff, ChevronDown, ChevronUp, Maximize2, Info } from 'lucide-react';
+import { Code2, Loader2, AlertCircle, RefreshCw, Copy, Check, Eye, EyeOff, ChevronDown, ChevronUp, Maximize2, Info } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import { showRegenerateConfirmation } from './ConfirmationDialog';
-import type { VariableInfo } from '../types';
+import type { CodeSnippetRequest, VariableInfo } from '../types';
 import './PairProgrammingArea.css';
 
 interface PairProgrammingAreaProps {
   variables: VariableInfo[];
   categoryName: string;
   getAiInputsButton?: React.ReactNode;
+}
+
+interface GenerateSnippetOptions {
+  userNote?: string;
+  silent?: boolean;
 }
 
 export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
@@ -25,13 +30,13 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     setGeneratingSnippet,
     setPairProgrammingNotes,
     setPairProgrammingAcceptance,
-    programmingLanguage
+    programmingLanguage,
+    llmProvider,
+    selectedModel
   } = useProjectStore();
 
   const [copiedVariable, setCopiedVariable] = useState<string | null>(null);
   const [expandedRationale, setExpandedRationale] = useState<Set<string>>(new Set());
-  const [expandedCode, setExpandedCode] = useState<Set<string>>(new Set());
-  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
   const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
   const isAnyVariableGenerating = Object.values(pairProgramming.isGenerating).some(v => v);
 
@@ -50,19 +55,24 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     return variable.derivation || 'No derivation logic specified';
   };
 
-  const handleGenerateSnippet = async (variable: VariableInfo) => {
+  const handleGenerateSnippet = async (
+    variable: VariableInfo,
+    options: GenerateSnippetOptions = {}
+  ) => {
     if (!projectConfig.studyId || !projectConfig.adamDataset) {
       message.error('Please configure study ID and dataset first');
       return;
     }
 
+    const existingSnippet = pairProgramming.snippets[variable.name];
+    const trimmedUserNote = options.userNote?.trim();
     let cleanupRequired = false;
 
     try {
       setGeneratingSnippet(variable.name, true);
       cleanupRequired = true;
 
-      const response = await adamApi.generateCodeSnippet({
+      const payload: CodeSnippetRequest = {
         study_id: projectConfig.studyId,
         dataset: projectConfig.adamDataset,
         variable: variable.name,
@@ -86,35 +96,59 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           required_variables: [variable.name],
           category: categoryName
         }
-      });
+      };
+
+      if (llmProvider) {
+        payload.llm_provider = llmProvider;
+      }
+      if (selectedModel) {
+        payload.model = selectedModel;
+      }
+      if (trimmedUserNote) {
+        payload.user_note = trimmedUserNote;
+      }
+
+      const response = await adamApi.generateCodeSnippet(payload);
+
+      const nextUserNotes = options.userNote ?? existingSnippet?.userNotes ?? '';
+      const nextAcceptance = existingSnippet?.accepted ?? (trimmedUserNote ? 'modify' : 'accept');
 
       setPairProgrammingSnippet(variable.name, {
         variable: variable.name,
         codeSnippet: response.code_snippet,
         rationale: response.coding_rationale,
-        userNotes: '',
-        accepted: 'accept',
+        userNotes: nextUserNotes,
+        accepted: nextAcceptance,
         generatedAt: new Date(),
         language: programmingLanguage,
-        metadata: response.metadata
+        metadata: response.metadata,
+        error: undefined
       });
 
-      message.success(`Code generated for ${variable.name}`);
+      if (!options.silent) {
+        message.success(
+          trimmedUserNote
+            ? `Updated code for ${variable.name} using your notes`
+            : `Code generated for ${variable.name}`
+        );
+      }
     } catch (error: any) {
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to generate code';
       message.error(errorMsg);
 
-      // Store error in snippet
-      setPairProgrammingSnippet(variable.name, {
-        variable: variable.name,
-        codeSnippet: '',
-        rationale: '',
-        userNotes: '',
-        accepted: null,
-        generatedAt: new Date(),
-        language: programmingLanguage,
-        error: errorMsg
-      });
+      if (!existingSnippet?.codeSnippet) {
+        // Store error only if there is no previous snippet to fall back on
+        setPairProgrammingSnippet(variable.name, {
+          variable: variable.name,
+          codeSnippet: '',
+          rationale: '',
+          userNotes: '',
+          accepted: null,
+          generatedAt: new Date(),
+          language: programmingLanguage,
+          error: errorMsg
+        });
+      }
     } finally {
       // Always clean up loading state
       if (cleanupRequired) {
@@ -155,17 +189,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     }
   };
 
-  const handleCopyCode = async (variable: string, code: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedVariable(variable);
-      message.success('Code copied to clipboard');
-      setTimeout(() => setCopiedVariable(null), 2000);
-    } catch (error) {
-      message.error('Failed to copy code');
-    }
-  };
-
   const handleNotesChange = (variable: string, notes: string) => {
     setPairProgrammingNotes(variable, notes);
   };
@@ -187,13 +210,31 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   const handleRegenerateWithConfirmation = async (variable: VariableInfo) => {
     const snippet = pairProgramming.snippets[variable.name];
 
-    // If code exists, show confirmation before regenerating
-    if (snippet?.codeSnippet) {
-      await showRegenerateConfirmation(() => handleGenerateSnippet(variable));
-    } else {
-      // No existing code, generate directly
+    if (!snippet) {
       await handleGenerateSnippet(variable);
+      return;
     }
+
+    if (!snippet.codeSnippet) {
+      await handleGenerateSnippet(variable);
+      return;
+    }
+
+    if (snippet.accepted !== 'modify') {
+      message.info('Select "Modify" in the Acceptance column to request updated code.');
+      return;
+    }
+
+    const rawNote = snippet.userNotes || '';
+    const trimmedNote = rawNote.trim();
+    if (!trimmedNote) {
+      message.warning('Add user notes to describe the desired changes before refreshing.');
+      return;
+    }
+
+    await showRegenerateConfirmation(() =>
+      handleGenerateSnippet(variable, { userNote: rawNote })
+    );
   };
 
   if (variables.length === 0) {
@@ -252,6 +293,41 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
               const isGenerating = pairProgramming.isGenerating[variable.name];
               const isCopied = copiedVariable === variable.name;
               const isExpanded = expandedRationale.has(variable.name);
+              const trimmedNotes = snippet?.userNotes?.trim() ?? '';
+              const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
+              const canRegenerate = snippet?.accepted === 'modify' && Boolean(trimmedNotes) && Boolean(snippet?.codeSnippet);
+              const regenerateDisabled = !canRegenerate || !!isGenerating;
+              const regenerateTitle = (() => {
+                if (isGenerating) {
+                  return 'Please wait until this variable finishes generating.';
+                }
+                if (!snippet?.codeSnippet) {
+                  return 'Generate code for this variable first.';
+                }
+                if (snippet?.accepted !== 'modify') {
+                  return 'Select "Modify" to enable note-driven refresh.';
+                }
+                if (!trimmedNotes) {
+                  return 'Add user notes describing the change before refreshing.';
+                }
+                return 'Refresh this snippet using your notes.';
+              })();
+              const notesHint = (() => {
+                if (!snippet?.codeSnippet) {
+                  return 'Generate code to start capturing notes.';
+                }
+                if (snippet?.accepted !== 'modify') {
+                  return 'Select "Modify" when you need to guide the AI.';
+                }
+                if (!trimmedNotes) {
+                  return 'User notes are required to request updated code.';
+                }
+                return 'Notes saved. Click the refresh icon to regenerate.';
+              })();
+              const notesPlaceholder =
+                snippet?.accepted === 'modify'
+                  ? 'Describe the change you expect in this snippet...'
+                  : 'Select "Modify" to enable notes';
 
               // Debug log for first few variables
               if (variables.indexOf(variable) < 3) {
@@ -367,11 +443,19 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                     ) : snippet?.codeSnippet ? (
                       <div className="code-snippet-cell">
                         <div className="code-actions">
+                          {snippet?.metadata?.user_note_applied && (
+                            <span
+                              className="code-badge note-applied"
+                              title={snippet?.metadata?.user_note_summary || 'Generated using user notes'}
+                            >
+                              Notes applied
+                            </span>
+                          )}
                           <button
                             className="regenerate-button"
                             onClick={() => handleRegenerateWithConfirmation(variable)}
-                            disabled={snippet?.accepted === 'accept'}
-                            title={snippet?.accepted === 'accept' ? 'Refresh disabled - Code is accepted. Select "Modify" to enable refresh.' : 'Regenerate code snippet'}
+                            disabled={regenerateDisabled}
+                            title={regenerateTitle}
                           >
                             <RefreshCw size={14} />
                           </button>
@@ -419,14 +503,19 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
                   {/* User Notes */}
                   <td className="col-notes">
-                    <textarea
-                      className={`notes-textarea ${snippet?.accepted === 'modify' ? 'modify-required' : ''}`}
-                      placeholder={snippet?.accepted === 'modify' ? 'Notes required for modifications...' : 'Add notes...'}
-                      value={snippet?.userNotes || ''}
-                      onChange={(e) => handleNotesChange(variable.name, e.target.value)}
-                      rows={3}
-                      disabled={snippet?.accepted === 'accept' || !snippet?.codeSnippet}
-                    />
+                    <div className="notes-field">
+                      <textarea
+                        className={`notes-textarea ${needsNotes ? 'modify-required' : ''}`}
+                        placeholder={notesPlaceholder}
+                        value={snippet?.userNotes || ''}
+                        onChange={(e) => handleNotesChange(variable.name, e.target.value)}
+                        rows={3}
+                        disabled={snippet?.accepted === 'accept' || !snippet?.codeSnippet}
+                      />
+                      <div className={`notes-hint ${needsNotes ? 'warning' : ''}`}>
+                        {notesHint}
+                      </div>
+                    </div>
                   </td>
                 </tr>
               );

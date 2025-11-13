@@ -92,7 +92,11 @@ export const adamApi = {
 
   // Validate code
   validateCode: async (code: string, language: string) => {
-    const response = await apiClient.post('/validate', { code, language });
+    const response = await apiClient.post('/validation/validate', { 
+      code, 
+      language,
+      check_style: true 
+    });
     return response.data;
   },
 
@@ -395,3 +399,4 @@ export const adamApi = {
 };
 
 export default adamApi;
+export { adamApi as api };

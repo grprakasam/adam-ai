@@ -4,7 +4,7 @@ import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from
 import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
-import type { CodeSnippetResponse, VariableCategory, VariableInfo } from '../types';
+import type { VariableCategory } from '../types';
 import { PairProgrammingArea } from './PairProgrammingArea';
 import { useApprovalProgress } from '../hooks/useApprovalProgress';
 import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGenerationDialog';

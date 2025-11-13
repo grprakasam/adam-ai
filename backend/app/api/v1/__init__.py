@@ -9,6 +9,21 @@ api_router = APIRouter()
 
 # Import and include endpoint routers
 from app.api.v1.endpoints import llm_config, specification, code_generation, rules, standards, program_generation, llm_models
+from app.api import auth_routes, validation_routes, performance_routes, review_routes
+
+# Authentication routes (no auth required for these endpoints)
+api_router.include_router(auth_routes.router, tags=["authentication"])
+
+# Validation routes (auth required)
+api_router.include_router(validation_routes.router, tags=["validation"])
+
+# Performance routes (auth required)
+api_router.include_router(performance_routes.router, tags=["performance"])
+
+# Review routes (auth required)
+api_router.include_router(review_routes.router, tags=["reviews"])
+
+# Application routes (auth required)
 api_router.include_router(llm_config.router, prefix="/llm", tags=["llm-config"])
 api_router.include_router(specification.router, prefix="/specification", tags=["specification"])
 api_router.include_router(code_generation.router, prefix="/code-generation", tags=["code-generation"])
