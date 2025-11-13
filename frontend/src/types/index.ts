@@ -9,7 +9,28 @@ export enum LLMProvider {
   GROQ = 'groq',
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
-  GOOGLE = 'google'
+  GOOGLE = 'google',
+  OPENROUTER = 'openrouter'
+}
+
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  context_length: number;
+  pricing?: {
+    prompt: string;
+    completion: string;
+  };
+  description?: string;
+  architecture?: {
+    modality?: string;
+    tokenizer?: string;
+    instruct_type?: string;
+  };
+  top_provider?: {
+    max_completion_tokens?: number;
+    is_moderated?: boolean;
+  };
 }
 
 export interface StudyMetadata {

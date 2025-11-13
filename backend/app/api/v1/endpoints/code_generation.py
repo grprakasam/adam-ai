@@ -3,8 +3,11 @@ API endpoints for code generation using Google Gemini
 """
 
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import StreamingResponse
 from loguru import logger
 from typing import List
+import json
+import asyncio
 
 from app.models.input_models import (
     CodeSnippetRequest,
@@ -99,6 +102,132 @@ async def generate_code_bulk(
             status_code=500,
             detail=f"Code generation failed: {error_msg}"
         )
+
+
+@router.post("/generate-code-bulk-stream")
+async def generate_code_bulk_stream(
+    request: BulkCodeGenerationRequest,
+    service: CodeGeneratorService = Depends(get_service)
+):
+    """
+    Generate code snippets for ALL variables in bulk with real-time progress streaming
+    
+    This endpoint uses Server-Sent Events (SSE) to stream progress updates in real-time.
+    
+    Args:
+        request: Bulk generation request with all variables
+        service: Code generator service (injected)
+        
+    Returns:
+        StreamingResponse with SSE events for progress updates
+        
+    Event format:
+        - event: progress
+        - data: {"status": "started|variable_completed|completed", "total": N, "completed": M, "message": "..."}
+        
+        - event: result
+        - data: [array of CodeSnippetResponse objects]
+        
+        - event: error
+        - data: {"error": "error message"}
+    """
+    # Store progress updates in a queue
+    progress_queue = asyncio.Queue()
+    
+    async def event_generator():
+        try:
+            logger.info(f"Received streaming bulk generation request: study_id={request.study_id}, dataset={request.dataset}")
+            
+            # Validate inputs
+            study_id = validate_study_id(request.study_id)
+            dataset = validate_dataset_type(request.dataset)
+            language = validate_programming_language(request.language)
+            validate_categorized_variables(request.categorized_variables)
+            validate_standards(request.standards)
+
+            logger.info(
+                f"Bulk code generation request (streaming): study={study_id}, "
+                f"dataset={dataset}, language={language}"
+            )
+            
+            # Check if there are any variables to process
+            total_vars = request.categorized_variables.get('total_variables', 0)
+            if total_vars == 0:
+                logger.warning("No variables to generate code for")
+                yield f"event: progress\ndata: {json.dumps({'status': 'completed', 'total': 0, 'completed': 0, 'message': 'No variables to process'})}\n\n"
+                yield f"event: result\ndata: {json.dumps([])}\n\n"
+                return
+
+            # Collect all variables
+            all_variables = service.collect_all_variables(request.categorized_variables)
+            
+            # Build generation context
+            context = service.build_generation_context(
+                study_id=study_id,
+                dataset=dataset,
+                standards=request.standards,
+                categorized_variables=request.categorized_variables
+            )
+            
+            # Progress callback to send SSE updates
+            async def progress_callback(progress_data):
+                await progress_queue.put(progress_data)
+            
+            # Start the generation task
+            generation_task = asyncio.create_task(
+                service.process_variables_with_llm(
+                    variables=all_variables,
+                    language=language,
+                    context=context,
+                    llm_provider=request.llm_provider,
+                    model=request.model,
+                    progress_callback=progress_callback
+                )
+            )
+            
+            # Stream progress updates
+            while not generation_task.done():
+                try:
+                    progress_data = await asyncio.wait_for(progress_queue.get(), timeout=0.1)
+                    event_data = json.dumps(progress_data)
+                    yield f"event: progress\ndata: {event_data}\n\n"
+                except asyncio.TimeoutError:
+                    # Send keepalive
+                    yield ": keepalive\n\n"
+            
+            # Drain any remaining progress updates
+            while not progress_queue.empty():
+                progress_data = await progress_queue.get()
+                event_data = json.dumps(progress_data)
+                yield f"event: progress\ndata: {event_data}\n\n"
+            
+            # Get results
+            results = await generation_task
+            
+            # Send final results
+            logger.info(f"Successfully generated {len(results)} code snippets (streaming)")
+            yield f"event: result\ndata: {json.dumps(results)}\n\n"
+            
+        except CustomValidationError as e:
+            logger.error(f"Validation error: {str(e)}", exc_info=True)
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+        except LLMError as e:
+            logger.error(f"LLM error: {str(e)}", exc_info=True)
+            yield f"event: error\ndata: {json.dumps({'error': f'LLM service error: {str(e)}'})}\n\n"
+        except Exception as e:
+            error_msg = str(e) if str(e) else f"{type(e).__name__}: {repr(e)}"
+            logger.error(f"Bulk code generation failed: {error_msg}", exc_info=True)
+            yield f"event: error\ndata: {json.dumps({'error': f'Code generation failed: {error_msg}'})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
 
 
 @router.post("/generate-code-snippet", response_model=CodeSnippetResponse)

@@ -158,6 +158,108 @@ export const adamApi = {
     });
   },
 
+  // Generate code for all variables in bulk with real-time progress streaming
+  generateCodeBulkStream: (
+    request: {
+      categorized_variables: CategorizationResult;
+      study_id: string;
+      dataset: string;
+      language: 'R' | 'SAS';
+      standards: {
+        sdtm_version: string;
+        adam_ig_version: string;
+        meddra_version: string;
+      };
+      llm_provider?: string;
+    },
+    onProgress: (progress: {
+      status: string;
+      total: number;
+      completed: number;
+      message: string;
+      variable_name?: string;
+      batch?: number;
+      total_batches?: number;
+    }) => void
+  ): Promise<CodeSnippetResponse[]> => {
+    return new Promise((resolve, reject) => {
+      const baseURL = apiClient.defaults.baseURL || '';
+      const url = `${baseURL}/code-generation/generate-code-bulk-stream`;
+      
+      // Use fetch with EventSource fallback
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(request),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let results: CodeSnippetResponse[] = [];
+
+          if (!reader) {
+            throw new Error('No response body');
+          }
+
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+
+            // Decode chunk and add to buffer
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE messages
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith('event: progress')) {
+                continue; // Event type line
+              } else if (line.startsWith('event: result')) {
+                continue; // Event type line
+              } else if (line.startsWith('event: error')) {
+                continue; // Event type line
+              } else if (line.startsWith('data: ')) {
+                const data = line.slice(6); // Remove 'data: ' prefix
+                try {
+                  const parsed = JSON.parse(data);
+                  
+                  // Check if this is a progress update
+                  if (parsed.status) {
+                    onProgress(parsed);
+                  }
+                  // Check if this is the result array
+                  else if (Array.isArray(parsed)) {
+                    results = parsed;
+                  }
+                  // Check if this is an error
+                  else if (parsed.error) {
+                    reject(new Error(parsed.error));
+                    return;
+                  }
+                } catch (e) {
+                  console.error('Failed to parse SSE data:', e, data);
+                }
+              }
+            }
+          }
+
+          resolve(results);
+        })
+        .catch((error) => {
+          reject(error);
+        });
+    });
+  },
+
   // Clear code generation cache
   clearCodeCache: async () => {
     const response = await apiClient.post('/code-generation/clear-cache');
@@ -268,6 +370,27 @@ export const adamApi = {
       const response = await apiClient.post('/program-generation/generate-with-notes', request);
       return response.data;
     });
+  },
+
+  // Get available OpenRouter models
+  getOpenRouterModels: async () => {
+    const response = await apiClient.get('/llm-models/openrouter/models');
+    return response.data;
+  },
+
+  // Get configured LLM providers
+  getProviders: async () => {
+    const response = await apiClient.get('/llm-models/providers');
+    return response.data;
+  },
+
+  // Test LLM connection
+  testLLMConnection: async (provider: string, model?: string) => {
+    const response = await apiClient.post('/llm-models/test-connection', {
+      provider,
+      model
+    });
+    return response.data;
   }
 };
 

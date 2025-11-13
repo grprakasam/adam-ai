@@ -172,7 +172,8 @@ class CodeGeneratorService:
         variable: Dict[str, Any],
         language: str,
         context: Dict[str, Any],
-        llm_provider: Optional[str] = None
+        llm_provider: Optional[str] = None,
+        model: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate code for a single variable (for retry/regeneration)
@@ -181,6 +182,8 @@ class CodeGeneratorService:
             variable: Variable dictionary
             language: Programming language
             context: Generation context
+            llm_provider: LLM provider to use
+            model: Specific model to use (for openrouter)
             
         Returns:
             CodeSnippetResponse dictionary
@@ -211,7 +214,8 @@ class CodeGeneratorService:
                     prompt=code_prompt,
                     temperature=0.2,
                     max_tokens=2000,
-                    provider=llm_provider
+                    provider=llm_provider,
+                    model=model
                 )
                 raw_code = code_response.get('content', '')
                 
@@ -231,7 +235,8 @@ class CodeGeneratorService:
                     prompt=rationale_prompt,
                     temperature=0.3,
                     max_tokens=500,
-                    provider=llm_provider
+                    provider=llm_provider,
+                    model=model
                 )
                 coding_rationale = rationale_response.get('content', '')
                 
@@ -270,7 +275,9 @@ class CodeGeneratorService:
         variables: List[Dict[str, Any]],
         language: str,
         context: Dict[str, Any],
-        llm_provider: Optional[str] = None
+        llm_provider: Optional[str] = None,
+        model: Optional[str] = None,
+        progress_callback=None
     ) -> List[Dict[str, Any]]:
         """
         Process multiple variables using LLM service
@@ -279,7 +286,9 @@ class CodeGeneratorService:
             variables: List of variable dictionaries
             language: Programming language
             context: Generation context
-            llm_provider: LLM provider to use (groq, openai, anthropic, google). If None, uses default.
+            llm_provider: LLM provider to use (groq, openai, anthropic, google, openrouter). If None, uses default.
+            model: Specific model to use (required for openrouter)
+            progress_callback: Optional async callback for progress updates
             
         Returns:
             List of CodeSnippetResponse dictionaries
@@ -288,8 +297,17 @@ class CodeGeneratorService:
         
         results = []
         total_vars = len(variables)
+        completed = 0
         
         logger.info(f"Starting to process {total_vars} variables with LLM service")
+        
+        if progress_callback:
+            await progress_callback({
+                'status': 'started',
+                'total': total_vars,
+                'completed': 0,
+                'message': f'Starting code generation for {total_vars} variables...'
+            })
         
         # Process in batches
         for i in range(0, len(variables), self.batch_size):
@@ -299,28 +317,68 @@ class CodeGeneratorService:
             
             logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} variables)")
             
+            if progress_callback:
+                await progress_callback({
+                    'status': 'batch_started',
+                    'total': total_vars,
+                    'completed': completed,
+                    'batch': batch_num,
+                    'total_batches': total_batches,
+                    'message': f'Processing batch {batch_num} of {total_batches}...'
+                })
+            
             # Create tasks for ALL variables in batch (not just max_concurrent)
             tasks = []
             for variable in batch:
-                tasks.append(self.generate_single_variable(variable, language, context, llm_provider))
+                tasks.append(self.generate_single_variable(variable, language, context, llm_provider, model))
             
             # Execute tasks with concurrency control via semaphore in generate_single_variable
             batch_results = await asyncio.gather(*tasks, return_exceptions=True)
             
             # Process results
             for idx, result in enumerate(batch_results):
+                completed += 1
+                variable_name = batch[idx].get('name', 'Unknown')
+                
                 if isinstance(result, Exception):
-                    logger.error(f"Failed to generate code for {batch[idx].get('name', 'Unknown')}: {str(result)}")
+                    logger.error(f"Failed to generate code for {variable_name}: {str(result)}")
                     # Add error result with correct field names
-                    results.append({
-                        'variable': batch[idx].get('name', 'Unknown'),
+                    error_result = {
+                        'variable': variable_name,
                         'code_snippet': '',
                         'coding_rationale': f"Error: {str(result)}",
                         'error': str(result),
                         'validated': False
-                    })
+                    }
+                    results.append(error_result)
+                    
+                    if progress_callback:
+                        await progress_callback({
+                            'status': 'variable_error',
+                            'total': total_vars,
+                            'completed': completed,
+                            'variable_name': variable_name,
+                            'message': f'Error generating {variable_name}: {str(result)[:100]}'
+                        })
                 else:
                     results.append(result)
+                    
+                    if progress_callback:
+                        await progress_callback({
+                            'status': 'variable_completed',
+                            'total': total_vars,
+                            'completed': completed,
+                            'variable_name': variable_name,
+                            'message': f'Completed {variable_name} ({completed}/{total_vars})'
+                        })
+        
+        if progress_callback:
+            await progress_callback({
+                'status': 'completed',
+                'total': total_vars,
+                'completed': completed,
+                'message': f'Successfully generated code for {total_vars} variables'
+            })
         
         logger.info(f"Completed processing: {len(results)} total results")
         return results

@@ -9,4 +9,56 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
+}
+
+.left-panel-wrapper {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.panel-toggle-btn {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translate(50%, -50%);
+  z-index: 1000;
+  width: 36px;
+  height: 72px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panel-toggle-btn:hover {
+  background: linear-gradient(135deg, #4338ca, #4f46e5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translate(50%, -50%) scale(1.05);
+}
+
+.panel-toggle-btn:active {
+  transform: translate(50%, -50%) scale(0.95);
+}
+
+.panel-toggle-btn.collapsed {
+  left: 0;
+  right: auto;
+  transform: translate(-50%, -50%);
+  border-radius: 0 8px 8px 0;
+}
+
+.panel-toggle-btn.collapsed:hover {
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.panel-toggle-btn.collapsed:active {
+  transform: translate(-50%, -50%) scale(0.95);
 }

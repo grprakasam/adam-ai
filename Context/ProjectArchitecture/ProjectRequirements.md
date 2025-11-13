@@ -9,10 +9,31 @@ The additional references required for ADAM programming is available in  'Conten
 
 
 **Approach:**
-the tool should understand the vaibales given in each row, apply the programming logic specified in appropriate columns through using API call with a Large Language model
-Create a programming logic for the varibale 
+
+There are basically 2 stages in the program generation:
+First is to understand the specifications provided in the excel sheet by the user
+Second is to create the program based on the specifications provided
+**Stage 1 : Understanding the specifications provided in the excel sheet by the user**
+The excel sheet will have multiple rows and columns
+Each row will represent a variable to be created in the ADAM dataset
+Each column will represent the programming logic or the programming conditions to be applied for creating the variable
+
+Based on the rules defined under the 'Context\ADAMRules\' folder,  the tool should be able to understand the different variables with reference to the ADAMRules provided in the 'Context\ADAMRules\' folder
+
+
+
+
+
+**Stage 2 : Creating the program based on the specifications provided**
+
+
+
+
+
+the tool should understand the variables given in each row, apply the programming logic specified in appropriate columns through using API call with a Large Language model
+Create a programming logic for the variable
 Make a user friendly ui interaction to get inputs from user at each stage and buld the program in a logical structured way as defined under the rules in 'Context\ADAMRules\' folder
-consolidate the code for all the varibales 
+consolidate the code for all the variables 
 
 **Expected Final Result:**
 Final code for the entire specification , that will be able to create the ADAM dataset 
