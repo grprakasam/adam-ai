@@ -113,10 +113,6 @@ function App() {
           ) : (
             <>
               <Header
-                language={language}
-                llmProvider={llmProvider}
-                onLanguageChange={setLanguage}
-                onLlmProviderChange={setLlmProvider}
                 onBackToLanding={() => setViewMode('landing')}
               />
 

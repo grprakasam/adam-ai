@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Tabs, message, Modal, Tooltip } from 'antd';
-import { FileSearch, AlertCircle, Loader2, Info, Zap, Download } from 'lucide-react';
+import { Tabs, message, Modal, Tooltip, Button, Select, Progress } from 'antd';
+import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { CodeSnippetResponse, VariableCategory, VariableInfo } from '../types';
@@ -8,6 +9,7 @@ import { PairProgrammingArea } from './PairProgrammingArea';
 import { useApprovalProgress } from '../hooks/useApprovalProgress';
 import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGenerationDialog';
 import { ProgramDownloadModal } from './ProgramDownloadModal';
+import { showNavigationConfirmation } from './ConfirmationDialog';
 import './VariablesAnalysisTab.css';
 
 const { TabPane } = Tabs;
@@ -51,16 +53,28 @@ export const VariablesAnalysisTab: React.FC = () => {
     setIsGenerating,
     setBulkCodeSnippets,
     programmingLanguage,
+    setProgrammingLanguage,
     sdtmVersion,
     adamIgVersion,
     medraVersion,
     tempSpecFile,
     llmProvider,
+    setLlmProvider,
     llmConnectionStatus,
+    selectedModel,
+    setSelectedModel,
+    availableModels,
+    setAvailableModels,
+    llmConnectionMessage,
+    setLlmConnectionStatus,
+    resetWorkspace,
+    getCompletionPercentage,
   } = useProjectStore();
 
   const [activeCategory, setActiveCategory] = useState<string>('0');
   const [error, setError] = useState<string | null>(null);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
   const [bulkGenerationProgress, setBulkGenerationProgress] = useState<{
     isGenerating: boolean;
     current: number;
@@ -115,6 +129,49 @@ export const VariablesAnalysisTab: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specificationFile, categorizedVariables, isCategorizingVariables, projectConfig.adamDataset]);
 
+  // Fetch OpenRouter models when provider is OpenRouter
+  useEffect(() => {
+    const fetchModels = async () => {
+      if (llmProvider === 'openrouter') {
+        if (availableModels.length > 0) {
+          console.log('Models already loaded:', availableModels.length);
+          return;
+        }
+        
+        console.log('Fetching OpenRouter models...');
+        setLoadingModels(true);
+        setModelError(null);
+        
+        try {
+          const models = await adamApi.getOpenRouterModels();
+          console.log('Received models:', models?.length || 0, models);
+          
+          if (!models || models.length === 0) {
+            setModelError('No models available. Check OpenRouter API key configuration.');
+            console.error('No models returned from API');
+            return;
+          }
+          
+          setAvailableModels(models);
+          
+          // Set default model if none selected
+          if (!selectedModel && models.length > 0) {
+            console.log('Setting default model:', models[0].id);
+            setSelectedModel(models[0].id);
+          }
+        } catch (error: any) {
+          const errorMsg = error.response?.data?.detail || error.message || 'Failed to load models';
+          console.error('Failed to fetch OpenRouter models:', errorMsg, error);
+          setModelError(errorMsg);
+        } finally {
+          setLoadingModels(false);
+        }
+      }
+    };
+    
+    fetchModels();
+  }, [llmProvider, availableModels.length, selectedModel, setAvailableModels, setSelectedModel]);
+
   const formatDuration = (seconds: number) => {
     const safeSeconds = Math.max(0, Math.round(seconds));
     const mins = Math.floor(safeSeconds / 60);
@@ -123,6 +180,78 @@ export const VariablesAnalysisTab: React.FC = () => {
       return `${mins}m ${secs.toString().padStart(2, '0')}s`;
     }
     return `${secs}s`;
+  };
+
+  // Test LLM connection
+  const handleTestConnection = async () => {
+    setLlmConnectionStatus('testing', 'Testing connection...');
+    
+    try {
+      console.log('Testing connection to:', llmProvider, 'model:', selectedModel);
+      
+      const result = await adamApi.testLLMConnection(
+        llmProvider,
+        llmProvider === 'openrouter' ? selectedModel || undefined : undefined
+      );
+      
+      if (result.success) {
+        setLlmConnectionStatus('connected', result.message);
+        message.success({
+          content: (
+            <span>
+              <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+              {result.message}
+            </span>
+          ),
+          duration: 3,
+        });
+      } else {
+        setLlmConnectionStatus('failed', result.message);
+        message.error({
+          content: (
+            <span>
+              <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+              {result.message}
+            </span>
+          ),
+          duration: 5,
+        });
+      }
+    } catch (error: any) {
+      const errorMsg = error.response?.data?.detail || error.message || 'Connection test failed';
+      setLlmConnectionStatus('failed', errorMsg);
+      message.error({
+        content: (
+          <span>
+            <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
+            {errorMsg}
+          </span>
+        ),
+        duration: 5,
+      });
+      console.error('Connection test failed:', error);
+    }
+  };
+
+  // Handle workspace refresh
+  const handleRefresh = async () => {
+    const completionPercentage = getCompletionPercentage();
+
+    // If user has made progress, show confirmation
+    if (completionPercentage > 0) {
+      await showNavigationConfirmation(
+        () => {
+          resetWorkspace(); // Reset all workspace state
+          // Reload the page to ensure complete refresh
+          window.location.reload();
+        },
+        'This will reset all your work and start fresh. All uploaded files, configurations, and generated code will be lost. Are you sure you want to continue?'
+      );
+    } else {
+      // No work in progress, just reset and reload
+      resetWorkspace();
+      window.location.reload();
+    }
   };
 
   const handleCategorizeVariables = async () => {
@@ -206,6 +335,23 @@ export const VariablesAnalysisTab: React.FC = () => {
     const totalVariables = categorizedVariables.total_variables;
     const estimatedTime = Math.ceil(totalVariables / 2); // Rough estimate: 2 variables per second
 
+    // Get provider display name
+    const providerNames: Record<string, string> = {
+      groq: '🚀 Groq',
+      openai: '🧠 OpenAI',
+      anthropic: '✨ Anthropic',
+      google: '🌐 Google',
+      openrouter: '🌟 OpenRouter',
+    };
+
+    const getModelDisplay = () => {
+      if (llmProvider === 'openrouter' && selectedModel) {
+        const modelName = selectedModel.split('/').pop() || selectedModel;
+        return `${providerNames[llmProvider]} (${modelName})`;
+      }
+      return providerNames[llmProvider] || 'AI Provider';
+    };
+
     Modal.confirm({
       title: <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <Zap size={20} color="#1890ff" />
@@ -214,28 +360,72 @@ export const VariablesAnalysisTab: React.FC = () => {
       width: 600,
       content: (
         <div style={{ padding: '16px 0' }}>
-          <p style={{ marginBottom: '12px' }}>
-            This will generate code snippets for <strong>{totalVariables} variables</strong> using <strong>Groq AI (llama-3.3-70b)</strong>.
+          <p style={{ marginBottom: '16px', fontSize: '14px' }}>
+            This will generate code snippets for <strong>{totalVariables} variables</strong> using <strong>{getModelDisplay()}</strong>.
           </p>
+          
+          {/* Visual Progress Steps */}
           <div style={{ 
-            background: '#f0f5ff', 
-            padding: '12px', 
-            borderRadius: '6px',
-            marginBottom: '12px'
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            padding: '16px', 
+            borderRadius: '8px',
+            marginBottom: '16px',
+            color: 'white'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <Info size={16} color="#1890ff" />
-              <strong>What to expect:</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <Zap size={16} color="white" />
+              <strong style={{ color: 'white' }}>Generation Pipeline</strong>
             </div>
-            <ul style={{ margin: '8px 0', paddingLeft: '24px' }}>
-              <li>Code will be generated in <strong>{programmingLanguage}</strong></li>
-              <li>Estimated time: <strong>~{estimatedTime} seconds</strong> (Groq is fast!)</li>
-              <li>Each variable will get code + rationale</li>
-              <li>You can review and edit in Pair Programming Area</li>
-            </ul>
+            <div style={{ 
+              background: 'rgba(255,255,255,0.15)', 
+              borderRadius: '6px', 
+              padding: '12px',
+              fontSize: '13px'
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ 
+                    width: '6px', 
+                    height: '6px', 
+                    borderRadius: '50%', 
+                    background: 'white' 
+                  }}></div>
+                  <span>Code generation in <strong>{programmingLanguage}</strong></span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ 
+                    width: '6px', 
+                    height: '6px', 
+                    borderRadius: '50%', 
+                    background: 'white' 
+                  }}></div>
+                  <span>Estimated: ~{estimatedTime} seconds</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ 
+                    width: '6px', 
+                    height: '6px', 
+                    borderRadius: '50%', 
+                    background: 'white' 
+                  }}></div>
+                  <span>Includes code + AI rationale</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ 
+                    width: '6px', 
+                    height: '6px', 
+                    borderRadius: '50%', 
+                    background: 'white' 
+                  }}></div>
+                  <span>Review in Pair Programming Area</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <p style={{ color: '#666', fontSize: '13px', margin: 0 }}>
-            💡 Tip: Variables with similar derivations may be cached for faster generation.
+
+          <p style={{ color: '#666', fontSize: '13px', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Info size={14} color="#1890ff" />
+            <span>Variables with similar derivations may be cached for faster generation</span>
           </p>
         </div>
       ),
@@ -277,18 +467,50 @@ export const VariablesAnalysisTab: React.FC = () => {
         const updateToast = (completed: number, statusLabel: string) => {
           const elapsedSeconds = (Date.now() - startTime) / 1000;
           const etaSeconds = Math.max(0, estimatedTime - elapsedSeconds);
+          const progressPercent = Math.round((completed / total) * 100);
 
           message.open({
             key: progressKey,
             type: 'loading',
             duration: 0,
             content: (
-              <div className="bulk-progress-message">
-                <div style={{ fontWeight: 600 }}>Getting AI inputs</div>
-                <div>{completed}/{total} variables (est.)</div>
-                <div>Status: {statusLabel}</div>
-                <div>
-                  Elapsed: {formatDuration(elapsedSeconds)} • ETA: ~{formatDuration(etaSeconds)}
+              <div className="bulk-progress-message" style={{ width: '320px' }}>
+                <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '14px' }}>
+                  {statusLabel}
+                </div>
+                
+                {/* Visual Progress Bar */}
+                <Progress
+                  percent={progressPercent}
+                  status="active"
+                  strokeColor={{
+                    '0%': '#667eea',
+                    '100%': '#764ba2',
+                  }}
+                  trailColor="#f0f0f0"
+                  strokeWidth={8}
+                  showInfo={false}
+                  style={{ marginBottom: '8px' }}
+                />
+                
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  fontSize: '13px',
+                  marginBottom: '6px'
+                }}>
+                  <span style={{ fontWeight: 500 }}>{completed}/{total} variables</span>
+                  <span style={{ color: '#667eea', fontWeight: 500 }}>{progressPercent}%</span>
+                </div>
+                
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: '#999',
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>⏱️ {formatDuration(elapsedSeconds)}</span>
+                  <span>⏳ ~{formatDuration(etaSeconds)}</span>
                 </div>
               </div>
             ),
@@ -332,18 +554,63 @@ export const VariablesAnalysisTab: React.FC = () => {
             const avgTimePerVar = completed > 0 ? elapsedSeconds / completed : 2;
             const remainingVars = totalVars - completed;
             const etaSeconds = remainingVars * avgTimePerVar;
+            const progressPercent = Math.round((completed / totalVars) * 100);
             
             message.open({
               key: progressKey,
               type: 'loading',
               duration: 0,
               content: (
-                <div className="bulk-progress-message">
-                  <div style={{ fontWeight: 600 }}>Generating AI Code</div>
-                  <div>{completed}/{totalVars} variables</div>
-                  {variable_name && <div style={{ fontSize: '12px', color: '#666' }}>Processing: {variable_name}</div>}
-                  <div>
-                    Elapsed: {formatDuration(elapsedSeconds)} • ETA: ~{formatDuration(etaSeconds)}
+                <div className="bulk-progress-message" style={{ width: '320px' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '14px' }}>
+                    Generating AI Code
+                  </div>
+                  
+                  {/* Visual Progress Bar */}
+                  <Progress
+                    percent={progressPercent}
+                    status="active"
+                    strokeColor={{
+                      '0%': '#667eea',
+                      '100%': '#764ba2',
+                    }}
+                    trailColor="#f0f0f0"
+                    strokeWidth={8}
+                    showInfo={false}
+                    style={{ marginBottom: '8px' }}
+                  />
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    fontSize: '13px',
+                    marginBottom: '6px'
+                  }}>
+                    <span style={{ fontWeight: 500 }}>{completed}/{totalVars} variables</span>
+                    <span style={{ color: '#667eea', fontWeight: 500 }}>{progressPercent}%</span>
+                  </div>
+                  
+                  {variable_name && (
+                    <div style={{ 
+                      fontSize: '12px', 
+                      color: '#666',
+                      marginBottom: '6px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      📝 {variable_name}
+                    </div>
+                  )}
+                  
+                  <div style={{ 
+                    fontSize: '11px', 
+                    color: '#999',
+                    display: 'flex',
+                    justifyContent: 'space-between'
+                  }}>
+                    <span>⏱️ {formatDuration(elapsedSeconds)}</span>
+                    <span>⏳ ~{formatDuration(etaSeconds)}</span>
                   </div>
                 </div>
               ),
@@ -566,6 +833,135 @@ export const VariablesAnalysisTab: React.FC = () => {
 
   return (
     <div className="variables-analysis-tab">
+      {/* Compact AI Configuration Section */}
+      <div className="coding-language-section-compact">
+        <div className="compact-settings-row">
+          {/* Language Selection */}
+          <div className="compact-group">
+            <span className="compact-label">Language:</span>
+            <div className="language-buttons-compact">
+              <Button
+                type={programmingLanguage === 'R' ? 'primary' : 'default'}
+                onClick={() => setProgrammingLanguage('R')}
+                className={programmingLanguage === 'R' ? 'active' : ''}
+              >
+                R
+              </Button>
+              <Button
+                type={programmingLanguage === 'SAS' ? 'primary' : 'default'}
+                onClick={() => setProgrammingLanguage('SAS')}
+                className={programmingLanguage === 'SAS' ? 'active' : ''}
+              >
+                SAS
+              </Button>
+            </div>
+          </div>
+
+          <div className="compact-divider"></div>
+
+          {/* LLM Provider */}
+          <div className="compact-group">
+            <span className="compact-label">Provider:</span>
+            <Select
+              value={llmProvider}
+              onChange={(value) => setLlmProvider(value)}
+              className="compact-select provider-select-compact"
+              placeholder="Provider"
+            >
+              <Select.Option value="groq">🚀 Groq</Select.Option>
+              <Select.Option value="openai">🧠 OpenAI</Select.Option>
+              <Select.Option value="anthropic">✨ Anthropic</Select.Option>
+              <Select.Option value="google">🌐 Google</Select.Option>
+              <Select.Option value="openrouter">🌟 OpenRouter</Select.Option>
+            </Select>
+          </div>
+
+          {/* Model Selection (OpenRouter only) */}
+          {llmProvider === 'openrouter' && (
+            <>
+              <div className="compact-divider"></div>
+              <div className="compact-group model-group-compact">
+                <span className="compact-label">Model:</span>
+                <Select
+                  value={selectedModel}
+                  onChange={(value) => setSelectedModel(value)}
+                  showSearch
+                  optionFilterProp="label"
+                  loading={loadingModels}
+                  className="compact-select model-select-compact"
+                  placeholder="Select Model"
+                  notFoundContent={
+                    modelError ? (
+                      <div style={{ padding: '12px', color: '#ff4d4f', fontSize: '12px' }}>
+                        <AlertCircle size={14} style={{ marginRight: 4 }} />
+                        {modelError}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '12px', color: '#999', fontSize: '12px' }}>
+                        No models available
+                      </div>
+                    )
+                  }
+                >
+                  {availableModels.map(model => (
+                    <Select.Option value={model.id} label={model.name} key={model.id}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontWeight: 500 }}>{model.name}</div>
+                          {model.context_length && (
+                            <small style={{ color: '#999' }}>
+                              {Math.round(model.context_length / 1000)}K context
+                            </small>
+                          )}
+                        </div>
+                      </div>
+                    </Select.Option>
+                  ))}
+                </Select>
+              </div>
+            </>
+          )}
+
+          <div className="compact-divider"></div>
+
+          {/* Connection Test */}
+          <div className="compact-group connection-group-compact">
+            <Tooltip title={llmConnectionMessage || 'Test LLM connection'}>
+              <Button
+                icon={
+                  llmConnectionStatus === 'testing' ? <LoadingOutlined /> :
+                  llmConnectionStatus === 'connected' ? <CheckCircleOutlined /> :
+                  llmConnectionStatus === 'failed' ? <CloseCircleOutlined /> :
+                  <ApiOutlined />
+                }
+                onClick={handleTestConnection}
+                loading={llmConnectionStatus === 'testing'}
+                type={llmConnectionStatus === 'connected' ? 'primary' : 'default'}
+                danger={llmConnectionStatus === 'failed'}
+                className="connection-test-button-compact"
+              >
+                {llmConnectionStatus === 'connected' ? 'Connected' : 
+                 llmConnectionStatus === 'failed' ? 'Failed' : 
+                 'Test'}
+              </Button>
+            </Tooltip>
+            
+            {llmConnectionStatus === 'connected' && (
+              <span className="status-badge-compact success">
+                <span className="status-dot connected"></span>
+                Ready
+              </span>
+            )}
+            {llmConnectionStatus === 'failed' && (
+              <span className="status-badge-compact error">
+                <span className="status-dot failed"></span>
+                Error
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="variables-header">
         <div className="header-left">
           <div className="header-icon">
@@ -592,127 +988,6 @@ export const VariablesAnalysisTab: React.FC = () => {
           </div>
         </div>
         <div className="header-right">
-          <Tooltip
-            title={
-              llmConnectionStatus !== 'connected'
-                ? 'Test the connection first using the "Test Connection" button in the header'
-                : bulkGenerationProgress.isGenerating
-                ? 'Generation in progress...'
-                : 'Generate code snippets for all variables using AI'
-            }
-          >
-            <button
-              className="generate-button primary-action"
-              onClick={handleGenerateCode}
-              disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables || llmConnectionStatus !== 'connected'}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 24px',
-                fontSize: '15px',
-                fontWeight: 600,
-                background: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                  ? '#d9d9d9' 
-                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: 'none',
-                color: '#fff',
-                borderRadius: '8px',
-                cursor: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                  ? 'not-allowed' 
-                  : 'pointer',
-                boxShadow: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                  ? 'none' 
-                  : '0 4px 12px rgba(102, 126, 234, 0.4)',
-                transition: 'all 0.3s ease',
-                opacity: llmConnectionStatus !== 'connected' ? 0.6 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!bulkGenerationProgress.isGenerating && llmConnectionStatus === 'connected') {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                  ? 'none' 
-                  : '0 4px 12px rgba(102, 126, 234, 0.4)';
-              }}
-            >
-              {bulkGenerationProgress.isGenerating ? (
-                <>
-                  <Loader2 size={18} className="spinning" />
-                  <span>Generating... ({bulkGenerationProgress.current}/{bulkGenerationProgress.total})</span>
-                </>
-              ) : (
-                <>
-                  <Zap size={18} />
-                  <span>Get AI Inputs</span>
-                </>
-              )}
-            </button>
-          </Tooltip>
-
-          {/* Generate ADAM Code Button */}
-          <Tooltip
-            title={
-              !isReadyForGeneration
-                ? `${80 - percentage}% more approvals needed (currently ${percentage}%)`
-                : 'Generate complete ADAM program from approved variables'
-            }
-          >
-            <button
-              className="generate-adam-code-button"
-              onClick={handleGenerateADAMCode}
-              disabled={!isReadyForGeneration || isGeneratingFinalCode}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 24px',
-                fontSize: '15px',
-                fontWeight: 600,
-                background: isReadyForGeneration && !isGeneratingFinalCode
-                  ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                  : '#d1d5db',
-                border: 'none',
-                color: '#fff',
-                borderRadius: '8px',
-                cursor: isReadyForGeneration && !isGeneratingFinalCode ? 'pointer' : 'not-allowed',
-                boxShadow: isReadyForGeneration && !isGeneratingFinalCode
-                  ? '0 4px 12px rgba(16, 185, 129, 0.4)'
-                  : 'none',
-                transition: 'all 0.3s ease',
-                animation: isReadyForGeneration ? 'pulse 2s ease-in-out infinite' : 'none',
-              }}
-              onMouseEnter={(e) => {
-                if (isReadyForGeneration && !isGeneratingFinalCode) {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = isReadyForGeneration
-                  ? '0 4px 12px rgba(16, 185, 129, 0.4)'
-                  : 'none';
-              }}
-            >
-              {isGeneratingFinalCode ? (
-                <>
-                  <Loader2 size={18} className="spinning" />
-                  <span>Generating Program...</span>
-                </>
-              ) : (
-                <>
-                  <Download size={18} />
-                  <span>Generate ADAM Code</span>
-                </>
-              )}
-            </button>
-          </Tooltip>
-
           <button
             className="recategorize-button"
             onClick={handleCategorizeVariables}
@@ -720,6 +995,15 @@ export const VariablesAnalysisTab: React.FC = () => {
           >
             <Loader2 size={16} className={isCategorizingVariables ? 'spinning' : ''} />
             Re-categorize
+          </button>
+
+          <button
+            className="refresh-button"
+            onClick={handleRefresh}
+            title="Reset workspace and start fresh"
+          >
+            <RefreshCw size={16} />
+            Refresh
           </button>
         </div>
       </div>
@@ -760,10 +1044,170 @@ export const VariablesAnalysisTab: React.FC = () => {
                   <PairProgrammingArea
                     variables={activeCategoryData.variables}
                     categoryName={activeCategoryData.displayName || activeCategoryData.name}
+                    getAiInputsButton={
+                      <Tooltip
+                        title={
+                          llmConnectionStatus !== 'connected'
+                            ? 'Test the connection first using the "Test Connection" button in the header'
+                            : bulkGenerationProgress.isGenerating
+                            ? 'Generation in progress...'
+                            : 'Generate code snippets for all variables using AI'
+                        }
+                      >
+                        <button
+                          className="generate-button primary-action"
+                          onClick={handleGenerateCode}
+                          disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables || llmConnectionStatus !== 'connected'}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '8px 20px',
+                            fontSize: '14px',
+                            fontWeight: 600,
+                            background: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                              ? '#d9d9d9' 
+                              : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                            border: 'none',
+                            color: '#fff',
+                            borderRadius: '6px',
+                            cursor: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                              ? 'not-allowed' 
+                              : 'pointer',
+                            boxShadow: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                              ? 'none' 
+                              : '0 2px 8px rgba(59, 130, 246, 0.4)',
+                            transition: 'all 0.3s ease',
+                            opacity: llmConnectionStatus !== 'connected' ? 0.6 : 1,
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!bulkGenerationProgress.isGenerating && llmConnectionStatus === 'connected') {
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.5)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
+                              ? 'none' 
+                              : '0 2px 8px rgba(59, 130, 246, 0.4)';
+                          }}
+                        >
+                          {bulkGenerationProgress.isGenerating ? (
+                            <>
+                              <Loader2 size={16} className="spinning" />
+                              <span>Generating... ({bulkGenerationProgress.current}/{bulkGenerationProgress.total})</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap size={16} />
+                              <span>Get AI Inputs</span>
+                            </>
+                          )}
+                        </button>
+                      </Tooltip>
+                    }
                   />
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Bottom Action Area - Generate ADAM Code */}
+          <div className="bottom-action-area" style={{
+            padding: '20px 24px',
+            background: 'linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%)',
+            borderTop: '2px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {isReadyForGeneration ? (
+                <>
+                  <CheckCircleOutlined style={{ fontSize: '24px', color: '#10B981' }} />
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: 600, color: '#10B981' }}>
+                      Ready for Generation!
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                      {percentage}% of variables approved • Click the button to generate complete ADAM program
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Info size={24} color="#f59e0b" />
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: 600, color: '#f59e0b' }}>
+                      Approval Progress: {percentage}%
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                      {80 - percentage}% more approvals needed to generate ADAM program
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <Tooltip
+              title={
+                !isReadyForGeneration
+                  ? `${80 - percentage}% more approvals needed (currently ${percentage}%)`
+                  : 'Generate complete ADAM program from approved variables'
+              }
+            >
+              <button
+                className="generate-adam-code-button-bottom"
+                onClick={handleGenerateADAMCode}
+                disabled={!isReadyForGeneration || isGeneratingFinalCode}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '16px 40px',
+                  fontSize: '18px',
+                  fontWeight: 700,
+                  background: isReadyForGeneration && !isGeneratingFinalCode
+                    ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                    : '#d1d5db',
+                  border: 'none',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  cursor: isReadyForGeneration && !isGeneratingFinalCode ? 'pointer' : 'not-allowed',
+                  boxShadow: isReadyForGeneration && !isGeneratingFinalCode
+                    ? '0 8px 20px rgba(16, 185, 129, 0.5)'
+                    : 'none',
+                  transition: 'all 0.3s ease',
+                  animation: isReadyForGeneration ? 'pulse 2s ease-in-out infinite' : 'none',
+                  minWidth: '280px',
+                }}
+                onMouseEnter={(e) => {
+                  if (isReadyForGeneration && !isGeneratingFinalCode) {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 12px 28px rgba(16, 185, 129, 0.6)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = isReadyForGeneration
+                    ? '0 8px 20px rgba(16, 185, 129, 0.5)'
+                    : 'none';
+                }}
+              >
+                {isGeneratingFinalCode ? (
+                  <>
+                    <Loader2 size={22} className="spinning" />
+                    <span>Generating Program...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={22} />
+                    <span>Generate Complete ADAM Program</span>
+                  </>
+                )}
+              </button>
+            </Tooltip>
           </div>
         </>
       ) : (

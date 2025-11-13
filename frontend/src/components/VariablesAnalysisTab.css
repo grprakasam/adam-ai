@@ -5,7 +5,265 @@
   flex-direction: column;
   height: 100%;
   background: var(--color-background);
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
+}
+
+/* ========== Compact Single-Line Configuration Section ========== */
+.coding-language-section-compact {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.06) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.12);
+  border-radius: 10px;
+  padding: 12px 20px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.06);
+}
+
+.compact-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.compact-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compact-group.model-group-compact {
+  flex: 1;
+  min-width: 250px;
+}
+
+.compact-group.connection-group-compact {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.compact-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #667eea;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+.compact-divider {
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(to bottom, 
+    transparent 0%, 
+    rgba(102, 126, 234, 0.2) 50%, 
+    transparent 100%
+  );
+}
+
+/* Compact Language Buttons */
+.language-buttons-compact {
+  display: flex;
+  gap: 6px;
+}
+
+.language-buttons-compact .ant-btn {
+  min-width: 50px;
+  height: 32px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0 14px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid transparent;
+}
+
+.language-buttons-compact .ant-btn:not(.ant-btn-primary) {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(102, 126, 234, 0.18);
+  color: #667eea;
+}
+
+.language-buttons-compact .ant-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+  box-shadow: 0 3px 12px rgba(102, 126, 234, 0.3);
+  color: white;
+}
+
+.language-buttons-compact .ant-btn:hover:not(.ant-btn-primary) {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(102, 126, 234, 0.35);
+  transform: translateY(-1px);
+}
+
+.language-buttons-compact .ant-btn-primary:hover {
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Compact Select Inputs */
+.compact-select {
+  min-width: 140px;
+}
+
+.compact-select.model-select-compact {
+  width: 100%;
+  max-width: 350px;
+}
+
+.compact-select .ant-select-selector {
+  height: 32px !important;
+  border: 1.5px solid rgba(102, 126, 234, 0.18) !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-radius: 6px !important;
+  padding: 0 12px !important;
+  transition: all 0.25s ease;
+}
+
+.compact-select:hover .ant-select-selector {
+  border-color: rgba(102, 126, 234, 0.35) !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+}
+
+.compact-select .ant-select-selection-item {
+  line-height: 28px !important;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.compact-select .ant-select-arrow {
+  font-size: 11px;
+}
+
+/* Compact Connection Button */
+.connection-test-button-compact {
+  height: 32px !important;
+  padding: 0 16px !important;
+  border-radius: 6px !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  border: 1.5px solid rgba(102, 126, 234, 0.18) !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  color: #667eea !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.connection-test-button-compact:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border-color: rgba(102, 126, 234, 0.35) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.15);
+}
+
+.connection-test-button-compact.ant-btn-primary {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+  box-shadow: 0 3px 12px rgba(82, 196, 26, 0.3);
+}
+
+.connection-test-button-compact.ant-btn-primary:hover {
+  box-shadow: 0 4px 16px rgba(82, 196, 26, 0.4);
+  transform: translateY(-1px);
+}
+
+.connection-test-button-compact.ant-btn-dangerous {
+  background: linear-gradient(135deg, #ff4d4f 0%, #d9363e 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+  box-shadow: 0 3px 12px rgba(255, 77, 79, 0.3);
+}
+
+.connection-test-button-compact.ant-btn-dangerous:hover {
+  box-shadow: 0 4px 16px rgba(255, 77, 79, 0.4);
+}
+
+/* Compact Status Badge */
+.status-badge-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-badge-compact.success {
+  background: rgba(82, 196, 26, 0.1);
+  border: 1px solid rgba(82, 196, 26, 0.25);
+  color: #389e0d;
+}
+
+.status-badge-compact.error {
+  background: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.25);
+  color: #d9363e;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.status-dot.connected {
+  background: #52c41a;
+  box-shadow: 0 0 6px rgba(82, 196, 26, 0.6);
+}
+
+.status-dot.failed {
+  background: #ff4d4f;
+  box-shadow: 0 0 6px rgba(255, 77, 79, 0.6);
+  animation: pulse-error 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes pulse-error {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 6px rgba(255, 77, 79, 0.6);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.9);
+    box-shadow: 0 0 10px rgba(255, 77, 79, 0.8);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+  .compact-settings-row {
+    gap: 16px;
+  }
+  
+  .compact-divider {
+    display: none;
+  }
+}
+
+@media (max-width: 1024px) {
+  .compact-settings-row {
+    gap: 12px;
+  }
+  
+  .compact-group.connection-group-compact {
+    margin-left: 0;
+  }
 }
 
 /* ========== Header Section ========== */
@@ -114,6 +372,37 @@
 
 .recategorize-button svg.spinning {
   animation: spin 1s linear infinite;
+}
+
+.refresh-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: rgba(255, 183, 77, 0.2);
+  border: 1px solid rgba(255, 183, 77, 0.4);
+  border-radius: var(--radius-md);
+  color: white;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(10px);
+}
+
+.refresh-button:hover {
+  background: rgba(255, 183, 77, 0.3);
+  border-color: rgba(255, 183, 77, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 183, 77, 0.2);
+}
+
+.refresh-button svg {
+  transition: transform 0.3s ease;
+}
+
+.refresh-button:hover svg {
+  transform: rotate(180deg);
 }
 
 @keyframes spin {
