@@ -31,7 +31,7 @@ export const ApprovalProgressBar: React.FC = () => {
             }
             format={() => `${percentage}%`}
             style={{ width: '300px' }}
-            strokeWidth={12}
+            size="default"
           />
         </div>
 

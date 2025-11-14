@@ -12,8 +12,6 @@ import { ProgramDownloadModal } from './ProgramDownloadModal';
 import { showNavigationConfirmation } from './ConfirmationDialog';
 import './VariablesAnalysisTab.css';
 
-const { TabPane } = Tabs;
-
 const CATEGORY_DISPLAY_OVERRIDES: Record<string, string> = {
   'Baseline Characteristic Variables': 'Baseline Characteristics',
   'Disposition Variables': 'Disposition',
@@ -378,76 +376,12 @@ export const VariablesAnalysisTab: React.FC = () => {
       width: 600,
       content: (
         <div style={{ padding: '16px 0' }}>
-          <p style={{ marginBottom: '16px', fontSize: '14px' }}>
+          <p style={{ marginBottom: '0', fontSize: '14px' }}>
             This will generate code snippets for <strong>{totalVariables} variables</strong> using <strong>{getModelDisplay()}</strong>.
-          </p>
-          
-          {/* Visual Progress Steps */}
-          <div style={{ 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            padding: '16px', 
-            borderRadius: '8px',
-            marginBottom: '16px',
-            color: 'white'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <Zap size={16} color="white" />
-              <strong style={{ color: 'white' }}>Generation Pipeline</strong>
-            </div>
-            <div style={{ 
-              background: 'rgba(255,255,255,0.15)', 
-              borderRadius: '6px', 
-              padding: '12px',
-              fontSize: '13px'
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    borderRadius: '50%', 
-                    background: 'white' 
-                  }}></div>
-                  <span>Code generation in <strong>{programmingLanguage}</strong></span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    borderRadius: '50%', 
-                    background: 'white' 
-                  }}></div>
-                  <span>Estimated: ~{estimatedTime} seconds</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    borderRadius: '50%', 
-                    background: 'white' 
-                  }}></div>
-                  <span>Includes code + AI rationale</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ 
-                    width: '6px', 
-                    height: '6px', 
-                    borderRadius: '50%', 
-                    background: 'white' 
-                  }}></div>
-                  <span>Review in Pair Programming Area</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <p style={{ color: '#666', fontSize: '13px', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Info size={14} color="#1890ff" />
-            <span>Variables with similar derivations may be cached for faster generation</span>
           </p>
         </div>
       ),
-      okText: 'Generate Code',
+      okText: 'Start Generation',
       cancelText: 'Cancel',
       okButtonProps: { 
         type: 'primary',
@@ -671,7 +605,6 @@ export const VariablesAnalysisTab: React.FC = () => {
 
         } catch (err: any) {
           stopTimer();
-          const status = err.response?.status;
           const errorMsg = err.response?.data?.detail || err.message || 'Failed to generate code';
 
           // Don't populate with mock snippets - just show error and keep cells empty
@@ -851,10 +784,10 @@ export const VariablesAnalysisTab: React.FC = () => {
 
   return (
     <div className="variables-analysis-tab">
-      {/* Compact AI Configuration Section */}
-      <div className="coding-language-section-compact">
-        <div className="compact-settings-row">
-          {/* Language Selection */}
+      {/* Model Configuration Section */}
+      <div className="variables-header-with-config">
+        {/* Left side: Language Selection */}
+        <div className="header-config-left">
           <div className="compact-group">
             <span className="compact-label">Language:</span>
             <div className="language-buttons-compact">
@@ -874,108 +807,113 @@ export const VariablesAnalysisTab: React.FC = () => {
               </Button>
             </div>
           </div>
+        </div>
 
-          <div className="compact-divider"></div>
-
-          {/* LLM Provider */}
-          <div className="compact-group">
-            <span className="compact-label">Provider:</span>
-            <Select
-              value={llmProvider}
-              onChange={(value) => setLlmProvider(value)}
-              className="compact-select provider-select-compact"
-              placeholder="Provider"
-            >
-              <Select.Option value="groq">🚀 Groq</Select.Option>
-              <Select.Option value="openai">🧠 OpenAI</Select.Option>
-              <Select.Option value="anthropic">✨ Anthropic</Select.Option>
-              <Select.Option value="google">🌐 Google</Select.Option>
-              <Select.Option value="openrouter">🌟 OpenRouter</Select.Option>
-            </Select>
-          </div>
-
-          {/* Model Selection (OpenRouter only) */}
-          {llmProvider === 'openrouter' && (
-            <>
-              <div className="compact-divider"></div>
-              <div className="compact-group model-group-compact">
-                <span className="compact-label">Model:</span>
+        {/* Right side: AI Model Configuration Group */}
+        <div className="header-config-right">
+          <div className="ai-model-config-group">
+            <div className="config-group-header">
+              <span className="config-group-icon">🤖</span>
+              <span className="config-group-title">AI Configuration</span>
+            </div>
+            
+            <div className="config-group-content">
+              {/* LLM Provider */}
+              <div className="config-item">
+                <span className="config-label">Provider:</span>
                 <Select
-                  value={selectedModel}
-                  onChange={(value) => setSelectedModel(value)}
-                  showSearch
-                  optionFilterProp="label"
-                  loading={loadingModels}
-                  className="compact-select model-select-compact"
-                  placeholder="Select Model"
-                  notFoundContent={
-                    modelError ? (
-                      <div style={{ padding: '12px', color: '#ff4d4f', fontSize: '12px' }}>
-                        <AlertCircle size={14} style={{ marginRight: 4 }} />
-                        {modelError}
-                      </div>
-                    ) : (
-                      <div style={{ padding: '12px', color: '#999', fontSize: '12px' }}>
-                        No models available
-                      </div>
-                    )
-                  }
+                  value={llmProvider}
+                  onChange={(value) => setLlmProvider(value)}
+                  className="config-select"
+                  placeholder="Provider"
                 >
-                  {availableModels.map(model => (
-                    <Select.Option value={model.id} label={model.name} key={model.id}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <div style={{ fontWeight: 500 }}>{model.name}</div>
-                          {model.context_length && (
-                            <small style={{ color: '#999' }}>
-                              {Math.round(model.context_length / 1000)}K context
-                            </small>
-                          )}
-                        </div>
-                      </div>
-                    </Select.Option>
-                  ))}
+                  <Select.Option value="groq">🚀 Groq</Select.Option>
+                  <Select.Option value="openai">🧠 OpenAI</Select.Option>
+                  <Select.Option value="anthropic">✨ Anthropic</Select.Option>
+                  <Select.Option value="google">🌐 Google</Select.Option>
+                  <Select.Option value="openrouter">🌟 OpenRouter</Select.Option>
                 </Select>
               </div>
-            </>
-          )}
 
-          <div className="compact-divider"></div>
+              {/* Model Selection (OpenRouter only) */}
+              {llmProvider === 'openrouter' && (
+                <div className="config-item">
+                  <span className="config-label">Model:</span>
+                  <Select
+                    value={selectedModel}
+                    onChange={(value) => setSelectedModel(value)}
+                    showSearch
+                    optionFilterProp="label"
+                    loading={loadingModels}
+                    className="config-select"
+                    placeholder="Select Model"
+                    notFoundContent={
+                      modelError ? (
+                        <div style={{ padding: '12px', color: '#ff4d4f', fontSize: '12px' }}>
+                          <AlertCircle size={14} style={{ marginRight: 4 }} />
+                          {modelError}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '12px', color: '#999', fontSize: '12px' }}>
+                          No models available
+                        </div>
+                      )
+                    }
+                  >
+                    {availableModels.map(model => (
+                      <Select.Option value={model.id} label={model.name} key={model.id}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 500 }}>{model.name}</div>
+                            {model.context_length && (
+                              <small style={{ color: '#999' }}>
+                                {Math.round(model.context_length / 1000)}K context
+                              </small>
+                            )}
+                          </div>
+                        </div>
+                      </Select.Option>
+                    ))}
+                  </Select>
+                </div>
+              )}
 
-          {/* Connection Test */}
-          <div className="compact-group connection-group-compact">
-            <Tooltip title={llmConnectionMessage || 'Test LLM connection'}>
-              <Button
-                icon={
-                  llmConnectionStatus === 'testing' ? <LoadingOutlined /> :
-                  llmConnectionStatus === 'connected' ? <CheckCircleOutlined /> :
-                  llmConnectionStatus === 'failed' ? <CloseCircleOutlined /> :
-                  <ApiOutlined />
-                }
-                onClick={handleTestConnection}
-                loading={llmConnectionStatus === 'testing'}
-                type={llmConnectionStatus === 'connected' ? 'primary' : 'default'}
-                danger={llmConnectionStatus === 'failed'}
-                className="connection-test-button-compact"
-              >
-                {llmConnectionStatus === 'connected' ? 'Connected' : 
-                 llmConnectionStatus === 'failed' ? 'Failed' : 
-                 'Test'}
-              </Button>
-            </Tooltip>
-            
-            {llmConnectionStatus === 'connected' && (
-              <span className="status-badge-compact success">
-                <span className="status-dot connected"></span>
-                Ready
-              </span>
-            )}
-            {llmConnectionStatus === 'failed' && (
-              <span className="status-badge-compact error">
-                <span className="status-dot failed"></span>
-                Error
-              </span>
-            )}
+              {/* Connection Test */}
+              <div className="config-item config-item-test">
+                <Tooltip title={llmConnectionMessage || 'Test LLM connection'}>
+                  <Button
+                    icon={
+                      llmConnectionStatus === 'testing' ? <LoadingOutlined /> :
+                      llmConnectionStatus === 'connected' ? <CheckCircleOutlined /> :
+                      llmConnectionStatus === 'failed' ? <CloseCircleOutlined /> :
+                      <ApiOutlined />
+                    }
+                    onClick={handleTestConnection}
+                    loading={llmConnectionStatus === 'testing'}
+                    type={llmConnectionStatus === 'connected' ? 'primary' : 'default'}
+                    danger={llmConnectionStatus === 'failed'}
+                    className="config-test-button"
+                  >
+                    {llmConnectionStatus === 'connected' ? 'Connected' : 
+                     llmConnectionStatus === 'failed' ? 'Failed' : 
+                     'Test Connection'}
+                  </Button>
+                </Tooltip>
+                
+                {llmConnectionStatus === 'connected' && (
+                  <span className="config-status-badge success">
+                    <span className="status-dot connected"></span>
+                    Ready
+                  </span>
+                )}
+                {llmConnectionStatus === 'failed' && (
+                  <span className="config-status-badge error">
+                    <span className="status-dot failed"></span>
+                    Error
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -987,32 +925,50 @@ export const VariablesAnalysisTab: React.FC = () => {
           </div>
           <div className="header-content">
             <h2>Variables Analysis</h2>
-            <div className="header-stats">
-              <div className="stat-item">
-                <span className="stat-value">{categorizedVariables.total_variables}</span>
-                <span className="stat-label">Total Variables</span>
+            <div className="header-stats-visual">
+              <div className="stat-card stat-card-primary">
+                <div className="stat-icon">
+                  <div className="icon-circle">
+                    {categorizedVariables.total_variables}
+                  </div>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label-visual">Total Variables</span>
+                </div>
               </div>
-              <div className="stat-divider">•</div>
-              <div className="stat-item">
-                <span className="stat-value">{categorizedVariables.categorized_count}</span>
-                <span className="stat-label">Categorized</span>
-              </div>
-              <div className="stat-divider">•</div>
-              <div className="stat-item">
-                <span className="stat-value">{categorizedVariables.categories.length}</span>
-                <span className="stat-label">Categories</span>
+              <div className="stat-card stat-card-secondary">
+                <div className="stat-icon">
+                  <div className="icon-circle-alt">
+                    {categorizedVariables.categories.length}
+                  </div>
+                </div>
+                <div className="stat-info">
+                  <span className="stat-label-visual">Categories</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Dataset Display - Centered */}
+        <div className="header-center">
+          <div className="dataset-badge">
+            <div className="dataset-icon">📊</div>
+            <div className="dataset-content">
+              <span className="dataset-label">Dataset</span>
+              <span className="dataset-value">{categorizedVariables?.dataset_type || 'ADSL'}</span>
+            </div>
+          </div>
+        </div>
+
         <div className="header-right">
           <button
             className="recategorize-button"
             onClick={handleCategorizeVariables}
             disabled={isCategorizingVariables}
           >
-            <Loader2 size={16} className={isCategorizingVariables ? 'spinning' : ''} />
-            Re-categorize
+            <Loader2 size={20} className={isCategorizingVariables ? 'spinning' : ''} />
+            Re-analyze Variables
           </button>
 
           <button
@@ -1020,8 +976,8 @@ export const VariablesAnalysisTab: React.FC = () => {
             onClick={handleRefresh}
             title="Reset workspace and start fresh"
           >
-            <RefreshCw size={16} />
-            Refresh
+            <RefreshCw size={20} />
+            Clear All & Restart
           </button>
         </div>
       </div>
@@ -1062,21 +1018,17 @@ export const VariablesAnalysisTab: React.FC = () => {
                 tabPosition="left"
                 className="category-tabs category-tabs-vertical"
                 tabBarGutter={8}
-              >
-                {sortedCategories.map((category, index) => (
-                  <TabPane
-                    tab={
-                      <div className="tab-label">
-                        <span className="tab-name">{category.displayName}</span>
-                        <span className="tab-count">{category.count}</span>
-                      </div>
-                    }
-                    key={index.toString()}
-                  >
-                    {renderCategoryContent(category)}
-                  </TabPane>
-                ))}
-              </Tabs>
+                items={sortedCategories.map((category, index) => ({
+                  key: index.toString(),
+                  label: (
+                    <div className="tab-label">
+                      <span className="tab-name">{category.displayName}</span>
+                      <span className="tab-count">{category.count}</span>
+                    </div>
+                  ),
+                  children: renderCategoryContent(category)
+                }))}
+              />
             </div>
 
             {/* Pair Programming Panel - 70% on the right */}

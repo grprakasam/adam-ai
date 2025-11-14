@@ -171,38 +171,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     }
   };
 
-  const handleGenerateAll = async () => {
-    const ungenerated = variables.filter(v => !pairProgramming.snippets[v.name]);
-
-    if (ungenerated.length === 0) {
-      message.info('All variables already have generated code');
-      return;
-    }
-
-    const executeGeneration = async () => {
-      message.info(`Generating code for ${ungenerated.length} variables...`);
-
-      // Generate sequentially to avoid overwhelming the API
-      for (const variable of ungenerated) {
-        if (!pairProgramming.isGenerating[variable.name]) {
-          await handleGenerateSnippet(variable);
-          // Small delay between requests
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      message.success('Code generation completed for all variables');
-    };
-
-    // If there are already some generated snippets, show confirmation
-    const generatedCount = Object.keys(pairProgramming.snippets).length;
-    if (generatedCount > 0) {
-      await showRegenerateConfirmation(executeGeneration);
-    } else {
-      await executeGeneration();
-    }
-  };
-
   const handleNotesChange = (variable: string, notes: string) => {
     setPairProgrammingNotes(variable, notes);
   };
@@ -273,15 +241,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         </div>
         <div className="header-actions">
           {getAiInputsButton}
-          <button 
-            className="generate-all-button"
-            onClick={handleGenerateAll}
-            disabled={!hasAnySnippets || isAnyVariableGenerating}
-            title={!hasAnySnippets ? 'Run "Get AI Inputs" to populate this panel before refreshing.' : undefined}
-          >
-            <Code2 size={16} />
-            {hasAnySnippets ? 'Refresh Visible' : 'Awaiting AI Inputs'}
-          </button>
         </div>
       </div>
 
