@@ -42,38 +42,73 @@
   margin: 0 auto !important;
 }
 
-.cta-button {
-  height: 50px;
-  font-size: 16px;
-  padding: 0 40px;
-  font-weight: 600;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  transition: all 0.3s ease;
-  border-radius: 8px;
+.cta-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-top: 40px;
 }
 
-.cta-button:hover {
+.cta-card {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 18px;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 15px 40px rgba(15, 23, 42, 0.2);
+}
+
+.cta-card.primary {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.cta-card .cta-caption {
+  margin-top: 12px !important;
+  font-size: 14px !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.cta-button,
+.secondary-button {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.cta-button:hover,
+.secondary-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
 }
 
 .secondary-button {
-  height: 50px;
-  font-size: 16px;
-  padding: 0 40px;
-  font-weight: 600;
   background: rgba(255, 255, 255, 0.15);
   border: 2px solid white;
   color: white;
-  border-radius: 8px;
-  transition: all 0.3s ease;
 }
 
-.secondary-button:hover {
-  background: white !important;
-  color: #667eea !important;
-  border-color: white !important;
-  transform: translateY(-2px);
+.secondary-button.secondary-outline {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.secondary-button.secondary-outline:hover {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #312e81 !important;
+  border-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+.secondary-button.ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.secondary-button.ghost:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
 }
 
 /* Responsive design for smaller laptops (1366x768) */

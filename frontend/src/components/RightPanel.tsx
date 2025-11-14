@@ -13,14 +13,15 @@ interface RightPanelProps {
   isUnlocked: boolean;
   completionPercentage: number;
   onUnlock: () => void;
+  onSwitchProject?: () => void;
 }
 
-const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock }: RightPanelProps) => {
+const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock, onSwitchProject }: RightPanelProps) => {
   const [editedCode, setEditedCode] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
-  const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const validationTimeoutRef = useRef<number | null>(null);
 
   if (!isUnlocked) {
     const progressLabel =
@@ -58,7 +59,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   if (!generationResult) {
     return (
       <div className="right-panel">
-        <VariablesAnalysisTab />
+        <VariablesAnalysisTab onSwitchProject={onSwitchProject} />
       </div>
     );
   }
