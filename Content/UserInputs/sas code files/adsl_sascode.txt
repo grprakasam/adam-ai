@@ -1,0 +1,195 @@
+/**************************************************************************
+* Sample ADSL Creation Code
+* Assumptions:
+*   - Source data: SDTM.DM, SDTM.EX, SDTM.AE
+*   - One record per subject in DM
+*   - Treatment from EX (first exposure)
+*   - Safety population: any subject with any exposure
+*   - ITT/FULL analysis population: all randomized subjects
+**************************************************************************/
+
+/*--- 1. Set libraries ---*/
+libname sdtm  "path-to-sdtm";
+libname adam  "path-to-adam";
+
+/*--- 2. Read in core SDTM domains ---*/
+data dm;
+    set sdtm.dm;
+    where not missing(usubjid);
+run;
+
+data ex;
+    set sdtm.ex;
+    where not missing(usubjid);
+run;
+
+data ae;
+    set sdtm.ae;
+    where not missing(usubjid);
+run;
+
+/*--- 3. Basic DM prep (convert dates, derive age, etc.) ---*/
+/* Assume DM has: BRTHDTC (ISO8601), RFSTDTC, RFENDTC, RACE, SEX, ARM, ARMCD, ACTARM, ACTARMCD */
+
+data dm_pre;
+    set dm;
+
+    /* Study Reference Start/End Dates (numeric SAS dates) */
+    if not missing(rfstdtc) then rfstdt = input(substr(rfstdtc,1,10), yymmdd10.);
+    if not missing(rfendtc) then rfendt = input(substr(rfendtc,1,10), yymmdd10.);
+
+    format rfstdt rfendt date9.;
+
+    /* Birthdate */
+    if not missing(brthdtc) then brthdt = input(substr(brthdtc,1,10), yymmdd10.);
+    format brthdt date9.;
+
+    /* Age at reference start date (simple example) */
+    if not missing(brthdt) and not missing(rfstdt) then
+        age = intck('year', brthdt, rfstdt, 'C');
+
+    /* ITT/FULL population flag: all randomized subjects (ARMCD not missing) */
+    if not missing(armcd) then ittfl = 'Y';
+    else ittfl = 'N';
+run;
+
+/*--- 4. Treatment start/end from EX ---*/
+/* Assume EX: EXSTDTC (start), EXENDTC (end), EXTRT (treatment) */
+
+data ex_pre;
+    set ex;
+    /* convert dates */
+    if not missing(exstdtc) then exstdt = input(substr(exstdtc,1,10), yymmdd10.);
+    if not missing(exendtc) then exendt = input(substr(exendtc,1,10), yymmdd10.);
+    format exstdt exendt date9.;
+run;
+
+/* Derive first and last treatment dates per subject */
+proc sort data=ex_pre;
+    by usubjid exstdt exendt;
+run;
+
+/* First dose */
+data ex_first;
+    set ex_pre;
+    by usubjid exstdt;
+    if first.usubjid;
+    rename exstdt = trtsdt;
+run;
+
+/* Last dose */
+data ex_last;
+    set ex_pre;
+    by usubjid exstdt;
+    if last.usubjid;
+    rename exendt = trtedt;
+run;
+
+/* Merge first/last into one treatment summary dataset */
+data ex_summ;
+    merge ex_first (in=a)
+          ex_last  (in=b);
+    by usubjid;
+    format trtsdt trtedt date9.;
+run;
+
+/*--- 5. Simple safety flag based on any exposure ---*/
+data ex_summ;
+    set ex_summ;
+    if not missing(trtsdt) then saffl = 'Y';
+    else saffl = 'N';
+run;
+
+/*--- 6. Optional: AEs summary for an example variable (e.g., has any AE) ---*/
+proc sort data=ae out=ae_pre;
+    by usubjid;
+run;
+
+data ae_summ;
+    set ae_pre;
+    by usubjid;
+
+    if first.usubjid then has_ae = 0;
+    retain has_ae;
+
+    if not missing(aeterm) then has_ae = 1;  /* Simplified */
+
+    if last.usubjid;
+    if has_ae = 1 then anyae = 'Y';
+    else anyae = 'N';
+
+    keep usubjid anyae;
+run;
+
+/*--- 7. Create ADSL by merging all components ---*/
+proc sort data=dm_pre;   by usubjid; run;
+proc sort data=ex_summ;  by usubjid; run;
+proc sort data=ae_summ;  by usubjid; run;
+
+data adam.adsl;
+    merge dm_pre   (in=indm)
+          ex_summ  (in=inex)
+          ae_summ  (in=inae);
+    by usubjid;
+
+    /* Keep only subjects present in DM (typical). */
+    if not indm then delete;
+
+    /* Final population flags -------------------------------------------- */
+    /* Safety population: any exposure */
+    if missing(saffl) then saffl = 'N';
+
+    /* Full analysis set (FAS/ITT) may be same as ittfl here */
+    fasfl = ittfl;
+
+    /* Example flag: subject had any AE */
+    if missing(anyae) then anyae = 'N';
+
+    /* Analysis visit/analysis dates: TRTSDT/TRTEDT already done */
+    /* Example treatment variables copied from DM or EX */
+    trt01p   = arm;     /* Planned treatment */
+    trt01pn  = .;       /* Could derive coded numeric version */
+    trt01a   = actarm;  /* Actual treatment */
+    trt01an  = .;
+
+    /* Study day variables (example using RFSTDTC as day 1) */
+    if not missing(trtsdt) and not missing(rfstdt) then
+        trtsdy = trtsdt - rfstdt + 1;
+
+    if not missing(trtedt) and not missing(rfstdt) then
+        trtedy = trtedt - rfstdt + 1;
+
+    /* Label and format typical ADSL variables */
+    label
+        usubjid = "Unique Subject Identifier"
+        rfstdt  = "Reference Start Date"
+        rfendt  = "Reference End Date"
+        age     = "Age at Reference Start Date (Years)"
+        sex     = "Sex"
+        race    = "Race"
+        arm     = "Planned Treatment Arm"
+        armcd   = "Planned Treatment Arm Code"
+        actarm  = "Actual Treatment Arm"
+        actarmcd= "Actual Treatment Arm Code"
+        trtsdt  = "Date of First Study Treatment"
+        trtedt  = "Date of Last Study Treatment"
+        trtsdy  = "Study Day of First Study Treatment"
+        trtedy  = "Study Day of Last Study Treatment"
+        ittfl   = "Intent-To-Treat Population Flag"
+        fasfl   = "Full Analysis Set Flag"
+        saffl   = "Safety Population Flag"
+        anyae   = "Subject Had Any Adverse Event (Y/N)"
+        trt01p  = "Planned Treatment for Period 01"
+        trt01a  = "Actual Treatment for Period 01"
+    ;
+
+    format rfstdt rfendt trtsdt trtedt date9.;
+run;
+
+/*--- 8. Simple QC check: one record per subject ---*/
+proc sort data=adam.adsl nodupkey;
+    by usubjid;
+run;
+
+proc contents data=adam.adsl; run;
+proc print data=adam.adsl (obs=10); run;

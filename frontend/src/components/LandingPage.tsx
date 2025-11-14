@@ -70,14 +70,13 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout }:
           <div className="cta-options">
             <div className="cta-card primary">
               <Button 
-                type="primary" 
-                size="large" 
+                size="large"
                 icon={<CodeOutlined />}
                 onClick={onStartProject}
                 className="cta-button"
                 block
               >
-                Get Started
+                ADAM AI Pair Programmer
               </Button>
               <Paragraph className="cta-caption">
                 Launch a new ADAM workspace for a study or project.
@@ -92,7 +91,7 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout }:
                 className="secondary-button secondary-outline"
                 block
               >
-                AI Pair Programmer Tool
+                AI Code Converter
               </Button>
               <Paragraph className="cta-caption">
                 Upload existing SAS/R code, let AI map derivations, and regenerate optimized programs.
