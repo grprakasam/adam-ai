@@ -10,19 +10,54 @@ import './RightPanel.css';
 interface RightPanelProps {
   generationResult: GenerationResponse | null;
   language: ProgrammingLanguage;
+  isUnlocked: boolean;
+  completionPercentage: number;
+  onUnlock: () => void;
 }
 
-const RightPanel = ({ generationResult, language }: RightPanelProps) => {
+const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock }: RightPanelProps) => {
   const [editedCode, setEditedCode] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
   const validationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  if (!isUnlocked) {
+    const progressLabel =
+      completionPercentage >= 80
+        ? 'You can now start generating code'
+        : `Complete ${80 - completionPercentage}% more to unlock pair programming`;
+
+    return (
+      <div className="right-panel locked">
+        <div className="locked-panel">
+          <h3>Pair Programming Locked</h3>
+          <p>{progressLabel}</p>
+          <div className="locked-progress">
+            <div className="locked-progress-bar">
+              <div
+                className="locked-progress-fill"
+                style={{ width: `${Math.min(completionPercentage, 100)}%` }}
+              />
+            </div>
+            <span>{completionPercentage}% complete</span>
+          </div>
+          <Button
+            type="primary"
+            size="large"
+            disabled={completionPercentage < 80}
+            onClick={onUnlock}
+          >
+            Start Programming
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!generationResult) {
     return (
       <div className="right-panel">
-        {/* Variables Analysis (shown in main panel when available) */}
         <VariablesAnalysisTab />
       </div>
     );

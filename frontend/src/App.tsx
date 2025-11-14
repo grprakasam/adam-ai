@@ -5,6 +5,7 @@ import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import LandingPage from './components/LandingPage';
+import ProjectsPage from './components/ProjectsPage';
 import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -12,7 +13,7 @@ import { useProjectStore } from './store/projectStore';
 import type { ProgrammingLanguage, GenerationResponse } from './types';
 import './App.css';
 
-type ViewMode = 'login' | 'landing' | 'workspace';
+type ViewMode = 'login' | 'landing' | 'projects' | 'workspace';
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('login');
@@ -22,6 +23,8 @@ function App() {
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
+  const [selectedStudy, setSelectedStudy] = useState<string | null>(null);
+  const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(false);
 
   // Access Zustand store
   const projectConfig = useProjectStore((state) => state.projectConfig);
@@ -30,8 +33,7 @@ function App() {
   const setSpecificationFile = useProjectStore((state) => state.setSpecificationFile);
   const specificationFile = useProjectStore((state) => state.specificationFile);
   const initializeWorkspace = useProjectStore((state) => state.initializeWorkspace);
-  const llmProvider = useProjectStore((state) => state.llmProvider);
-  const setLlmProvider = useProjectStore((state) => state.setLlmProvider);
+  const completionPercentage = useProjectStore((state) => state.getCompletionPercentage());
 
   // Check for existing authentication on mount
   useEffect(() => {
@@ -67,26 +69,27 @@ function App() {
     message.info('Logged out successfully');
   };
 
-  const handleGenerate = async () => {
-    // Track all state changes for cleanup
-    const cleanupStates = {
-      isGenerating: false,
-    };
+  const handleUnlockPairProgramming = async () => {
+    if (completionPercentage < 80) {
+      message.warning('Complete at least 80% of configuration to start pair programming.');
+      return;
+    }
+
+    if (isRightPanelUnlocked) {
+      message.info('Pair programming is already active.');
+      return;
+    }
 
     try {
       setIsGenerating(true);
-      cleanupStates.isGenerating = true;
-      message.loading({ content: 'Preparing workspace...', key: 'generate', duration: 0 });
+      message.loading({ content: 'Preparing pair programming workspace...', key: 'generate', duration: 0 });
 
-      // Note: Actual code generation endpoint will be implemented in Phase 6
-      // For now, we just show a success message and let user configure the workspace
-
+      setIsRightPanelUnlocked(true);
       message.success({
-        content: 'Workspace ready! Complete all tabs to generate code.',
+        content: 'Pair programming unlocked! You can now generate code.',
         key: 'generate',
         duration: 2
       });
-
     } catch (error) {
       console.error('Workspace error:', error);
       message.error({
@@ -94,18 +97,20 @@ function App() {
         key: 'generate',
         duration: 3
       });
-      // Clean up all states on error
     } finally {
-      // Always clean up generation state
-      if (cleanupStates.isGenerating) {
-        setIsGenerating(false);
-      }
+      setIsGenerating(false);
     }
   };
 
-  const handleStartProject = async () => {
+  const handleStartProject = () => {
+    setViewMode('projects');
+  };
+
+  const handleOpenStudy = async (studyName: string) => {
     // Initialize workspace
     initializeWorkspace();
+    setSelectedStudy(studyName);
+    setIsRightPanelUnlocked(false);
     
     // Move to workspace view
     setViewMode('workspace');
@@ -148,23 +153,28 @@ function App() {
           {viewMode === 'login' ? (
             <LoginPage onLoginSuccess={handleLoginSuccess} />
           ) : viewMode === 'landing' ? (
-            <LandingPage 
-              onStartProject={handleStartProject}
-              currentUser={currentUser}
-              onLogout={handleLogout}
-            />
-          ) : (
-            <>
-              <Header
-                onBackToLanding={() => setViewMode('landing')}
-                currentUser={currentUser}
+      <LandingPage 
+        onStartProject={handleStartProject}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+      />
+    ) : viewMode === 'projects' ? (
+      <ProjectsPage
+        onOpenStudy={handleOpenStudy}
+        onBack={() => setViewMode('landing')}
+        studies={[{ id: 'demo-study-1', name: 'Demo Study 1', sponsor: 'Demo Sponsor', description: 'Sample study showcasing ADAM AI capabilities.' }]}
+      />
+    ) : (
+      <>
+        <Header
+          onBackToLanding={() => setViewMode('landing')}
+          currentUser={currentUser}
                 onLogout={handleLogout}
               />
 
               <div className="main-content">
                 <div className="left-panel-wrapper">
                   <LeftPanel
-                    onGenerate={handleGenerate}
                     activeTab={activeTab}
                     onTabChange={setActiveTab}
                     isCollapsed={isLeftPanelCollapsed}
@@ -181,6 +191,9 @@ function App() {
                 <RightPanel
                   generationResult={generationResult}
                   language={language}
+                  isUnlocked={isRightPanelUnlocked}
+                  completionPercentage={completionPercentage}
+                  onUnlock={handleUnlockPairProgramming}
                 />
               </div>
 

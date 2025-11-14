@@ -1,22 +1,19 @@
 import { useState } from 'react';
-import { Play } from 'lucide-react';
 import { TabNavigation, Tab } from './TabNavigation';
 import ProjectConfigTab from './tabs/ProjectConfigTab';
 import DatasetSelectionTab from './tabs/DatasetSelectionTab';
 import SpecificationUploadTab from './tabs/SpecificationUploadTab';
 import StandardsTab from './tabs/StandardsTab';
-import RulesTab from './tabs/RulesTab';
 import { useProjectStore } from '../store/projectStore';
 import './LeftPanel.css';
 
 interface LeftPanelProps {
-  onGenerate: () => Promise<void>;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
   isCollapsed?: boolean;
 }
 
-const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange, isCollapsed = false }: LeftPanelProps) => {
+const LeftPanel = ({ activeTab: controlledActiveTab, onTabChange, isCollapsed = false }: LeftPanelProps) => {
   // Support both controlled and uncontrolled usage
   const [uncontrolledActive, setUncontrolledActive] = useState<string>(controlledActiveTab || 'project');
   const activeTab = controlledActiveTab ?? uncontrolledActive;
@@ -28,34 +25,26 @@ const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange, is
   // Fixed: Use separate selectors instead of creating new object on every render
   const getTabStatus = useProjectStore((state) => state.getTabStatus);
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
-  const isGenerating = useProjectStore((state) => state.isGenerating);
-  const completionPercentage = getCompletionPercentage();
-  const isReadyToGenerate = completionPercentage >= 80;
 
   const tabs: Tab[] = [
     {
       key: 'project',
-      label: 'Project Information',
+      label: 'Enter Project Information',
       status: getTabStatus('project'),
     },
     {
       key: 'specification',
-      label: 'ADAM Specification',
+      label: 'Upload ADAM Specification',
       status: getTabStatus('specification'),
     },
     {
       key: 'standards',
-      label: 'Select Standards Version',
+      label: 'Choose Standards Version',
       status: getTabStatus('standards'),
     },
     {
-      key: 'rules',
-      label: 'Configure Rules',
-      status: getTabStatus('rules'),
-    },
-    {
       key: 'dataset',
-      label: 'Enter ADAM Dataset Name',
+      label: 'Specify ADAM Dataset Name',
       status: getTabStatus('dataset'),
     },
   ];
@@ -70,8 +59,6 @@ const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange, is
         return <SpecificationUploadTab />;
       case 'standards':
         return <StandardsTab />;
-      case 'rules':
-        return <RulesTab />;
       default:
         return null;
     }
@@ -87,34 +74,6 @@ const LeftPanel = ({ onGenerate, activeTab: controlledActiveTab, onTabChange, is
       
       <div className="tab-panel" role="tabpanel" id={`panel-${activeTab}`}>
         {renderTabContent()}
-      </div>
-      
-      <div className="generate-cta">
-        <div className="generate-meta">
-          <span className={`generate-status ${isReadyToGenerate ? 'ready' : ''}`}>
-            {isReadyToGenerate ? 'Configuration complete' : 'Configuration progress'}
-          </span>
-          <span className={`generate-percentage ${isReadyToGenerate ? 'ready' : ''}`}>
-            {completionPercentage}%
-          </span>
-        </div>
-        <button
-          type="button"
-          className="btn btn-primary btn-lg generate-button"
-          onClick={() => {
-            if (isGenerating) return;
-            void onGenerate();
-          }}
-          disabled={isGenerating || !isReadyToGenerate}
-        >
-          <Play size={18} />
-          {isGenerating ? 'Generating...' : 'Generate ADAM Code'}
-        </button>
-        {!isReadyToGenerate && (
-          <p className="generate-hint">
-            Complete at least 80% of the configuration to enable code generation.
-          </p>
-        )}
       </div>
       
     </div>

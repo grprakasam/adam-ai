@@ -44,15 +44,6 @@ export interface PairProgrammingState {
   isGenerating: Record<string, boolean>;
 }
 
-export interface CdiscConfiguration {
-  adamIgVersion: string;
-  sdtmVersion: string;
-  medraVersion: string;
-  sdtmDomains: string[];
-  controlledTerminology: string;
-  additionalNotes?: string;
-}
-
 interface ProjectStore {
   // Project Configuration
   projectConfig: ProjectConfiguration;
@@ -67,10 +58,6 @@ interface ProjectStore {
   adamIgVersion: string;
   medraVersion: string;
   setStandards: (standards: { sdtmVersion?: string; adamIgVersion?: string; medraVersion?: string }) => void;
-
-  // CDISC Configuration
-  cdiscConfig: CdiscConfiguration | null;
-  setCdiscConfig: (config: CdiscConfiguration) => void;
 
   // Rules
   rules: Rule[];
@@ -158,7 +145,6 @@ const initialState = {
   sdtmVersion: 'SDTM v2.0',
   adamIgVersion: 'ADaM IG v1.3',
   medraVersion: 'MedDRA v27.0',
-  cdiscConfig: null,
   rules: [],
   specificationFile: null,
   tempSpecFile: null,
@@ -204,9 +190,6 @@ export const useProjectStore = create<ProjectStore>()(
           adamIgVersion: standards.adamIgVersion || state.adamIgVersion,
           medraVersion: standards.medraVersion || state.medraVersion,
         })),
-
-      setCdiscConfig: (config) =>
-        set({ cdiscConfig: config }),
 
       addRule: (rule) =>
         set((state) => ({
@@ -361,39 +344,29 @@ export const useProjectStore = create<ProjectStore>()(
       getCompletionPercentage: () => {
         const state = get();
         let completed = 0;
-        let total = 6; // Project Config, Dataset, Specification, Variables, Standards, Rules
+        const total = 5; // Project Config, Dataset, Specification, Variables, Standards
 
-        // Check project config (16.67%)
         if (state.projectConfig.studyId) {
           completed += 1;
         }
 
-        // Check dataset selection (16.67%)
         if (state.projectConfig.adamDataset) {
           completed += 1;
         }
 
-        // Check specification upload (16.67%)
         if (state.specificationFile) {
           completed += 1;
         }
 
-        // Check variables categorization (16.67%)
         if (state.categorizedVariables && state.categorizedVariables.total_variables > 0) {
           completed += 1;
         }
 
-        // Check standards (16.67%)
         if (
           state.sdtmVersion &&
           state.adamIgVersion &&
           state.medraVersion
         ) {
-          completed += 1;
-        }
-
-        // Check rules (16.67%)
-        if (state.rules.length > 0) {
           completed += 1;
         }
 
@@ -441,12 +414,6 @@ export const useProjectStore = create<ProjectStore>()(
               return 'complete';
             }
             return 'incomplete';
-
-          case 'rules':
-            if (state.rules.length > 0) {
-              return 'complete';
-            }
-            return 'not-started';
 
           case 'generate':
             const percentage = get().getCompletionPercentage();
