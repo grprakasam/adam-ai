@@ -237,7 +237,7 @@ const CodeMigrationPage = ({ onBack }: CodeMigrationPageProps) => {
           )}
           <div>
             <Title level={3} style={{ marginBottom: 4 }}>
-              AI Pair Programmer Tool
+              AI Code Converter
             </Title>
             <Paragraph style={{ margin: 0, color: '#6b7280' }}>
               Upload existing ADAM code, review detected variables, and let AI generate an optimized program.

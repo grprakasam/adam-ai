@@ -9,6 +9,13 @@ from typing import Dict, List, Optional, Any
 from loguru import logger
 
 from app.modules.program_generation.service import ProgramGeneratorService
+try:
+    from app.modules.program_generation.models import ConsolidatedCodeRequest, ConsolidatedCodeResponse
+    from app.modules.program_generation.consolidated_service import ConsolidatedCodeService
+    CONSOLIDATED_AVAILABLE = True
+except ImportError as e:
+    CONSOLIDATED_AVAILABLE = False
+    logger.warning(f"Consolidated code generation modules not available: {e}")
 
 
 router = APIRouter(prefix="/program-generation")
@@ -211,5 +218,82 @@ async def generate_program_with_notes(request: ProgramGenerationWithNotesRequest
         raise
     except Exception as e:
         logger.error(f"Error generating program with notes: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Singleton for consolidated service
+_consolidated_service: 'ConsolidatedCodeService' = None
+
+
+def get_consolidated_service() -> 'ConsolidatedCodeService':
+    """Get or create consolidated code service singleton"""
+    global _consolidated_service
+    if _consolidated_service is None and CONSOLIDATED_AVAILABLE:
+        _consolidated_service = ConsolidatedCodeService()
+    return _consolidated_service
+
+
+@router.post("/consolidated", response_model=Dict[str, Any])
+async def generate_consolidated_code(request: ConsolidatedCodeRequest) -> Dict[str, Any]:
+    """
+    Generate consolidated ADAM code from approved variables
+
+    This endpoint provides advanced code generation with:
+    - Category-based assembly following CDISC standards
+    - Code optimization (redundancy removal, performance improvements)
+    - Verbosity-driven documentation (low/medium/high)
+    - CDISC compliance validation
+    - Execution mode selection (API vs Local Ollama)
+
+    Args:
+        request: ConsolidatedCodeRequest with all parameters
+
+    Returns:
+        ConsolidatedCodeResponse with generated code, validation, and metadata
+
+    Raises:
+        HTTPException: If service unavailable or generation fails
+    """
+    try:
+        if not CONSOLIDATED_AVAILABLE:
+            raise HTTPException(
+                status_code=503,
+                detail="Consolidated code generation service not available. Missing required modules."
+            )
+
+        service = get_consolidated_service()
+        if service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to initialize consolidated code service"
+            )
+
+        logger.info(f"Generating consolidated code: {request.dataset} in {request.language}")
+        logger.info(f"Variables: {len(request.approved_variables)}, Mode: {request.execution_mode}")
+
+        # Generate consolidated code
+        result = await service.generate_consolidated_code(request)
+
+        # Convert Pydantic model to dict
+        if hasattr(result, 'dict'):
+            result_dict = result.dict()
+        else:
+            result_dict = result
+
+        if result_dict.get('status') == 'error':
+            error_msg = result_dict.get('message', 'Unknown error')
+            error_code = result_dict.get('error_code', 'GENERATION_ERROR')
+
+            status_code = 400 if error_code in ['VALIDATION_ERROR', 'INSUFFICIENT_APPROVALS'] else 500
+            raise HTTPException(status_code=status_code, detail=error_msg)
+
+        logger.info(f"Consolidated code generated successfully: {result_dict.get('data', {}).get('summary', {}).get('lines_of_code', 0)} lines")
+
+        return result_dict
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating consolidated code: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 

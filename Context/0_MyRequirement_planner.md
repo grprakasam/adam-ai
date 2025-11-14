@@ -2,11 +2,11 @@ Goal
 
 Do the following 
 
-I want to take the role of an expert programmer and also a succesful saas product architect   with deep experience in building scalable applications.
+I want to take the role of an expert programmer and also a successful saas product architect   with deep experience in building scalable applications.
 
-after the existing flow of the pair programming conversation above, I want you to plan and architect to  perform the following tasks:
+after the existing flow of the pair programming conversation , I want you to plan and architect to  perform the following tasks:
 
-when the user is done all the modifications in the code snippets and has approved all the variablesby clicking on the 'Approve' button, it reaches a stage the the user has acknowledged all the logic is fine and we reached a stage to create the consolidated code
+when the user is done all the modifications in the code snippets and has approved all the variables by clicking on the 'Approve' button, it reaches a stage the the user has acknowledged all the logic is fine and we reached a stage to create the consolidated code
 
 To create am industry standard consolidated code based on the variable categorisation done in the previous steps
 , I want you to
