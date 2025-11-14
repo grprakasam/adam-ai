@@ -2,7 +2,6 @@ import React from 'react';
 import {
   FolderKanban,
   Database,
-  FileCode,
   Play,
   LayoutGrid,
   FileText
@@ -35,7 +34,6 @@ const defaultIcons: Record<string, React.ReactNode> = {
   dataset: <LayoutGrid size={20} />,
   specification: <FileText size={20} />,
   standards: <Database size={20} />,
-  rules: <FileCode size={20} />,
   generate: <Play size={20} />,
 };
 

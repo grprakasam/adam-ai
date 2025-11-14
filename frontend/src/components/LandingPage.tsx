@@ -1,14 +1,13 @@
-import { Button, Typography, Space, Tag } from 'antd';
+import { Button, Typography, Space } from 'antd';
 import { 
   RocketOutlined, 
   CodeOutlined,
   LogoutOutlined,
   UserOutlined,
-  SettingOutlined
+  QuestionCircleOutlined
 } from '@ant-design/icons';
 import { useState } from 'react';
-import { CdiscConfigModal, type CdiscConfiguration } from './CdiscConfigModal';
-import { useProjectStore } from '../store/projectStore';
+import HelpPage from './HelpPage';
 import './LandingPage.css';
 
 const { Title, Paragraph } = Typography;
@@ -20,17 +19,7 @@ interface LandingPageProps {
 }
 
 const LandingPage = ({ onStartProject, currentUser, onLogout }: LandingPageProps) => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const { cdiscConfig, setCdiscConfig } = useProjectStore();
-
-  const handleSaveConfig = (config: CdiscConfiguration) => {
-    setCdiscConfig(config);
-    setIsModalVisible(false);
-  };
-
-  const configDisplay = cdiscConfig 
-    ? `${cdiscConfig.adamIgVersion}, ${cdiscConfig.sdtmVersion}` 
-    : 'Not configured';
+  const [isHelpVisible, setIsHelpVisible] = useState(false);
 
   return (
     <div className="landing-page">
@@ -73,9 +62,7 @@ const LandingPage = ({ onStartProject, currentUser, onLogout }: LandingPageProps
             ADAM AI Code Generator
           </Title>
           <Paragraph className="hero-subtitle">
-            Transform your clinical trial data analysis with AI-powered ADAM dataset generation.
-            <br />
-            Professional, compliant code in minutes, not days.
+            ADAM Dataset Creation with AI Assistance
           </Paragraph>
           
           <Space size="large" style={{ marginTop: 32 }}>
@@ -90,38 +77,18 @@ const LandingPage = ({ onStartProject, currentUser, onLogout }: LandingPageProps
             </Button>
             <Button 
               size="large"
-              icon={<SettingOutlined />}
-              onClick={() => setIsModalVisible(true)}
+              icon={<QuestionCircleOutlined />}
+              onClick={() => setIsHelpVisible(true)}
               className="secondary-button"
             >
-              Configure CDISC Standards
-              {cdiscConfig && (
-                <Tag 
-                  color="success" 
-                  style={{ marginLeft: 8 }}
-                >
-                  {configDisplay}
-                </Tag>
-              )}
-            </Button>
-            <Button 
-              size="large"
-              onClick={() => window.open('/api/docs', '_blank')}
-              className="secondary-button"
-            >
-              View API Docs
+              Help
             </Button>
           </Space>
         </div>
       </div>
 
-      {/* CDISC Configuration Modal */}
-      <CdiscConfigModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onSave={handleSaveConfig}
-        currentConfig={cdiscConfig || undefined}
-      />
+      {/* Help Modal */}
+      <HelpPage visible={isHelpVisible} onClose={() => setIsHelpVisible(false)} />
     </div>
   );
 };
