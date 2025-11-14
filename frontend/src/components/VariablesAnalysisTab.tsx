@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Select, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined, SwapOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
@@ -50,7 +50,11 @@ const LAYOUT_PRESETS: Record<
   ultra: { label: 'Ultra Focus', subtitle: '5% / 95%', columns: '5% 95%', pairPercentage: 95 },
 };
 
-export const VariablesAnalysisTab: React.FC = () => {
+interface VariablesAnalysisTabProps {
+  onSwitchProject?: () => void;
+}
+
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSwitchProject }) => {
   const {
     specificationFile,
     projectConfig,
@@ -786,8 +790,18 @@ export const VariablesAnalysisTab: React.FC = () => {
     <div className="variables-analysis-tab">
       {/* Model Configuration Section */}
       <div className="variables-header-with-config">
-        {/* Left side: Language Selection */}
+        {/* Left side: Switch Project & Language Selection */}
         <div className="header-config-left">
+          {onSwitchProject && (
+            <Button
+              icon={<SwapOutlined />}
+              onClick={onSwitchProject}
+              className="switch-project-button"
+              size="large"
+            >
+              Switch Project
+            </Button>
+          )}
           <div className="compact-group">
             <span className="compact-label">Language:</span>
             <div className="language-buttons-compact">

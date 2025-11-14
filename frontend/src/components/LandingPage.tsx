@@ -1,10 +1,11 @@
-import { Button, Typography, Space } from 'antd';
+import { Button, Typography } from 'antd';
 import { 
   RocketOutlined, 
   CodeOutlined,
   LogoutOutlined,
   UserOutlined,
-  QuestionCircleOutlined
+  QuestionCircleOutlined,
+  BranchesOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import HelpPage from './HelpPage';
@@ -14,11 +15,12 @@ const { Title, Paragraph } = Typography;
 
 interface LandingPageProps {
   onStartProject: () => void;
+  onOpenMigration: () => void;
   currentUser?: any;
   onLogout?: () => void;
 }
 
-const LandingPage = ({ onStartProject, currentUser, onLogout }: LandingPageProps) => {
+const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout }: LandingPageProps) => {
   const [isHelpVisible, setIsHelpVisible] = useState(false);
 
   return (
@@ -65,25 +67,53 @@ const LandingPage = ({ onStartProject, currentUser, onLogout }: LandingPageProps
             ADAM Dataset Creation with AI Assistance
           </Paragraph>
           
-          <Space size="large" style={{ marginTop: 32 }}>
-            <Button 
-              type="primary" 
-              size="large" 
-              icon={<CodeOutlined />}
-              onClick={onStartProject}
-              className="cta-button"
-            >
-              Get Started
-            </Button>
-            <Button 
-              size="large"
-              icon={<QuestionCircleOutlined />}
-              onClick={() => setIsHelpVisible(true)}
-              className="secondary-button"
-            >
-              Help
-            </Button>
-          </Space>
+          <div className="cta-options">
+            <div className="cta-card primary">
+              <Button 
+                type="primary" 
+                size="large" 
+                icon={<CodeOutlined />}
+                onClick={onStartProject}
+                className="cta-button"
+                block
+              >
+                Get Started
+              </Button>
+              <Paragraph className="cta-caption">
+                Launch a new ADAM workspace for a study or project.
+              </Paragraph>
+            </div>
+
+            <div className="cta-card secondary">
+              <Button 
+                size="large"
+                icon={<BranchesOutlined />}
+                onClick={onOpenMigration}
+                className="secondary-button secondary-outline"
+                block
+              >
+                AI Pair Programmer Tool
+              </Button>
+              <Paragraph className="cta-caption">
+                Upload existing SAS/R code, let AI map derivations, and regenerate optimized programs.
+              </Paragraph>
+            </div>
+
+            <div className="cta-card tertiary">
+              <Button 
+                size="large"
+                icon={<QuestionCircleOutlined />}
+                onClick={() => setIsHelpVisible(true)}
+                className="secondary-button ghost"
+                block
+              >
+                Help & Guides
+              </Button>
+              <Paragraph className="cta-caption">
+                Access quick-start tutorials, FAQs, and platform tips.
+              </Paragraph>
+            </div>
+          </div>
         </div>
       </div>
 

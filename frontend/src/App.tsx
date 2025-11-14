@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { ConfigProvider, theme, message } from 'antd';
+import { ConfigProvider, theme, message, Modal } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from './components/Header';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import LandingPage from './components/LandingPage';
 import ProjectsPage from './components/ProjectsPage';
+import CodeMigrationPage from './components/CodeMigrationPage';
 import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -13,17 +14,15 @@ import { useProjectStore } from './store/projectStore';
 import type { ProgrammingLanguage, GenerationResponse } from './types';
 import './App.css';
 
-type ViewMode = 'login' | 'landing' | 'projects' | 'workspace';
+type ViewMode = 'login' | 'landing' | 'projects' | 'workspace' | 'migration';
 
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('login');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [language, setLanguage] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
+  const [language] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
-  const [selectedStudy, setSelectedStudy] = useState<string | null>(null);
   const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(false);
 
   // Access Zustand store
@@ -39,12 +38,11 @@ function App() {
   useEffect(() => {
     const token = localStorage.getItem('adam_access_token');
     const userStr = localStorage.getItem('adam_user');
-    
+
     if (token && userStr) {
       try {
         const user = JSON.parse(userStr);
         setCurrentUser(user);
-        setIsAuthenticated(true);
         setViewMode('landing');
       } catch (error) {
         console.error('Invalid stored user data:', error);
@@ -56,7 +54,6 @@ function App() {
 
   const handleLoginSuccess = (data: any) => {
     setCurrentUser(data.user);
-    setIsAuthenticated(true);
     setViewMode('landing');
   };
 
@@ -64,7 +61,6 @@ function App() {
     localStorage.removeItem('adam_access_token');
     localStorage.removeItem('adam_user');
     setCurrentUser(null);
-    setIsAuthenticated(false);
     setViewMode('login');
     message.info('Logged out successfully');
   };
@@ -106,12 +102,29 @@ function App() {
     setViewMode('projects');
   };
 
-  const handleOpenStudy = async (studyName: string) => {
+  const handleOpenMigration = () => {
+    setViewMode('migration');
+  };
+
+  const handleSwitchProject = () => {
+    Modal.confirm({
+      title: 'Switch Project?',
+      content: 'Are you sure you want to switch projects? Any unsaved work will remain in the current project.',
+      okText: 'Switch',
+      cancelText: 'Cancel',
+      onOk: () => {
+        setViewMode('projects');
+        setIsRightPanelUnlocked(false);
+        message.info('Switched to project selection');
+      }
+    });
+  };
+
+  const handleOpenStudy = async (_studyName: string) => {
     // Initialize workspace
     initializeWorkspace();
-    setSelectedStudy(studyName);
     setIsRightPanelUnlocked(false);
-    
+
     // Move to workspace view
     setViewMode('workspace');
 
@@ -153,18 +166,23 @@ function App() {
           {viewMode === 'login' ? (
             <LoginPage onLoginSuccess={handleLoginSuccess} />
           ) : viewMode === 'landing' ? (
-      <LandingPage 
-        onStartProject={handleStartProject}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-      />
-    ) : viewMode === 'projects' ? (
-      <ProjectsPage
-        onOpenStudy={handleOpenStudy}
-        onBack={() => setViewMode('landing')}
-        studies={[{ id: 'demo-study-1', name: 'Demo Study 1', sponsor: 'Demo Sponsor', description: 'Sample study showcasing ADAM AI capabilities.' }]}
-      />
-    ) : (
+          <LandingPage 
+            onStartProject={handleStartProject}
+            onOpenMigration={handleOpenMigration}
+            currentUser={currentUser}
+            onLogout={handleLogout}
+          />
+        ) : viewMode === 'projects' ? (
+          <ProjectsPage
+            onOpenStudy={handleOpenStudy}
+            onBack={() => setViewMode('landing')}
+            studies={[{ id: 'demo-study-1', name: 'Demo Study 1', sponsor: 'Demo Sponsor', description: 'Sample study showcasing ADAM AI capabilities.' }]}
+          />
+        ) : viewMode === 'migration' ? (
+          <CodeMigrationPage
+            onBack={() => setViewMode('landing')}
+          />
+        ) : (
       <>
         <Header
           onBackToLanding={() => setViewMode('landing')}
@@ -194,6 +212,7 @@ function App() {
                   isUnlocked={isRightPanelUnlocked}
                   completionPercentage={completionPercentage}
                   onUnlock={handleUnlockPairProgramming}
+                  onSwitchProject={handleSwitchProject}
                 />
               </div>
 
