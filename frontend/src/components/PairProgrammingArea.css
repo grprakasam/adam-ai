@@ -53,34 +53,6 @@
   gap: 12px;
 }
 
-.generate-all-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(10px);
-}
-
-.generate-all-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.generate-all-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 /* Table Container - Enhanced with better shadows and INCREASED HEIGHT FOR MORE RECORDS */
 .pair-programming-table-container {
   overflow-x: scroll; /* Always show horizontal scrollbar */
@@ -249,13 +221,13 @@
 
 /* Column Widths - Optimized for readability */
 .col-variable {
-  width: 180px;
-  min-width: 170px;
+  width: 200px;
+  min-width: 180px;
 }
 
 .col-label {
-  width: 220px;
-  min-width: 200px;
+  width: 300px;
+  min-width: 250px;
 }
 
 .col-type {

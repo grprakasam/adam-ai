@@ -9,7 +9,11 @@
 }
 
 /* ========== Compact Single-Line Configuration Section ========== */
-.coding-language-section-compact {
+.variables-header-with-config {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
   background: linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.06) 100%);
   border: 1px solid rgba(102, 126, 234, 0.12);
   border-radius: 10px;
@@ -18,11 +22,15 @@
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.06);
 }
 
-.compact-settings-row {
+.header-config-left {
   display: flex;
   align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
+}
+
+.header-config-right {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
 }
 
 .compact-group {
@@ -49,6 +57,24 @@
   color: #667eea;
   white-space: nowrap;
   letter-spacing: 0.3px;
+}
+
+/* Dataset Info Display */
+.dataset-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dataset-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12) 0%, rgba(118, 75, 162, 0.12) 100%);
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1.5px solid rgba(102, 126, 234, 0.25);
+  letter-spacing: 0.5px;
 }
 
 .compact-divider {
@@ -134,6 +160,169 @@
 
 .compact-select .ant-select-arrow {
   font-size: 11px;
+}
+
+/* AI Model Configuration Group */
+.ai-model-config-group {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+  border: 2px solid rgba(102, 126, 234, 0.25);
+  border-radius: 12px;
+  padding: 10px 18px;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.12), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ai-model-config-group:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transform: translateY(-1px);
+}
+
+.config-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 20px;
+  border-right: 2px solid rgba(102, 126, 234, 0.15);
+  flex-shrink: 0;
+}
+
+.config-group-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.config-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #667eea;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.config-group-content {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.config-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.config-item-test {
+  padding-top: 0;
+  padding-left: 16px;
+  border-top: none;
+  border-left: 2px solid rgba(102, 126, 234, 0.15);
+}
+
+.config-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+
+.config-select {
+  width: 280px;
+}
+
+.config-select .ant-select-selector {
+  height: 32px !important;
+  border: 2px solid rgba(102, 126, 234, 0.2) !important;
+  background: white !important;
+  border-radius: 8px !important;
+  padding: 0 12px !important;
+  transition: all 0.25s ease;
+}
+
+.config-select:hover .ant-select-selector {
+  border-color: rgba(102, 126, 234, 0.4) !important;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.12);
+}
+
+.config-select.ant-select-focused .ant-select-selector {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.config-select .ant-select-selection-item {
+  line-height: 28px !important;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.config-test-button {
+  height: 32px !important;
+  padding: 0 16px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+  border: 2px solid rgba(102, 126, 234, 0.2) !important;
+  background: white !important;
+  color: #667eea !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  white-space: nowrap;
+}
+
+.config-test-button:hover {
+  background: #667eea !important;
+  border-color: #667eea !important;
+  color: white !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.config-test-button.ant-btn-primary {
+  background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+}
+
+.config-test-button.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #73d13d 0%, #52c41a 100%) !important;
+}
+
+.config-test-button.ant-btn-dangerous {
+  background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+}
+
+.config-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.config-status-badge.success {
+  background: rgba(82, 196, 26, 0.12);
+  color: #389e0d;
+  border: 1.5px solid rgba(82, 196, 26, 0.3);
+}
+
+.config-status-badge.error {
+  background: rgba(255, 77, 79, 0.12);
+  color: #cf1322;
+  border: 1.5px solid rgba(255, 77, 79, 0.3);
 }
 
 /* Compact Connection Button */
@@ -306,6 +495,71 @@
   color: white;
 }
 
+/* Visual Card-based Stats */
+.header-stats-visual {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 12px 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  min-width: 160px;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.stat-card-primary .icon-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.stat-card-secondary .icon-circle-alt {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label-visual {
+  font-size: 13px;
+  color: #666;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
 .header-stats {
   display: flex;
   align-items: center;
@@ -338,31 +592,137 @@
   font-size: var(--font-size-lg);
 }
 
+/* Header Center - Dataset Badge */
+.header-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dataset-badge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.15) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  padding: 16px 32px;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.dataset-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2),
+              inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.dataset-icon {
+  font-size: 32px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.dataset-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dataset-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.dataset-value {
+  font-size: 24px;
+  color: white;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
 .header-right {
   display: flex;
-  gap: var(--spacing-sm);
+  align-items: center;
+  gap: 16px;
+}
+
+/* Dataset Info in Header */
+.header-dataset-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.header-compact-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.header-dataset-name {
+  font-size: 14px;
+  color: white;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Language Selection in Header */
+.header-language-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.header-language-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.header-language-buttons .ant-btn {
+  height: 28px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .recategorize-button {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: var(--radius-md);
+  gap: 10px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
   color: white;
   cursor: pointer;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-size: 15px;
+  font-weight: 600;
   transition: all var(--transition-fast);
   backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  letter-spacing: 0.3px;
 }
 
 .recategorize-button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
 .recategorize-button:disabled {
@@ -377,24 +737,26 @@
 .refresh-button {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  background: rgba(255, 183, 77, 0.2);
-  border: 1px solid rgba(255, 183, 77, 0.4);
-  border-radius: var(--radius-md);
+  gap: 10px;
+  padding: 12px 24px;
+  background: rgba(255, 183, 77, 0.25);
+  border: 2px solid rgba(255, 183, 77, 0.5);
+  border-radius: 10px;
   color: white;
   cursor: pointer;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  font-size: 15px;
+  font-weight: 600;
   transition: all var(--transition-fast);
   backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(255, 183, 77, 0.25);
+  letter-spacing: 0.3px;
 }
 
 .refresh-button:hover {
-  background: rgba(255, 183, 77, 0.3);
-  border-color: rgba(255, 183, 77, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 183, 77, 0.2);
+  background: rgba(255, 183, 77, 0.35);
+  border-color: rgba(255, 183, 77, 0.7);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 183, 77, 0.35);
 }
 
 .refresh-button svg {
