@@ -1,9 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
+  Alert,
   Button,
   Card,
+  Descriptions,
+  Divider,
   Empty,
   message,
+  Modal,
   Progress,
   Radio,
   Select,
@@ -13,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { DownloadOutlined, RedoOutlined, FileDoneOutlined, CopyOutlined } from '@ant-design/icons';
+import { DownloadOutlined, RedoOutlined, FileDoneOutlined, CopyOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
@@ -45,6 +49,26 @@ export const ConsolidatedCodeTab: React.FC = () => {
     canGenerateConsolidated,
   } = useProjectStore();
   const [activeLanguage, setActiveLanguage] = useState<'R' | 'SAS'>(programmingLanguage);
+  const [elapsedTime, setElapsedTime] = useState<number>(0);
+  const [startTime, setStartTime] = useState<number | null>(null);
+
+  // Real-time elapsed time tracking
+  useEffect(() => {
+    if (isGeneratingConsolidated && !consolidatedCode) {
+      const start = Date.now();
+      setStartTime(start);
+      const interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - start) / 1000);
+        setElapsedTime(elapsed);
+      }, 1000);
+      return () => {
+        clearInterval(interval);
+      };
+    } else {
+      setStartTime(null);
+      setElapsedTime(0);
+    }
+  }, [isGeneratingConsolidated, consolidatedCode]);
 
   const categorizedMap = useMemo(() => {
     const map = new Map<string, { category: string; meta: { type?: string; length?: string; format?: string; label?: string; required?: boolean } }>();
@@ -81,6 +105,63 @@ export const ConsolidatedCodeTab: React.FC = () => {
       });
   };
 
+  const showPreGenerationSummary = () => {
+    const approvedVariables = buildApprovedVariables();
+    const variablesByCategory = new Map<string, string[]>();
+    approvedVariables.forEach(v => {
+      const vars = variablesByCategory.get(v.category) || [];
+      vars.push(v.name);
+      variablesByCategory.set(v.category, vars);
+    });
+
+    Modal.confirm({
+      title: 'Confirm Consolidated Code Generation',
+      width: 650,
+      icon: <CheckCircleOutlined style={{ color: '#52c41a' }} />,
+      content: (
+        <div>
+          <Alert
+            message={`Ready to generate consolidated code for ${approvedVariables.length} approved variables`}
+            type="info"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
+          
+          <Descriptions column={2} size="small" bordered>
+            <Descriptions.Item label="Total Variables">{approvedVariables.length}</Descriptions.Item>
+            <Descriptions.Item label="Categories">{variablesByCategory.size}</Descriptions.Item>
+            <Descriptions.Item label="Language">{activeLanguage}</Descriptions.Item>
+            <Descriptions.Item label="Comment Level">{commentVerbosity}</Descriptions.Item>
+            <Descriptions.Item label="Execution Mode">{executionMode}</Descriptions.Item>
+            <Descriptions.Item label="Dataset">{projectConfig.adamDataset || 'ADSL'}</Descriptions.Item>
+          </Descriptions>
+          
+          <Divider style={{ margin: '12px 0' }}>Variables by Category</Divider>
+          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            {Array.from(variablesByCategory).map(([category, vars]) => (
+              <div key={category} style={{ marginBottom: 8 }}>
+                <Tag color="blue" style={{ marginBottom: 4 }}>{category}</Tag>
+                <div style={{ fontSize: '12px', color: '#666', marginLeft: 8 }}>
+                  {vars.join(', ')}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <Alert
+            message="Estimated time: 30-60 seconds"
+            type="warning"
+            showIcon
+            style={{ marginTop: 16 }}
+          />
+        </div>
+      ),
+      okText: 'Generate Consolidated Code',
+      cancelText: 'Cancel',
+      onOk: performGeneration,
+    });
+  };
+
   const handleGenerate = async () => {
     if (!canGenerateConsolidated()) {
       message.warning('Approve all variables before generating consolidated code.');
@@ -97,6 +178,12 @@ export const ConsolidatedCodeTab: React.FC = () => {
       message.warning('Please complete project configuration and dataset selection.');
       return;
     }
+
+    showPreGenerationSummary();
+  };
+
+  const performGeneration = async () => {
+    const approvedVariables = buildApprovedVariables();
 
     const request: ConsolidatedCodeRequest = {
       study_id: projectConfig.studyId,
@@ -255,11 +342,20 @@ export const ConsolidatedCodeTab: React.FC = () => {
           />
           <Statistic
             title="Status"
-            value={consolidatedStatus || 'Idle'}
+            value={
+              isGeneratingConsolidated
+                ? `${consolidatedStatus || 'Generating'}... (${elapsedTime}s elapsed)`
+                : (consolidatedStatus || 'Idle')
+            }
           />
         </div>
         {isGeneratingConsolidated && (
-          <Progress percent={consolidatedProgress} status="active" />
+          <>
+            <Progress percent={consolidatedProgress} status="active" />
+            <div style={{ textAlign: 'center', marginTop: 8, color: '#1890ff', fontSize: '13px' }}>
+              {consolidatedProgress}% complete • {elapsedTime}s elapsed
+            </div>
+          </>
         )}
       </Card>
 

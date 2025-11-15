@@ -78,6 +78,10 @@ MAX_RETRIES = 3
 RETRY_DELAY = 1.0  # seconds
 RETRY_BACKOFF = 2.0  # exponential backoff multiplier
 
+# Rate limit retry configuration
+RATE_LIMIT_RETRY_DELAY = 60.0  # Wait 60 seconds when rate limited
+RATE_LIMIT_MAX_RETRIES = 2  # Retry rate-limited requests up to 2 times
+
 # Request timeout (seconds)
 REQUEST_TIMEOUT = getattr(settings, 'REQUEST_TIMEOUT', 30)
 
@@ -98,13 +102,28 @@ def retry_on_failure(max_retries: int = MAX_RETRIES):
         async def wrapper(*args, **kwargs):
             last_exception = None
             delay = RETRY_DELAY
+            rate_limit_retries = 0
             
             for attempt in range(max_retries + 1):
                 try:
                     return await func(*args, **kwargs)
-                except LLMRateLimitError:
-                    # Don't retry rate limit errors immediately
-                    raise
+                    
+                except LLMRateLimitError as e:
+                    # Retry rate limit errors with longer delay
+                    last_exception = e
+                    rate_limit_retries += 1
+                    
+                    if rate_limit_retries <= RATE_LIMIT_MAX_RETRIES:
+                        wait_time = RATE_LIMIT_RETRY_DELAY * rate_limit_retries
+                        logger.warning(
+                            f"⏳ Rate limit hit (retry {rate_limit_retries}/{RATE_LIMIT_MAX_RETRIES}), "
+                            f"waiting {wait_time}s before retry: {str(e)}"
+                        )
+                        await asyncio.sleep(wait_time)
+                    else:
+                        logger.error(f"❌ Rate limit retries exhausted: {str(e)}")
+                        raise
+                    
                 except LLMConnectionError as e:
                     last_exception = e
                     if attempt < max_retries:
@@ -116,6 +135,7 @@ def retry_on_failure(max_retries: int = MAX_RETRIES):
                         delay *= RETRY_BACKOFF
                     else:
                         logger.error(f"All retry attempts failed: {str(e)}")
+                        
                 except Exception as e:
                     # For unknown errors, retry but log
                     last_exception = e
@@ -170,6 +190,101 @@ def validate_generation_params(
     # Warn if prompt is very large
     if len(prompt) > 50000:
         logger.warning(f"Large prompt detected: {len(prompt)} characters")
+
+
+# ============================================================================
+# Rate Limiter for Request Throttling
+# ============================================================================
+
+import time
+from collections import deque
+
+
+class TokenBucketRateLimiter:
+    """
+    Token bucket rate limiter to prevent hitting API rate limits
+    Tracks both requests per minute and tokens per minute
+    """
+    
+    def __init__(
+        self,
+        requests_per_minute: int = 30,
+        tokens_per_minute: int = 10000,
+        buffer_factor: float = 0.8  # Use only 80% of limit as safety buffer
+    ):
+        """
+        Initialize rate limiter
+        
+        Args:
+            requests_per_minute: Max requests allowed per minute
+            tokens_per_minute: Max tokens allowed per minute
+            buffer_factor: Safety factor (0-1) to stay below limits
+        """
+        self.max_requests = int(requests_per_minute * buffer_factor)
+        self.max_tokens = int(tokens_per_minute * buffer_factor)
+        self.request_window = deque()
+        self.token_window = deque()
+        self.window_size = 60.0  # 60 seconds
+        
+        logger.info(
+            f"🛡️  Rate limiter initialized: {self.max_requests} req/min, "
+            f"{self.max_tokens} tokens/min (buffer: {buffer_factor*100}%)"
+        )
+    
+    async def acquire(self, estimated_tokens: int = 1000):
+        """
+        Acquire permission to make a request
+        Waits if necessary to stay within rate limits
+        
+        Args:
+            estimated_tokens: Estimated tokens for this request
+        """
+        current_time = time.time()
+        
+        # Clean up old entries
+        self._cleanup_window(current_time)
+        
+        # Check if we need to wait
+        wait_time = self._calculate_wait_time(current_time, estimated_tokens)
+        
+        if wait_time > 0:
+            logger.info(f"⏳ Rate limit throttling: waiting {wait_time:.1f}s")
+            await asyncio.sleep(wait_time)
+            current_time = time.time()
+            self._cleanup_window(current_time)
+        
+        # Record this request
+        self.request_window.append(current_time)
+        self.token_window.append((current_time, estimated_tokens))
+    
+    def _cleanup_window(self, current_time: float):
+        """Remove entries older than the window size"""
+        cutoff_time = current_time - self.window_size
+        
+        while self.request_window and self.request_window[0] < cutoff_time:
+            self.request_window.popleft()
+        
+        while self.token_window and self.token_window[0][0] < cutoff_time:
+            self.token_window.popleft()
+    
+    def _calculate_wait_time(self, current_time: float, estimated_tokens: int) -> float:
+        """Calculate how long to wait before making request"""
+        wait_time = 0.0
+        
+        # Check request count
+        if len(self.request_window) >= self.max_requests:
+            oldest_request = self.request_window[0]
+            wait_for_request = (oldest_request + self.window_size) - current_time
+            wait_time = max(wait_time, wait_for_request)
+        
+        # Check token count
+        total_tokens = sum(tokens for _, tokens in self.token_window)
+        if total_tokens + estimated_tokens > self.max_tokens:
+            oldest_token_time = self.token_window[0][0]
+            wait_for_tokens = (oldest_token_time + self.window_size) - current_time
+            wait_time = max(wait_time, wait_for_tokens)
+        
+        return max(0, wait_time)
 
 
 # ============================================================================
@@ -684,6 +799,39 @@ class LLMIntegrationService:
     
     def __init__(self):
         self.providers: Dict[str, BaseLLMProvider] = {}
+        
+        # Initialize rate limiters for each provider
+        # Groq: 30 requests/min, 14,400/day (tokens ~12,000/min based on error)
+        # Google: 60 requests/min (free tier)
+        self.rate_limiters: Dict[str, TokenBucketRateLimiter] = {
+            'groq': TokenBucketRateLimiter(
+                requests_per_minute=25,  # Conservative limit
+                tokens_per_minute=10000,  # 80% of 12,000 TPM
+                buffer_factor=0.8
+            ),
+            'google': TokenBucketRateLimiter(
+                requests_per_minute=50,
+                tokens_per_minute=30000,
+                buffer_factor=0.8
+            ),
+            # OpenAI and Anthropic are paid, higher limits
+            'openai': TokenBucketRateLimiter(
+                requests_per_minute=200,
+                tokens_per_minute=200000,
+                buffer_factor=0.9
+            ),
+            'anthropic': TokenBucketRateLimiter(
+                requests_per_minute=200,
+                tokens_per_minute=200000,
+                buffer_factor=0.9
+            ),
+            'openrouter': TokenBucketRateLimiter(
+                requests_per_minute=100,
+                tokens_per_minute=100000,
+                buffer_factor=0.9
+            )
+        }
+        
         self._initialize_providers()
     
     def _initialize_provider(
@@ -795,7 +943,7 @@ class LLMIntegrationService:
         **kwargs
     ) -> LLMResponse:
         """
-        Generate response using specified LLM provider
+        Generate response using specified LLM provider with automatic fallback
         
         Args:
             prompt: The prompt to send
@@ -811,7 +959,7 @@ class LLMIntegrationService:
         Raises:
             LLMValidationError: If provider not available or inputs invalid
             LLMConnectionError: If connection to provider fails
-            LLMRateLimitError: If rate limit is exceeded
+            LLMRateLimitError: If all providers hit rate limits
         """
         # Determine provider to use
         provider_to_use = provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'groq')
@@ -829,26 +977,95 @@ class LLMIntegrationService:
                 f"Please configure the API key in .env file."
             )
         
-        llm_provider = self.providers[provider_to_use]
+        # Define fallback provider priority order
+        fallback_order = self._get_fallback_order(provider_to_use)
         
-        # Override model if specified
-        original_model = None
-        if model:
-            original_model = llm_provider.model
-            llm_provider.model = model
-            logger.debug(f"Model override: {original_model} -> {model}")
+        last_error = None
         
-        try:
-            return await llm_provider.generate(
-                prompt=prompt,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                **kwargs
-            )
-        finally:
-            # Restore original model if it was overridden
-            if original_model:
-                llm_provider.model = original_model
+        # Try primary provider first, then fallbacks
+        for idx, current_provider in enumerate(fallback_order):
+            if current_provider not in self.providers:
+                continue
+                
+            llm_provider = self.providers[current_provider]
+            is_fallback = idx > 0
+            
+            # Override model if specified (only for primary provider)
+            original_model = None
+            if model and not is_fallback:
+                original_model = llm_provider.model
+                llm_provider.model = model
+                logger.debug(f"Model override: {original_model} -> {model}")
+            
+            try:
+                if is_fallback:
+                    logger.warning(f"🔄 Attempting fallback to provider: {current_provider}")
+                
+                # Apply rate limiting before making request
+                rate_limiter = self.rate_limiters.get(current_provider)
+                if rate_limiter:
+                    # Estimate tokens: rough estimate based on prompt + max_tokens
+                    estimated_tokens = len(prompt) // 4 + max_tokens
+                    await rate_limiter.acquire(estimated_tokens)
+                    
+                result = await llm_provider.generate(
+                    prompt=prompt,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    **kwargs
+                )
+                
+                if is_fallback:
+                    logger.info(f"✅ Fallback successful using {current_provider}")
+                    
+                return result
+                
+            except LLMRateLimitError as e:
+                last_error = e
+                logger.warning(f"⚠️ Rate limit hit for {current_provider}: {str(e)}")
+                # Try next provider in fallback chain
+                continue
+                
+            except (LLMConnectionError, LLMProviderError) as e:
+                last_error = e
+                logger.warning(f"⚠️ Error with {current_provider}: {str(e)}")
+                # Try next provider in fallback chain
+                continue
+                
+            finally:
+                # Restore original model if it was overridden
+                if original_model:
+                    llm_provider.model = original_model
+        
+        # All providers failed
+        error_msg = f"All providers failed. Last error: {str(last_error)}"
+        logger.error(f"❌ {error_msg}")
+        
+        if isinstance(last_error, LLMRateLimitError):
+            raise LLMRateLimitError(error_msg)
+        else:
+            raise LLMProviderError(error_msg)
+    
+    def _get_fallback_order(self, primary_provider: str) -> List[str]:
+        """
+        Get provider fallback order
+        
+        Args:
+            primary_provider: The primary provider to use
+            
+        Returns:
+            List of provider names in order of preference (primary first)
+        """
+        # Define fallback chains based on cost and availability
+        fallback_chains = {
+            'groq': ['groq', 'google', 'openai', 'anthropic', 'openrouter'],
+            'google': ['google', 'groq', 'openai', 'anthropic', 'openrouter'],
+            'openai': ['openai', 'groq', 'google', 'anthropic', 'openrouter'],
+            'anthropic': ['anthropic', 'openai', 'groq', 'google', 'openrouter'],
+            'openrouter': ['openrouter', 'groq', 'google', 'openai', 'anthropic']
+        }
+        
+        return fallback_chains.get(primary_provider, [primary_provider])
     
     async def validate_provider(self, provider: str) -> bool:
         """

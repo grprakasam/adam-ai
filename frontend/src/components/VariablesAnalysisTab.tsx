@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Select, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined, SwapOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined, SwapOutlined, FileDoneOutlined, LinkOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
@@ -54,9 +54,10 @@ interface VariablesAnalysisTabProps {
   onSwitchProject?: () => void;
   onNavigateToValidation?: () => void;
   onNavigateToConsolidated?: () => void;
+  onNavigateToTraceability?: () => void;
 }
 
-export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSwitchProject, onNavigateToValidation, onNavigateToConsolidated }) => {
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSwitchProject, onNavigateToValidation, onNavigateToConsolidated, onNavigateToTraceability }) => {
   const {
     specificationFile,
     projectConfig,
@@ -119,6 +120,15 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
   const { percentage, isReadyForGeneration } = useApprovalProgress();
   const canGenerateConsolidated = useProjectStore((state) => state.canGenerateConsolidated());
 
+  // Get approved variables count
+  const approvedCount = useProjectStore((state) => {
+    const snippets = state.pairProgramming.snippets;
+    return Object.values(snippets).filter(snippet => snippet.accepted === 'accept').length;
+  });
+
+  // Get traceability generation function
+  const generateTraceability = useProjectStore((state) => state.generateTraceability);
+
   const sortedCategories: DisplayCategory[] = useMemo(() => {
     if (!categorizedVariables?.categories) {
       return [];
@@ -146,9 +156,18 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
   useEffect(() => {
     // Auto-categorize when spec file is uploaded
-    if (specificationFile && !categorizedVariables && !isCategorizingVariables && projectConfig.adamDataset) {
-      handleCategorizeVariables();
-    }
+    const autoCategorize = async () => {
+      if (specificationFile && !categorizedVariables && !isCategorizingVariables && projectConfig.adamDataset) {
+        try {
+          await handleCategorizeVariables();
+        } catch (err) {
+          console.error('Auto-categorization failed:', err);
+          // Error is already handled in handleCategorizeVariables
+        }
+      }
+    };
+
+    autoCategorize();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specificationFile, categorizedVariables, isCategorizingVariables, projectConfig.adamDataset]);
 
@@ -946,7 +965,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
               <div className="stat-card stat-card-primary">
                 <div className="stat-icon">
                   <div className="icon-circle">
-                    {categorizedVariables.total_variables}
+                    {categorizedVariables?.total_variables || 0}
                   </div>
                 </div>
                 <div className="stat-info">
@@ -956,7 +975,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
               <div className="stat-card stat-card-secondary">
                 <div className="stat-icon">
                   <div className="icon-circle-alt">
-                    {categorizedVariables.categories.length}
+                    {categorizedVariables?.categories?.length || 0}
                   </div>
                 </div>
                 <div className="stat-info">
@@ -1163,6 +1182,85 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                 </>
               )}
             </div>
+
+            {/* Call-to-Action for Consolidated Code */}
+            {isReadyForGeneration && !isGeneratingFinalCode && approvedCount > 0 && (
+              <div style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                padding: '20px',
+                borderRadius: '12px',
+                marginBottom: '16px',
+                color: 'white',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+                  <FileDoneOutlined style={{ fontSize: '24px' }} />
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: 600 }}>Ready for Consolidated Code Generation</div>
+                    <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                      You have {approvedCount} approved variables ready for consolidation into an optimized ADAM program.
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<FileDoneOutlined />}
+                  onClick={() => onNavigateToConsolidated && onNavigateToConsolidated()}
+                  style={{
+                    background: 'white',
+                    color: '#667eea',
+                    border: 'none',
+                    fontWeight: 600,
+                    height: '44px',
+                    borderRadius: '8px'
+                  }}
+                >
+                  Go to Consolidated Code Tab
+                </Button>
+              </div>
+            )}
+
+            {/* Call-to-Action for Traceability Matrix */}
+            {!bulkGenerationProgress.isGenerating && approvedCount > 0 && specificationFile && (
+              <div style={{
+                background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)',
+                padding: '20px',
+                borderRadius: '12px',
+                marginBottom: '16px',
+                color: 'white',
+                boxShadow: '0 4px 12px rgba(20, 184, 166, 0.3)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+                  <LinkOutlined style={{ fontSize: '24px' }} />
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: 600 }}>Generate Traceability Matrix</div>
+                    <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                      Create complete SDTM-to-ADAM lineage documentation for {approvedCount} approved variables with AI-powered insights.
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  type="primary"
+                  size="large"
+                  icon={<LinkOutlined />}
+                  onClick={() => {
+                    generateTraceability();
+                    onNavigateToTraceability?.();
+                  }}
+                  style={{
+                    background: 'white',
+                    color: '#14b8a6',
+                    border: 'none',
+                    fontWeight: 600,
+                    height: '44px',
+                    borderRadius: '8px'
+                  }}
+                >
+                  View Traceability Matrix
+                </Button>
+              </div>
+            )}
 
             <Tooltip
               title={

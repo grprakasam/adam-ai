@@ -10,6 +10,7 @@ import type {
   OpenRouterModel,
   ConsolidatedCodeData,
 } from '../types';
+import type { TraceabilityMatrix } from '../types/traceability';
 
 export interface Rule {
   id: string;
@@ -147,6 +148,19 @@ interface ProjectStore {
   // Cleanup helpers
   cleanupLoadingStates: () => void;
   cleanupGenerationStates: () => void;
+
+  // Traceability
+  traceabilityMatrix: TraceabilityMatrix | null;
+  isGeneratingTraceability: boolean;
+  traceabilityError: string | null;
+  selectedTraceabilityVariable: string | null;
+  traceabilityLastGenerated: Date | null;
+  setTraceabilityMatrix: (matrix: TraceabilityMatrix | null) => void;
+  setIsGeneratingTraceability: (generating: boolean) => void;
+  setTraceabilityError: (error: string | null) => void;
+  setSelectedTraceabilityVariable: (variable: string | null) => void;
+  generateTraceability: () => Promise<void>;
+  clearTraceability: () => void;
 }
 
 const initialState = {
@@ -200,6 +214,13 @@ const initialState = {
   consolidatedProgress: 0,
   consolidatedStatus: null as string | null,
   consolidatedDuration: null as number | null,
+
+  // Traceability
+  traceabilityMatrix: null as TraceabilityMatrix | null,
+  isGeneratingTraceability: false,
+  traceabilityError: null as string | null,
+  selectedTraceabilityVariable: null as string | null,
+  traceabilityLastGenerated: null as Date | null,
 };
 
 export const useProjectStore = create<ProjectStore>()(
@@ -529,6 +550,122 @@ export const useProjectStore = create<ProjectStore>()(
           (snippet) => snippet.accepted === 'accept' && !!snippet.codeSnippet
         );
       },
+
+      // Traceability actions
+      setTraceabilityMatrix: (matrix) =>
+        set({
+          traceabilityMatrix: matrix,
+          traceabilityLastGenerated: matrix ? new Date() : null,
+          traceabilityError: null
+        }),
+
+      setIsGeneratingTraceability: (generating) =>
+        set({ isGeneratingTraceability: generating }),
+
+      setTraceabilityError: (error) =>
+        set({ traceabilityError: error }),
+
+      setSelectedTraceabilityVariable: (variable) =>
+        set({ selectedTraceabilityVariable: variable }),
+
+      generateTraceability: async () => {
+        const state = get();
+
+        if (!state.specificationFile) {
+          set({ traceabilityError: 'No specification file uploaded. Upload an Excel spec under Specification tab.' });
+          return;
+        }
+
+        if (!state.projectConfig.studyId) {
+          set({ traceabilityError: 'Study ID not set. Go to Setup and provide a Study ID.' });
+          return;
+        }
+
+        if (!state.projectConfig.adamDataset) {
+          set({ traceabilityError: 'ADaM dataset not selected. Choose a dataset (e.g., ADSL) in Setup.' });
+          return;
+        }
+
+        set({ isGeneratingTraceability: true, traceabilityError: null });
+
+        try {
+          // Collect code snippets
+          const codeSnippets: Record<string, any> = {};
+          Object.entries(state.pairProgramming.snippets).forEach(([variable, snippet]) => {
+            if (snippet.accepted === 'accept' && snippet.codeSnippet) {
+              codeSnippets[variable] = {
+                language: snippet.language,
+                code: snippet.codeSnippet,
+              };
+            }
+          });
+
+          // Call API
+          const response = await fetch('/api/v1/traceability/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              study_id: state.projectConfig.studyId,
+              dataset: state.projectConfig.adamDataset,
+              specification_path: state.specificationFile.path,
+              code_snippets: codeSnippets,
+              include_ai_insights: true,
+              force_refresh: false,
+            }),
+          });
+
+          if (!response.ok) {
+            let detail: string | undefined;
+            try {
+              const data = await response.json();
+              detail = (data && (data.detail || data.message)) ? (data.detail || data.message) : undefined;
+            } catch {
+              try {
+                const text = await response.text();
+                detail = text && text.length < 400 ? text : undefined;
+              } catch {}
+            }
+
+            const statusLine = `HTTP ${response.status} ${response.statusText || ''}`.trim();
+
+            // Friendly hints based on common cases
+            let hint = '';
+            if (response.status === 404) {
+              // Either route not found or spec file missing on server
+              if (!detail || /not found/i.test(detail)) {
+                hint = `Check that backend is running and the specification file exists at '${state.specificationFile.path}' relative to project root.`;
+              }
+            } else if (response.status === 400) {
+              hint = 'The specification format or dataset sheet may be invalid. Ensure the workbook contains a sheet named for the dataset (e.g., ADSL, Variables, Spec, or Sheet1).';
+            } else if (response.status >= 500) {
+              hint = 'Server error during traceability generation. See backend logs for details.';
+            }
+
+            const composed = [statusLine, detail, hint].filter(Boolean).join(' — ');
+            throw new Error(composed || 'Traceability generation failed');
+          }
+
+          const matrix: TraceabilityMatrix = await response.json();
+          set({
+            traceabilityMatrix: matrix,
+            traceabilityLastGenerated: new Date(),
+            traceabilityError: null
+          });
+        } catch (error: any) {
+          const msg = (error && error.message) ? error.message : 'Failed to generate traceability matrix';
+          set({ traceabilityError: msg });
+        } finally {
+          set({ isGeneratingTraceability: false });
+        }
+      },
+
+      clearTraceability: () =>
+        set({
+          traceabilityMatrix: null,
+          traceabilityError: null,
+          selectedTraceabilityVariable: null,
+          traceabilityLastGenerated: null,
+        }),
     }),
     {
       name: 'adam-ai-storage',

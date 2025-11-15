@@ -6,9 +6,11 @@ import {
   UserOutlined,
   QuestionCircleOutlined,
   BranchesOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import HelpPage from './HelpPage';
+import { TestWithDataPanel } from './TestWithDataPanel';
 import './LandingPage.css';
 
 const { Title, Paragraph } = Typography;
@@ -22,6 +24,21 @@ interface LandingPageProps {
 
 const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout }: LandingPageProps) => {
   const [isHelpVisible, setIsHelpVisible] = useState(false);
+  const [isTestDataVisible, setIsTestDataVisible] = useState(false);
+
+  if (isTestDataVisible) {
+    return (
+      <div style={{ padding: '24px', background: '#f5f7fa', minHeight: '100vh' }}>
+        <Button
+          onClick={() => setIsTestDataVisible(false)}
+          style={{ marginBottom: 16 }}
+        >
+          ← Back to Landing
+        </Button>
+        <TestWithDataPanel standalone={true} />
+      </div>
+    );
+  }
 
   return (
     <div className="landing-page">
@@ -80,6 +97,21 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout }:
               </Button>
               <Paragraph className="cta-caption">
                 Launch a new ADAM workspace for a study or project.
+              </Paragraph>
+            </div>
+
+            <div className="cta-card secondary">
+              <Button 
+                size="large"
+                icon={<ExperimentOutlined />}
+                onClick={() => setIsTestDataVisible(true)}
+                className="secondary-button secondary-outline"
+                block
+              >
+                Test With Data
+              </Button>
+              <Paragraph className="cta-caption">
+                Generate mock SDTM datasets for testing your ADAM programs with realistic data.
               </Paragraph>
             </div>
 

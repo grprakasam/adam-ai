@@ -7,6 +7,8 @@ import { api } from '../services/api';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import { MyValidationTab } from './MyValidationTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
+import { TestWithDataPanel } from './TestWithDataPanel';
+import { TraceabilityTab } from './TraceabilityTab';
 import './RightPanel.css';
 
 interface RightPanelProps {
@@ -24,13 +26,13 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
   const validationTimeoutRef = useRef<number | null>(null);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'pair' | 'validation' | 'consolidated'>('pair');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability'>('pair');
 
   if (!isUnlocked) {
     const progressLabel =
       completionPercentage >= 80
         ? 'You can now start generating code'
-        : `Complete ${80 - completionPercentage}% more to unlock pair programming`;
+        : 'Some configuration steps are pending — you can still start and complete them along the way.';
 
     return (
       <div className="right-panel locked">
@@ -49,7 +51,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           <Button
             type="primary"
             size="large"
-            disabled={completionPercentage < 80}
             onClick={onUnlock}
           >
             Start Programming
@@ -60,38 +61,64 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   }
 
   if (!generationResult) {
-    return (
-      <div className="right-panel">
-        <Tabs
-          className="workspace-tabs"
-          activeKey={activeWorkspaceTab}
-          onChange={(key) => setActiveWorkspaceTab(key as 'pair' | 'validation' | 'consolidated')}
-          items={[
-            {
-              key: 'pair',
-              label: 'Pair Programming',
-              children: (
-                <VariablesAnalysisTab
-                  onSwitchProject={onSwitchProject}
-                  onNavigateToValidation={() => setActiveWorkspaceTab('validation')}
-                  onNavigateToConsolidated={() => setActiveWorkspaceTab('consolidated')}
-                />
-              ),
-            },
-            {
-              key: 'validation',
-              label: 'My Validation',
-              children: <MyValidationTab />,
-            },
-            {
-              key: 'consolidated',
-              label: 'Consolidated Code',
-              children: <ConsolidatedCodeTab />,
-            },
-          ]}
-        />
-      </div>
-    );
+    try {
+      return (
+        <div className="right-panel">
+          <Tabs
+            className="workspace-tabs"
+            activeKey={activeWorkspaceTab}
+            onChange={(key) => setActiveWorkspaceTab(key as 'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability')}
+            items={[
+              {
+                key: 'pair',
+                label: 'Pair Programming',
+                children: (
+                  <VariablesAnalysisTab
+                    onSwitchProject={onSwitchProject}
+                    onNavigateToValidation={() => setActiveWorkspaceTab('validation')}
+                    onNavigateToConsolidated={() => setActiveWorkspaceTab('consolidated')}
+                    onNavigateToTraceability={() => setActiveWorkspaceTab('traceability')}
+                  />
+                ),
+              },
+              {
+                key: 'validation',
+                label: 'My Validation',
+                children: <MyValidationTab />,
+              },
+              {
+                key: 'consolidated',
+                label: 'Consolidated Code',
+                children: <ConsolidatedCodeTab />,
+              },
+              {
+                key: 'testdata',
+                label: 'Test With Data',
+                children: <TestWithDataPanel standalone={false} />,
+              },
+              {
+                key: 'traceability',
+                label: 'Traceability',
+                children: <TraceabilityTab />,
+              },
+            ]}
+          />
+        </div>
+      );
+    } catch (error) {
+      console.error('RightPanel render error:', error);
+      return (
+        <div className="right-panel">
+          <div style={{ padding: '40px', textAlign: 'center' }}>
+            <h3>Unable to load workspace</h3>
+            <p>Please refresh the page and try again.</p>
+            <Button type="primary" onClick={() => window.location.reload()}>
+              Refresh Page
+            </Button>
+          </div>
+        </div>
+      );
+    }
   }
 
   // Handle code editing
@@ -207,9 +234,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           }}
         />
       </Card>
-
-      {/* Variables Analysis below the generated code */}
-      <VariablesAnalysisTab />
 
       {/* Validation Results */}
       <Card 

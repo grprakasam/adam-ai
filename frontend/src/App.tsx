@@ -17,6 +17,11 @@ import './App.css';
 type ViewMode = 'login' | 'landing' | 'projects' | 'workspace' | 'migration';
 
 function App() {
+  useEffect(() => {
+    const handler = (e: any) => { try { const tab = e?.detail?.tab; if (tab) setActiveTab(tab); } catch {} };
+    window.addEventListener('adam-ai:open-left-tab', handler as any);
+    return () => window.removeEventListener('adam-ai:open-left-tab', handler as any);
+  }, []);
   const [viewMode, setViewMode] = useState<ViewMode>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [language] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
@@ -66,11 +71,7 @@ function App() {
   };
 
   const handleUnlockPairProgramming = async () => {
-    if (completionPercentage < 80) {
-      message.warning('Complete at least 80% of configuration to start pair programming.');
-      return;
-    }
-
+    // Allow unlocking regardless of completion percentage.
     if (isRightPanelUnlocked) {
       message.info('Pair programming is already active.');
       return;
@@ -82,7 +83,9 @@ function App() {
 
       setIsRightPanelUnlocked(true);
       message.success({
-        content: 'Pair programming unlocked! You can now generate code.',
+        content: completionPercentage < 80
+          ? 'Pair programming unlocked. Some configuration steps are still pending.'
+          : 'Pair programming unlocked! You can now generate code.',
         key: 'generate',
         duration: 2
       });
@@ -176,7 +179,14 @@ function App() {
           <ProjectsPage
             onOpenStudy={handleOpenStudy}
             onBack={() => setViewMode('landing')}
-            studies={[{ id: 'demo-study-1', name: 'Demo Study 1', sponsor: 'Demo Sponsor', description: 'Sample study showcasing ADAM AI capabilities.' }]}
+            studies={[{ 
+              id: 'demo-study-1', 
+              name: 'Demo Study 1', 
+              sponsor: 'Demo Sponsor', 
+              therapeuticArea: 'General Medicine',
+              description: 'Sample study showcasing ADAM AI capabilities.',
+              lastUpdated: 'Updated today'
+            }]}
           />
         ) : viewMode === 'migration' ? (
           <CodeMigrationPage
@@ -227,3 +237,4 @@ function App() {
 }
 
 export default App;
+

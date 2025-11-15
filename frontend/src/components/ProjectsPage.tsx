@@ -41,6 +41,140 @@ const ProjectsPage = ({
 
   return (
     <div className="projects-page">
+      {/* Hero Intelligence Banner - Top Priority */}
+      <div className="hero-intelligence-banner">
+        <div className="intelligence-glow"></div>
+        <div className="intelligence-content">
+          <div className="intelligence-badge">
+            <Sparkles size={18} className="sparkle-icon" />
+            <span>AI-Powered Workflow</span>
+            <Sparkles size={18} className="sparkle-icon" />
+          </div>
+          <Title level={1} className="intelligence-title">
+            Your Journey to ADAM Code
+          </Title>
+          <Paragraph className="intelligence-subtitle">
+            Experience seamless automation from study selection to production-ready code
+          </Paragraph>
+          
+          <div className="workflow-steps-container">
+            <div className="workflow-step active">
+              <div className="step-icon-wrapper">
+                <div className="step-pulse"></div>
+                <FolderOpenOutlined className="step-icon" />
+              </div>
+              <div className="step-content">
+                <div className="step-title">Select Study</div>
+                <div className="step-description">Choose your project workspace</div>
+              </div>
+              <div className="step-number">1</div>
+            </div>
+            
+            <div className="step-connector"></div>
+            
+            <div className="workflow-step">
+              <div className="step-icon-wrapper">
+                <FileTextOutlined className="step-icon" />
+              </div>
+              <div className="step-content">
+                <div className="step-title">Configure</div>
+                <div className="step-description">Upload specifications & settings</div>
+              </div>
+              <div className="step-number">2</div>
+            </div>
+            
+            <div className="step-connector"></div>
+            
+            <div className="workflow-step">
+              <div className="step-icon-wrapper">
+                <CodeOutlined className="step-icon" />
+              </div>
+              <div className="step-content">
+                <div className="step-title">Generate</div>
+                <div className="step-description">AI creates optimized code</div>
+              </div>
+              <div className="step-number">3</div>
+            </div>
+            
+            <div className="step-connector"></div>
+            
+            <div className="workflow-step">
+              <div className="step-icon-wrapper">
+                <AntCheckCircle className="step-icon" />
+              </div>
+              <div className="step-content">
+                <div className="step-title">ADAM Code</div>
+                <div className="step-description">Production-ready deliverable</div>
+              </div>
+              <div className="step-number">4</div>
+            </div>
+          </div>
+
+          <div className="intelligence-features">
+            <div className="feature-chip">
+              <Zap size={14} />
+              <span>Auto-Configure</span>
+            </div>
+            <div className="feature-chip">
+              <Sparkles size={14} />
+              <span>AI Analysis</span>
+            </div>
+            <div className="feature-chip">
+              <FileCode size={14} />
+              <span>Smart Generation</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Action Card - Selected Study */}
+      {selectedStudy && (
+        <div className="quick-action-section">
+          <div className="quick-action-card">
+            <div className="action-card-left">
+              <div className="selected-study-badge">
+                <AntCheckCircle style={{ fontSize: 18 }} />
+                <span>Selected Study</span>
+              </div>
+              <Title level={3} style={{ marginBottom: 8, color: '#111827', fontWeight: 700, fontSize: '24px' }}>
+                {selectedStudy.name}
+              </Title>
+              <div className="quick-details">
+                <span className="quick-detail-item">
+                  <strong>Sponsor:</strong> {selectedStudy.sponsor}
+                </span>
+                {selectedStudy.therapeuticArea && (
+                  <>
+                    <span className="detail-separator">•</span>
+                    <span className="quick-detail-item">
+                      <strong>Area:</strong> {selectedStudy.therapeuticArea}
+                    </span>
+                  </>
+                )}
+              </div>
+              <Paragraph style={{ marginBottom: 0, color: '#6b7280', fontSize: '14px', marginTop: 12 }}>
+                Launch workspace to configure settings and generate AI-powered ADAM code
+              </Paragraph>
+            </div>
+            <div className="action-card-right">
+              <Button
+                type="primary"
+                size="large"
+                icon={<FolderOpenOutlined />}
+                onClick={() => onOpenStudy(selectedStudy.name)}
+                className="launch-workspace-button"
+              >
+                Open Study Workspace
+              </Button>
+              <div className="quick-features">
+                <Zap size={14} />
+                <span>Auto-configure • AI Analysis • Code Generation</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Section */}
       <div className="projects-header-container">
         <div className="projects-header">
@@ -63,45 +197,10 @@ const ProjectsPage = ({
                 </Title>
               </div>
               <Paragraph style={{ marginBottom: 0, color: '#6b7280', fontSize: '15px', marginTop: 8 }}>
-                Choose a study workspace to begin AI-powered ADAM code generation
+                Choose a study workspace to begin your AI-powered journey
               </Paragraph>
             </div>
           </div>
-        </div>
-
-        {/* Workflow Steps Banner */}
-        <div className="workflow-banner">
-          <div className="workflow-banner-header">
-            <Sparkles size={20} className="sparkle-icon" />
-            <span className="workflow-title">Your Journey to ADAM Code</span>
-          </div>
-          <Steps
-            size="small"
-            current={0}
-            className="workflow-steps"
-            items={[
-              {
-                title: 'Select Study',
-                icon: <FolderOpenOutlined />,
-                description: 'Choose your project'
-              },
-              {
-                title: 'Configure',
-                icon: <FileTextOutlined />,
-                description: 'Set up specifications'
-              },
-              {
-                title: 'Generate',
-                icon: <CodeOutlined />,
-                description: 'AI creates code'
-              },
-              {
-                title: 'ADAM Code',
-                icon: <AntCheckCircle />,
-                description: 'Production ready'
-              }
-            ]}
-          />
         </div>
       </div>
 
@@ -154,54 +253,6 @@ const ProjectsPage = ({
         })}
       </div>
       </div>
-
-      {/* Centered Action Section */}
-      {selectedStudy && (
-        <div className="open-study-section">
-          <div className="open-study-card">
-            <div className="open-study-badge">
-              <Zap size={16} className="zap-icon" />
-              <span>Ready to Launch</span>
-            </div>
-            <div className="open-study-icon">
-              <AntCheckCircle style={{ fontSize: 36 }} />
-            </div>
-            <Title level={3} style={{ marginBottom: 8, color: '#111827', fontWeight: 700 }}>
-              {selectedStudy.name}
-            </Title>
-            <div className="study-details-preview">
-              <div className="detail-item">
-                <span className="detail-label">Sponsor:</span>
-                <span className="detail-value">{selectedStudy.sponsor}</span>
-              </div>
-              {selectedStudy.therapeuticArea && (
-                <div className="detail-item">
-                  <span className="detail-label">Area:</span>
-                  <span className="detail-value">{selectedStudy.therapeuticArea}</span>
-                </div>
-              )}
-            </div>
-            <Divider style={{ margin: '20px 0' }} />
-            <Paragraph style={{ marginBottom: 28, color: '#6b7280', fontSize: '15px', lineHeight: 1.6 }}>
-              Launch the workspace to configure your project settings, upload ADAM specifications, 
-              and start AI-powered code generation.
-            </Paragraph>
-            <Button
-              type="primary"
-              size="large"
-              icon={<FolderOpenOutlined />}
-              onClick={() => onOpenStudy(selectedStudy.name)}
-              className="open-study-button"
-            >
-              Open Study Workspace
-            </Button>
-            <div className="features-hint">
-              <FileCode size={14} />
-              <span>Auto-configure • AI Analysis • Code Generation</span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
