@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { ProjectConfiguration, StudyMetadata, GenerationOptions, CategorizationResult, CodeSnippetResponse, LLMProvider, OpenRouterModel } from '../types';
+import type {
+  ProjectConfiguration,
+  StudyMetadata,
+  GenerationOptions,
+  CategorizationResult,
+  CodeSnippetResponse,
+  LLMProvider,
+  OpenRouterModel,
+  ConsolidatedCodeData,
+} from '../types';
 
 export interface Rule {
   id: string;
@@ -98,6 +107,23 @@ interface ProjectStore {
   setPairProgrammingAcceptance: (variable: string, accepted: 'accept' | 'modify' | null) => void;
   setBulkCodeSnippets: (snippets: CodeSnippetResponse[]) => void;
 
+  // Consolidated Code Generation
+  commentVerbosity: 'low' | 'medium' | 'high';
+  executionMode: 'api' | 'local';
+  consolidatedCode: ConsolidatedCodeData | null;
+  isGeneratingConsolidated: boolean;
+  consolidatedProgress: number;
+  consolidatedStatus: string | null;
+  consolidatedDuration: number | null;
+  setCommentVerbosity: (level: 'low' | 'medium' | 'high') => void;
+  setExecutionMode: (mode: 'api' | 'local') => void;
+  setConsolidatedCode: (data: ConsolidatedCodeData | null) => void;
+  setIsGeneratingConsolidated: (generating: boolean) => void;
+  setConsolidatedProgress: (progress: number, status?: string | null) => void;
+  setConsolidatedDuration: (seconds: number | null) => void;
+  resetConsolidated: () => void;
+  canGenerateConsolidated: () => boolean;
+
   // Generation Options
   generationOptions: GenerationOptions;
   setGenerationOptions: (options: Partial<GenerationOptions>) => void;
@@ -167,6 +193,13 @@ const initialState = {
   },
   isGenerating: false,
   isWorkspaceInitialized: false,
+  commentVerbosity: 'medium' as 'low' | 'medium' | 'high',
+  executionMode: 'api' as 'api' | 'local',
+  consolidatedCode: null as ConsolidatedCodeData | null,
+  isGeneratingConsolidated: false,
+  consolidatedProgress: 0,
+  consolidatedStatus: null as string | null,
+  consolidatedDuration: null as number | null,
 };
 
 export const useProjectStore = create<ProjectStore>()(
@@ -459,6 +492,43 @@ export const useProjectStore = create<ProjectStore>()(
             isGenerating: {},
           },
         })),
+
+      setCommentVerbosity: (level) => set({ commentVerbosity: level }),
+
+      setExecutionMode: (mode) => set({ executionMode: mode }),
+
+      setConsolidatedCode: (data) => set({ consolidatedCode: data }),
+
+      setIsGeneratingConsolidated: (generating) =>
+        set({ isGeneratingConsolidated: generating }),
+
+      setConsolidatedProgress: (progress, status = null) =>
+        set((state) => ({
+          consolidatedProgress: progress,
+          consolidatedStatus: status ?? state.consolidatedStatus,
+        })),
+
+      setConsolidatedDuration: (seconds) =>
+        set({ consolidatedDuration: seconds }),
+
+      resetConsolidated: () =>
+        set({
+          consolidatedCode: null,
+          consolidatedProgress: 0,
+          consolidatedStatus: null,
+          consolidatedDuration: null,
+        }),
+
+      canGenerateConsolidated: () => {
+        const state = get();
+        const snippets = Object.values(state.pairProgramming.snippets);
+        if (snippets.length === 0) {
+          return false;
+        }
+        return snippets.every(
+          (snippet) => snippet.accepted === 'accept' && !!snippet.codeSnippet
+        );
+      },
     }),
     {
       name: 'adam-ai-storage',

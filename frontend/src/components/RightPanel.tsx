@@ -1,10 +1,12 @@
-import { Card, Button, Space, message } from 'antd';
+import { Card, Button, Space, message, Tabs } from 'antd';
 import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, EditOutlined, CheckOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import { useState, useCallback, useRef } from 'react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
 import { api } from '../services/api';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
+import { MyValidationTab } from './MyValidationTab';
+import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
 import './RightPanel.css';
 
 interface RightPanelProps {
@@ -22,6 +24,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
   const validationTimeoutRef = useRef<number | null>(null);
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'pair' | 'validation' | 'consolidated'>('pair');
 
   if (!isUnlocked) {
     const progressLabel =
@@ -59,7 +62,34 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   if (!generationResult) {
     return (
       <div className="right-panel">
-        <VariablesAnalysisTab onSwitchProject={onSwitchProject} />
+        <Tabs
+          className="workspace-tabs"
+          activeKey={activeWorkspaceTab}
+          onChange={(key) => setActiveWorkspaceTab(key as 'pair' | 'validation' | 'consolidated')}
+          items={[
+            {
+              key: 'pair',
+              label: 'Pair Programming',
+              children: (
+                <VariablesAnalysisTab
+                  onSwitchProject={onSwitchProject}
+                  onNavigateToValidation={() => setActiveWorkspaceTab('validation')}
+                  onNavigateToConsolidated={() => setActiveWorkspaceTab('consolidated')}
+                />
+              ),
+            },
+            {
+              key: 'validation',
+              label: 'My Validation',
+              children: <MyValidationTab />,
+            },
+            {
+              key: 'consolidated',
+              label: 'Consolidated Code',
+              children: <ConsolidatedCodeTab />,
+            },
+          ]}
+        />
       </div>
     );
   }

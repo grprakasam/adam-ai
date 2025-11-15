@@ -141,6 +141,70 @@ export interface CodeSnippetResponse {
   error?: string;
 }
 
+export interface ConsolidatedVariable {
+  name: string;
+  category: string;
+  code_snippet: string;
+  user_notes?: string;
+  derivation_logic?: string;
+  metadata?: {
+    type?: string;
+    length?: string;
+    format?: string;
+    label?: string;
+    required?: boolean;
+  };
+}
+
+export interface ConsolidatedCodeSummary {
+  total_variables: number;
+  categories_included: number;
+  lines_of_code: number;
+  file_size_kb: number;
+  optimizations_applied: string[];
+  generation_time_seconds: number;
+  confidence_score?: number;
+}
+
+export interface ConsolidatedValidationResult {
+  syntax_valid: boolean;
+  cdisc_compliant: boolean;
+  warnings: string[];
+  errors: string[];
+}
+
+export interface ConsolidatedGenerationMetadata {
+  generated_at: string;
+  llm_provider: 'gemini' | 'openai' | 'anthropic' | 'ollama';
+  model_used: string;
+  execution_mode: 'api' | 'local';
+}
+
+export interface ConsolidatedCodeData {
+  consolidated_code: string;
+  summary: ConsolidatedCodeSummary;
+  validation_results: ConsolidatedValidationResult;
+  metadata: ConsolidatedGenerationMetadata;
+}
+
+export interface ConsolidatedCodeResponse {
+  status: 'success' | 'error';
+  data?: ConsolidatedCodeData;
+  message?: string;
+  error_code?: string;
+}
+
+export interface ConsolidatedCodeRequest {
+  study_id: string;
+  dataset: 'ADSL' | 'ADAE' | 'ADLB' | 'ADCM' | 'ADVS';
+  language: 'R' | 'SAS';
+  comment_verbosity: 'low' | 'medium' | 'high';
+  execution_mode: 'api' | 'local';
+  approved_variables: ConsolidatedVariable[];
+  user_preferences?: Record<string, unknown>;
+  standards_version?: Record<string, string>;
+}
+
 export interface GenerationOptions {
   includeComments: 'comprehensive' | 'minimal' | 'none';
   codeStyle: 'standard' | 'compact' | 'verbose';

@@ -96,7 +96,7 @@ const ProjectsPage = ({
                 description: 'AI creates code'
               },
               {
-                title: 'Deploy',
+                title: 'ADAM Code',
                 icon: <AntCheckCircle />,
                 description: 'Production ready'
               }

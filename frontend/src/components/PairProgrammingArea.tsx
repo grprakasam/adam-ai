@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { message, Tooltip } from 'antd';
+import { message, Tooltip, Button } from 'antd';
 import { Code2, Loader2, AlertCircle, RefreshCw, Copy, Check, Eye, EyeOff, ChevronDown, ChevronUp, Maximize2, Info } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import { showRegenerateConfirmation } from './ConfirmationDialog';
 import type { CodeSnippetRequest, VariableInfo } from '../types';
 import './PairProgrammingArea.css';
+import { FileDoneOutlined, CheckCircleOutlined } from '@ant-design/icons';
 
 interface PairProgrammingAreaProps {
   variables: VariableInfo[];
   categoryName: string;
   getAiInputsButton?: React.ReactNode;
+  onOpenValidation?: () => void;
+  onOpenConsolidated?: () => void;
+  canOpenConsolidated?: boolean;
 }
 
 interface GenerateSnippetOptions {
@@ -21,7 +25,10 @@ interface GenerateSnippetOptions {
 export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   variables,
   categoryName,
-  getAiInputsButton
+  getAiInputsButton,
+  onOpenValidation,
+  onOpenConsolidated,
+  canOpenConsolidated,
 }) => {
   const {
     projectConfig,
@@ -241,6 +248,24 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         </div>
         <div className="header-actions">
           {getAiInputsButton}
+          {Object.keys(pairProgramming.snippets).length > 0 && (
+            <Button
+              type="default"
+              icon={<CheckCircleOutlined />}
+              onClick={onOpenValidation}
+            >
+              My Validation
+            </Button>
+          )}
+          <Button
+            type="primary"
+            icon={<FileDoneOutlined />}
+            className="consolidated-nav-button"
+            onClick={onOpenConsolidated}
+            disabled={!canOpenConsolidated}
+          >
+            Consolidated Code
+          </Button>
         </div>
       </div>
 

@@ -251,7 +251,7 @@ const HelpPage = ({ visible, onClose }: HelpPageProps) => {
                   dot: <ArrowRightOutlined />,
                   children: (
                     <div>
-                      <Text strong>Export & Deploy</Text>
+                      <Text strong>Export & ADAM Code</Text>
                       <Paragraph className="timeline-desc">
                         Export your complete ADAM program with all accepted code snippets. The generated 
                         code includes comprehensive comments, proper formatting, and follows industry standards.
