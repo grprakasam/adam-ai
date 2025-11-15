@@ -22,9 +22,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       formData.append('username', values.username);
       formData.append('password', values.password);
 
-      console.log('📡 Sending request to: http://localhost:8000/api/v1/auth/login');
-      
-      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+      console.log('📡 Sending request to: /api/v1/auth/login');
+
+      const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

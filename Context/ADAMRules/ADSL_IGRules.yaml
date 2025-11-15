@@ -1,0 +1,53 @@
+# ADAM IG Rules for ADSL Dataset
+# Format for linking variables to ADAM Implementation Guide references
+
+rules:
+  - rule_id: "ADSL-001"
+    variables: ["STUDYID", "USUBJID"]
+    description: "Subject identifiers must be present and unique in ADSL"
+    ig_reference: "ADaM IG v1.3 Section 3.1.1 (Subject Identifiers)"
+
+  - rule_id: "ADSL-002"
+    variables: ["SUBJID"]
+    description: "SUBJID is the subject identifier from the source dataset"
+    ig_reference: "ADaM IG v1.3 Section 3.1.1 (Subject Identifiers)"
+
+  - rule_id: "ADSL-003"
+    variables: ["TRT01P", "TRT01A", "TRT02P", "TRT02A"]
+    description: "Treatment variables follow planned vs actual naming convention"
+    ig_reference: "ADaM IG v1.3 Section 3.2.4 (Treatment Variables)"
+
+  - rule_id: "ADSL-004"
+    variables: ["TRTSDT", "TRTEDT"]
+    description: "Treatment start and end dates are numeric with DATE9 format"
+    ig_reference: "ADaM IG v1.3 Section 3.3.2 (Date/Time Variables)"
+
+  - rule_id: "ADSL-005"
+    variables: ["TRTSDTM", "TRTEDTM"]
+    description: "Treatment start and end datetimes are numeric with DATETIME19 format"
+    ig_reference: "ADaM IG v1.3 Section 3.3.2 (Date/Time Variables)"
+
+  - rule_id: "ADSL-006"
+    variables: ["SAFFL", "ITTFL", "EFFFL"]
+    description: "Population flags should have values 'Y' or null"
+    ig_reference: "ADaM IG v1.3 Section 3.4.1 (Flag Variables)"
+
+  - rule_id: "ADSL-007"
+    variables: ["AGE", "AGEU"]
+    description: "Age and age units are required demographic variables"
+    ig_reference: "ADaM IG v1.3 Section 3.5.1 (Demographics)"
+
+  - rule_id: "ADSL-008"
+    variables: ["SEX", "RACE", "ETHNIC"]
+    description: "Standard demographic variables from DM domain"
+    ig_reference: "ADaM IG v1.3 Section 3.5.1 (Demographics)"
+
+  - rule_id: "ADSL-009"
+    variables: ["DTHFL"]
+    description: "Death flag indicates if subject died during study"
+    ig_reference: "ADaM IG v1.3 Section 3.6.1 (Disposition)"
+
+  - rule_id: "ADSL-010"
+    variables: ["RFSTDTC", "RFENDTC"]
+    description: "Reference start and end dates in ISO 8601 format"
+    ig_reference: "ADaM IG v1.3 Section 3.3.3 (Reference Dates)"

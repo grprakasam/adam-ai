@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # CORS
-    CORS_ORIGINS: str = "http://localhost:3000,https://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,https://localhost:4173,http://127.0.0.1:4173,http://localhost:4174,https://localhost:4174,http://127.0.0.1:4174"
+    CORS_ORIGINS: str = "http://localhost:3000,https://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002,http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,https://localhost:4173,http://127.0.0.1:4173,http://localhost:4174,https://localhost:4174,http://127.0.0.1:4174"
     
     @field_validator('CORS_ORIGINS')
     @classmethod

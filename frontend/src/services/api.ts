@@ -20,15 +20,18 @@ const getApiBaseUrl = () => {
     return envUrl;
   }
 
+  // In development, use Vite's proxy
+  if (import.meta.env.DEV) {
+    return '/api/v1';
+  }
+
+  // In production, construct full URL
   if (typeof window !== 'undefined') {
-    const { protocol, hostname, port } = window.location;
-    const isViteDevServer = port === '5173';
-    if (!isViteDevServer) {
-      const normalizedProtocol =
-        protocol && protocol.startsWith('http') ? protocol : 'http:';
-      const targetHost = hostname || 'localhost';
-      return `${normalizedProtocol}//${targetHost}:8000/api/v1`;
-    }
+    const { protocol, hostname } = window.location;
+    const normalizedProtocol =
+      protocol && protocol.startsWith('http') ? protocol : 'http:';
+    const targetHost = hostname || 'localhost';
+    return `${normalizedProtocol}//${targetHost}:8000/api/v1`;
   }
 
   return '/api/v1';

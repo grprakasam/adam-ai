@@ -272,13 +272,27 @@ class CodeGeneratorService:
                 return result
                 
             except Exception as e:
-                logger.error(f"❌ Failed to generate code for {variable_name}: {str(e)}")
+                error_msg = str(e)
+                logger.error(f"❌ Failed to generate code for {variable_name}: {error_msg}", exc_info=True)
+                
+                # Provide helpful fallback guidance
+                fallback_code = self._generate_fallback_code(variable_name, variable_type, language)
+                fallback_rationale = self._generate_fallback_rationale(variable_name, variable_label, derivation, error_msg)
+                
                 return {
                     'variable': variable_name,
-                    'code_snippet': '',
-                    'coding_rationale': '',
-                    'error': str(e),
-                    'validated': False
+                    'code_snippet': fallback_code,
+                    'coding_rationale': fallback_rationale,
+                    'error': f"Generation failed: {error_msg}. Using fallback template.",
+                    'validated': False,
+                    'warnings': ['This is a template - please review and customize'],
+                    'metadata': {
+                        'provider': llm_provider or settings.DEFAULT_LLM_PROVIDER,
+                        'model': 'fallback',
+                        'language': language,
+                        'variable_type': variable_type,
+                        'is_fallback': True
+                    }
                 }
     
     async def process_variables_with_llm(
@@ -349,17 +363,41 @@ class CodeGeneratorService:
             # Process results
             for idx, result in enumerate(batch_results):
                 completed += 1
-                variable_name = batch[idx].get('name', 'Unknown')
+                variable = batch[idx]
+                variable_name = variable.get('name', 'Unknown')
                 
                 if isinstance(result, Exception):
-                    logger.error(f"Failed to generate code for {variable_name}: {str(result)}")
-                    # Add error result with correct field names
+                    error_msg = str(result)
+                    logger.error(f"Failed to generate code for {variable_name}: {error_msg}", exc_info=True)
+                    
+                    # Generate fallback with helpful template
+                    fallback_code = self._generate_fallback_code(
+                        variable_name, 
+                        variable.get('type', 'Num'),
+                        language
+                    )
+                    fallback_rationale = self._generate_fallback_rationale(
+                        variable_name,
+                        variable.get('label', ''),
+                        variable.get('derivation', ''),
+                        error_msg
+                    )
+                    
+                    # Add error result with fallback code and helpful guidance
                     error_result = {
                         'variable': variable_name,
-                        'code_snippet': '',
-                        'coding_rationale': f"Error: {str(result)}",
-                        'error': str(result),
-                        'validated': False
+                        'code_snippet': fallback_code,
+                        'coding_rationale': fallback_rationale,
+                        'error': f"Generation failed: {error_msg}. Using fallback template.",
+                        'validated': False,
+                        'warnings': ['This is a template - please review and customize'],
+                        'metadata': {
+                            'provider': llm_provider or settings.DEFAULT_LLM_PROVIDER,
+                            'model': 'fallback',
+                            'language': language,
+                            'variable_type': variable.get('type', 'Num'),
+                            'is_fallback': True
+                        }
                     }
                     results.append(error_result)
                     
@@ -458,6 +496,108 @@ class CodeGeneratorService:
         }
         
         return context
+    
+    def _generate_fallback_code(self, variable_name: str, variable_type: str, language: str) -> str:
+        """
+        Generate fallback code template when AI generation fails
+        
+        Args:
+            variable_name: Variable name
+            variable_type: Variable type (Num, Char, etc.)
+            language: Programming language (R or SAS)
+            
+        Returns:
+            Fallback code template
+        """
+        if language.upper() == 'R':
+            if variable_type == 'Char':
+                return f"""# TODO: Implement derivation for {variable_name}
+# This is a placeholder - please customize based on your requirements
+adam${variable_name} <- NA_character_
+
+# Example approaches:
+# 1. Direct mapping: adam${variable_name} <- sdtm$VARIABLE
+# 2. Conditional logic: adam${variable_name} <- ifelse(condition, value1, value2)
+# 3. Text manipulation: adam${variable_name} <- toupper(sdtm$VARIABLE)
+"""
+            else:  # Numeric
+                return f"""# TODO: Implement derivation for {variable_name}
+# This is a placeholder - please customize based on your requirements
+adam${variable_name} <- NA_real_
+
+# Example approaches:
+# 1. Direct mapping: adam${variable_name} <- as.numeric(sdtm$VARIABLE)
+# 2. Calculation: adam${variable_name} <- sdtm$VAR1 - sdtm$VAR2
+# 3. Aggregation: adam${variable_name} <- mean(sdtm$VARIABLE, na.rm = TRUE)
+"""
+        else:  # SAS
+            if variable_type == 'Char':
+                return f"""/* TODO: Implement derivation for {variable_name} */
+/* This is a placeholder - please customize based on your requirements */
+{variable_name} = '';
+
+/* Example approaches:
+   1. Direct mapping: {variable_name} = VARIABLE;
+   2. Conditional logic: if condition then {variable_name} = value1; else {variable_name} = value2;
+   3. Text manipulation: {variable_name} = upcase(VARIABLE);
+*/
+"""
+            else:  # Numeric
+                return f"""/* TODO: Implement derivation for {variable_name} */
+/* This is a placeholder - please customize based on your requirements */
+{variable_name} = .;
+
+/* Example approaches:
+   1. Direct mapping: {variable_name} = VARIABLE;
+   2. Calculation: {variable_name} = VAR1 - VAR2;
+   3. Aggregation: proc means data=sdtm mean; var VARIABLE; output out=temp mean={variable_name}; run;
+*/
+"""
+    
+    def _generate_fallback_rationale(
+        self, 
+        variable_name: str, 
+        variable_label: str,
+        derivation: str,
+        error_msg: str
+    ) -> str:
+        """
+        Generate fallback rationale when AI generation fails
+        
+        Args:
+            variable_name: Variable name
+            variable_label: Variable label
+            derivation: Derivation logic (from spec)
+            error_msg: Error message from failed generation
+            
+        Returns:
+            Fallback rationale text
+        """
+        rationale_parts = [
+            f"**Variable:** {variable_name}",
+            f"**Label:** {variable_label}" if variable_label else None,
+            "",
+            "**AI Generation Status:** Failed",
+            f"**Error:** {error_msg[:200]}...", 
+            "",
+            "**Specification Derivation:**",
+            derivation if derivation else "No derivation logic provided in specification",
+            "",
+            "**Action Required:**",
+            "- Review the specification requirements carefully",
+            "- Customize the placeholder code template above",
+            "- Implement the actual derivation logic",
+            "- Test with your study data",
+            "- Mark as 'Accept' when ready",
+            "",
+            "**Tips:**",
+            "- Refer to ADAM IG for standard variable definitions",
+            "- Check similar variables in your SDTM datasets",
+            "- Ensure proper data type handling and missing value codes",
+            "- Add comments for complex derivations"
+        ]
+        
+        return "\n".join([part for part in rationale_parts if part is not None])
     
     def clear_cache(self):
         """Clear the code generation cache"""

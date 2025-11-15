@@ -22,21 +22,23 @@ export interface ApprovalProgress {
  */
 export const useApprovalProgress = (): ApprovalProgress => {
   const categorizedVariables = useProjectStore((state) => state.categorizedVariables);
-  const snippets = useProjectStore((state) => state.pairProgramming.snippets);
+  const snippets = useProjectStore((state) => state.pairProgramming?.snippets || {});
 
   const progress = useMemo(() => {
     let totalVariables = 0;
     let approvedVariables = 0;
 
     // Iterate through all categories
-    if (categorizedVariables && categorizedVariables.categories) {
+    if (categorizedVariables?.categories && Array.isArray(categorizedVariables.categories)) {
       categorizedVariables.categories.forEach((category) => {
-        if (category.variables && Array.isArray(category.variables)) {
+        if (category?.variables && Array.isArray(category.variables)) {
           category.variables.forEach((variable) => {
-            totalVariables++;
-            const varName = variable.name;
-            if (varName && snippets[varName]?.accepted === 'accept') {
-              approvedVariables++;
+            if (variable?.name) {
+              totalVariables++;
+              const varName = variable.name;
+              if (snippets[varName]?.accepted === 'accept') {
+                approvedVariables++;
+              }
             }
           });
         }
