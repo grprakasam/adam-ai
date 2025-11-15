@@ -87,9 +87,9 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Debug logging to verify .env file is loaded
-print(f"🔧 CONFIG: Loading .env from: {ENV_FILE}")
-print(f"🔧 CONFIG: .env file exists: {ENV_FILE.exists()}")
+print(f"CONFIG: Loading .env from: {ENV_FILE}")
+print(f"CONFIG: .env file exists: {ENV_FILE.exists()}")
 if settings.OPENROUTER_API_KEY:
-    print(f"✅ CONFIG: OPENROUTER_API_KEY loaded ({len(settings.OPENROUTER_API_KEY)} chars)")
+    print(f"CONFIG: OPENROUTER_API_KEY loaded ({len(settings.OPENROUTER_API_KEY)} chars)")
 else:
-    print(f"❌ CONFIG: OPENROUTER_API_KEY not loaded!")
+    print(f"CONFIG: OPENROUTER_API_KEY not loaded!")

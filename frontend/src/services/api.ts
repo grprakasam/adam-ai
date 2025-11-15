@@ -1,5 +1,13 @@
 import axios, { AxiosError } from 'axios';
-import type { GenerationRequest, GenerationResponse, CategorizationResult, CodeSnippetRequest, CodeSnippetResponse } from '../types';
+import type {
+  GenerationRequest,
+  GenerationResponse,
+  CategorizationResult,
+  CodeSnippetRequest,
+  CodeSnippetResponse,
+  ConsolidatedCodeRequest,
+  ConsolidatedCodeResponse,
+} from '../types';
 import { codeGenerationThrottler, fileUploadThrottler } from '../utils/requestThrottler';
 
 const getApiBaseUrl = () => {
@@ -389,6 +397,13 @@ export const adamApi = {
   }) => {
     return await codeGenerationThrottler.throttle(async () => {
       const response = await apiClient.post('/program-generation/generate-with-notes', request);
+      return response.data;
+    });
+  },
+
+  generateConsolidatedCode: async (request: ConsolidatedCodeRequest): Promise<ConsolidatedCodeResponse> => {
+    return await codeGenerationThrottler.throttle(async () => {
+      const response = await apiClient.post('/program-generation/consolidated', request);
       return response.data;
     });
   },

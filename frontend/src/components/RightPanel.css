@@ -13,6 +13,18 @@
   justify-content: center;
 }
 
+.workspace-tabs {
+  background: transparent;
+}
+
+.workspace-tabs .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+.workspace-tabs .ant-tabs-tab {
+  font-weight: 600;
+}
+
 .locked-panel {
   width: 100%;
   max-width: 540px;

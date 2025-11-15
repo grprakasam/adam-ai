@@ -52,9 +52,11 @@ const LAYOUT_PRESETS: Record<
 
 interface VariablesAnalysisTabProps {
   onSwitchProject?: () => void;
+  onNavigateToValidation?: () => void;
+  onNavigateToConsolidated?: () => void;
 }
 
-export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSwitchProject }) => {
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSwitchProject, onNavigateToValidation, onNavigateToConsolidated }) => {
   const {
     specificationFile,
     projectConfig,
@@ -115,6 +117,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
   // Get approval progress
   const { percentage, isReadyForGeneration } = useApprovalProgress();
+  const canGenerateConsolidated = useProjectStore((state) => state.canGenerateConsolidated());
 
   const sortedCategories: DisplayCategory[] = useMemo(() => {
     if (!categorizedVariables?.categories) {
@@ -1115,6 +1118,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                         </button>
                       </Tooltip>
                     }
+                    onOpenValidation={onNavigateToValidation}
+                    onOpenConsolidated={onNavigateToConsolidated}
+                    canOpenConsolidated={canGenerateConsolidated}
                   />
                 </div>
               )}

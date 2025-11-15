@@ -53,6 +53,11 @@
   gap: 12px;
 }
 
+.consolidated-nav-button {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* Table Container - Enhanced with better shadows and INCREASED HEIGHT FOR MORE RECORDS */
 .pair-programming-table-container {
   overflow-x: scroll; /* Always show horizontal scrollbar */

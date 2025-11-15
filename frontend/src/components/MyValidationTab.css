@@ -1,0 +1,76 @@
+/* My Validation Tab Styles */
+
+.my-validation-tab {
+  padding: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.my-validation-empty-state {
+  padding: 80px 24px;
+  text-align: center;
+}
+
+/* Header Section */
+.validation-header {
+  margin-bottom: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.validation-header .header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.validation-header .header-icon {
+  font-size: 24px;
+  color: #1890ff;
+}
+
+.validation-header .ant-typography {
+  margin: 0;
+}
+
+/* Table Section */
+.validation-table-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.validation-table-card .ant-table-thead > tr > th {
+  background: #fafafa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.validation-table-card .ant-table-row:hover {
+  background-color: #f5f5ff;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .validation-table-card .ant-table {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .my-validation-tab {
+    padding: 12px;
+  }
+}
+
+/* Accessibility: Focus Styles */
+.validation-table-card .ant-table-row:focus-within {
+  outline: 2px solid #1890ff;
+  outline-offset: -2px;
+}
+
+.validation-table-card .ant-radio-wrapper:focus,
+.validation-table-card .ant-btn:focus {
+  outline: 2px solid #1890ff;
+  outline-offset: 2px;
+}
