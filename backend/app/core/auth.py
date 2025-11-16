@@ -17,7 +17,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
 
 # Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Using pbkdf2_sha256 avoids Windows bcrypt backend issues on Python 3.13
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -53,7 +54,7 @@ USERS_DB = {
         "username": "admin",
         "full_name": "Admin User",
         "email": "admin@adamai.com",
-        "hashed_password": "$2b$12$uFvvtnyMN9aRTK/2sWe4huxqCUOQR/40UvdRUSAz4pwd4Yeu4B.E6",  # "admin"
+        "hashed_password": "$pbkdf2-sha256$29000$3puzFiLEGANgzLmX8h4DoA$M7NJXUi/vr.bIVNFGIDsThNKnalkyumVWg0O1.aUKlM",
         "disabled": False,
         "role": "admin",
     },
@@ -61,7 +62,7 @@ USERS_DB = {
         "username": "developer",
         "full_name": "Senior Developer",
         "email": "developer@adamai.com",
-        "hashed_password": "$2b$12$uFvvtnyMN9aRTK/2sWe4huxqCUOQR/40UvdRUSAz4pwd4Yeu4B.E6",  # "admin"
+        "hashed_password": "$pbkdf2-sha256$29000$3puzFiLEGANgzLmX8h4DoA$M7NJXUi/vr.bIVNFGIDsThNKnalkyumVWg0O1.aUKlM",
         "disabled": False,
         "role": "senior_developer",
     },
@@ -69,7 +70,7 @@ USERS_DB = {
         "username": "user",
         "full_name": "Regular User",
         "email": "user@adamai.com",
-        "hashed_password": "$2b$12$uFvvtnyMN9aRTK/2sWe4huxqCUOQR/40UvdRUSAz4pwd4Yeu4B.E6",  # "admin"
+        "hashed_password": "$pbkdf2-sha256$29000$3puzFiLEGANgzLmX8h4DoA$M7NJXUi/vr.bIVNFGIDsThNKnalkyumVWg0O1.aUKlM",
         "disabled": False,
         "role": "user",
     },
