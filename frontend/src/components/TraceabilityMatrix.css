@@ -1,0 +1,329 @@
+/* ===================================
+   TRACEABILITY MATRIX - ENHANCED STYLING
+   =================================== */
+
+/* =============== CONTAINER =============== */
+.traceability-matrix-container {
+  display: flex;
+  gap: 20px;
+  height: 100%;
+  position: relative;
+}
+
+/* =============== FILTER SIDEBAR =============== */
+.filter-sidebar {
+  width: 300px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.filter-sidebar.hidden {
+  width: 0;
+  padding: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.filter-sidebar.visible {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.filter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.filter-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #262626;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-section {
+  margin-bottom: 20px;
+}
+
+.search-input {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.search-input:focus,
+.search-input:hover {
+  box-shadow: 0 2px 12px rgba(24, 144, 255, 0.2);
+}
+
+/* =============== FILTER ITEMS =============== */
+.filter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.filter-item:hover {
+  background: #f0f0f0;
+  transform: translateX(4px);
+}
+
+.filter-item.active {
+  background: linear-gradient(135deg, #e6f7ff 0%, #bae7ff 100%);
+  border-color: #1890ff;
+  font-weight: 500;
+}
+
+.category-tag {
+  font-size: 12px;
+  margin: 0;
+}
+
+.clear-filters-btn {
+  margin-top: 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ff4d4f 0%, #cf1322 100%);
+  border: none;
+  color: white;
+  font-weight: 500;
+}
+
+.clear-filters-btn:hover {
+  background: linear-gradient(135deg, #ff7875 0%, #ff4d4f 100%);
+  transform: translateY(-1px);
+}
+
+/* =============== MAIN CONTENT =============== */
+.matrix-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
+}
+
+.matrix-content.with-sidebar {
+  width: calc(100% - 320px);
+}
+
+.matrix-content.full-width {
+  width: 100%;
+}
+
+.show-filters-btn {
+  align-self: flex-start;
+  border-radius: 8px;
+  height: 40px;
+  padding: 0 20px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(24, 144, 255, 0.3);
+  animation: slideInRight 0.3s ease-out;
+}
+
+.results-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* =============== TABLE STYLING =============== */
+.variables-table {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.variables-table .ant-table {
+  background: transparent;
+}
+
+.variables-table .ant-table-thead > tr > th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  border: none;
+  padding: 16px 12px;
+}
+
+.variables-table .ant-table-tbody > tr {
+  transition: all 0.2s ease;
+}
+
+.variables-table .ant-table-tbody > tr:hover {
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 100%);
+  transform: scale(1.01);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.variables-table .ant-table-tbody > tr > td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.variables-table .ant-table-cell-fix-left,
+.variables-table .ant-table-cell-fix-right {
+  background: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* =============== COLLAPSE STYLING =============== */
+.filter-sidebar .ant-collapse {
+  background: transparent;
+  border: none;
+}
+
+.filter-sidebar .ant-collapse-item {
+  border: none;
+  margin-bottom: 12px;
+}
+
+.filter-sidebar .ant-collapse-header {
+  padding: 12px 0 !important;
+  color: #262626 !important;
+  font-size: 14px;
+}
+
+.filter-sidebar .ant-collapse-content {
+  border-top: none;
+  background: transparent;
+}
+
+.filter-sidebar .ant-collapse-content-box {
+  padding: 12px 0;
+}
+
+/* =============== ANIMATIONS =============== */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* =============== RESPONSIVE DESIGN =============== */
+@media (max-width: 1200px) {
+  .filter-sidebar {
+    width: 260px;
+  }
+  
+  .matrix-content.with-sidebar {
+    width: calc(100% - 280px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .filter-sidebar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    z-index: 10;
+    width: 280px;
+  }
+  
+  .filter-sidebar.hidden {
+    left: -300px;
+  }
+  
+  .matrix-content {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .traceability-matrix-container {
+    flex-direction: column;
+  }
+  
+  .filter-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 80%;
+    max-width: 300px;
+    z-index: 1000;
+    box-shadow: 2px 0 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  .filter-sidebar.hidden {
+    left: -100%;
+  }
+  
+  .show-filters-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 999;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    box-shadow: 0 4px 16px rgba(24, 144, 255, 0.4);
+  }
+  
+  .variables-table .ant-table {
+    font-size: 12px;
+  }
+  
+  .variables-table .ant-table-thead > tr > th {
+    padding: 12px 8px;
+  }
+  
+  .variables-table .ant-table-tbody > tr > td {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .filter-sidebar {
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .results-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

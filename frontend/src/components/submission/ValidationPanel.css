@@ -1,0 +1,20 @@
+.validation-panel {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.validation-panel .ant-card {
+  margin-bottom: 16px;
+}
+
+.validation-panel .ant-table-small {
+  font-size: 13px;
+}
+
+.validation-panel .ant-tabs-tab {
+  font-weight: 500;
+}
+
+.validation-panel .ant-tabs-tab-active {
+  font-weight: 600;
+}

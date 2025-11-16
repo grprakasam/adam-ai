@@ -430,7 +430,86 @@ export const adamApi = {
       model
     });
     return response.data;
-  }
+  },
+
+  // ============================================
+  // CODE EXECUTION & VALIDATION
+  // ============================================
+
+  // Check Docker environment status
+  checkDockerEnvironment: async () => {
+    const response = await apiClient.get('/code-execution/environment-status');
+    return response.data;
+  },
+
+  // Pull Docker images
+  pullDockerImages: async () => {
+    const response = await apiClient.post('/code-execution/pull-images');
+    return response.data;
+  },
+
+  // Execute code snippet
+  executeCodeSnippet: async (request: {
+    code: string;
+    language: 'R' | 'SAS';
+    snippet_id?: string;
+    test_dataset_ids?: string[];
+    timeout?: number;
+    execution_env?: 'docker' | 'local';
+  }) => {
+    const response = await apiClient.post('/code-execution/execute-snippet', request);
+    return response.data;
+  },
+
+  // Validate code (syntax check)
+  validateCode: async (request: {
+    code: string;
+    language: 'R' | 'SAS';
+  }) => {
+    const response = await apiClient.post('/validation/validate', request);
+    return response.data;
+  },
+
+  // ============================================
+  // TEST DATASET MANAGEMENT
+  // ============================================
+
+  // List test datasets
+  listTestDatasets: async (projectId?: string) => {
+    const response = await apiClient.get('/code-execution/test-datasets', {
+      params: projectId ? { project_id: projectId } : {}
+    });
+    return response.data;
+  },
+
+  // Upload test dataset
+  uploadTestDataset: async (files: File[], name: string, description?: string, projectId?: string) => {
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+    formData.append('name', name);
+    if (description) formData.append('description', description);
+    if (projectId) formData.append('project_id', projectId);
+
+    const response = await fileUploadThrottler.throttle(async () => {
+      return await apiClient.post('/code-execution/test-datasets/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000, // 2 minutes for large files
+      });
+    });
+    return response.data;
+  },
+
+  // Delete test dataset
+  deleteTestDataset: async (datasetId: string) => {
+    const response = await apiClient.delete(`/code-execution/test-datasets/${datasetId}`);
+    return response.data;
+  },
+
+  // Get test dataset details
+  getTestDataset: async (datasetId: string) => {
+    const response = await apiClient.get(`/code-execution/test-datasets/${datasetId}`);
+    return response.data;
+  },
 };
 
 export default adamApi;
