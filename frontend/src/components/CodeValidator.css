@@ -1,0 +1,205 @@
+/* Code Validator Tab Styles */
+
+.code-validator-container {
+  padding: 0;
+  height: 100%;
+  overflow: auto;
+}
+
+.validator-header {
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+}
+
+.validator-header .header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.validator-header .title-icon {
+  font-size: 28px;
+  color: #fff;
+}
+
+.validator-header h3 {
+  color: #fff;
+  margin: 0;
+}
+
+.validator-header .ant-radio-button-wrapper {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.validator-header .ant-radio-button-wrapper-checked {
+  background: rgba(255, 255, 255, 0.9);
+  color: #667eea;
+  border-color: #fff;
+}
+
+.snippet-selector {
+  height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.snippet-selector .ant-card-head {
+  background: #fafafa;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.snippet-item {
+  border-bottom: 1px solid #f0f0f0;
+  transition: all 0.2s;
+}
+
+.snippet-item:hover {
+  background: #f5f5f5;
+}
+
+.snippet-item-active {
+  background: #e6f7ff;
+  border-left: 3px solid #1890ff;
+  border-bottom: 1px solid #91d5ff;
+}
+
+.console-output {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.console-line {
+  margin-bottom: 4px;
+}
+
+.console-line:empty::before {
+  content: ' ';
+}
+
+/* Dataset Upload Modal Styles */
+.dataset-upload-modal .ant-upload-drag {
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
+  background: #fafafa;
+  transition: all 0.3s;
+}
+
+.dataset-upload-modal .ant-upload-drag:hover {
+  border-color: #1890ff;
+  background: #f0f7ff;
+}
+
+.dataset-upload-modal .ant-upload-drag-icon {
+  color: #1890ff;
+  font-size: 48px;
+}
+
+.dataset-selector-card {
+  margin-bottom: 16px;
+}
+
+.dataset-item {
+  padding: 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.dataset-item:hover {
+  border-color: #1890ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.dataset-item-selected {
+  border-color: #1890ff;
+  background: #e6f7ff;
+}
+
+.dataset-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.dataset-item-name {
+  font-weight: 600;
+  color: #262626;
+}
+
+.dataset-item-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.dataset-files-list {
+  margin-top: 8px;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.dataset-files-list li {
+  margin-bottom: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .snippet-selector {
+    height: auto;
+    max-height: 300px;
+  }
+
+  .console-output {
+    max-height: 300px;
+    font-size: 12px;
+  }
+}
+
+/* Status Badges */
+.status-badge-passed {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #52c41a;
+}
+
+.status-badge-failed {
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #faad14;
+}
+
+.status-badge-error {
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  color: #ff4d4f;
+}
+
+/* Loading Animation */
+.validator-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 16px;
+}
+
+.validator-loading .ant-spin {
+  margin-bottom: 8px;
+}

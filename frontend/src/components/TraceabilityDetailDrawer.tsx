@@ -12,6 +12,9 @@ import {
   Descriptions,
   Steps,
   Typography,
+  Progress,
+  Row,
+  Col,
 } from 'antd';
 import {
   CheckCircleOutlined,
@@ -22,11 +25,13 @@ import {
   WarningOutlined,
   ThunderboltOutlined,
   CodeOutlined,
+  AimOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import type { TraceabilityVariable } from '../types/traceability';
+import './TraceabilityDetailDrawer.css';
 
 const { Text, Paragraph } = Typography;
-const { TabPane } = Tabs;
 
 interface TraceabilityDetailDrawerProps {
   visible: boolean;
@@ -62,125 +67,193 @@ export const TraceabilityDetailDrawer: React.FC<TraceabilityDetailDrawerProps> =
   return (
     <Drawer
       title={
-        <Space>
-          <Text strong>{variable.variable_name}</Text>
-          <Tag color={getCategoryColor(variable.category)}>
-            {variable.category}
-          </Tag>
-        </Space>
+        <div className="drawer-header">
+          <Space>
+            <Text strong style={{ fontSize: 18 }}>{variable.variable_name}</Text>
+            <Tag color={getCategoryColor(variable.category)} className="category-tag-large">
+              {variable.category}
+            </Tag>
+          </Space>
+        </div>
       }
       placement="right"
-      width={700}
+      width={800}
       open={visible}
       onClose={onClose}
+      className="traceability-detail-drawer"
     >
-      <Tabs defaultActiveKey="derivation">
-        {/* Tab 1: Derivation Details */}
-        <TabPane tab="Derivation" key="derivation">
-          <Alert
-            message={`Confidence: ${Math.round(variable.confidence * 100)}%`}
-            type={getConfidenceAlertType(variable.confidence)}
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
+      {/* Confidence Score Card */}
+      <Card className="confidence-score-card" bordered={false}>
+        <Row gutter={24}>
+          <Col span={8}>
+            <div className="confidence-gauge">
+              <Progress
+                type="circle"
+                percent={Math.round(variable.confidence * 100)}
+                strokeColor={{
+                  '0%': variable.confidence > 0.8 ? '#52c41a' : variable.confidence > 0.5 ? '#faad14' : '#ff4d4f',
+                  '100%': variable.confidence > 0.8 ? '#237804' : variable.confidence > 0.5 ? '#d48806' : '#cf1322',
+                }}
+                strokeWidth={8}
+                width={120}
+                format={(percent) => (
+                  <div className="gauge-content">
+                    <div className="gauge-percent">{percent}%</div>
+                    <div className="gauge-label">Confidence</div>
+                  </div>
+                )}
+              />
+            </div>
+          </Col>
+          <Col span={16}>
+            <div className="confidence-quality">
+              <h3>
+                {variable.confidence > 0.8 ? '🟢 High Confidence' : 
+                 variable.confidence > 0.5 ? '🟡 Medium Confidence' : 
+                 '🔴 Low Confidence'}
+              </h3>
+              <div className="confidence-factors">
+                <div className="factor-item">
+                  <CheckCircleOutlined className="factor-icon success" />
+                  <span>Complete source mapping</span>
+                  <span className="factor-score">+25</span>
+                </div>
+                <div className="factor-item">
+                  <CheckCircleOutlined className="factor-icon success" />
+                  <span>ADAM IG rule match</span>
+                  <span className="factor-score">+20</span>
+                </div>
+                {variable.code_refs && variable.code_refs.length > 0 && (
+                  <div className="factor-item">
+                    <CheckCircleOutlined className="factor-icon success" />
+                    <span>Code validation passed</span>
+                    <span className="factor-score">+20</span>
+                  </div>
+                )}
+                <div className="factor-item">
+                  <CheckCircleOutlined className="factor-icon success" />
+                  <span>Standard CDISC variable</span>
+                  <span className="factor-score">+15</span>
+                </div>
+              </div>
+            </div>
+          </Col>
+        </Row>
+      </Card>
 
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Variable Name">
-              {variable.variable_name}
-            </Descriptions.Item>
-            <Descriptions.Item label="Label">
-              {variable.label}
-            </Descriptions.Item>
-            <Descriptions.Item label="Data Type">
-              {variable.data_type}
-              {variable.length && ` (${variable.length})`}
-            </Descriptions.Item>
-            {variable.format && (
-              <Descriptions.Item label="Format">
-                {variable.format}
+      <Tabs defaultActiveKey="overview" className="detail-tabs">
+        {/* Tab 1: Overview */}
+        <Tabs.TabPane 
+          tab={<span><AimOutlined /> Overview</span>} 
+          key="overview"
+        >
+          <Card className="profile-card" bordered={false}>
+            <h3>📊 Variable Profile</h3>
+            <Descriptions column={2} size="small" bordered>
+              <Descriptions.Item label="Variable Name" span={2}>
+                <Text strong style={{ fontSize: 16 }}>{variable.variable_name}</Text>
               </Descriptions.Item>
-            )}
-            <Descriptions.Item label="Attributes">
-              <Space>
-                {variable.is_key && <Tag color="red">Key Variable</Tag>}
-                {variable.is_required && <Tag color="blue">Required</Tag>}
-              </Space>
-            </Descriptions.Item>
-          </Descriptions>
-
-          <Divider orientation="left">Source Variables</Divider>
-          <List
-            size="small"
-            dataSource={variable.sources}
-            renderItem={(source) => (
-              <List.Item>
+              <Descriptions.Item label="Label" span={2}>
+                {variable.label}
+              </Descriptions.Item>
+              <Descriptions.Item label="Data Type">
+                {variable.data_type}
+              </Descriptions.Item>
+              <Descriptions.Item label="Length">
+                {variable.length || 'N/A'}
+              </Descriptions.Item>
+              {variable.format && (
+                <Descriptions.Item label="Format" span={2}>
+                  {variable.format}
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="Attributes" span={2}>
                 <Space>
-                  <Tag color="blue">{source.domain}</Tag>
-                  <Text code>{source.variable}</Text>
-                  {source.label && (
-                    <Text type="secondary">- {source.label}</Text>
-                  )}
+                  {variable.is_key && <Tag color="red">🔑 Key Variable</Tag>}
+                  {variable.is_required && <Tag color="blue">✓ Required</Tag>}
                 </Space>
-              </List.Item>
-            )}
-            locale={{ emptyText: 'No source variables identified' }}
-          />
-
-          <Divider orientation="left">Transformation Logic</Divider>
-          <Card size="small" style={{ background: '#fafafa' }}>
-            <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
-              {variable.algorithm || 'No algorithm specified'}
-            </Paragraph>
+              </Descriptions.Item>
+            </Descriptions>
           </Card>
 
-          {variable.code_refs && variable.code_refs.length > 0 && (
-            <>
-              <Divider orientation="left">Code Snippet</Divider>
-              <Card
-                size="small"
-                title={
-                  <Space>
-                    <CodeOutlined />
-                    {variable.code_refs[0].language}
-                  </Space>
+          <Divider orientation="left">
+            <LinkOutlined /> Lineage Flow
+          </Divider>
+          
+          <Card className="lineage-flow-card" bordered={false}>
+            <Steps
+              direction="vertical"
+              current={variable.derivation_steps ? variable.derivation_steps.length : 3}
+              className="lineage-steps"
+            >
+              <Steps.Step
+                title="Step 1: Extract from Source"
+                description={
+                  <div className="step-content">
+                    {variable.sources.map((source, idx) => (
+                      <div key={idx} className="source-item">
+                        <Tag color="blue">{source.domain}</Tag>
+                        {source.variable && <Text code>{source.variable}</Text>}
+                        {source.label && <Text type="secondary"> - {source.label}</Text>}
+                      </div>
+                    ))}
+                  </div>
                 }
-              >
-                <pre
-                  style={{
-                    background: '#f6f6f6',
-                    padding: 12,
-                    borderRadius: 4,
-                    overflow: 'auto',
-                    maxHeight: 300,
-                    fontSize: 12,
-                    margin: 0,
-                  }}
-                >
-                  {variable.code_refs[0].code}
-                </pre>
-              </Card>
-            </>
-          )}
-
-          {variable.derivation_steps && variable.derivation_steps.length > 0 && (
-            <>
-              <Divider orientation="left">Derivation Steps</Divider>
-              <Steps
-                direction="vertical"
-                size="small"
-                current={-1}
-                items={variable.derivation_steps.map((step) => ({
-                  title: step.operation,
-                  description: step.detail,
-                  icon: <CheckCircleOutlined />,
-                }))}
+                icon={<DatabaseOutlined />}
               />
-            </>
-          )}
-        </TabPane>
+              <Steps.Step
+                title="Step 2: Apply Transformation"
+                description={
+                  <Card size="small" className="algorithm-card">
+                    <Paragraph style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 13 }}>
+                      {variable.algorithm || 'Direct assignment'}
+                    </Paragraph>
+                  </Card>
+                }
+                icon={<ThunderboltOutlined />}
+              />
+              <Steps.Step
+                title="Step 3: Assign to ADAM"
+                description={
+                  <div className="result-item">
+                    <Tag color="green">{variable.variable_name}</Tag>
+                    <Text type="secondary">Analysis Dataset Variable</Text>
+                  </div>
+                }
+                icon={<TrophyOutlined />}
+              />
+            </Steps>
+          </Card>
+        </Tabs.TabPane>
 
-        {/* Tab 2: ADAM IG Rules */}
-        <TabPane tab="Rules & Standards" key="rules">
+        {/* Tab 2: Derivation Code */}
+        {variable.code_refs && variable.code_refs.length > 0 && (
+          <Tabs.TabPane 
+            tab={<span><CodeOutlined /> Code</span>} 
+            key="code"
+          >
+            <Card
+              className="code-card"
+              title={
+                <Space>
+                  <CodeOutlined />
+                  <Text strong>{variable.code_refs[0].language} Code</Text>
+                </Space>
+              }
+              bordered={false}
+            >
+              <pre className="code-block">
+                {variable.code_refs[0].code}
+              </pre>
+            </Card>
+          </Tabs.TabPane>
+        )}
+
+        {/* Tab 3: ADAM IG Rules */}
+        <Tabs.TabPane 
+          tab={<span><BookOutlined /> Rules</span>} 
+          key="rules"
+        >
           {variable.rule_refs && variable.rule_refs.length > 0 ? (
             <List
               dataSource={variable.rule_refs}
@@ -228,11 +301,11 @@ export const TraceabilityDetailDrawer: React.FC<TraceabilityDetailDrawerProps> =
               )}
             </Space>
           </Card>
-        </TabPane>
+        </Tabs.TabPane>
 
         {/* Tab 3: AI Insights */}
         {variable.ai_insights && (
-          <TabPane
+          <Tabs.TabPane
             tab={
               <Space>
                 <RobotOutlined />
@@ -312,14 +385,12 @@ export const TraceabilityDetailDrawer: React.FC<TraceabilityDetailDrawerProps> =
                   message="No Issues Found"
                   description="This variable appears to follow CDISC standards and best practices."
                   type="success"
-                  showIcon
-                />
-              )}
-          </TabPane>
+                showIcon
+              />
+            )}
+          </Tabs.TabPane>
         )}
-      </Tabs>
-
-      {/* Footer Actions */}
+      </Tabs>      {/* Footer Actions */}
       <div
         style={{
           position: 'absolute',

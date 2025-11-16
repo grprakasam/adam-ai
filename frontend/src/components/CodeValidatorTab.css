@@ -1,0 +1,133 @@
+.code-validator-container {
+  padding: 20px;
+  min-height: calc(100vh - 200px);
+}
+
+.validator-header {
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.validator-header .title-icon {
+  font-size: 28px;
+  margin-right: 12px;
+  color: white;
+}
+
+.validator-header h3 {
+  color: white !important;
+  margin: 0;
+}
+
+.snippet-selector {
+  height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+.snippet-item {
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.snippet-item:hover {
+  background-color: #f5f5f5;
+}
+
+.snippet-item-active {
+  background-color: #e6f7ff;
+  border-left: 3px solid #1890ff;
+}
+
+.console-output {
+  background-color: #1e1e1e;
+  color: #d4d4d4;
+  padding: 16px;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  max-height: 400px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.console-line {
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+.console-line:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Status badges */
+.status-badge-passed {
+  background-color: #52c41a;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.status-badge-failed {
+  background-color: #faad14;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.status-badge-error {
+  background-color: #ff4d4f;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+/* Performance metrics */
+.performance-card {
+  text-align: center;
+}
+
+/* Docker status indicator */
+.docker-status-ready {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #52c41a;
+}
+
+.docker-status-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ff4d4f;
+}
+
+/* Execution loading */
+.execution-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 16px;
+}
+
+/* Results tabs */
+.ant-tabs-tab {
+  padding: 12px 16px !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .code-validator-container {
+    padding: 12px;
+  }
+  
+  .snippet-selector {
+    height: auto;
+    max-height: 300px;
+  }
+}

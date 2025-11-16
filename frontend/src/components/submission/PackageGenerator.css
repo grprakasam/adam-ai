@@ -1,0 +1,31 @@
+.package-generator {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.package-generator .steps-content {
+  min-height: 400px;
+  padding: 24px;
+  background-color: #fafafa;
+  border: 1px dashed #e0e0e0;
+  border-radius: 8px;
+}
+
+.package-generator .step-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.package-generator .ant-checkbox-wrapper {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.package-generator .ant-card-head {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.package-generator .steps-action {
+  display: flex;
+  justify-content: center;
+}

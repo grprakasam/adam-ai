@@ -1,262 +1,274 @@
-# My Initial Plan — “SDTM–ADaM Traceability” Panel
+# Submission Readiness – Initial Implementation Plan (v1)
 
-This plan implements a new “SDTM–ADaM Traceability” panel that documents end‑to‑end lineage for every ADaM variable back to source SDTM datasets, transformation logic, and ADaM IG rule references, aligned with FDA SDTCG §4.1.2.8. It is additive and non‑breaking, follows Context/ProjectArchitecture rules, and integrates cleanly with the current React (Ant Design) + FastAPI stack.
-
----
-
-## 0) Inputs Reviewed (scope confirmation)
-
-Primary requirement
-- Context/0_MyRequirement_planner.md
-
-Architecture and behavior (must adhere)
-- Context/ProjectArchitecture/ProjectArchitecture.md
-- Context/ProjectArchitecture/ProjectRequirements.md
-- Context/ProjectArchitecture/TECH_STACK.md
-
-Domain rules and flow
-- Context/ADAMRules/ADSL_MacroLogic.md
-- Context/ADAMRules/ADSL_ApplicationBehaviourRules.md
-- Context/ADAMRules/ADAM_VariablenamingRules.md
-
-Related status/planning (non‑binding but informative)
-- Context/IMPLEMENTATION_STATUS.md
-- frontend/README.md, backend/README.md
-- backend/QUICK_REFERENCE.md, backend/CODE_REVIEW_LLM_SERVICE.md
-- TESTING_FRAMEWORK_IMPLEMENTATION_SUMMARY.md
-
-Observed gaps to note
-- Context/ADAMRules/ADSL_IGSpecificRules.md is empty.
-- Context/ADAMRules/VariablesMapping.xlsx referenced in docs is not present.
-- ‘Content/StandardDocuments’ path referenced but not found in repo listing.
+Status: Planning approved for drafting (no code changes)
+Scope: Add a new “Submission Readiness” tab (after Traceability) with two vertical sub‑tabs: “p21 Core Validation” and “FDA Submission Package” without breaking any existing features.
 
 ---
 
-## 1) Objectives & Non‑Functional Requirements
+## 1) Agreed Scope & Assumptions
 
-Objectives
-- Provide a first‑class Traceability panel (the tool’s USP) that: (a) visualizes lineage (graph), (b) tabulates traceability (matrix), (c) links ADaM IG rules, and (d) exports auditor‑ready documentation.
-- Keep UX intuitive, domain‑centric, and coherent with current app structure.
-- Be incremental and non‑breaking; hide behind a feature flag initially.
+- Regulatory focus: FDA; align with ADaM and submission expectations.
+- P21 CE integration: run via Docker; apply rule sets for ADaM only; no sponsor‑specific checks.
+- Controlled Terminology: read from a local Excel file `Content/ControlledTerminology/ControlledTerminology.xlsx` (single file). Allow MedDRA/NCI selections; default to latest available in file.
+- Define.xml: generate for ADaM only (Define-XML 2.1). Provide placeholders for sponsor info (StudyName, ProtocolName, Originator, etc.).
+- ADRG/SDRG: generate from placeholder DOCX templates (editable). No SDTM linkages in v1.
+- eCTD: create commonly used (FDA) structure; attempt complete submission-ready package where feasible for ADaM artifacts only.
+- Electronic signatures: no gating; add placeholders for future e-signature capture.
+- Audit trail: placeholders only (model + log hooks); no enforcement in v1.
+- Artifacts & storage: practical, simple on-disk structure (defined in section 6).
+- Scope of datasets: All ADaM datasets supported by the app. Define.xml/ADRG/SDRG linkages limited to ADaM in v1 (no SDTM).
+- Performance & security: simple approach; resource limits on Docker jobs; local-only processing; no PHI expected.
 
-Non‑functional
-- No regressions to existing tabs and flows (Setup, Datasets, Variables, Rules, Pair Programming, Consolidated Code, Testing).
-- Performance: handle large specs (virtualized tables, incremental graph rendering, caching).
-- Accessibility and consistency with Ant Design theming.
-- Clear separation of concerns: frontend visualization; backend assembly/derivation where needed.
-
-Compliance target
-- Align outputs to FDA SDTCG §4.1.2.8 Traceability expectations and ADaM IG conventions; provide references and exportable evidence.
-
----
-
-## 2) UX/IA Design (panel structure and interactions)
-
-Panel placement (non‑breaking)
-- Add a new RightPanel tab: “SDTM–ADaM Traceability” (after “Consolidated Code”).
-- Optional quick‑entry from Variables/Pair Programming via a primary button “Open Traceability”.
-
-Panel layout (Ant Design components)
-1) Overview strip
-   - Cards with study/dataset context (Study ID, Dataset, SDTM/ADaM IG versions), approval % reused from existing store.
-   - “Generate/Refresh Traceability” button (disabled until spec parsed or any snippets exist).
-2) Lineage Graph (React Flow or Cytoscape.js)
-   - SDTM domains on left, transformation nodes in middle, ADaM variables on right.
-   - Edge tooltips: transformation summary; click to open detail drawer.
-   - Mini‑map + fit‑to‑view; category color coding.
-3) Traceability Matrix (AntD Table with virtualization)
-   - Columns: ADaM Variable | Label | Source SDTM Dataset(s) | Source Variable(s) | Transform/Algorithm | ADaM IG Rule Ref | Code Snippet Ref | Comments.
-   - Row expanders for detailed derivation steps and rule text excerpts.
-   - Filters: category, rule presence, variable name, domain.
-4) Detail Drawer (right side)
-   - Full derivation steps, linked code snippet(s), rule references with anchors, validation hints (naming/format from ADAM_VariablenamingRules.md).
-5) Export & Share actions
-   - Export to Excel (SheetJS), PDF (server‑side HTML→PDF), and Word (docx) with embedded lineage snapshot.
-
-Visual polish
-- Domain‑centric iconography (SDTM vs ADaM), badges, tags, and helpful empty states.
-- Progressive disclosure: default to Overview + Matrix; graph loads on demand for speed.
+Constraints and guardrails
+- Do not modify or regress “Traceability” or existing Pair Programming flows. All work is additive.
+- Use existing stack and patterns: React + TypeScript + Ant Design (frontend), Zustand store; FastAPI + Pydantic (backend).
+- Follow Context/ProjectArchitecture guidance: simple, intuitive UX; modular components; workflow-first; don’t replace P21—integrate it.
 
 ---
 
-## 3) Data Sources and Traceability Assembly
+## 2) UX Flow & IA (Information Architecture)
 
-Primary inputs
-- User specification Excel (Context/ProjectRequirements: uploaded to Content/UserInputs/ADAMSpecifications/).
-- Generated code snippets and rationales from Pair Programming (store/backend).
-- ADAM rules: naming rules, macro flow (Context/ADAMRules/*), plus future IG‑specific rules.
+Placement
+- Add a new primary tab to the right panel navigation: “Submission Readiness”, positioned immediately after “Traceability”.
+- Within it, use vertical sub-tabs:
+  1) “p21 Core Validation”
+  2) “FDA Submission Package”
 
-Assembly strategy (incremental, resilient)
-1) Spec‑first mapping (MVP)
-   - Parse spec columns (e.g., Variable, Label, Source/Derivation) to identify sources and initial algorithm text.
-   - Heuristics to extract SDTM domains and variables from derivation text.
-2) Code‑aware enrichment (Phase 2)
-   - Parse generated R/SAS snippets to confirm/augment SDTM sources and operations (regex + lightweight parsers).
-   - Cross‑check with naming rules (ADAM_VariablenamingRules.md) and macro flow for plausibility.
-3) Rule linkage (Phase 3)
-   - Map variables/algorithms to ADaM IG references (requires population of ADSL_IGSpecificRules.md or a new rules JSON).
-4) Confidence scoring
-   - Compute a confidence score per variable (spec‑only < spec+code‑confirmed), surfaced in UI.
+2.1) p21 Core Validation – UI sections
+- Study & Dataset Context (read-only summary): Study ID, Dataset(s), Standards versions; link to where users can adjust.
+- Pre‑P21 Structural Checks (button): runs quick structural validation on selected ADaM dataset metadata (required vars, keys, labels ≤256, date/datetime flags, naming rules per `Context/ADAMRules`).
+- Controlled Terminology Validation (button): validates variables bound to codelists using `ControlledTerminology.xlsx`. Version selector (MedDRA version dropdown; default to the latest found). File path indicator with “Change file” option.
+- Pinnacle 21 CE Validation (button): triggers Docker run with ADaM ruleset; shows progress indicator; results parsed into a unified UI.
+- Results area with three tabs: Summary | Issues | Artifacts
+  - Summary: pass/fail counts by severity; high-level recommendations.
+  - Issues: filterable table (severity, domain/dataset, variable, rule code, message, location). Export CSV/Excel.
+  - Artifacts: links to raw P21 outputs and pre-check reports.
+- Non-blocking UX: users can run Pre‑P21/CT checks standalone, and/or directly run P21 CE.
 
-Outputs (internal JSON model)
-```json
-{
-  "dataset": "ADSL",
-  "sdtm_version": "3.4",
-  "adam_ig_version": "1.3",
-  "variables": [
-    {
-      "name": "AGEGR1",
-      "label": "Age Group 1",
-      "sources": [{"domain": "DM", "variable": "AGE"}],
-      "algorithm": "if AGE<65 then '<65' else '>=65'",
-      "rule_refs": ["ADaM IG 1.3 §X.Y"],
-      "code_refs": [{"language": "R", "id": "snip-AGEGR1"}],
-      "confidence": 0.78,
-      "notes": "Confirmed from code"
-    }
-  ]
-}
-```
+2.2) FDA Submission Package – UI sections
+- Study Metadata Card: fields with defaults and sponsor placeholders (Study Name, Protocol, Description, Sponsor, ADaM IG version, MedDRA version). Non-intrusive help text describing what is included in Define.xml and ADRG/SDRG.
+- Define.xml (ADaM) Generator: “Generate” button; options for stylesheet link (placeholder), include variable-level docs, include value-level metadata (future), select datasets to include. Output preview link once generated.
+- ADRG Generator (placeholder template): “Generate ADRG” button; uses DOCX template; includes overview, datasets list, derivation summaries (from app context if available), validation notes (optional).
+- SDRG (Study Data Reviewer’s Guide) – ADaM-focused: “Generate SDRG” button; placeholder DOCX template; include table of included data and documentation artifacts.
+- eCTD Packaging: select target directory; generate M5 data structure (FDA common layout) with Define.xml, ADRG, SDRG and referenced program files/artifacts; optional zip packaging.
+- Artifacts area: list all generated files with timestamps and checksums (placeholders now); actions: Download, Reveal in folder.
+
+Interaction principles (from architecture docs)
+- Keep steps simple; progressive disclosure; default sensible values; reduce cognitive load.
+- Clear status indicators; predictable actions; consistent AntD components; keyboard accessible.
 
 ---
 
-## 4) Backend Additions (non‑breaking, feature‑flagged)
+## 3) Backend Design (Additive, Modular)
 
-API design (FastAPI, Pydantic v2)
-- POST `/api/v1/traceability/generate` → returns lineage JSON (inputs: study/dataset, spec path or in‑memory spec, optional snippets).
-- GET `/api/v1/traceability/matrix/{studyId}/{dataset}` → cached matrix JSON.
-- POST `/api/v1/traceability/export` → returns file (xlsx/pdf/docx) with embedded snapshot.
+Foldering (no renames of existing code)
+- `backend/app/modules/validation/`:
+  - `adam_conformance.py` – Pre‑P21 structural checks (as in concept doc): required vars, keys, label length, DT/DTM/FL/GR naming checks per `Context/ADAMRules/ADAM_VariablenamingRules.md`.
+  - `controlled_terminology.py` – CT loader/validator reading `Content/ControlledTerminology/ControlledTerminology.xlsx`.
+  - `p21_runner.py` – Orchestrates Docker run of P21 CE; mounts inputs/outputs; selects ADaM ruleset; parses outputs.
+- `backend/app/modules/submission/`:
+  - `define_xml_generator.py` – Define‑XML 2.1 (ADaM only) with sponsor placeholders (StudyName, ProtocolName, Originator, etc.).
+  - `adrg_generator.py` – ADRG DOCX generator using placeholder template(s).
+  - `sdrg_generator.py` – SDRG DOCX generator using placeholder template(s).
+  - `ectd_packager.py` – Creates FDA‑style eCTD M5 folder structure for ADaM outputs; optional ZIP.
+- `backend/app/modules/submission/models.py` – Pydantic models for requests/responses (StudyInfo, DatasetInfo, ValidationIssue, ArtifactRef, PackagingOptions, etc.).
+- `backend/app/api/v1/endpoints/` (new endpoints):
+  - `validation_prep21.py` – POST `/validation/prep21`
+  - `validation_ct.py` – POST `/validation/ct`
+  - `validation_p21.py` – POST `/validation/p21`
+  - `submission_define.py` – POST `/submission/definexml`
+  - `submission_docs.py` – POST `/submission/adrg` and `/submission/sdrg`
+  - `submission_package.py` – POST `/submission/ectd/package`
 
-Services
-- SpecParser: robust excel parser for spec columns used in derivations.
-- CodeInspector: R/SAS snippet analyzer (phase 2) to extract SDTM variables/domains.
-- RuleLinker: maps variables/algorithms to ADaM IG references (backed by maintainable YAML/JSON once provided).
-- GraphBuilder: builds a DAG (networkx) for graph export; serializes to React Flow format.
-- Exporter: pandas + xlsxwriter; WeasyPrint/ReportLab for PDF; python‑docx for Word.
+P21 CE via Docker
+- Image: use a private container that bundles P21 CE Community Edition + Java runtime (created by ops), or run a base JRE image that mounts the P21 CE JAR from host. The service only shells `docker run` with controlled args.
+- Volumes: mount input datasets/specs and a dedicated output folder; limit to read‑only where applicable.
+- Ruleset: ADaM rules as shipped with P21 CE.
+- Resource limits: CPU/memory caps; max timeout (e.g., 5–10 minutes per run) with cancellation.
+- Parser: normalize P21 outputs (CSV/XML/JSON/HTML as available) into a standard JSON schema for the UI: `{severity, dataset, variable, ruleId, message, location, category}`.
 
-Infrastructure
-- In‑memory cache first; optional file cache under `Content/Traceability/`.
-- Feature flag in config to enable/disable endpoints.
-- No DB required for MVP; future: Postgres + Alembic for persistence and audit.
+Controlled Terminology
+- Expect a single Excel `ControlledTerminology.xlsx` with sheets for codelists; parse into `{codelist -> allowed values}`.
+- Provide lightweight mapping from variable to codelist (if available via metadata/spec); otherwise, allow user to specify CT binding per variable in a small UI helper (backlog if not in v1).
 
----
+Define.xml (ADaM only)
+- Generate ItemGroupDefs for selected ADaM datasets with ItemRefs for variables; include minimal controlled terminology links where available; add placeholders for sponsor metadata.
+- Validate XML structure and schema locally (optional backlog).
 
-## 5) Frontend Implementation (React + Ant Design)
+ADRG / SDRG Generators (DOCX)
+- Use `python-docx` to fill section headings and tables; include minimal data: study info, list of ADaM datasets, derivation summary pointers (if available), validation summary (optional), and references to Define.xml.
+- Keep branding fields as placeholders for sponsor addition in Word.
 
-State
-- Extend Zustand store with `traceability` slice: status, matrix, graph, lastGeneratedAt, confidence summary.
-- Derive readiness from existing `categorizedVariables` and snippet availability.
+eCTD Packaging (ADaM portion)
+- Create a conventional FDA structure under M5 for analysis datasets and metadata; include Define.xml, ADRG, SDRG, and program files (if present/selected).
+- Optionally, compress to a ZIP archive; record checksums and a manifest JSON (for future audit trail integration).
 
-Components
-- `TraceabilityTab.tsx` (main tab): orchestrates Overview, Graph, Matrix, Export.
-- `LineageGraph.tsx`: React Flow/Cytoscape visualization with mini‑map and tooltips.
-- `TraceabilityMatrix.tsx`: AntD Table with column filters, virtual scroll, row expand.
-- `RuleReference.tsx`: in‑panel rule text excerpt viewer + anchor links.
-- `ExportActions.tsx`: xlsx/pdf/docx export controls.
+Artifacts & Storage (simple, practical)
+- Root: `Content/Submissions/<StudyId>/`
+  - `validation/prep21/` – pre‑checks results
+  - `validation/ct/` – CT check results
+  - `validation/p21/` – P21 raw outputs + parsed JSON
+  - `definexml/` – generated Define.xml
+  - `docs/` – ADRG.docx, SDRG.docx
+  - `ectd/` – eCTD tree, `package.zip` (if created)
+  - `manifest.json` – list of artifacts with timestamps and checksums (MD5/SHA256; placeholder implementation in v1)
 
-Navigation & discoverability
-- Add “Traceability” tab to RightPanel and a prominent button in Variables/PairProgramming.
-- Preserve existing routes; feature flag controls visibility.
-
-Visual/UX best practices (current 2024–2025)
-- Progressive disclosure, skeleton loaders, optimistic updates on refresh.
-- Keyboard navigation and ARIA roles; high‑contrast option.
-- Snapshot banner with study/dataset/version chips and confidence.
-
----
-
-## 6) Testing & Quality
-
-Unit/integration
-- Backend: SpecParser, CodeInspector, RuleLinker, GraphBuilder unit tests; endpoint contract tests.
-- Frontend: component tests (matrix filters, drawers, exports), store selectors, rendering perf.
-
-End‑to‑end
-- Flow: upload spec → categorize variables → generate snippets (optional) → open Traceability → export matrix.
-- Regression: ensure no changes to existing tabs’ behavior (golden snapshots for UI routes, API contracts unchanged).
-
-Performance
-- Virtualized table, graph chunking, memoized selectors; cache warmup for common datasets.
-
----
-
-## 7) Rollout Plan (incremental, non‑breaking)
-
-Phase 0: Guardrails
-- Add feature flag; route hidden by default; no API auto‑calls.
-
-Phase 1: MVP (spec‑first matrix)
-- Spec parsing → Matrix table + basic export (xlsx). No graph, no code parsing.
-
-Phase 2: Graph + Code‑aware enrichment
-- Add LineageGraph; parse R/SAS snippets to confirm sources; add confidence scoring.
-
-Phase 3: Rule references + PDF/Word export
-- Link to ADaM IG refs; include rule text excerpts; branded PDF/Word exports.
-
-Phase 4: Polish & QA
-- Accessibility pass, performance tuning, error states, telemetry, help content.
+Audit trail placeholders
+- Model + hooks only (no UI gating): record actor, timestamp, action, resourceId, checksum (if available) to a local append‑only log file and/or JSONL under `Content/Submissions/<StudyId>/audit/`.
 
 ---
 
-## 8) Risk Management (keep existing features safe)
+## 4) Frontend Design (Additive)
 
-Compatibility
-- Additive endpoints and UI; default disabled via flag. No changes to existing APIs or store shapes unless extended with new optional keys.
+Components (new)
+- `frontend/src/components/SubmissionReadinessTab.tsx` – container with vertical tabs and shared study context header.
+- `frontend/src/components/p21/P21CoreValidationPanel.tsx` – Pre‑P21, CT, P21 run controls and results.
+- `frontend/src/components/submission/FDASubmissionPackagePanel.tsx` – Define.xml, ADRG, SDRG, eCTD generation and artifact list.
+- `frontend/src/components/submission/ArtifactsList.tsx` – reusable artifacts table with actions.
 
-Data integrity
-- Read‑only consumption of spec/snippets; never mutates existing generation artifacts.
+State (extend Zustand)
+- Add to `frontend/src/store/projectStore.ts`:
+  - `studyInfo`, `standards` (adamIgVersion, meddraVersion)
+  - `ctFilePath` and load status
+  - `prep21Results`, `ctResults`, `p21Results`
+  - `defineXmlStatus`, `adrgStatus`, `sdrgStatus`, `packagingStatus`
+  - `artifacts` registry for the Submission tab
 
-Recovery
-- Safe fallbacks: if code parsing or rules absent, still render spec‑only matrix with warnings.
+Navigation
+- Register `SubmissionReadiness` tab in `RightPanel.tsx` after `Traceability` with lazy load. No change to existing tab order besides insertion.
 
-Observability
-- Structured logs for traceability generation steps; UI to surface recoverable errors and retry.
-
----
-
-## 9) Open Questions (please confirm before execution)
-
-1) Specification structure: which exact columns contain source SDTM and derivation logic? Please share a sample spec or define column names.
-2) ADaM IG references: do you have a preferred source document and mapping format (YAML/JSON) to populate ADSL_IGSpecificRules? Which ADaM versions to support initially?
-3) Export expectations: which formats are mandatory (Excel/PDF/Word)? Any corporate templates/branding to apply?
-4) Datasets in scope for v1: only ADSL or also ADAE/ADLB/others?
-5) Visual preference: React Flow vs Cytoscape for the graph? Any constraints on additional FE deps?
-6) Where should generated artifacts be stored? Is `Content/Traceability/` acceptable for now?
-7) Should traceability be computed automatically after snippet generation, or only on explicit user action?
-8) Do we need hyperlinking from matrix entries to specific SDTM spec files or external standards docs?
+UX patterns
+- Ant Design forms, tables, alerts, progress indicators.
+- Non-blocking asynchronous actions with clear “Running/Done/Failed”.
+- CSV/Excel export for issue tables.
 
 ---
 
-## 10) Identified Missing Elements (to add to repo/plan)
+## 5) API Endpoints (draft contracts)
 
-- Variables mapping source: `Context/ADAMRules/VariablesMapping.xlsx` referenced but absent — needed for categorization/mapping.
-- ADaM IG rules content: populate `Context/ADAMRules/ADSL_IGSpecificRules.md` (or provide a structured file) to enable rule references.
-- Standards documents: add `Content/StandardDocuments/` with the FDA SDTCG and ADaM IG versions used, for in‑app linking and export citations.
-- Example specification: a de‑identified sample spec to validate parsing logic and UX.
+- POST `/api/v1/validation/prep21`
+  - Input: `{ studyId, datasetNames[], rulesPreset?: 'default' }`
+  - Output: `{ issues: Issue[], summary: { bySeverity: {...} } }`
+
+- POST `/api/v1/validation/ct`
+  - Input: `{ studyId, datasetName, ctFilePath, versions?: { meddra?: string }, bindings?: { [varName]: codelist } }`
+  - Output: `{ issues: Issue[], summary: {...} }`
+
+- POST `/api/v1/validation/p21`
+  - Input: `{ studyId, adamPaths[], ruleset: 'ADaM', timeoutSec?: number }`
+  - Output: `{ issues: Issue[], artifacts: ArtifactRef[], raw?: { ... } }`
+
+- POST `/api/v1/submission/definexml`
+  - Input: `{ studyInfo, datasets: DatasetInfo[] }`
+  - Output: `{ artifact: ArtifactRef, warnings?: string[] }`
+
+- POST `/api/v1/submission/adrg`
+  - Input: `{ studyInfo, datasets: DatasetInfo[], notes?: string }`
+  - Output: `{ artifact: ArtifactRef }`
+
+- POST `/api/v1/submission/sdrg`
+  - Input: `{ studyInfo, datasets: DatasetInfo[], notes?: string }`
+  - Output: `{ artifact: ArtifactRef }`
+
+- POST `/api/v1/submission/ectd/package`
+  - Input: `{ studyId, include: { defineXml: boolean, adrg: boolean, sdrg: boolean, programs?: boolean }, zip?: boolean, targetDir?: string }`
+  - Output: `{ artifact: ArtifactRef, tree: string[] }`
+
+`Issue`
+- `{ severity: 'ERROR'|'WARNING'|'INFO', dataset?: string, variable?: string, ruleId?: string, message: string, location?: string, category?: string }`
+
+`ArtifactRef`
+- `{ name: string, path: string, createdAt: string, checksum?: string }`
 
 ---
 
-## 11) Definition of Done (v1 MVP)
+## 6) Data, Files & Conventions
 
-- New “SDTM–ADaM Traceability” tab visible under feature flag; no regressions in existing tabs.
-- Spec‑derived Traceability Matrix renders for ADSL with filters and row details.
-- Export to Excel works with study/dataset header and timestamp.
-- Clear warnings when rules or code refs are unavailable; graceful degradation.
-
-## 12) Definition of Done (v2)
-
-- Lineage Graph operational with zoom/minimap and tooltips.
-- Code‑aware enrichment confirms SDTM sources from snippets; confidence scoring surfaced.
-- PDF/Word exports include lineage snapshot and rule excerpts with references.
+- Controlled Terminology Excel: `Content/ControlledTerminology/ControlledTerminology.xlsx`
+  - Expected sheets: `Codelists`, optionally one sheet per codelist (simple v1: single table with columns: `Codelist`, `Code`, `Decode`, `Version`, `Standard`).
+- Study input/config: reuse existing project configuration; extend as needed for sponsor placeholders.
+- Artifacts storage: `Content/Submissions/<StudyId>/...` as detailed above.
+- Limits: max ADaM files per run (e.g., 20), max file size (e.g., 200MB per dataset) – simple, configurable.
 
 ---
 
-## Notes on “best/latest” methods (2024–2025)
+## 7) Non‑Breaking Strategy & Feature Flagging
 
-- FE Graph: React Flow (active ecosystem) or Cytoscape.js for large graphs; AntD v5 for consistent theming; SheetJS for Excel export; docx/WeasyPrint for Word/PDF.
-- BE Parsing/Export: pandas/xlsxwriter; networkx for DAG → React Flow JSON; fastapi background tasks for long‑running exports; Pydantic v2 for models.
-- UX Patterns: progressive disclosure, helpful empty states, inline rule hints, optimistic updates, accessible keyboard navigation.
+- Additive routes and components only; no changes to existing flows/components other than registering a new tab.
+- Guard the new tab with a feature flag `enableSubmissionReadiness` (default true only in dev). In production, enable via config.
+- Lazy load the tab to avoid bundle bloat/latency for users who don’t use it.
+- Backend endpoints are new; no changes to existing endpoints.
 
-This plan is ready to execute after clarifications in section 9.
+---
+
+## 8) Test Strategy
+
+Unit tests (backend)
+- `adam_conformance.py`: required variables, label length, naming checks.
+- `controlled_terminology.py`: CT loader, sheet parsing, value checks.
+- `define_xml_generator.py`: minimal ADaM ODM structure rendered; XML well‑formedness.
+- `ectd_packager.py`: correct folder tree and manifest generation.
+
+Integration tests
+- Stub a minimal ADaM dataset and run Pre‑P21 + CT.
+- Stub P21 outputs (CSV/XML) to validate parser without running Docker in CI.
+- End‑to‑end: generate Define.xml + ADRG/SDRG from sample inputs and package eCTD to a temp directory.
+
+Frontend tests
+- Component render and interaction tests for action buttons and state transitions.
+
+---
+
+## 9) Delivery Plan (Phased)
+
+Phase 0 – Scaffolding (0.5 week)
+- Create backend modules and endpoint stubs; wire artifacts storage; add models.
+- Add frontend tab, skeleton panels, and store slices; basic UI without actions.
+
+Phase 1 – Pre‑P21 + CT (1 week)
+- Implement Pre‑P21 structural checks and CT validator; UI for running/seeing results; export.
+
+Phase 2 – P21 CE Integration (1–1.5 weeks)
+- Add Docker runner, rule selection (ADaM), results parsing; progress UI; artifacts links.
+
+Phase 3 – Define.xml (ADaM) (1 week)
+- Implement generator with placeholders; download/view; validation warnings if any.
+
+Phase 4 – ADRG/SDRG Templates (0.5–1 week)
+- Generate DOCX from templates; basic sections populated; artifacts list.
+
+Phase 5 – eCTD Packaging (0.5–1 week)
+- Produce FDA‑style folder tree and optional ZIP; manifest and checksums (basic).
+
+Phase 6 – Polish & QA (0.5 week)
+- UX refinements, docs, smoke tests; ensure no regressions; enable feature flag by env.
+
+---
+
+## 10) Risks & Mitigations
+
+- P21 CE Docker image availability: coordinate with ops to supply a compliant base image; meanwhile provide parser stubs and a dry‑run mode.
+- CT Excel schema variance: document expected columns; add defensive parsing and friendly errors; allow user to upload a different file.
+- eCTD details vary across organizations: implement a commonly accepted FDA structure; keep structure mapping configurable for future.
+- Performance for large studies: apply Docker resource limits; add server‑side timeouts; stream progress to UI.
+
+---
+
+## 11) Open Items (for finalization)
+
+- P21 CE container details: image name, entrypoint/CLI args, ruleset path, and licensing acceptance steps.
+- Final CT Excel schema (column names) and example file to validate loader.
+- Confirm sponsor placeholder fields to expose in Define.xml/ADRG/SDRG (StudyName, ProtocolName, Originator, etc.).
+- Location and naming for program files to include in eCTD (if any) beyond generated artifacts.
+
+---
+
+## 12) Acceptance Criteria (v1)
+
+- Users can run Pre‑P21 checks and see issues without uploading anything beyond existing ADaM outputs/metadata.
+- Users can select a CT Excel file and validate CT bindings; clear, filterable issue list; exportable results.
+- Users can run P21 CE via Docker with ADaM rules and view normalized issues + raw artifacts.
+- Users can generate Define.xml (ADaM only) with sponsor placeholders; download the XML.
+- Users can generate ADRG/SDRG placeholder DOCX documents and download them.
+- Users can generate an FDA‑style eCTD folder structure for ADaM artifacts and optionally zip it.
+- No regressions in existing tabs and workflows; new tab loads lazily and performs responsively.

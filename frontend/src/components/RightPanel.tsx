@@ -1,5 +1,5 @@
-import { Card, Button, Space, message, Tabs } from 'antd';
-import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, EditOutlined, CheckOutlined } from '@ant-design/icons';
+import { Card, Button, Space, message, Tabs, Tooltip } from 'antd';
+import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, EditOutlined, CheckOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import { useState, useCallback, useRef } from 'react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
@@ -9,6 +9,8 @@ import { MyValidationTab } from './MyValidationTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
 import { TraceabilityTab } from './TraceabilityTab';
+import { CodeValidatorTab } from './CodeValidatorTab';
+import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import './RightPanel.css';
 
 interface RightPanelProps {
@@ -20,13 +22,24 @@ interface RightPanelProps {
   onSwitchProject?: () => void;
 }
 
+// Tab tooltips for better discoverability
+const TAB_TOOLTIPS: Record<string, string> = {
+  pair: 'Generate AI code snippets for individual variables with pair programming assistance',
+  validation: 'Validate generated code against best practices and CDISC standards',
+  consolidated: 'Consolidate approved variables into a complete, optimized ADAM program',
+  validator: 'Execute and validate your code against test datasets',
+  testdata: 'Generate synthetic test data and run your code',
+  traceability: 'Track SDTM-to-ADAM lineage and create traceability documentation',
+  submission: 'Review readiness for regulatory submission with checklist and validation'
+};
+
 const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock, onSwitchProject }: RightPanelProps) => {
   const [editedCode, setEditedCode] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
   const validationTimeoutRef = useRef<number | null>(null);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability'>('pair');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability' | 'validator' | 'submission'>('pair');
 
   if (!isUnlocked) {
     const progressLabel =
@@ -67,11 +80,15 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           <Tabs
             className="workspace-tabs"
             activeKey={activeWorkspaceTab}
-            onChange={(key) => setActiveWorkspaceTab(key as 'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability')}
+            onChange={(key) => setActiveWorkspaceTab(key as 'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability' | 'validator' | 'submission')}
             items={[
               {
                 key: 'pair',
-                label: 'Pair Programming',
+                label: (
+                  <Tooltip title={TAB_TOOLTIPS.pair}>
+                    <span>Pair Programming <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
+                  </Tooltip>
+                ),
                 children: (
                   <VariablesAnalysisTab
                     onSwitchProject={onSwitchProject}
@@ -83,23 +100,57 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               },
               {
                 key: 'validation',
-                label: 'My Validation',
+                label: (
+                  <Tooltip title={TAB_TOOLTIPS.validation}>
+                    <span>My Validation <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
+                  </Tooltip>
+                ),
                 children: <MyValidationTab />,
               },
               {
                 key: 'consolidated',
-                label: 'Consolidated Code',
+                label: (
+                  <Tooltip title={TAB_TOOLTIPS.consolidated}>
+                    <span>Consolidated Code <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
+                  </Tooltip>
+                ),
                 children: <ConsolidatedCodeTab />,
               },
               {
+                key: 'validator',
+                label: (
+                  <Tooltip title={TAB_TOOLTIPS.validator}>
+                    <span>Code Validator <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
+                  </Tooltip>
+                ),
+                children: <CodeValidatorTab />,
+              },
+              {
                 key: 'testdata',
-                label: 'Test With Data',
+                label: (
+                  <Tooltip title={TAB_TOOLTIPS.testdata}>
+                    <span>Test With Data <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
+                  </Tooltip>
+                ),
                 children: <TestWithDataPanel standalone={false} />,
               },
               {
                 key: 'traceability',
-                label: 'Traceability',
+                label: (
+                  <Tooltip title={TAB_TOOLTIPS.traceability}>
+                    <span>Traceability <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
+                  </Tooltip>
+                ),
                 children: <TraceabilityTab />,
+              },
+              {
+                key: 'submission',
+                label: (
+                  <Tooltip title={TAB_TOOLTIPS.submission}>
+                    <span>Submission Readiness <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
+                  </Tooltip>
+                ),
+                children: <SubmissionReadinessTab />,
               },
             ]}
           />
@@ -142,7 +193,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
     
     setIsValidating(true);
     try {
-      const result = await api.validateCode(code, language);
+      const result = await api.validateCode({ code, language });
       setValidationResults(result);
     } catch (error) {
       console.error('Validation failed:', error);

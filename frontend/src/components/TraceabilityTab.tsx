@@ -11,7 +11,10 @@ import {
   Spin,
   Tooltip,
   Modal,
-  Typography
+  Typography,
+  Progress,
+  Steps,
+  Badge
 } from 'antd';
 import {
   DatabaseOutlined,
@@ -24,13 +27,18 @@ import {
   LinkOutlined,
   CheckCircleOutlined,
   WarningOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  ThunderboltOutlined,
+  RocketOutlined,
+  AimOutlined,
+  TrophyOutlined
 } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { LineageGraph } from './LineageGraph';
 import { TraceabilityMatrix } from './TraceabilityMatrix';
 import { TraceabilityDetailDrawer } from './TraceabilityDetailDrawer';
 import { TraceabilityExportModal } from './TraceabilityExportModal';
+import './TraceabilityTab.css';
 
 export const TraceabilityTab: React.FC = () => {
   const {
@@ -52,7 +60,7 @@ export const TraceabilityTab: React.FC = () => {
 
   // Auto-generate on mount if snippets are ready
   useEffect(() => {
-    if (!traceabilityMatrix && !isGeneratingTraceability) {
+    if (!traceabilityMatrix && !isGeneratingTraceability && pairProgramming?.snippets) {
       const snippets = Object.values(pairProgramming.snippets);
       const hasAcceptedSnippets = snippets.some(s => s.accepted === 'accept');
 
@@ -103,61 +111,137 @@ export const TraceabilityTab: React.FC = () => {
   const missing = prereqs.filter(p => !p.ok);
 
   return (
-    <div style={{ padding: '20px', height: '100%', overflow: 'auto' }}>
-      {/* Overview Strip */}
-      <Card bordered={false} style={{ marginBottom: 20 }}>
-        <Row gutter={16}>
-          {/* Study Context */}
-          <Col span={6}>
-            <Statistic
-              title="Study ID"
-              value={projectConfig.studyId || 'Not Set'}
-              prefix={<DatabaseOutlined />}
-              valueStyle={{ fontSize: 16 }}
-            />
+    <div className="traceability-tab-container">
+      {/* Hero Intelligence Dashboard */}
+      <div className="intelligence-dashboard">
+        <div className="dashboard-header">
+          <div className="header-title">
+            <AimOutlined className="title-icon" />
+            <h1>Traceability Intelligence Dashboard</h1>
+          </div>
+          <div className="header-subtitle">
+            Transform your ADAM specifications into comprehensive lineage documentation
+          </div>
+        </div>
+
+        <Row gutter={[24, 24]} className="metrics-row">
+          {/* Completeness Card */}
+          <Col xs={24} sm={12} lg={8}>
+            <Card className="metric-card completeness-card" bordered={false}>
+              <div className="metric-icon">
+                <TrophyOutlined />
+              </div>
+              <div className="metric-content">
+                <div className="metric-label">Completeness</div>
+                <div className="metric-value">
+                  {tracedCount}/{totalCount}
+                </div>
+                <Progress
+                  percent={totalCount > 0 ? Math.round((tracedCount / totalCount) * 100) : 0}
+                  strokeColor={{
+                    '0%': '#667eea',
+                    '100%': '#764ba2',
+                  }}
+                  showInfo={false}
+                  className="metric-progress"
+                />
+                <div className="metric-detail">
+                  {totalCount - tracedCount} remaining
+                </div>
+              </div>
+            </Card>
           </Col>
 
-          {/* Dataset Info */}
-          <Col span={6}>
-            <Statistic
-              title="Dataset"
-              value={projectConfig.adamDataset || 'Not Selected'}
-              prefix={<FileTextOutlined />}
-              valueStyle={{ fontSize: 16 }}
-            />
+          {/* Confidence Card */}
+          <Col xs={24} sm={12} lg={8}>
+            <Card className="metric-card confidence-card" bordered={false}>
+              <div className="metric-icon">
+                {getConfidenceIcon()}
+              </div>
+              <div className="metric-content">
+                <div className="metric-label">Confidence</div>
+                <div className="metric-value">
+                  {(avgConfidence * 100).toFixed(1)}%
+                </div>
+                <div className="confidence-quality">
+                  {avgConfidence > 0.8 ? 'High Quality' : avgConfidence > 0.5 ? 'Medium Quality' : 'Needs Review'}
+                </div>
+                <Space size={4} className="confidence-breakdown">
+                  <Tag color="success" className="confidence-tag">
+                    🟢 {traceabilityMatrix?.high_confidence_count || 0} High
+                  </Tag>
+                  <Tag color="warning" className="confidence-tag">
+                    🟡 {traceabilityMatrix?.medium_confidence_count || 0} Med
+                  </Tag>
+                  <Tag color="error" className="confidence-tag">
+                    🔴 {traceabilityMatrix?.low_confidence_count || 0} Low
+                  </Tag>
+                </Space>
+              </div>
+            </Card>
           </Col>
 
-          {/* Traceability Metrics */}
-          <Col span={6}>
-            <Statistic
-              title="Variables Traced"
-              value={tracedCount}
-              suffix={totalCount > 0 ? `/ ${totalCount}` : ''}
-              valueStyle={{
-                fontSize: 16,
-                color: tracedCount === totalCount && totalCount > 0 ? '#3f8600' : '#cf1322'
-              }}
-            />
-          </Col>
-
-          {/* Confidence Score */}
-          <Col span={6}>
-            <Statistic
-              title="Avg Confidence"
-              value={(avgConfidence * 100).toFixed(1)}
-              suffix="%"
-              prefix={getConfidenceIcon()}
-              valueStyle={{ fontSize: 16 }}
-            />
-            <Tooltip title="Based on spec + code confirmation">
-              <QuestionCircleOutlined style={{ marginLeft: 8, color: '#8c8c8c' }} />
-            </Tooltip>
+          {/* Status Card */}
+          <Col xs={24} sm={24} lg={8}>
+            <Card className="metric-card status-card" bordered={false}>
+              <div className="metric-icon">
+                <RocketOutlined />
+              </div>
+              <div className="metric-content">
+                <div className="metric-label">Status</div>
+                <div className="metric-value">
+                  {isGeneratingTraceability ? 'Generating...' : traceabilityMatrix ? '✓ Ready' : 'Not Generated'}
+                </div>
+                <div className="status-info">
+                  {traceabilityMatrix && traceabilityMatrix.generated_at && (
+                    <span>Last: {new Date(traceabilityMatrix.generated_at).toLocaleString()}</span>
+                  )}
+                  {!traceabilityMatrix && !isGeneratingTraceability && (
+                    <span>Click Generate to start</span>
+                  )}
+                </div>
+                <div className="context-breadcrumb">
+                  <Tag icon={<DatabaseOutlined />}>{projectConfig.studyId || 'No Study'}</Tag>
+                  <Tag icon={<FileTextOutlined />}>{projectConfig.adamDataset || 'No Dataset'}</Tag>
+                </div>
+              </div>
+            </Card>
           </Col>
         </Row>
+      </div>
 
-        {/* Action Bar */}
-        <div style={{ marginTop: 16, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
-          <Space>
+      {/* Prerequisites Panel */}
+      <Card className="prerequisites-panel" bordered={false}>
+        <div className="panel-header">
+          <ThunderboltOutlined className="panel-icon" />
+          <h2>Generation Readiness</h2>
+        </div>
+
+        <Steps
+          current={prereqs.filter(p => p.ok).length}
+          status={missing.length === 0 ? 'finish' : 'process'}
+          className="prerequisites-steps"
+        >
+          {prereqs.map((p, idx) => (
+            <Steps.Step
+              key={p.key}
+              title={p.label}
+              status={p.ok ? 'finish' : 'wait'}
+              icon={p.ok ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+              description={
+                p.key === 'studyId' ? (projectConfig.studyId || 'Not configured') :
+                p.key === 'dataset' ? (projectConfig.adamDataset || 'Not selected') :
+                p.key === 'spec' ? (specificationFile ? `${specificationFile.name}` : 'Not uploaded') :
+                'Configure'
+              }
+              onClick={!p.ok ? p.action : undefined}
+              style={{ cursor: p.ok ? 'default' : 'pointer' }}
+            />
+          ))}
+        </Steps>
+
+        <div className="action-bar">
+          <Space size="middle">
             <Tooltip
               open={canGenerate ? false : undefined}
               title={
@@ -175,12 +259,14 @@ export const TraceabilityTab: React.FC = () => {
             >
               <Button
                 type="primary"
+                size="large"
                 icon={<SyncOutlined spin={isGeneratingTraceability} />}
                 onClick={handleRefresh}
                 loading={isGeneratingTraceability}
                 disabled={!canGenerate}
+                className="generate-button"
               >
-                {isGeneratingTraceability ? 'Generating...' : 'Generate Traceability'}
+                {isGeneratingTraceability ? 'Generating Traceability...' : '🎯 Generate Traceability'}
               </Button>
             </Tooltip>
 
@@ -188,6 +274,7 @@ export const TraceabilityTab: React.FC = () => {
               icon={<DownloadOutlined />}
               onClick={() => setExportModalVisible(true)}
               disabled={!traceabilityMatrix}
+              size="large"
             >
               Export
             </Button>
@@ -196,78 +283,57 @@ export const TraceabilityTab: React.FC = () => {
               icon={<FullscreenOutlined />}
               onClick={() => setShowGraph(!showGraph)}
               disabled={!traceabilityMatrix}
+              size="large"
             >
               {showGraph ? 'Show Matrix' : 'Show Graph'}
             </Button>
-
-            {/* Confidence Legend */}
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              <Tag color="success">High (&gt;80%)</Tag>
-              <Tag color="warning">Medium (50-80%)</Tag>
-              <Tag color="error">Low (&lt;50%)</Tag>
-            </div>
           </Space>
-        </div>
 
-        {/* Prerequisites checklist */}
-        {!isGeneratingTraceability && (
-          <div style={{ marginTop: 8 }}>
-            <Space size={[8, 8]} wrap>
-              <span style={{ color: '#8c8c8c' }}>Prerequisites:</span>
-              {prereqs.map((p) => (
-                <Tag
-                  key={p.key}
-                  color={p.ok ? 'success' : 'default'}
-                  onClick={!p.ok ? p.action : undefined}
-                  style={{ cursor: p.ok ? 'default' : 'pointer' }}
-                >
-                  {p.ok ? (
-                    <span><CheckCircleOutlined style={{ marginRight: 6 }} />{p.label}</span>
-                  ) : (
-                    <span><CloseCircleOutlined style={{ marginRight: 6 }} />{p.label}</span>
-                  )}
-                </Tag>
-              ))}
-            </Space>
+          {/* Confidence Legend */}
+          <div className="confidence-legend">
+            <span className="legend-label">Confidence:</span>
+            <Tag color="success">High (&gt;80%)</Tag>
+            <Tag color="warning">Medium (50-80%)</Tag>
+            <Tag color="error">Low (&lt;50%)</Tag>
           </div>
-        )}
+        </div>
+      </Card>
 
         {/* Error Alert */}
         {traceabilityError && (
-          <div style={{ marginTop: 16 }}>
-            <Alert
-              message="Traceability generation failed"
-              description={
-                <div>
-                  <div style={{ marginBottom: 8 }}>{traceabilityError}</div>
-                  <Space wrap>
-                    <Button size="small" onClick={() => openLeftTab('project')}>Open Setup</Button>
-                    <Button size="small" onClick={() => openLeftTab('dataset')}>Choose Dataset</Button>
-                    <Button size="small" onClick={() => openLeftTab('specification')}>Open Specification</Button>
-                    <Button size="small" onClick={() => setShowErrorDetails((v) => !v)}>
-                      {showErrorDetails ? 'Hide details' : 'Show details'}
-                    </Button>
-                  </Space>
-                  {showErrorDetails && (
-                    <div style={{ marginTop: 12, background: '#fafafa', padding: 12, border: '1px dashed #e5e5e5', borderRadius: 6 }}>
-                      <Typography.Paragraph style={{ marginBottom: 6 }}>
-                        <strong>Study ID:</strong> {projectConfig.studyId || 'Not set'}
-                      </Typography.Paragraph>
-                      <Typography.Paragraph style={{ marginBottom: 6 }}>
-                        <strong>Dataset:</strong> {projectConfig.adamDataset || 'Not selected'}
-                      </Typography.Paragraph>
-                      <Typography.Paragraph style={{ marginBottom: 0 }}>
-                        <strong>Specification Path:</strong> {specificationFile?.path || 'Not selected'}
-                      </Typography.Paragraph>
-                    </div>
-                  )}
-                </div>
-              }
-              type="error"
-              showIcon
-              closable
-            />
-          </div>
+          <Alert
+            message="Traceability generation failed"
+            description={
+              <div>
+                <div style={{ marginBottom: 8 }}>{traceabilityError}</div>
+                <Space wrap>
+                  <Button size="small" onClick={() => openLeftTab('project')}>Open Setup</Button>
+                  <Button size="small" onClick={() => openLeftTab('dataset')}>Choose Dataset</Button>
+                  <Button size="small" onClick={() => openLeftTab('specification')}>Open Specification</Button>
+                  <Button size="small" onClick={() => setShowErrorDetails((v) => !v)}>
+                    {showErrorDetails ? 'Hide details' : 'Show details'}
+                  </Button>
+                </Space>
+                {showErrorDetails && (
+                  <div style={{ marginTop: 12, background: '#fafafa', padding: 12, border: '1px dashed #e5e5e5', borderRadius: 6 }}>
+                    <Typography.Paragraph style={{ marginBottom: 6 }}>
+                      <strong>Study ID:</strong> {projectConfig.studyId || 'Not set'}
+                    </Typography.Paragraph>
+                    <Typography.Paragraph style={{ marginBottom: 6 }}>
+                      <strong>Dataset:</strong> {projectConfig.adamDataset || 'Not selected'}
+                    </Typography.Paragraph>
+                    <Typography.Paragraph style={{ marginBottom: 0 }}>
+                      <strong>Specification Path:</strong> {specificationFile?.path || 'Not selected'}
+                    </Typography.Paragraph>
+                  </div>
+                )}
+              </div>
+            }
+            type="error"
+            showIcon
+            closable
+            className="error-alert"
+          />
         )}
 
         {/* Help Message */}
@@ -288,21 +354,26 @@ export const TraceabilityTab: React.FC = () => {
             }
             type="info"
             showIcon
-            style={{ marginTop: 16 }}
+            className="info-alert"
           />
         )}
-      </Card>
 
       {/* Main Content */}
       {isGeneratingTraceability && (
-        <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <Spin size="large" />
-          <div style={{ marginTop: 16, color: '#8c8c8c' }}>
-            Generating traceability matrix...
-            <br />
-            This may take a moment.
+        <Card className="loading-card" bordered={false}>
+          <div className="loading-content">
+            <Spin size="large" />
+            <h3>🔄 Generating Traceability Matrix...</h3>
+            <p>This may take a moment while we analyze your specifications</p>
+            <div className="loading-steps">
+              <div className="loading-step completed">✓ Parsed specification file</div>
+              <div className="loading-step completed">✓ Loaded SDTM datasets</div>
+              <div className="loading-step active">⟳ Analyzing algorithms...</div>
+              <div className="loading-step">⋯ Building lineage graph</div>
+              <div className="loading-step">⋯ Calculating confidence scores</div>
+            </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {!isGeneratingTraceability && traceabilityMatrix && (
@@ -344,11 +415,42 @@ export const TraceabilityTab: React.FC = () => {
       )}
 
       {!isGeneratingTraceability && !traceabilityMatrix && !traceabilityError && (
-        <Card bordered={false}>
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#8c8c8c' }}>
-            <LinkOutlined style={{ fontSize: 48, marginBottom: 16 }} />
-            <h3>No Traceability Matrix Generated</h3>
-            <p>Click "Generate Traceability" to create the SDTM-ADaM lineage documentation.</p>
+        <Card className="empty-state-card" bordered={false}>
+          <div className="empty-state-content">
+            <div className="empty-state-icon">🎯</div>
+            <h2>Ready to Generate Traceability?</h2>
+            <p className="empty-state-description">
+              Transform your ADAM specifications into a comprehensive lineage documentation 
+              that traces every variable back to its SDTM source with full regulatory compliance.
+            </p>
+            
+            <div className="benefits-box">
+              <h3>What You'll Get:</h3>
+              <ul className="benefits-list">
+                <li>✓ Complete SDTM → ADAM variable mapping</li>
+                <li>✓ Derivation algorithms with step-by-step logic</li>
+                <li>✓ ADAM IG rule references and compliance checks</li>
+                <li>✓ Interactive graph visualization of data flow</li>
+                <li>✓ Confidence scoring for each variable</li>
+                <li>✓ AI-powered anomaly detection</li>
+                <li>✓ Export to PDF, Excel, or Word for submission</li>
+              </ul>
+            </div>
+
+            <Button
+              type="primary"
+              size="large"
+              icon={<RocketOutlined />}
+              onClick={handleRefresh}
+              disabled={!canGenerate}
+              className="empty-state-button"
+            >
+              🚀 Generate Traceability
+            </Button>
+
+            <div className="empty-state-footer">
+              <a href="#" style={{ color: '#1890ff' }}>Learn more about this feature</a>
+            </div>
           </div>
         </Card>
       )}

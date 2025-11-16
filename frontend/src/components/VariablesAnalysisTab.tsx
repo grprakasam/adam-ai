@@ -11,6 +11,7 @@ import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGen
 import { ProgramDownloadModal } from './ProgramDownloadModal';
 import { showNavigationConfirmation } from './ConfirmationDialog';
 import './VariablesAnalysisTab.css';
+import AnalyzingVariablesStatus from './AnalyzingVariablesStatus';
 
 const CATEGORY_DISPLAY_OVERRIDES: Record<string, string> = {
   'Baseline Characteristic Variables': 'Baseline Characteristics',
@@ -115,6 +116,29 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
       ),
     []
   );
+
+  // Loading visualizer state for categorization
+  const [categorizeStartedAt, setCategorizeStartedAt] = useState<number | null>(null);
+  const [loadingStep, setLoadingStep] = useState<number>(1);
+
+  useEffect(() => {
+    let timer: any;
+    if (isCategorizingVariables) {
+      if (!categorizeStartedAt) setCategorizeStartedAt(Date.now());
+      setLoadingStep(1);
+      // Advance visible step every ~8s up to 6, purely for user feedback
+      timer = setInterval(() => {
+        setLoadingStep((s) => (s < 6 ? s + 1 : s));
+      }, 8000);
+    } else {
+      if (categorizeStartedAt) {
+        setCategorizeStartedAt(null);
+      }
+      setLoadingStep(6);
+    }
+    return () => timer && clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCategorizingVariables]);
 
   // Get approval progress
   const { percentage, isReadyForGeneration } = useApprovalProgress();
@@ -769,9 +793,17 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
   if (isCategorizingVariables) {
     return (
       <div className="variables-loading-state">
-        <Loader2 size={64} className="loading-spinner" />
-        <h3>Analyzing variables...</h3>
-        <p>Reading specification and categorizing variables using the standard mapping</p>
+        <AnalyzingVariablesStatus
+          fileName={specificationFile?.name}
+          totalVars={undefined}
+          parsedVars={undefined}
+          categoryCount={undefined}
+          currentStep={loadingStep}
+          totalSteps={6}
+          adamVersion={adamIgVersion}
+          meddraVersion={medraVersion}
+          startTime={categorizeStartedAt ?? undefined}
+        />
       </div>
     );
   }

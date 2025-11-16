@@ -1,0 +1,146 @@
+/**
+ * Submission Readiness Tab Styles
+ * Matching design patterns from Traceability Tab
+ */
+
+.submission-readiness-tab {
+  padding: 16px;
+  min-height: calc(100vh - 120px);
+}
+
+/* Context Bar */
+.context-bar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.context-bar .ant-card-body {
+  padding: 12px 16px;
+}
+
+.context-bar span {
+  color: white;
+  font-size: 14px;
+}
+
+.context-bar strong {
+  font-weight: 600;
+}
+
+.context-bar .ant-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.context-bar .ant-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Main Tabs */
+.submission-tabs .ant-tabs-nav {
+  background: white;
+  padding: 0 16px;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.submission-tabs .ant-tabs-tab {
+  font-size: 15px;
+  font-weight: 500;
+  padding: 12px 20px;
+}
+
+.submission-tabs .ant-tabs-tab-active {
+  color: #667eea;
+}
+
+.submission-tabs .ant-tabs-ink-bar {
+  height: 3px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Placeholder Content */
+.dashboard-placeholder,
+.validation-placeholder,
+.package-placeholder,
+.artifacts-placeholder {
+  animation: fadeIn 0.5s ease-in;
+}
+
+.dashboard-placeholder .ant-card,
+.validation-placeholder .ant-card,
+.package-placeholder .ant-card,
+.artifacts-placeholder .ant-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Help Sidebar */
+.help-sidebar {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.help-sidebar .ant-card {
+  border-radius: 12px;
+  border: 1px solid #e8e8e8;
+}
+
+.help-sidebar h4 {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.help-sidebar ol {
+  padding-left: 20px;
+}
+
+.help-sidebar ol li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .context-bar .ant-space {
+    flex-wrap: wrap;
+  }
+
+  .help-sidebar .ant-card {
+    width: calc(100vw - 32px) !important;
+    right: 16px !important;
+  }
+}
+
+/* Progress Circle Styling */
+.ant-progress-circle .ant-progress-text {
+  color: #333;
+  font-weight: 600;
+}

@@ -54,6 +54,27 @@ export interface PairProgrammingState {
   isGenerating: Record<string, boolean>;
 }
 
+export interface SubmissionReadinessScore {
+  overall: number;
+  components: {
+    preflight: number;
+    controlled_terminology: number;
+    p21_validation: number;
+    define_xml: number;
+    documentation: number;
+  };
+  recommendations: string[];
+  last_updated: string;
+}
+
+export interface ActivityLogItem {
+  timestamp: string;
+  action: string;
+  message: string;
+  status: 'success' | 'warning' | 'error' | 'info';
+  details?: any;
+}
+
 interface ProjectStore {
   // Project Configuration
   projectConfig: ProjectConfiguration;
@@ -161,6 +182,30 @@ interface ProjectStore {
   setSelectedTraceabilityVariable: (variable: string | null) => void;
   generateTraceability: () => Promise<void>;
   clearTraceability: () => void;
+
+  // Submission Readiness
+  submissionReadinessScore: SubmissionReadinessScore | null;
+  preflightResults: any | null;
+  ctResults: any | null;
+  p21Results: any | null;
+  defineXmlStatus: 'idle' | 'generating' | 'complete' | 'error';
+  adrgStatus: 'idle' | 'generating' | 'complete' | 'error';
+  sdrgStatus: 'idle' | 'generating' | 'complete' | 'error';
+  generatedArtifacts: any[];
+  recentActivity: ActivityLogItem[];
+  isValidating: boolean;
+  isGeneratingPackage: boolean;
+  setSubmissionReadinessScore: (score: SubmissionReadinessScore | null) => void;
+  refreshReadinessScore: () => Promise<void>;
+  runAllValidations: () => Promise<void>;
+  runPreflightCheck: () => Promise<void>;
+  runCTValidation: () => Promise<void>;
+  runP21Validation: () => Promise<void>;
+  generateDefineXml: (options?: any) => Promise<void>;
+  generateADRG: () => Promise<void>;
+  generateSDRG: () => Promise<void>;
+  createECTDPackage: (options?: any) => Promise<void>;
+  clearValidationResults: () => void;
 }
 
 const initialState = {
@@ -665,6 +710,210 @@ export const useProjectStore = create<ProjectStore>()(
           traceabilityError: null,
           selectedTraceabilityVariable: null,
           traceabilityLastGenerated: null,
+        }),
+
+      // Submission Readiness
+      submissionReadinessScore: null,
+      preflightResults: null,
+      ctResults: null,
+      p21Results: null,
+      defineXmlStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
+      adrgStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
+      sdrgStatus: 'idle' | 'generating' | 'complete' | 'error',
+      generatedArtifacts: [],
+      recentActivity: [],
+      isValidating: false,
+      isGeneratingPackage: false,
+
+      setSubmissionReadinessScore: (score: SubmissionReadinessScore | null) =>
+        set({ submissionReadinessScore: score }),
+
+      refreshReadinessScore: async () => {
+        const { projectConfig } = get();
+        if (!projectConfig.studyId || !projectConfig.adamDataset) {
+          console.warn('Study ID and dataset required for readiness score');
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/v1/submission/readiness/${projectConfig.studyId}/${projectConfig.adamDataset}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            set({ submissionReadinessScore: data.data || data });
+          }
+        } catch (error) {
+          console.error('Error refreshing readiness score:', error);
+        }
+      },
+
+      runAllValidations: async () => {
+        const { projectConfig } = get();
+        if (!projectConfig.studyId || !projectConfig.adamDataset) {
+          console.warn('Study ID and dataset required for validation');
+          return;
+        }
+
+        set({ isValidating: true });
+        try {
+          const response = await fetch('http://localhost:8000/api/v1/submission/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              study_id: projectConfig.studyId,
+              dataset: projectConfig.adamDataset,
+              checks: ['preflight', 'ct', 'p21'],
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            set({
+              preflightResults: data.preflight,
+              ctResults: data.controlled_terminology,
+              p21Results: data.p21,
+            });
+            // Refresh score after validation
+            get().refreshReadinessScore();
+          }
+        } catch (error) {
+          console.error('Validation error:', error);
+        } finally {
+          set({ isValidating: false });
+        }
+      },
+
+      runPreflightCheck: async () => {
+        const { projectConfig } = get();
+        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/v1/submission/preflight/${projectConfig.studyId}/${projectConfig.adamDataset}`,
+            { method: 'POST' }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            set({ preflightResults: data });
+          }
+        } catch (error) {
+          console.error('Preflight error:', error);
+        }
+      },
+
+      runCTValidation: async () => {
+        const { projectConfig } = get();
+        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/v1/submission/ct-validation/${projectConfig.studyId}/${projectConfig.adamDataset}`,
+            { method: 'POST' }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            set({ ctResults: data });
+          }
+        } catch (error) {
+          console.error('CT validation error:', error);
+        }
+      },
+
+      runP21Validation: async () => {
+        const { projectConfig } = get();
+        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+        try {
+          const response = await fetch(
+            `http://localhost:8000/api/v1/submission/p21-validation/${projectConfig.studyId}/${projectConfig.adamDataset}`,
+            { method: 'POST' }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            set({ p21Results: data });
+          }
+        } catch (error) {
+          console.error('P21 validation error:', error);
+        }
+      },
+
+      generateDefineXml: async (options?: any) => {
+        set({ defineXmlStatus: 'generating' });
+        try {
+          // TODO: Implement Define.xml generation API call
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          set({ defineXmlStatus: 'complete' });
+        } catch (error) {
+          console.error('Define.xml generation error:', error);
+          set({ defineXmlStatus: 'error' });
+        }
+      },
+
+      generateADRG: async () => {
+        set({ adrgStatus: 'generating' });
+        try {
+          // TODO: Implement ADRG generation API call
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          set({ adrgStatus: 'complete' });
+        } catch (error) {
+          console.error('ADRG generation error:', error);
+          set({ adrgStatus: 'error' });
+        }
+      },
+
+      generateSDRG: async () => {
+        set({ sdrgStatus: 'generating' });
+        try {
+          // TODO: Implement SDRG generation API call
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          set({ sdrgStatus: 'complete' });
+        } catch (error) {
+          console.error('SDRG generation error:', error);
+          set({ sdrgStatus: 'error' });
+        }
+      },
+
+      createECTDPackage: async (options?: any) => {
+        const { projectConfig } = get();
+        if (!projectConfig.studyId) return;
+
+        set({ isGeneratingPackage: true });
+        try {
+          const response = await fetch('http://localhost:8000/api/v1/submission/package', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              study_id: projectConfig.studyId,
+              datasets: [projectConfig.adamDataset],
+              include: {
+                define_xml: true,
+                adrg: true,
+                sdrg: true,
+              },
+              options,
+            }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            set({ generatedArtifacts: data.artifacts || [] });
+          }
+        } catch (error) {
+          console.error('Package generation error:', error);
+        } finally {
+          set({ isGeneratingPackage: false });
+        }
+      },
+
+      clearValidationResults: () =>
+        set({
+          preflightResults: null,
+          ctResults: null,
+          p21Results: null,
+          defineXmlStatus: 'idle',
+          adrgStatus: 'idle',
+          sdrgStatus: 'idle',
         }),
     }),
     {

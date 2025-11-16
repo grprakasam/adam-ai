@@ -17,9 +17,10 @@ from app.api.v1.endpoints import (
     program_generation,
     llm_models,
     test_data,
-    traceability
+    traceability,
+    code_execution
 )
-from app.api import auth_routes, validation_routes, performance_routes, review_routes
+from app.api import auth_routes, validation_routes, performance_routes, review_routes, submission, submission
 
 # Authentication routes (no auth required for these endpoints)
 api_router.include_router(auth_routes.router, tags=["authentication"])
@@ -33,6 +34,9 @@ api_router.include_router(performance_routes.router, tags=["performance"])
 # Review routes (auth required)
 api_router.include_router(review_routes.router, tags=["reviews"])
 
+# Submission readiness routes (auth required)
+api_router.include_router(submission.router, tags=["submission"])
+
 # Application routes (auth required)
 api_router.include_router(llm_config.router, prefix="/llm", tags=["llm-config"])
 api_router.include_router(specification.router, prefix="/specification", tags=["specification"])
@@ -43,6 +47,7 @@ api_router.include_router(program_generation.router, prefix="/program-generation
 api_router.include_router(llm_models.router, prefix="/llm-models", tags=["llm-models"])
 api_router.include_router(test_data.router, prefix="/test-data", tags=["test-data"])
 api_router.include_router(traceability.router, prefix="/traceability", tags=["traceability"])
+api_router.include_router(code_execution.router, tags=["code-execution"])
 
 
 @api_router.get("/status")
