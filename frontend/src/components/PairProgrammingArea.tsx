@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { message, Tooltip, Button } from 'antd';
-import { Code2, Loader2, AlertCircle, RefreshCw, Copy, Check, Eye, EyeOff, ChevronDown, ChevronUp, Maximize2, Info } from 'lucide-react';
+import { Code2, Loader2, AlertCircle, RefreshCw, Info } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import { showRegenerateConfirmation } from './ConfirmationDialog';
@@ -42,10 +42,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     selectedModel
   } = useProjectStore();
 
-  const [copiedVariable, setCopiedVariable] = useState<string | null>(null);
   const [expandedRationale, setExpandedRationale] = useState<Set<string>>(new Set());
   const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
-  const isAnyVariableGenerating = Object.values(pairProgramming.isGenerating).some(v => v);
   const showAdvancedColumns = hasAnySnippets;
 
   // Debug logging
@@ -304,7 +302,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
             {variables.map((variable) => {
               const snippet = pairProgramming.snippets[variable.name];
               const isGenerating = pairProgramming.isGenerating[variable.name];
-              const isCopied = copiedVariable === variable.name;
               const isExpanded = expandedRationale.has(variable.name);
               const trimmedNotes = snippet?.userNotes?.trim() ?? '';
               const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;

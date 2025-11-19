@@ -1,6 +1,6 @@
 .left-panel {
-  width: 380px;
-  min-width: 380px;
+  width: var(--sidebar-width, 380px);
+  min-width: var(--sidebar-width, 380px);
   background: var(--surface-base);
   border-right: var(--border-width) solid var(--border-color);
   overflow: hidden;

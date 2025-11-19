@@ -1,31 +1,306 @@
+/* Enhanced Package Generator Styles */
+
 .package-generator {
   height: 100%;
   overflow-y: auto;
 }
 
+.package-generator-card {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.package-generator-card > .ant-card-head {
+  background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf3 100%);
+  border-radius: 12px 12px 0 0;
+}
+
+.package-generator-card > .ant-card-head .ant-card-head-title {
+  padding: 16px 0;
+}
+
 .package-generator .steps-content {
-  min-height: 400px;
+  min-height: 450px;
   padding: 24px;
   background-color: #fafafa;
-  border: 1px dashed #e0e0e0;
-  border-radius: 8px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 12px;
 }
 
 .package-generator .step-content {
-  max-width: 800px;
-  margin: 0 auto;
+  max-width: 100%;
 }
 
-.package-generator .ant-checkbox-wrapper {
-  display: block;
-  margin-bottom: 16px;
+/* Dataset selection cards */
+.dataset-selection-card {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
 }
 
-.package-generator .ant-card-head {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+.dataset-selection-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.package-generator .steps-action {
+.dataset-selection-card.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6f0ff 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+/* Artifact cards */
+.artifact-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.artifact-card .ant-card-head {
+  background: #fafafa;
+  border-radius: 12px 12px 0 0;
+}
+
+.artifact-option {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  transition: all 0.2s ease;
+}
+
+.artifact-option:hover {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+}
+
+/* Preview and summary cards */
+.preview-card,
+.summary-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.preview-card .ant-tree {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+}
+
+.preview-card .ant-card-head,
+.summary-card .ant-card-head {
+  background: #fafafa;
+  border-radius: 12px 12px 0 0;
+}
+
+/* Progress card */
+.progress-card {
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6f7ff 100%);
+}
+
+/* Result cards */
+.result-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.result-card .ant-card-head {
+  background: #fafafa;
+  border-radius: 12px 12px 0 0;
+}
+
+/* Steps styling */
+.package-generator .ant-steps {
+  padding: 0 24px;
+}
+
+.package-generator .ant-steps-item-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.package-generator .ant-steps-item-process .ant-steps-item-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.package-generator .ant-steps-item-finish .ant-steps-item-icon {
+  background: #52c41a;
+  border-color: #52c41a;
+}
+
+.package-generator .ant-steps-item-finish .ant-steps-item-icon svg {
+  color: white;
+}
+
+/* Checkbox styling */
+.package-generator .ant-checkbox-wrapper {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.package-generator .ant-checkbox {
+  margin-top: 4px;
+}
+
+/* Button styling */
+.package-generator .ant-btn {
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.package-generator .ant-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.package-generator .ant-btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Result section */
+.package-generator .ant-result {
+  padding: 32px;
+}
+
+.package-generator .ant-result-icon {
+  margin-bottom: 24px;
+}
+
+.package-generator .ant-result-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.package-generator .ant-result-subtitle {
+  font-size: 14px;
+}
+
+/* Tree styling */
+.package-generator .ant-tree {
+  background: #fafafa;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.package-generator .ant-tree-node-content-wrapper {
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.package-generator .ant-tree-node-content-wrapper:hover {
+  background: #e6f7ff;
+}
+
+/* Statistic styling */
+.package-generator .ant-statistic-title {
+  font-size: 13px;
+  color: #8c8c8c;
+}
+
+.package-generator .ant-statistic-content {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+/* Alert styling */
+.package-generator .ant-alert {
+  border-radius: 8px;
+}
+
+.package-generator .ant-alert-info {
+  background: linear-gradient(90deg, #e6f7ff 0%, #bae7ff 100%);
+  border-color: #91d5ff;
+}
+
+.package-generator .ant-alert-success {
+  background: linear-gradient(90deg, #f6ffed 0%, #d9f7be 100%);
+  border-color: #b7eb8f;
+}
+
+/* List item styling */
+.package-generator .ant-list-item {
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.package-generator .ant-list-item:hover {
+  background: #f5f5f5;
+}
+
+/* Tag styling */
+.package-generator .ant-tag {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .package-generator .steps-content {
+    padding: 16px;
+  }
+
+  .package-generator .ant-steps {
+    padding: 0;
+  }
+
+  .dataset-selection-card .ant-row {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .artifact-option {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+
+/* Animation for progress */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.package-generator .ant-progress-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.package-generator .ant-progress-bg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+/* Divider styling */
+.package-generator .ant-divider {
+  margin: 24px 0;
+}
+
+/* Code styling */
+.package-generator code {
+  background: #f5f5f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 12px;
 }

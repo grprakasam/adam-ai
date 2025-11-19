@@ -23,8 +23,6 @@ import {
 } from 'antd';
 import {
   CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  ReloadOutlined,
   EyeOutlined,
   InfoCircleOutlined,
   FileTextOutlined,
@@ -69,13 +67,14 @@ export const MyValidationTab: React.FC = () => {
     categorizedVariables.categories.forEach(category => {
       category.variables.forEach(variable => {
         const snippet = pairProgramming.snippets[variable.name];
+        const isRequired = Boolean((variable as any).is_required ?? (variable as any).required);
 
         data.push({
           key: variable.name,
           variableName: variable.name,
           category: category.name,
           type: variable.type || 'N/A',
-          required: variable.required,
+          required: isRequired,
           derivation: variable.derivation || variable.label || '-',
           hasSnippet: !!snippet,
           snippetStatus: snippet ? (snippet.error ? 'error' : 'generated') : 'not_generated',
@@ -167,9 +166,10 @@ export const MyValidationTab: React.FC = () => {
       filters: [
         { text: 'Accepted', value: 'accept' },
         { text: 'Needs Modification', value: 'modify' },
-        { text: 'Pending', value: null },
+        { text: 'Pending', value: 'pending' },
       ],
-      onFilter: (value: any, record: any) => record.acceptance === value,
+      onFilter: (value: any, record: any) =>
+        value === 'pending' ? record.acceptance === null : record.acceptance === value,
       render: (acceptance: 'accept' | 'modify' | null, record: any) => (
         <Radio.Group
           value={acceptance}

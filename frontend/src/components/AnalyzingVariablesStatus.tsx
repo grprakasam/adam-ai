@@ -11,6 +11,9 @@ type Props = {
   adamVersion?: string;
   meddraVersion?: string;
   startTime?: number; // Date.now()
+  cancellable?: boolean;
+  onCancel?: () => void;
+  onForceReset?: () => void;
 };
 
 const LONG_WAIT_MS = 60_000;
@@ -35,6 +38,9 @@ export default function AnalyzingVariablesStatus({
   adamVersion,
   meddraVersion,
   startTime,
+  cancellable,
+  onCancel,
+  onForceReset,
 }: Props) {
   const startedAt = useRef(startTime ?? Date.now());
   const [now, setNow] = useState(Date.now());
@@ -93,6 +99,15 @@ export default function AnalyzingVariablesStatus({
           <Typography.Text>
             You can continue elsewhere; we’ll notify when ready. {eta ? `~${eta}s remaining.` : ''}
           </Typography.Text>
+        )}
+
+        {cancellable && (
+          <div style={{ marginTop: 8 }}>
+            <a role="button" onClick={onCancel} style={{ marginRight: 16 }}>Cancel and retry</a>
+            {veryLong && onForceReset && (
+              <a role="button" onClick={onForceReset} style={{ color: '#ff4d4f' }}>Force Reset</a>
+            )}
+          </div>
         )}
       </Space>
     </Card>

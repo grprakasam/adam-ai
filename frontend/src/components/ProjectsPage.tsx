@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, Typography, Tag, Divider, Steps, Badge } from 'antd';
+import { Button, Card, Typography, Tag, Badge } from 'antd';
 import { FolderKanban, ArrowLeft, Sparkles, Zap, FileCode } from 'lucide-react';
 import { FolderOpenOutlined, RocketOutlined, FileTextOutlined, CodeOutlined, CheckCircleOutlined as AntCheckCircle } from '@ant-design/icons';
 import './ProjectsPage.css';

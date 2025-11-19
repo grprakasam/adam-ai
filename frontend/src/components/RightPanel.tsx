@@ -11,6 +11,8 @@ import { TestWithDataPanel } from './TestWithDataPanel';
 import { TraceabilityTab } from './TraceabilityTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
+import { VisuallyHidden } from './a11y/VisuallyHidden';
+import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
 interface RightPanelProps {
@@ -41,15 +43,51 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   const validationTimeoutRef = useRef<number | null>(null);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability' | 'validator' | 'submission'>('pair');
 
+  const validateCode = useCallback(
+    async (code: string) => {
+      if (!code.trim()) return;
+
+      setIsValidating(true);
+      try {
+        const result = await api.validateCode({ code, language });
+        setValidationResults(result);
+      } catch (error) {
+        notifyUserError(error, 'Validating ADAM code');
+      } finally {
+        setIsValidating(false);
+      }
+    },
+    [language]
+  );
+
+  const handleCodeChange = useCallback(
+    (value: string | undefined) => {
+      if (value === undefined) {
+        return;
+      }
+
+      setEditedCode(value);
+
+      if (validationTimeoutRef.current) {
+        window.clearTimeout(validationTimeoutRef.current);
+      }
+
+      validationTimeoutRef.current = window.setTimeout(() => {
+        validateCode(value);
+      }, 1000);
+    },
+    [validateCode]
+  );
+
   if (!isUnlocked) {
     const progressLabel =
       completionPercentage >= 80
         ? 'You can now start generating code'
-        : 'Some configuration steps are pending — you can still start and complete them along the way.';
+        : 'Some configuration steps are pending - you can still start and complete them along the way.';
 
     return (
-      <div className="right-panel locked">
-        <div className="locked-panel">
+      <section className="right-panel locked" role="region" aria-label="Workspace tools">
+        <div className="locked-panel" role="status" aria-live="polite" aria-atomic="true">
           <h3>Pair Programming Locked</h3>
           <p>{progressLabel}</p>
           <div className="locked-progress">
@@ -57,6 +95,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               <div
                 className="locked-progress-fill"
                 style={{ width: `${Math.min(completionPercentage, 100)}%` }}
+                role="progressbar"
+                aria-valuenow={completionPercentage}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="Workspace preparation progress"
               />
             </div>
             <span>{completionPercentage}% complete</span>
@@ -65,22 +108,26 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             type="primary"
             size="large"
             onClick={onUnlock}
+            aria-describedby="workspace-lock-description"
           >
             Start Programming
           </Button>
+          <VisuallyHidden id="workspace-lock-description">
+            Complete the configuration steps before unlocking the pair programming workspace.
+          </VisuallyHidden>
         </div>
-      </div>
+      </section>
     );
   }
-
-  if (!generationResult) {
+if (!generationResult) {
     try {
       return (
-        <div className="right-panel">
+        <section className="right-panel" role="region" aria-label="Workspace tools">
           <Tabs
             className="workspace-tabs"
             activeKey={activeWorkspaceTab}
             onChange={(key) => setActiveWorkspaceTab(key as 'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability' | 'validator' | 'submission')}
+            aria-label="Workspace tabs"
             items={[
               {
                 key: 'pair',
@@ -132,7 +179,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
                     <span>Test With Data <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
                   </Tooltip>
                 ),
-                children: <TestWithDataPanel standalone={false} />,
+                children: <TestWithDataPanel />,
               },
               {
                 key: 'traceability',
@@ -154,12 +201,12 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               },
             ]}
           />
-        </div>
+        </section>
       );
     } catch (error) {
       console.error('RightPanel render error:', error);
       return (
-        <div className="right-panel">
+        <section className="right-panel" role="region" aria-label="Workspace tools">
           <div style={{ padding: '40px', textAlign: 'center' }}>
             <h3>Unable to load workspace</h3>
             <p>Please refresh the page and try again.</p>
@@ -167,41 +214,12 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               Refresh Page
             </Button>
           </div>
-        </div>
+        </section>
       );
     }
   }
 
   // Handle code editing
-  const handleCodeChange = useCallback((value: string | undefined) => {
-    if (value !== undefined) {
-      setEditedCode(value);
-      
-      // Debounce validation
-      if (validationTimeoutRef.current) {
-        clearTimeout(validationTimeoutRef.current);
-      }
-      
-      validationTimeoutRef.current = setTimeout(() => {
-        validateCode(value);
-      }, 1000); // Validate after 1 second of inactivity
-    }
-  }, []);
-
-  const validateCode = async (code: string) => {
-    if (!code.trim()) return;
-    
-    setIsValidating(true);
-    try {
-      const result = await api.validateCode({ code, language });
-      setValidationResults(result);
-    } catch (error) {
-      console.error('Validation failed:', error);
-      message.error('Code validation failed');
-    } finally {
-      setIsValidating(false);
-    }
-  };
 
   const handleCopyCode = () => {
     const codeToCopy = isEditing ? editedCode : generationResult.code;
@@ -236,7 +254,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   };
 
   return (
-    <div className="right-panel">
+    <section className="right-panel" role="region" aria-label="Workspace tools">
       {/* Generated Code */}
       <Card 
         title={
@@ -364,7 +382,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           <MetricCard label="Readability" value={generationResult.qualityMetrics.readability} />
         </div>
       </Card>
-    </div>
+    </section>
   );
 };
 

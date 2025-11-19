@@ -1,4 +1,4 @@
-import { Modal, Typography, Timeline, Card, Row, Col, Divider, Tag, Steps } from 'antd';
+import { Modal, Typography, Timeline, Card, Row, Col, Tag, Steps } from 'antd';
 import {
   RocketOutlined,
   ThunderboltOutlined,

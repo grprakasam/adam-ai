@@ -60,7 +60,7 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
   };
 
   return (
-    <nav className="tab-navigation" role="tablist" aria-label="Workspace sections">
+    <nav className="tab-navigation" role="tablist" aria-label="Workspace sections" aria-orientation="vertical">
       {tabs.map((tab) => {
         const isActive = tab.key === activeTab;
         const icon = tab.icon || defaultIcons[tab.key];
@@ -69,6 +69,8 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({
         return (
           <button
             key={tab.key}
+            type="button"
+            id={`tab-${tab.key}`}
             role="tab"
             aria-selected={isActive}
             aria-controls={`panel-${tab.key}`}

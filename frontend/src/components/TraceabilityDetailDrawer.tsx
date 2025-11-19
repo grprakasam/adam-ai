@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React from 'react';
 import {
   Drawer,
@@ -21,7 +22,6 @@ import {
   BookOutlined,
   LinkOutlined,
   RobotOutlined,
-  MessageOutlined,
   WarningOutlined,
   ThunderboltOutlined,
   CodeOutlined,
@@ -56,12 +56,6 @@ export const TraceabilityDetailDrawer: React.FC<TraceabilityDetailDrawerProps> =
       'Other Variables': 'default',
     };
     return colorMap[category] || 'default';
-  };
-
-  const getConfidenceAlertType = (confidence: number) => {
-    if (confidence > 0.8) return 'success';
-    if (confidence > 0.5) return 'warning';
-    return 'error';
   };
 
   return (

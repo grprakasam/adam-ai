@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ConfigProvider, theme, message, Modal } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from './components/Header';
@@ -11,12 +11,28 @@ import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useProjectStore } from './store/projectStore';
+import AutoSaveIndicator from './components/AutoSaveIndicator';
+import { HistoryControls } from './components/HistoryControls';
+import { RecoverySuggestions } from './components/RecoverySuggestions';
+import { HelpCenterDrawer } from './components/HelpCenterDrawer';
+import { PreferencesDrawer } from './components/PreferencesDrawer';
+import { useWorkspaceHistory } from './store/historyStore';
+import { notifyUserError } from './utils/errorNotifications';
+import { clearStaleAuthTokens } from './utils/clearAuth';
 import type { ProgrammingLanguage, GenerationResponse } from './types';
+import { SkipLink } from './components/a11y/SkipLink';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useApplyPreferences } from './hooks/useApplyPreferences';
 import './App.css';
 
 type ViewMode = 'login' | 'landing' | 'projects' | 'workspace' | 'migration';
 
 function App() {
+  // Clear any stale auth tokens on app startup
+  useEffect(() => {
+    clearStaleAuthTokens();
+  }, []);
+  
   useEffect(() => {
     const handler = (e: any) => { try { const tab = e?.detail?.tab; if (tab) setActiveTab(tab); } catch {} };
     window.addEventListener('adam-ai:open-left-tab', handler as any);
@@ -29,6 +45,13 @@ function App() {
   const [activeTab, setActiveTab] = useState('project');
   const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(false);
+  const [isHelpCenterOpen, setHelpCenterOpen] = useState(false);
+  const [isPreferencesOpen, setPreferencesOpen] = useState(false);
+  const mainContentRef = useRef<HTMLElement | null>(null);
+  const undo = useWorkspaceHistory((state) => state.undo);
+  const redo = useWorkspaceHistory((state) => state.redo);
+  const clearHistory = useWorkspaceHistory((state) => state.clear);
+  useApplyPreferences();
 
   // Access Zustand store
   const projectConfig = useProjectStore((state) => state.projectConfig);
@@ -57,6 +80,40 @@ function App() {
     }
   }, []);
 
+  useEffect(() => {
+    const handleAuthRequired = () => {
+      setCurrentUser(null);
+      setViewMode('login');
+      message.warning('Your session has expired. Please sign in again.');
+    };
+    window.addEventListener('adam-ai:auth-required', handleAuthRequired);
+    return () => window.removeEventListener('adam-ai:auth-required', handleAuthRequired);
+  }, []);
+
+  useEffect(() => {
+    mainContentRef.current?.focus();
+  }, [viewMode]);
+
+  const toggleLeftPanel = useCallback(() => {
+    setIsLeftPanelCollapsed((prev) => !prev);
+  }, []);
+
+  const focusMainContent = useCallback(() => {
+    mainContentRef.current?.focus();
+  }, []);
+  const openHelpCenter = useCallback(() => setHelpCenterOpen(true), []);
+  const closeHelpCenter = useCallback(() => setHelpCenterOpen(false), []);
+  const openPreferences = useCallback(() => setPreferencesOpen(true), []);
+  const closePreferences = useCallback(() => setPreferencesOpen(false), []);
+
+  useKeyboardShortcuts({
+    onToggleLeftPanel: toggleLeftPanel,
+    onFocusMainContent: focusMainContent,
+    onUndo: undo,
+    onRedo: redo,
+    onOpenHelpCenter: openHelpCenter,
+  });
+
   const handleLoginSuccess = (data: any) => {
     setCurrentUser(data.user);
     setViewMode('landing');
@@ -67,6 +124,7 @@ function App() {
     localStorage.removeItem('adam_user');
     setCurrentUser(null);
     setViewMode('login');
+    clearHistory();
     message.info('Logged out successfully');
   };
 
@@ -90,12 +148,7 @@ function App() {
         duration: 2
       });
     } catch (error) {
-      console.error('Workspace error:', error);
-      message.error({
-        content: 'Failed to prepare workspace.',
-        key: 'generate',
-        duration: 3
-      });
+      notifyUserError(error, 'Preparing the pair programming workspace');
     } finally {
       setIsGenerating(false);
     }
@@ -125,6 +178,7 @@ function App() {
 
   const handleOpenStudy = async (_studyName: string) => {
     // Initialize workspace
+    clearHistory();
     initializeWorkspace();
     setIsRightPanelUnlocked(false);
 
@@ -165,71 +219,91 @@ function App() {
           },
         }}
       >
+        <SkipLink targetId="main-content" />
         <div className="app-container">
-          {viewMode === 'login' ? (
-            <LoginPage onLoginSuccess={handleLoginSuccess} />
-          ) : viewMode === 'landing' ? (
-          <LandingPage 
-            onStartProject={handleStartProject}
-            onOpenMigration={handleOpenMigration}
-            currentUser={currentUser}
-            onLogout={handleLogout}
-          />
-        ) : viewMode === 'projects' ? (
-          <ProjectsPage
-            onOpenStudy={handleOpenStudy}
-            onBack={() => setViewMode('landing')}
-            studies={[{ 
-              id: 'demo-study-1', 
-              name: 'Demo Study 1', 
-              sponsor: 'Demo Sponsor', 
-              therapeuticArea: 'General Medicine',
-              description: 'Sample study showcasing ADAM AI capabilities.',
-              lastUpdated: 'Updated today'
-            }]}
-          />
-        ) : viewMode === 'migration' ? (
-          <CodeMigrationPage
-            onBack={() => setViewMode('landing')}
-          />
-        ) : (
-      <>
-        <Header
-          onBackToLanding={() => setViewMode('landing')}
-          currentUser={currentUser}
+          <main id="main-content" ref={mainContentRef} tabIndex={-1}>
+            {viewMode === 'login' ? (
+              <LoginPage onLoginSuccess={handleLoginSuccess} />
+            ) : viewMode === 'landing' ? (
+              <LandingPage 
+                onStartProject={handleStartProject}
+                onOpenMigration={handleOpenMigration}
+                currentUser={currentUser}
                 onLogout={handleLogout}
               />
+            ) : viewMode === 'projects' ? (
+              <ProjectsPage
+                onOpenStudy={handleOpenStudy}
+                onBack={() => setViewMode('landing')}
+                studies={[{
+                  id: 'demo-study-1',
+                  name: 'Demo Study 1',
+                  sponsor: 'Demo Sponsor',
+                  therapeuticArea: 'General Medicine',
+                  description: 'Sample study showcasing ADAM AI capabilities.',
+                  lastUpdated: 'Updated today'
+                }]}
+              />
+            ) : viewMode === 'migration' ? (
+              <CodeMigrationPage onBack={() => setViewMode('landing')} />
+            ) : (
+              <>
+                <Header
+                  onBackToLanding={() => setViewMode('landing')}
+                  currentUser={currentUser}
+                  onLogout={handleLogout}
+                  onOpenHelpCenter={openHelpCenter}
+                  onOpenPreferences={openPreferences}
+                />
 
-              <div className="main-content">
-                <div className="left-panel-wrapper">
-                  <LeftPanel
-                    activeTab={activeTab}
-                    onTabChange={setActiveTab}
-                    isCollapsed={isLeftPanelCollapsed}
-                  />
-                  <button 
-                    className={`panel-toggle-btn ${isLeftPanelCollapsed ? 'collapsed' : ''}`}
-                    onClick={() => setIsLeftPanelCollapsed(!isLeftPanelCollapsed)}
-                    title={isLeftPanelCollapsed ? 'Show configuration panel' : 'Hide configuration panel'}
-                  >
-                    {isLeftPanelCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-                  </button>
+                <HelpCenterDrawer open={isHelpCenterOpen} onClose={closeHelpCenter} activeTab={activeTab} />
+                <PreferencesDrawer open={isPreferencesOpen} onClose={closePreferences} />
+
+                <div className="workspace-utilities">
+                  <AutoSaveIndicator />
+                  <HistoryControls />
                 </div>
 
-                <RightPanel
-                  generationResult={generationResult}
-                  language={language}
-                  isUnlocked={isRightPanelUnlocked}
-                  completionPercentage={completionPercentage}
-                  onUnlock={handleUnlockPairProgramming}
-                  onSwitchProject={handleSwitchProject}
-                />
-              </div>
+                <div className="main-content" role="region" aria-label="Workspace canvas">
+                  <div className="left-panel-wrapper">
+                    <LeftPanel
+                      activeTab={activeTab}
+                      onTabChange={setActiveTab}
+                      isCollapsed={isLeftPanelCollapsed}
+                      onOpenHelpCenter={openHelpCenter}
+                    />
+                    <button
+                      type="button"
+                      className={`panel-toggle-btn ${isLeftPanelCollapsed ? 'collapsed' : ''}`}
+                      onClick={toggleLeftPanel}
+                      aria-pressed={!isLeftPanelCollapsed}
+                      aria-expanded={!isLeftPanelCollapsed}
+                      aria-controls="configuration-panel"
+                      title={isLeftPanelCollapsed ? 'Show configuration panel' : 'Hide configuration panel'}
+                    >
+                      {isLeftPanelCollapsed ? <ChevronRight size={20} aria-hidden="true" /> : <ChevronLeft size={20} aria-hidden="true" />}
+                      <span className="sr-only">
+                        {isLeftPanelCollapsed ? 'Expand configuration panel' : 'Collapse configuration panel'}
+                      </span>
+                    </button>
+                  </div>
 
-              {/* Approval Progress Bar - visible after spec upload */}
-              <ApprovalProgressBar />
-            </>
-          )}
+                  <RightPanel
+                    generationResult={generationResult}
+                    language={language}
+                    isUnlocked={isRightPanelUnlocked}
+                    completionPercentage={completionPercentage}
+                    onUnlock={handleUnlockPairProgramming}
+                    onSwitchProject={handleSwitchProject}
+                  />
+                </div>
+
+                <RecoverySuggestions />
+                {/* Approval Progress Bar - visible after spec upload */}
+                <ApprovalProgressBar />
+              </>
+            )}
+          </main>
         </div>
       </ConfigProvider>
     </ErrorBoundary>
@@ -237,4 +311,3 @@ function App() {
 }
 
 export default App;
-

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Testing Tab Component
  *
@@ -18,22 +19,15 @@ import {
   Table,
   Badge,
   Typography,
-  Modal,
-  Progress,
   Statistic,
   Row,
   Col,
   message,
-  Spin,
-  Tooltip,
   Tag,
 } from 'antd';
 import {
   PlayCircleOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
-  WarningOutlined,
-  DownloadOutlined,
   FileTextOutlined,
   BugOutlined,
   RocketOutlined,

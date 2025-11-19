@@ -17,7 +17,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { DownloadOutlined, RedoOutlined, FileDoneOutlined, CopyOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { DownloadOutlined, RedoOutlined, FileDoneOutlined, CopyOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
@@ -50,13 +50,12 @@ export const ConsolidatedCodeTab: React.FC = () => {
   } = useProjectStore();
   const [activeLanguage, setActiveLanguage] = useState<'R' | 'SAS'>(programmingLanguage);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // Real-time elapsed time tracking
   useEffect(() => {
     if (isGeneratingConsolidated && !consolidatedCode) {
       const start = Date.now();
-      setStartTime(start);
       const interval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - start) / 1000);
         setElapsedTime(elapsed);
@@ -65,7 +64,6 @@ export const ConsolidatedCodeTab: React.FC = () => {
         clearInterval(interval);
       };
     } else {
-      setStartTime(null);
       setElapsedTime(0);
     }
   }, [isGeneratingConsolidated, consolidatedCode]);
@@ -184,10 +182,11 @@ export const ConsolidatedCodeTab: React.FC = () => {
 
   const performGeneration = async () => {
     const approvedVariables = buildApprovedVariables();
+    const datasetName = ((projectConfig.adamDataset || 'ADSL').toUpperCase() as ConsolidatedCodeRequest['dataset']);
 
     const request: ConsolidatedCodeRequest = {
       study_id: projectConfig.studyId,
-      dataset: (projectConfig.adamDataset.toUpperCase() as ConsolidatedCodeRequest['dataset']) || 'ADSL',
+      dataset: datasetName,
       language: activeLanguage,
       comment_verbosity: commentVerbosity,
       execution_mode: executionMode,
@@ -207,8 +206,22 @@ export const ConsolidatedCodeTab: React.FC = () => {
     setConsolidatedProgress(5, 'Preparing generation request…');
     setConsolidatedDuration(null);
 
+    // Create new abort controller for this generation
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
-      const response = await adamApi.generateConsolidatedCode(request);
+      // Use streaming endpoint with real-time progress updates
+      const response = await adamApi.generateConsolidatedCodeStream(
+        request,
+        (progress) => {
+          setConsolidatedProgress(progress.progress_pct, progress.message);
+          const elapsedMs = Date.now() - start;
+          setConsolidatedDuration(elapsedMs / 1000);
+        },
+        controller.signal
+      );
+
       if (response.status !== 'success' || !response.data) {
         throw new Error(response.message || 'Failed to generate consolidated code.');
       }
@@ -217,11 +230,26 @@ export const ConsolidatedCodeTab: React.FC = () => {
       setConsolidatedDuration((Date.now() - start) / 1000);
       message.success('Consolidated code generated successfully.');
     } catch (error: any) {
-      const detail = error?.response?.data?.detail || error.message || 'Failed to generate consolidated code.';
-      message.error(detail);
-      setConsolidatedProgress(0, 'Generation failed');
+      if (error.message === 'Generation cancelled by user') {
+        message.info('Code generation cancelled.');
+        setConsolidatedProgress(0, 'Cancelled');
+      } else {
+        const detail = error?.response?.data?.detail || error.message || 'Failed to generate consolidated code.';
+        message.error(detail);
+        setConsolidatedProgress(0, 'Generation failed');
+      }
     } finally {
       setIsGeneratingConsolidated(false);
+      setAbortController(null);
+    }
+  };
+
+  const handleCancel = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setIsGeneratingConsolidated(false);
+      message.info('Cancelling code generation...');
     }
   };
 
@@ -352,8 +380,19 @@ export const ConsolidatedCodeTab: React.FC = () => {
         {isGeneratingConsolidated && (
           <>
             <Progress percent={consolidatedProgress} status="active" />
-            <div style={{ textAlign: 'center', marginTop: 8, color: '#1890ff', fontSize: '13px' }}>
-              {consolidatedProgress}% complete • {elapsedTime}s elapsed
+            <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', justifyContent: 'center', gap: 12 }}>
+              <div style={{ color: '#1890ff', fontSize: '13px' }}>
+                {consolidatedProgress}% complete • {elapsedTime}s elapsed
+              </div>
+              <Button
+                danger
+                icon={<CloseOutlined />}
+                size="small"
+                onClick={handleCancel}
+                style={{ marginLeft: 'auto' }}
+              >
+                Cancel
+              </Button>
             </div>
           </>
         )}

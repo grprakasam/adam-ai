@@ -1,0 +1,41 @@
+.auto-save-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  font-size: var(--text-sm);
+}
+
+.auto-save-indicator .indicator-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gray-700);
+}
+
+.auto-save-indicator .indicator-state svg {
+  font-size: 14px;
+}
+
+.auto-save-indicator .timestamp {
+  color: var(--gray-500);
+  font-size: 12px;
+}
+
+.auto-save-indicator .indicator-hint {
+  color: var(--warning-600);
+  font-size: 12px;
+}
+
+.auto-save-indicator.status-error {
+  border-color: var(--error-500);
+  background: var(--error-50);
+}
+
+.auto-save-indicator.status-saving {
+  border-color: var(--info-500);
+}

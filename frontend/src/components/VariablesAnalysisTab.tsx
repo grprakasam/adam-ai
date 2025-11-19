@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Select, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
 import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined, SwapOutlined, FileDoneOutlined, LinkOutlined } from '@ant-design/icons';
@@ -120,23 +120,43 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
   // Loading visualizer state for categorization
   const [categorizeStartedAt, setCategorizeStartedAt] = useState<number | null>(null);
   const [loadingStep, setLoadingStep] = useState<number>(1);
+  const categorizeAbortRef = useRef<AbortController | null>(null);
+  const bulkGenerationAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let timer: any;
+    let initialKick: any;
+    let timeoutTimer: any;
     if (isCategorizingVariables) {
       if (!categorizeStartedAt) setCategorizeStartedAt(Date.now());
       setLoadingStep(1);
-      // Advance visible step every ~8s up to 6, purely for user feedback
+      // Quick initial bump to avoid perceived stall
+      initialKick = setTimeout(() => setLoadingStep((s) => Math.max(s, 2)), 800);
+      // Advance visible step every ~3s up to 6, purely for user feedback
       timer = setInterval(() => {
         setLoadingStep((s) => (s < 6 ? s + 1 : s));
-      }, 8000);
+      }, 3000);
+      // Add a hard timeout of 3 minutes (180 seconds)
+      timeoutTimer = setTimeout(() => {
+        console.error('Categorization timeout - forcing cleanup');
+        setIsCategorizingVariables(false);
+        setError('Categorization timed out after 3 minutes. Please try again or use a smaller file.');
+        message.error('Categorization timed out. Please try again.');
+        if (categorizeAbortRef.current) {
+          try { categorizeAbortRef.current.abort(); } catch {}
+        }
+      }, 180000);
     } else {
       if (categorizeStartedAt) {
         setCategorizeStartedAt(null);
       }
       setLoadingStep(6);
     }
-    return () => timer && clearInterval(timer);
+    return () => {
+      timer && clearInterval(timer);
+      initialKick && clearTimeout(initialKick);
+      timeoutTimer && clearTimeout(timeoutTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCategorizingVariables]);
 
@@ -333,6 +353,11 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
     setIsCategorizingVariables(true);
     setError(null);
+    // Prepare abort controller
+    if (categorizeAbortRef.current) {
+      try { categorizeAbortRef.current.abort(); } catch {}
+    }
+    categorizeAbortRef.current = new AbortController();
 
     try {
       console.log('Starting categorization...');
@@ -345,12 +370,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
       if (canUseServerPath) {
         result = await adamApi.categorizeSpecification(
           specificationFile.path,
-          projectConfig.adamDataset
+          projectConfig.adamDataset,
+          { signal: categorizeAbortRef.current.signal, timeoutMs: 180000 }
         );
       } else if (tempSpecFile) {
         result = await adamApi.categorizeSpecificationFile(
           tempSpecFile,
-          projectConfig.adamDataset
+          projectConfig.adamDataset,
+          { signal: categorizeAbortRef.current.signal, timeoutMs: 180000 }
         );
       } else {
         throw new Error('Specification file not accessible. Please upload the file again so we can process it.');
@@ -372,13 +399,64 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
       console.error('Response:', err.response);
       console.error('Message:', err.message);
       
-      const errorMsg = err.response?.data?.detail || err.message || 'Failed to categorize variables';
-      setError(errorMsg);
-      message.error(errorMsg);
+      // Handle abort differently for cleaner UX
+      if (err.name === 'CanceledError' || err.name === 'AbortError') {
+        // Do not surface as an error UI; keep clean state for retry
+        setError(null);
+        message.info('Categorization cancelled');
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        const errorMsg = 'Request timed out. The file may be too large or the server is busy. Please try again.';
+        setError(errorMsg);
+        message.error(errorMsg);
+      } else if (err.code === 'ERR_NETWORK') {
+        const errorMsg = 'Network error. Please check if the backend server is running.';
+        setError(errorMsg);
+        message.error(errorMsg);
+      } else {
+        const errorMsg = err.response?.data?.detail || err.message || 'Failed to categorize variables';
+        setError(errorMsg);
+        message.error(errorMsg);
+      }
       console.error('Categorization error:', err);
     } finally {
       setIsCategorizingVariables(false);
+      categorizeAbortRef.current = null;
     }
+  };
+
+  const handleCancelCategorization = () => {
+    try {
+      categorizeAbortRef.current?.abort();
+    } catch {}
+    setIsCategorizingVariables(false);
+    setError(null);
+    message.info('Categorization cancelled. You can retry when ready.');
+  };
+
+  const handleForceReset = () => {
+    try {
+      categorizeAbortRef.current?.abort();
+    } catch {}
+    setIsCategorizingVariables(false);
+    setError(null);
+    setCategorizedVariables(null);
+    setLoadingStep(1);
+    message.success('State reset successfully. You can now retry categorization.');
+  };
+
+  const handleCancelBulkGeneration = () => {
+    try {
+      bulkGenerationAbortRef.current?.abort();
+    } catch {}
+    setBulkGenerationProgress({
+      isGenerating: false,
+      current: 0,
+      total: 0,
+      currentVariable: '',
+    });
+    setIsGenerating(false);
+    message.destroy('bulk-ai-inputs');
+    message.info('Code generation cancelled by user');
   };
 
   const handleGenerateCode = async () => {
@@ -509,11 +587,36 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                   fontSize: '11px', 
                   color: '#999',
                   display: 'flex',
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  marginBottom: '8px'
                 }}>
                   <span>⏱️ {formatDuration(elapsedSeconds)}</span>
                   <span>⏳ ~{formatDuration(etaSeconds)}</span>
                 </div>
+                
+                {/* Cancel Button */}
+                <button
+                  onClick={handleCancelBulkGeneration}
+                  style={{
+                    width: '100%',
+                    padding: '6px 12px',
+                    fontSize: '12px',
+                    color: '#ff4d4f',
+                    background: 'white',
+                    border: '1px solid #ff4d4f',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#fff1f0';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'white';
+                  }}
+                >
+                  Cancel Generation
+                </button>
               </div>
             ),
           });
@@ -523,6 +626,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
           setIsGenerating(true);
           updateProgressState(0, 'Initializing...');
           updateToast(0, 'Initializing...');
+
+          // Create abort controller for cancellation
+          bulkGenerationAbortRef.current = new AbortController();
 
           const requestPayload: any = {
             categorized_variables: categorizedVariables,
@@ -609,11 +715,36 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                     fontSize: '11px', 
                     color: '#999',
                     display: 'flex',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    marginBottom: '8px'
                   }}>
                     <span>⏱️ {formatDuration(elapsedSeconds)}</span>
                     <span>⏳ ~{formatDuration(etaSeconds)}</span>
                   </div>
+                  
+                  {/* Cancel Button */}
+                  <button
+                    onClick={handleCancelBulkGeneration}
+                    style={{
+                      width: '100%',
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      color: '#ff4d4f',
+                      background: 'white',
+                      border: '1px solid #ff4d4f',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fff1f0';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'white';
+                    }}
+                  >
+                    Cancel Generation
+                  </button>
                 </div>
               ),
             });
@@ -628,6 +759,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
           const successCount = results.filter(r => !r.error).length;
           const errorCount = results.filter(r => r.error).length;
+          const totalTime = (Date.now() - startTime) / 1000;
 
           console.log('[Bulk Generation] Success:', successCount, 'Errors:', errorCount);
 
@@ -638,23 +770,155 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
             currentVariable: 'Completed',
           });
 
-          message.success({
-            key: progressKey,
-            duration: 5,
+          // Close the progress message
+          message.destroy(progressKey);
+
+          // Show elegant summary modal
+          const successRate = Math.round((successCount / total) * 100);
+          const hasErrors = errorCount > 0;
+          
+          Modal.success({
+            title: (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <CheckCircleOutlined style={{ fontSize: '28px', color: hasErrors ? '#faad14' : '#52c41a' }} />
+                <span style={{ fontSize: '18px', fontWeight: 600 }}>
+                  {hasErrors ? 'Code Generation Completed with Issues' : 'Code Generation Complete! 🎉'}
+                </span>
+              </div>
+            ),
+            width: 600,
+            icon: null,
+            okText: 'Got it, Continue',
+            okButtonProps: { 
+              size: 'large',
+              style: { height: '40px', fontSize: '14px', fontWeight: 500 }
+            },
             content: (
-              <div className="bulk-progress-message">
-                <div style={{ fontWeight: 600 }}>AI inputs ready</div>
-                <div>
-                  Generated code for {successCount} of {total} variables
-                  {errorCount ? ` (${errorCount} need attention)` : ''}.
+              <div style={{ marginTop: '20px' }}>
+                {/* Statistics Section */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  marginBottom: '20px',
+                  color: 'white'
+                }}>
+                  <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
+                    📊 Generation Summary
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '32px', fontWeight: 700 }}>{total}</div>
+                      <div style={{ fontSize: '12px', opacity: 0.9 }}>Total Variables</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '32px', fontWeight: 700, color: '#95de64' }}>{successCount}</div>
+                      <div style={{ fontSize: '12px', opacity: 0.9 }}>✓ Successful</div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '32px', fontWeight: 700, color: hasErrors ? '#ffa39e' : '#95de64' }}>{errorCount}</div>
+                      <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                        {hasErrors ? '⚠ Needs Attention' : '✓ No Errors'}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <div style={{ marginTop: '16px' }}>
+                    <Progress 
+                      percent={successRate} 
+                      strokeColor={hasErrors ? '#faad14' : '#52c41a'}
+                      trailColor="rgba(255, 255, 255, 0.3)"
+                      strokeWidth={12}
+                      format={() => `${successRate}% Success Rate`}
+                    />
+                  </div>
+                  
+                  <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', opacity: 0.9 }}>
+                    ⏱️ Completed in {formatDuration(totalTime)}
+                  </div>
                 </div>
-                <div>Total time: {formatDuration((Date.now() - startTime) / 1000)}</div>
+
+                {/* Error Alert */}
+                {hasErrors && (
+                  <div style={{
+                    background: '#fff7e6',
+                    border: '1px solid #ffd591',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    marginBottom: '20px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <AlertCircle size={20} color="#faad14" style={{ marginTop: '2px', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 600, color: '#ad6800', marginBottom: '4px' }}>
+                          {errorCount} Variable{errorCount > 1 ? 's' : ''} Need{errorCount === 1 ? 's' : ''} Attention
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#ad6800' }}>
+                          Some variables encountered errors during generation. Review them in the Pair Programming panel and regenerate if needed.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Next Steps Section */}
+                <div style={{
+                  background: '#f0f5ff',
+                  border: '1px solid #adc6ff',
+                  borderRadius: '8px',
+                  padding: '16px'
+                }}>
+                  <div style={{ fontWeight: 600, color: '#1890ff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Info size={18} />
+                    Next Steps in Pair Programming
+                  </div>
+                  <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#595959' }}>
+                    <li style={{ marginBottom: '8px' }}>
+                      <strong>Review Generated Code:</strong> Examine each variable's code snippet, rationale, and AI suggestions in the panel below
+                    </li>
+                    <li style={{ marginBottom: '8px' }}>
+                      <strong>Approve or Modify:</strong> Use "Accept", "Modify", or "Reject" for each variable based on your review
+                    </li>
+                    {hasErrors && (
+                      <li style={{ marginBottom: '8px', color: '#faad14', fontWeight: 500 }}>
+                        <strong>Address Errors:</strong> Click the regenerate button (🔄) for variables with errors
+                      </li>
+                    )}
+                    <li style={{ marginBottom: '8px' }}>
+                      <strong>Add Notes:</strong> Document any changes or decisions in the notes field for traceability
+                    </li>
+                    <li style={{ marginBottom: 0 }}>
+                      <strong>Generate Consolidated Code:</strong> Once {successRate >= 80 ? 'satisfied' : '80%+ approved'}, proceed to create the final ADAM program
+                    </li>
+                  </ol>
+                </div>
+
+                {/* Tip */}
+                <div style={{
+                  marginTop: '16px',
+                  padding: '12px 16px',
+                  background: '#f6ffed',
+                  border: '1px solid #b7eb8f',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  color: '#389e0d'
+                }}>
+                  💡 <strong>Pro Tip:</strong> Variables with high confidence scores are highlighted in green. Focus your review on lower-confidence items first.
+                </div>
               </div>
             ),
           });
 
         } catch (err: any) {
           stopTimer();
+          
+          // Handle abort/cancellation
+          if (err.name === 'AbortError' || err.name === 'CanceledError') {
+            // User cancelled - already handled by handleCancelBulkGeneration
+            return;
+          }
+          
           const errorMsg = err.response?.data?.detail || err.message || 'Failed to generate code';
 
           // Don't populate with mock snippets - just show error and keep cells empty
@@ -674,6 +938,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
         } finally {
           stopTimer();
           setIsGenerating(false);
+          bulkGenerationAbortRef.current = null;
         }
       },
     });
@@ -803,6 +1068,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
           adamVersion={adamIgVersion}
           meddraVersion={medraVersion}
           startTime={categorizeStartedAt ?? undefined}
+          cancellable
+          onCancel={handleCancelCategorization}
+          onForceReset={handleForceReset}
         />
       </div>
     );

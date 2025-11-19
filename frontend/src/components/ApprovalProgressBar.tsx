@@ -2,6 +2,7 @@ import React from 'react';
 import { Progress, Tooltip } from 'antd';
 import { Info } from 'lucide-react';
 import { useApprovalProgress } from '../hooks/useApprovalProgress';
+import { VisuallyHidden } from './a11y/VisuallyHidden';
 import './ApprovalProgressBar.css';
 
 /**
@@ -18,7 +19,7 @@ export const ApprovalProgressBar: React.FC = () => {
   }
 
   return (
-    <div className="approval-progress-bar-container">
+    <div className="approval-progress-bar-container" role="status" aria-live="polite" aria-atomic="true">
       <div className="approval-progress-content">
         {/* Progress Bar */}
         <div className="progress-section">
@@ -32,7 +33,16 @@ export const ApprovalProgressBar: React.FC = () => {
             format={() => `${percentage}%`}
             style={{ width: '300px' }}
             size="default"
+            aria-valuenow={percentage}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Variable approval progress"
           />
+          <VisuallyHidden>
+            {isReadyForGeneration
+              ? 'Validation threshold reached. You can generate consolidated code.'
+              : `Validation progress ${percentage} percent. Approve at least 80 percent of variables.`}
+          </VisuallyHidden>
         </div>
 
         {/* Status Text */}
@@ -55,7 +65,7 @@ export const ApprovalProgressBar: React.FC = () => {
           title="Approve at least 80% of variables to enable final code generation"
           placement="top"
         >
-          <Info size={20} className="info-icon" />
+          <Info size={20} className="info-icon" aria-hidden="true" focusable="false" />
         </Tooltip>
       </div>
     </div>

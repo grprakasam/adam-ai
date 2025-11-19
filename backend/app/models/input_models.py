@@ -121,6 +121,29 @@ class GenerationParameters(BaseModel):
     )
 
 
+class Standards(BaseModel):
+    """Standard version information for SDTM/ADaM workflows"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "sdtm_version": "3.4",
+            "adam_ig_version": "1.3",
+            "meddra_version": "26.0",
+            "custom": {}
+        }
+    })
+
+    sdtm_version: str = Field(..., description="SDTM implementation guide version")
+    adam_ig_version: str = Field(..., description="ADaM implementation guide version")
+    meddra_version: Optional[str] = Field(
+        default=None,
+        description="MedDRA version if applicable"
+    )
+    custom: Optional[dict] = Field(
+        default=None,
+        description="Additional standard metadata or overrides"
+    )
+
+
 class ProjectInput(BaseModel):
     """Complete project input for ADAM code generation"""
     model_config = ConfigDict(json_schema_extra={
@@ -217,6 +240,10 @@ class CodeSnippetResponse(BaseModel):
             "variable": "AGE",
             "code_snippet": "# Derive AGE from DM domain\nADSL$AGE <- DM$AGE",
             "coding_rationale": "Age is directly mapped from the Demographics (DM) domain.",
+            "language": "R",
+            "warnings": [],
+            "validated": True,
+            "error": None,
             "metadata": {
                 "llm_provider": "google",
                 "model": "gemini-2.5-flash",
@@ -227,9 +254,13 @@ class CodeSnippetResponse(BaseModel):
     })
 
     variable: str = Field(..., description="Variable name")
+    language: str = Field(..., description="Programming language used for generation")
     code_snippet: str = Field(..., description="Generated code snippet")
     coding_rationale: str = Field(..., description="Explanation of the coding logic")
     metadata: Optional[dict] = Field(default=None, description="Metadata about the generation (model, tokens, etc.)")
+    warnings: Optional[List[str]] = Field(default_factory=list, description="Non-blocking warnings raised during generation")
+    validated: bool = Field(default=False, description="Whether the snippet passed basic validation checks")
+    error: Optional[str] = Field(default=None, description="Error details when a fallback template is used")
 
 
 class BulkCodeGenerationRequest(BaseModel):
