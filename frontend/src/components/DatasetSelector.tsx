@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Radio,
@@ -59,7 +59,7 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
   const [deleting, setDeleting] = useState<string | null>(null);
 
   // Load datasets
-  const loadDatasets = async () => {
+  const loadDatasets = useCallback(async () => {
     setLoading(true);
     try {
       const response = await adamApi.listTestDatasets(projectId);
@@ -70,12 +70,12 @@ export const DatasetSelector: React.FC<DatasetSelectorProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
 
   // Load datasets on mount and when refresh trigger changes
   useEffect(() => {
     loadDatasets();
-  }, [projectId, refreshTrigger]);
+  }, [loadDatasets, refreshTrigger]);
 
   // Delete dataset
   const handleDelete = async (datasetId: string) => {

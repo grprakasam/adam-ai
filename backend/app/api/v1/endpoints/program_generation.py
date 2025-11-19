@@ -4,9 +4,12 @@ Endpoints for generating complete ADAM programs
 """
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from loguru import logger
+import json
+import asyncio
 
 from app.modules.program_generation.service import ProgramGeneratorService
 try:
@@ -18,7 +21,7 @@ except ImportError as e:
     logger.warning(f"Consolidated code generation modules not available: {e}")
 
 
-router = APIRouter(prefix="/program-generation")
+router = APIRouter()
 
 # Singleton service instance
 _program_service: ProgramGeneratorService = None
@@ -296,4 +299,82 @@ async def generate_consolidated_code(request: ConsolidatedCodeRequest) -> Dict[s
     except Exception as e:
         logger.error(f"Error generating consolidated code: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/consolidated-stream")
+async def generate_consolidated_code_stream(request: ConsolidatedCodeRequest):
+    """
+    Generate consolidated ADAM code with real-time progress streaming
+
+    Streams progress updates as Server-Sent Events (SSE) while generating consolidated code.
+
+    Args:
+        request: ConsolidatedCodeRequest with all parameters
+
+    Returns:
+        StreamingResponse with SSE events containing progress updates and final result
+
+    Raises:
+        HTTPException: If service unavailable or generation fails
+    """
+    async def stream_generation():
+        try:
+            if not CONSOLIDATED_AVAILABLE:
+                error_msg = "Consolidated code generation service not available. Missing required modules."
+                yield f"event: error\ndata: {json.dumps({'error': error_msg})}\n\n"
+                return
+
+            service = get_consolidated_service()
+            if service is None:
+                error_msg = "Failed to initialize consolidated code service"
+                yield f"event: error\ndata: {json.dumps({'error': error_msg})}\n\n"
+                return
+
+            logger.info(f"Generating consolidated code (stream): {request.dataset} in {request.language}")
+            logger.info(f"Variables: {len(request.approved_variables)}, Mode: {request.execution_mode}")
+
+            # Create a queue to collect progress updates
+            progress_queue = []
+
+            def progress_callback(progress_data: Dict[str, Any]):
+                """Callback to receive progress updates"""
+                progress_queue.append(progress_data)
+
+            # Generate consolidated code with progress tracking
+            result = await service.generate_consolidated_code(request, progress_callback=progress_callback)
+
+            # Stream all collected progress updates
+            for progress_data in progress_queue:
+                yield f"event: progress\ndata: {json.dumps(progress_data)}\n\n"
+                await asyncio.sleep(0.01)  # Small delay to allow streaming
+
+            # Convert Pydantic model to dict
+            if hasattr(result, 'dict'):
+                result_dict = result.dict()
+            else:
+                result_dict = result
+
+            if result_dict.get('status') == 'error':
+                error_msg = result_dict.get('message', 'Unknown error')
+                yield f"event: error\ndata: {json.dumps({'error': error_msg})}\n\n"
+                return
+
+            logger.info(f"Consolidated code generated successfully: {result_dict.get('data', {}).get('summary', {}).get('lines_of_code', 0)} lines")
+
+            # Stream final result
+            yield f"event: complete\ndata: {json.dumps(result_dict)}\n\n"
+
+        except Exception as e:
+            logger.error(f"Error in consolidated code stream: {str(e)}", exc_info=True)
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        stream_generation(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
 

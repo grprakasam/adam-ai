@@ -101,6 +101,9 @@ DEFAULT_MAX_TOKENS=4000
 HOST=0.0.0.0
 PORT=8000
 DEBUG=False
+
+# Security
+SECRET_KEY=generate_a_random_64_char_value
 ```
 
 ### Running the Application

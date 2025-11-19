@@ -24,9 +24,8 @@ class CacheEntry:
         """Check if cache entry has expired"""
         return datetime.now() > self.expires_at
     
-    def refresh(self, ttl: int = 3600):
-        """Refresh expiration time"""
-        self.expires_at = datetime.now() + timedelta(seconds=ttl)
+    def refresh(self):
+        """Record cache hits without extending the expiration"""
         self.hit_count += 1
     
     def to_dict(self) -> Dict:
@@ -75,7 +74,7 @@ class CacheService:
             logger.debug(f"Cache EXPIRED: {key}")
             return None
         
-        entry.refresh(self.default_ttl)
+        entry.refresh()
         self.hits += 1
         logger.debug(f"Cache HIT: {key} (hit_count={entry.hit_count})")
         return entry.value

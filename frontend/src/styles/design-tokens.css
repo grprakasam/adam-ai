@@ -3,6 +3,7 @@
    =========================== */
 
 :root {
+  --app-font-scale: 1;
   /* === PRIMARY COLORS === */
   --primary-50: #f5f3ff;
   --primary-100: #ede9fe;
@@ -125,7 +126,8 @@
   --button-height-lg: 48px;
   --tab-height: 56px;
   --header-height: 64px;
-  --sidebar-width: 320px;
+  --sidebar-width: 380px;
+  --workspace-gap: 24px;
   --sidebar-collapsed-width: 48px;
 
   /* === BORDERS === */
@@ -134,6 +136,12 @@
   --border-color: var(--gray-200);
   --border-color-hover: var(--gray-300);
   --border-color-focus: var(--primary-500);
+}
+
+/* === DENSITY === */
+:root[data-density="compact"] {
+  --sidebar-width: 320px;
+  --workspace-gap: 12px;
 }
 
 /* === DARK MODE === */

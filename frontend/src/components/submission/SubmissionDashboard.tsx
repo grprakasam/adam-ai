@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { Card, Row, Col, Progress, Button, Timeline, Statistic, Badge, Space, Empty } from 'antd';
+import { Card, Row, Col, Progress, Button, Timeline, Badge, Space, Empty } from 'antd';
 import {
   CheckCircleOutlined,
   WarningOutlined,

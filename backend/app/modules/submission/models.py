@@ -178,3 +178,85 @@ class ActivityLogItem(BaseModel):
     message: str
     status: Literal["success", "warning", "error", "info"]
     details: Optional[Dict[str, Any]] = None
+
+
+# ========================
+# Additional Models for API Endpoints
+# ========================
+
+class StudyInfo(BaseModel):
+    """Study metadata for submission documents"""
+    study_id: str
+    protocol_number: str
+    study_name: str
+    sponsor: str
+    description: Optional[str] = None
+    adam_ig_version: str = "1.3"
+    meddra_version: Optional[str] = None
+    therapeutic_area: Optional[str] = None
+
+
+class DatasetInfo(BaseModel):
+    """Dataset information for submission"""
+    name: str
+    label: str
+    structure: str = "One record per subject per parameter per analysis visit"
+    class_type: str = "ADAM"
+    key_variables: List[str] = Field(default_factory=list)
+    variables: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class ArtifactRef(BaseModel):
+    """Reference to generated artifact"""
+    name: str
+    path: str
+    created_at: str
+    checksum: Optional[str] = None
+    size_bytes: Optional[int] = None
+
+
+class DefineXMLRequest(BaseModel):
+    """Request for Define.xml generation"""
+    study_info: 'StudyInfo'
+    datasets: List['DatasetInfo']
+    stylesheet_link: Optional[str] = None
+    include_variable_docs: bool = True
+    include_value_level: bool = False
+
+
+class DefineXMLResponse(BaseModel):
+    """Response from Define.xml generation"""
+    artifact: ArtifactRef
+    warnings: List[str] = Field(default_factory=list)
+
+
+class DocumentRequest(BaseModel):
+    """Request for ADRG/SDRG generation"""
+    study_info: 'StudyInfo'
+    datasets: List['DatasetInfo']
+    notes: Optional[str] = None
+    include_derivations: bool = True
+    include_validation_summary: bool = False
+
+
+class DocumentResponse(BaseModel):
+    """Response from ADRG/SDRG generation"""
+    artifact: ArtifactRef
+
+
+class ECTDPackageRequest(BaseModel):
+    """Request for eCTD packaging"""
+    study_id: str
+    include_define_xml: bool = True
+    include_adrg: bool = True
+    include_sdrg: bool = True
+    include_programs: bool = False
+    create_zip: bool = False
+    target_dir: Optional[str] = None
+
+
+class ECTDPackageResponse(BaseModel):
+    """Response from eCTD packaging"""
+    artifact: ArtifactRef
+    tree: List[str] = Field(default_factory=list)
+    manifest: Dict[str, Any] = Field(default_factory=dict)

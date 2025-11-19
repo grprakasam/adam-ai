@@ -1,0 +1,7 @@
+.help-center-tabs {
+  margin-top: var(--space-4);
+}
+
+.help-center-tabs .ant-steps-item-title {
+  font-size: 14px;
+}

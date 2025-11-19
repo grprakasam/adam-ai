@@ -185,28 +185,51 @@ async def generate_code_bulk_stream(
                 )
             )
             
-            # Stream progress updates
+            # OPTIMIZATION: Stream results progressively as they complete
+            # Collect all results in a separate queue for streaming individual results
+            results_queue = asyncio.Queue()
+            results_collected = []
+
+            # Enhanced progress callback to also queue results
+            original_progress_callback = progress_callback
+
+            async def enhanced_progress_callback(progress_data):
+                await original_progress_callback(progress_data)
+                # Queue individual variable results for streaming
+                if progress_data.get('status') == 'variable_completed':
+                    # Mark that this variable is complete for frontend to consume it
+                    results_queue.put({'type': 'progress', 'data': progress_data})
+
+            # Update progress callback
+            progress_callback = enhanced_progress_callback
+
+            # Stream progress and results updates
             while not generation_task.done():
                 try:
-                    progress_data = await asyncio.wait_for(progress_queue.get(), timeout=0.1)
+                    # Check for both progress and result updates with shorter timeout for responsiveness
+                    progress_data = await asyncio.wait_for(progress_queue.get(), timeout=0.05)
                     event_data = json.dumps(progress_data)
                     yield f"event: progress\ndata: {event_data}\n\n"
                 except asyncio.TimeoutError:
-                    # Send keepalive
-                    yield ": keepalive\n\n"
-            
+                    # Send keepalive less frequently
+                    pass
+
             # Drain any remaining progress updates
             while not progress_queue.empty():
-                progress_data = await progress_queue.get()
-                event_data = json.dumps(progress_data)
-                yield f"event: progress\ndata: {event_data}\n\n"
-            
-            # Get results
+                try:
+                    progress_data = await progress_queue.get_nowait()
+                    event_data = json.dumps(progress_data)
+                    yield f"event: progress\ndata: {event_data}\n\n"
+                except asyncio.QueueEmpty:
+                    break
+
+            # Get final results
             results = await generation_task
-            
-            # Send final results
+            results_collected = results
+
+            # Send final results with completion marker
             logger.info(f"Successfully generated {len(results)} code snippets (streaming)")
-            yield f"event: result\ndata: {json.dumps(results)}\n\n"
+            yield f"event: complete\ndata: {json.dumps({'status': 'success', 'data': results})}\n\n"
             
         except CustomValidationError as e:
             logger.error(f"Validation error: {str(e)}", exc_info=True)
@@ -256,38 +279,46 @@ async def generate_code_snippet(
     try:
         logger.info(f"Single variable code generation: {request.variable}")
         
-        # Build variable dict from request
-        variable = {
-            'name': request.variable,
-            'label': request.spec_row.get('Label', ''),
-            'type': request.spec_row.get('Type', ''),
-            'derivation': request.derivation,
-            'is_required': request.spec_row.get('Core', '') == 'Req'
-        }
+        study_id = validate_study_id(request.study_id)
+        dataset = validate_dataset_type(request.dataset)
+        language = validate_programming_language(request.language)
+        validate_standards(request.standards)
         
         # Build context
+        request_context = request.context or {}
         context = {
-            'study_id': request.study_id,
-            'adam_dataset': request.dataset,
-            'sdtm_domains': request.context.get('available_sdtm_domains', []),
+            'study_id': study_id,
+            'adam_dataset': dataset,
+            'sdtm_domains': request_context.get('available_sdtm_domains', []),
             'sdtm_version': request.standards.get('sdtm_version', '1.7'),
             'adam_ig_version': request.standards.get('adam_ig_version', '1.3'),
             'meddra_version': request.standards.get('meddra_version', '26.0'),
-            'required_variables': request.context.get('required_variables', []),
-            'category': request.context.get('category', 'General')
+            'required_variables': request_context.get('required_variables', []),
+            'category': request_context.get('category', 'General'),
+            'language': language
         }
         
-        result = await service.generate_single_variable(
-            variable=variable,
-            language=request.language,
+        result = await service.generate_code_snippet(
+            study_id=study_id,
+            dataset=dataset,
+            variable=request.variable,
+            derivation=request.derivation,
+            spec_row=request.spec_row,
+            standards=request.standards,
+            language=language,
             context=context,
             llm_provider=request.llm_provider,
             user_note=request.user_note
         )
         
         logger.info(f"Successfully generated code for {request.variable}")
-        return CodeSnippetResponse(**result)
+        return result
         
+    except CustomValidationError as e:
+        logger.error(f"Validation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Single variable code generation failed: {str(e)}", exc_info=True)
         raise HTTPException(

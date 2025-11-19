@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, subscribeWithSelector } from 'zustand/middleware';
 import type {
   ProjectConfiguration,
   StudyMetadata,
@@ -11,6 +11,7 @@ import type {
   ConsolidatedCodeData,
 } from '../types';
 import type { TraceabilityMatrix } from '../types/traceability';
+import { adamApi } from '../services/api';
 
 export interface Rule {
   id: string;
@@ -75,7 +76,7 @@ export interface ActivityLogItem {
   details?: any;
 }
 
-interface ProjectStore {
+export interface ProjectStore {
   // Project Configuration
   projectConfig: ProjectConfiguration;
   setProjectConfig: (config: Partial<ProjectConfiguration>) => void;
@@ -269,8 +270,9 @@ const initialState = {
 };
 
 export const useProjectStore = create<ProjectStore>()(
-  persist(
-    (set, get) => ({
+  subscribeWithSelector(
+    persist(
+      (set, get) => ({
       ...initialState,
 
       setProjectConfig: (config) =>
@@ -719,7 +721,7 @@ export const useProjectStore = create<ProjectStore>()(
       p21Results: null,
       defineXmlStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
       adrgStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
-      sdrgStatus: 'idle' | 'generating' | 'complete' | 'error',
+      sdrgStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
       generatedArtifacts: [],
       recentActivity: [],
       isValidating: false,
@@ -729,178 +731,440 @@ export const useProjectStore = create<ProjectStore>()(
         set({ submissionReadinessScore: score }),
 
       refreshReadinessScore: async () => {
-        const { projectConfig } = get();
+        const { projectConfig, recentActivity } = get();
         if (!projectConfig.studyId || !projectConfig.adamDataset) {
           console.warn('Study ID and dataset required for readiness score');
           return;
         }
 
         try {
-          const response = await fetch(
-            `http://localhost:8000/api/v1/submission/readiness/${projectConfig.studyId}/${projectConfig.adamDataset}`
+          const data = await adamApi.getSubmissionReadiness(
+            projectConfig.studyId,
+            projectConfig.adamDataset
           );
-          if (response.ok) {
-            const data = await response.json();
-            set({ submissionReadinessScore: data.data || data });
-          }
+          set({ submissionReadinessScore: data.data || data });
         } catch (error) {
           console.error('Error refreshing readiness score:', error);
+          const activity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'readiness_refresh',
+            message: 'Failed to refresh readiness score',
+            status: 'error',
+            details: error instanceof Error ? error.message : 'Unknown error',
+          };
+          set({ recentActivity: [activity, ...recentActivity.slice(0, 49)] });
         }
       },
 
       runAllValidations: async () => {
-        const { projectConfig } = get();
+        const { projectConfig, recentActivity } = get();
         if (!projectConfig.studyId || !projectConfig.adamDataset) {
           console.warn('Study ID and dataset required for validation');
           return;
         }
 
         set({ isValidating: true });
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'validation_start',
+          message: 'Starting all validations (Pre-P21, CT, P21)',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          const response = await fetch('http://localhost:8000/api/v1/submission/validate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              study_id: projectConfig.studyId,
-              dataset: projectConfig.adamDataset,
-              checks: ['preflight', 'ct', 'p21'],
-            }),
+          const data = await adamApi.runAllValidations({
+            study_id: projectConfig.studyId,
+            dataset: projectConfig.adamDataset,
           });
 
-          if (response.ok) {
-            const data = await response.json();
-            set({
-              preflightResults: data.preflight,
-              ctResults: data.controlled_terminology,
-              p21Results: data.p21,
-            });
-            // Refresh score after validation
-            get().refreshReadinessScore();
-          }
+          set({
+            preflightResults: data.preflight,
+            ctResults: data.controlled_terminology || data.ct,
+            p21Results: data.p21,
+          });
+
+          const successActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'validation_complete',
+            message: 'All validations completed successfully',
+            status: 'success',
+            details: {
+              preflight_passed: data.preflight?.passed,
+              ct_passed: data.controlled_terminology?.passed || data.ct?.passed,
+              p21_passed: data.p21?.passed,
+            },
+          };
+          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
+
+          // Refresh score after validation
+          get().refreshReadinessScore();
         } catch (error) {
           console.error('Validation error:', error);
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'validation_error',
+            message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         } finally {
           set({ isValidating: false });
         }
       },
 
       runPreflightCheck: async () => {
-        const { projectConfig } = get();
+        const { projectConfig, recentActivity } = get();
         if (!projectConfig.studyId || !projectConfig.adamDataset) return;
 
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'preflight_start',
+          message: 'Running Pre-P21 structural checks',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          const response = await fetch(
-            `http://localhost:8000/api/v1/submission/preflight/${projectConfig.studyId}/${projectConfig.adamDataset}`,
-            { method: 'POST' }
-          );
-          if (response.ok) {
-            const data = await response.json();
-            set({ preflightResults: data });
-          }
+          const data = await adamApi.runPreflightValidation({
+            study_id: projectConfig.studyId,
+            dataset: projectConfig.adamDataset,
+          });
+          set({ preflightResults: data });
+
+          const resultActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'preflight_complete',
+            message: data.passed ? 'Pre-P21 checks passed' : `Pre-P21 checks found ${data.issues?.length || 0} issues`,
+            status: data.passed ? 'success' : 'warning',
+            details: data,
+          };
+          set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
         } catch (error) {
           console.error('Preflight error:', error);
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'preflight_error',
+            message: `Pre-P21 check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         }
       },
 
       runCTValidation: async () => {
-        const { projectConfig } = get();
+        const { projectConfig, recentActivity } = get();
         if (!projectConfig.studyId || !projectConfig.adamDataset) return;
 
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'ct_validation_start',
+          message: 'Running Controlled Terminology validation',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          const response = await fetch(
-            `http://localhost:8000/api/v1/submission/ct-validation/${projectConfig.studyId}/${projectConfig.adamDataset}`,
-            { method: 'POST' }
-          );
-          if (response.ok) {
-            const data = await response.json();
-            set({ ctResults: data });
-          }
+          const data = await adamApi.runCTValidation({
+            study_id: projectConfig.studyId,
+            dataset: projectConfig.adamDataset,
+          });
+          set({ ctResults: data });
+
+          const resultActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'ct_validation_complete',
+            message: data.passed
+              ? `CT validation passed (${data.variables_checked || 0} variables checked)`
+              : `CT validation found ${data.issues?.length || 0} issues`,
+            status: data.passed ? 'success' : 'warning',
+            details: data,
+          };
+          set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
         } catch (error) {
           console.error('CT validation error:', error);
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'ct_validation_error',
+            message: `CT validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         }
       },
 
       runP21Validation: async () => {
-        const { projectConfig } = get();
+        const { projectConfig, recentActivity } = get();
         if (!projectConfig.studyId || !projectConfig.adamDataset) return;
 
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'p21_validation_start',
+          message: 'Running P21 Community Edition validation',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          const response = await fetch(
-            `http://localhost:8000/api/v1/submission/p21-validation/${projectConfig.studyId}/${projectConfig.adamDataset}`,
-            { method: 'POST' }
-          );
-          if (response.ok) {
-            const data = await response.json();
-            set({ p21Results: data });
-          }
+          const data = await adamApi.runP21Validation({
+            study_id: projectConfig.studyId,
+            dataset: projectConfig.adamDataset,
+          });
+          set({ p21Results: data });
+
+          const errorCount = data.summary?.errors || 0;
+          const warningCount = data.summary?.warnings || 0;
+          const resultActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'p21_validation_complete',
+            message: data.passed
+              ? 'P21 validation passed'
+              : `P21 validation: ${errorCount} errors, ${warningCount} warnings`,
+            status: data.passed ? 'success' : (errorCount > 0 ? 'error' : 'warning'),
+            details: data,
+          };
+          set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
         } catch (error) {
           console.error('P21 validation error:', error);
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'p21_validation_error',
+            message: `P21 validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         }
       },
 
-      generateDefineXml: async (options?: any) => {
+      generateDefineXml: async () => {
+        const { projectConfig, categorizedVariables, recentActivity } = get();
         set({ defineXmlStatus: 'generating' });
+
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'define_xml_start',
+          message: 'Generating Define.xml',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          // TODO: Implement Define.xml generation API call
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          set({ defineXmlStatus: 'complete' });
+          const variables = categorizedVariables?.categories?.flatMap(cat =>
+            cat.variables.map(v => ({
+              name: v.name,
+              label: v.label || v.name,
+              type: v.type || 'Char',
+              length: v.length ? parseInt(String(v.length), 10) : undefined,
+              format: v.format || undefined,
+              origin: 'Derived',
+              role: 'Analysis Variable',
+            }))
+          ) || [];
+
+          const data = await adamApi.generateDefineXml({
+            study_id: projectConfig.studyId,
+            dataset: projectConfig.adamDataset || 'ADSL',
+            variables,
+            include_value_lists: true,
+            include_methods: true,
+          });
+
+          set({
+            defineXmlStatus: 'complete',
+            generatedArtifacts: [...get().generatedArtifacts, data.artifact],
+          });
+
+          const successActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'define_xml_complete',
+            message: 'Define.xml generated successfully',
+            status: 'success',
+            details: data.artifact,
+          };
+          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
         } catch (error) {
           console.error('Define.xml generation error:', error);
           set({ defineXmlStatus: 'error' });
+
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'define_xml_error',
+            message: `Define.xml generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         }
       },
 
       generateADRG: async () => {
+        const { projectConfig, recentActivity } = get();
         set({ adrgStatus: 'generating' });
+
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'adrg_start',
+          message: 'Generating ADRG document',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          // TODO: Implement ADRG generation API call
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          set({ adrgStatus: 'complete' });
+          const datasetName = projectConfig.adamDataset || 'ADSL';
+          const datasets = [{
+            name: datasetName,
+            label: `${datasetName} Dataset`,
+            structure: 'One record per subject',
+            purpose: 'Analysis',
+          }];
+
+          const data = await adamApi.generateADRG({
+            study_info: {
+              study_id: projectConfig.studyId,
+              protocol_number: projectConfig.protocolNumber,
+              study_name: projectConfig.studyId,
+              sponsor: projectConfig.sponsor,
+            },
+            datasets,
+            include_derivations: true,
+            include_validation_summary: true,
+          });
+
+          set({
+            adrgStatus: 'complete',
+            generatedArtifacts: [...get().generatedArtifacts, data.artifact],
+          });
+
+          const successActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'adrg_complete',
+            message: 'ADRG generated successfully',
+            status: 'success',
+            details: data.artifact,
+          };
+          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
         } catch (error) {
           console.error('ADRG generation error:', error);
           set({ adrgStatus: 'error' });
+
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'adrg_error',
+            message: `ADRG generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         }
       },
 
       generateSDRG: async () => {
+        const { projectConfig, recentActivity } = get();
         set({ sdrgStatus: 'generating' });
+
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'sdrg_start',
+          message: 'Generating SDRG document',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          // TODO: Implement SDRG generation API call
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-          set({ sdrgStatus: 'complete' });
+          const datasetName = projectConfig.adamDataset || 'ADSL';
+          const datasets = [{
+            name: datasetName,
+            label: `${datasetName} Dataset`,
+            structure: 'One record per subject',
+            purpose: 'Analysis',
+          }];
+
+          const data = await adamApi.generateSDRG({
+            study_info: {
+              study_id: projectConfig.studyId,
+              protocol_number: projectConfig.protocolNumber,
+              study_name: projectConfig.studyId,
+              sponsor: projectConfig.sponsor,
+            },
+            datasets,
+          });
+
+          set({
+            sdrgStatus: 'complete',
+            generatedArtifacts: [...get().generatedArtifacts, data.artifact],
+          });
+
+          const successActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'sdrg_complete',
+            message: 'SDRG generated successfully',
+            status: 'success',
+            details: data.artifact,
+          };
+          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
         } catch (error) {
           console.error('SDRG generation error:', error);
           set({ sdrgStatus: 'error' });
+
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'sdrg_error',
+            message: `SDRG generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         }
       },
 
       createECTDPackage: async (options?: any) => {
-        const { projectConfig } = get();
+        const { projectConfig, recentActivity } = get();
         if (!projectConfig.studyId) return;
 
         set({ isGeneratingPackage: true });
+
+        const startActivity: ActivityLogItem = {
+          timestamp: new Date().toISOString(),
+          action: 'ectd_package_start',
+          message: 'Creating eCTD submission package',
+          status: 'info',
+        };
+        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
         try {
-          const response = await fetch('http://localhost:8000/api/v1/submission/package', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              study_id: projectConfig.studyId,
-              datasets: [projectConfig.adamDataset],
-              include: {
-                define_xml: true,
-                adrg: true,
-                sdrg: true,
-              },
-              options,
-            }),
+          const data = await adamApi.createECTDPackage({
+            study_id: projectConfig.studyId,
+            datasets: [projectConfig.adamDataset || 'ADSL'],
+            include_define_xml: options?.include_define_xml ?? true,
+            include_adrg: options?.include_adrg ?? true,
+            include_sdrg: options?.include_sdrg ?? true,
+            include_programs: options?.include_programs ?? false,
+            create_zip: options?.create_zip ?? false,
           });
 
-          if (response.ok) {
-            const data = await response.json();
-            set({ generatedArtifacts: data.artifacts || [] });
-          }
+          set({
+            generatedArtifacts: [...get().generatedArtifacts, ...(data.artifacts || [data.artifact])],
+          });
+
+          const successActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'ectd_package_complete',
+            message: `eCTD package created successfully${data.tree ? ` (${data.tree.length} items)` : ''}`,
+            status: 'success',
+            details: {
+              artifact: data.artifact,
+              tree: data.tree,
+              manifest: data.manifest,
+            },
+          };
+          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
         } catch (error) {
           console.error('Package generation error:', error);
+
+          const errorActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'ectd_package_error',
+            message: `eCTD package creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            status: 'error',
+          };
+          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
         } finally {
           set({ isGeneratingPackage: false });
         }
@@ -916,13 +1180,14 @@ export const useProjectStore = create<ProjectStore>()(
           sdrgStatus: 'idle',
         }),
     }),
-    {
-      name: 'adam-ai-storage',
-      version: 2,
-      partialize: (state) => {
-        const { tempSpecFile, ...rest } = state as any;
-        return rest;
-      },
-    }
+      {
+        name: 'adam-ai-storage',
+        version: 2,
+        partialize: (state) => {
+          const { tempSpecFile: _tempSpecFile, ...rest } = state as any;
+          return rest;
+        },
+      }
+    )
   )
 );

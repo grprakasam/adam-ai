@@ -1,22 +1,28 @@
-import { Button, Space, Dropdown, Avatar } from 'antd';
-import { SettingOutlined, BarChartOutlined, UserOutlined, HomeOutlined, LogoutOutlined } from '@ant-design/icons';
+import { Button, Space, Dropdown, Tooltip } from 'antd';
+import { SettingOutlined, BarChartOutlined, UserOutlined, HomeOutlined, LogoutOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import './Header.css';
 import { useProjectStore } from '../store/projectStore';
 import { showNavigationConfirmation } from './ConfirmationDialog';
+import { useWorkspaceHistory } from '../store/historyStore';
 
 interface HeaderProps {
   onBackToLanding?: () => void;
   currentUser?: any;
   onLogout?: () => void;
+  onOpenHelpCenter?: () => void;
+  onOpenPreferences?: () => void;
 }
 
 const Header = ({
   onBackToLanding,
   currentUser,
-  onLogout
+  onLogout,
+  onOpenHelpCenter,
+  onOpenPreferences
 }: HeaderProps) => {
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const resetWorkspace = useProjectStore((state) => state.resetWorkspace);
+  const clearHistory = useWorkspaceHistory((state) => state.clear);
 
   const handleBackToLanding = async () => {
     if (!onBackToLanding) return;
@@ -28,6 +34,7 @@ const Header = ({
       await showNavigationConfirmation(
         () => {
           resetWorkspace(); // Reset all workspace state
+          clearHistory();
           onBackToLanding();
         },
         'You have unsaved work. Going back to the landing page will reset your workspace. Are you sure you want to leave?'
@@ -35,6 +42,7 @@ const Header = ({
     } else {
       // No work in progress, reset and navigate
       resetWorkspace();
+      clearHistory();
       onBackToLanding();
     }
   };
@@ -57,8 +65,37 @@ const Header = ({
 
       {/* Right controls */}
       <Space size="middle" className="header-right-controls">
-        <Button icon={<SettingOutlined />} type="text" className="icon-btn" />
-        <Button icon={<BarChartOutlined />} type="text" className="icon-btn" />
+        <Tooltip title="Workspace settings">
+          <Button
+            icon={<SettingOutlined />}
+            type="text"
+            className="icon-btn"
+            aria-label="Workspace settings"
+            onClick={onOpenPreferences}
+            disabled={!onOpenPreferences}
+          />
+        </Tooltip>
+        <Tooltip title="Validation analytics (Coming Soon)">
+          <Button
+            icon={<BarChartOutlined />}
+            type="text"
+            className="icon-btn"
+            aria-label="Validation analytics"
+            onClick={() => {
+              // TODO: Implement validation analytics dashboard
+              import('antd').then(({ message }) => {
+                message.info('Validation Analytics dashboard coming soon! This feature will show comprehensive code validation statistics and trends.');
+              });
+            }}
+          />
+        </Tooltip>
+        {onOpenHelpCenter && (
+          <Tooltip title="Open help center (Shift + /)">
+            <Button icon={<QuestionCircleOutlined />} type="text" className="icon-btn" onClick={onOpenHelpCenter}>
+              Help
+            </Button>
+          </Tooltip>
+        )}
         
         {currentUser && (
           <Dropdown

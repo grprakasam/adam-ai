@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import type { AxiosProgressEvent } from 'axios';
 import type {
   GenerationRequest,
   GenerationResponse,
@@ -38,6 +39,7 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+const ACCESS_TOKEN_KEY = 'adam_access_token';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -50,6 +52,12 @@ const apiClient = axios.create({
 // Request interceptor for adding common headers
 apiClient.interceptors.request.use(
   (config) => {
+    // Add Authorization header if token exists
+    const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     // Add timestamp to prevent caching
     if (config.method === 'get') {
       config.params = {
@@ -69,7 +77,15 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     // Log errors in development
-    console.error('API Error:', error);
+    if (import.meta.env.DEV) {
+      console.error('API Error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+      });
+    }
     return Promise.reject(error);
   }
 );
@@ -102,11 +118,10 @@ export const adamApi = {
   },
 
   // Validate code
-  validateCode: async (code: string, language: string) => {
+  validateCode: async (request: { code: string; language: string; check_style?: boolean }) => {
     const response = await apiClient.post('/validation/validate', { 
-      code, 
-      language,
-      check_style: true 
+      check_style: true,
+      ...request
     });
     return response.data;
   },
@@ -118,18 +133,33 @@ export const adamApi = {
   },
 
   // Categorize specification variables
-  categorizeSpecification: async (specFilePath: string, datasetType: string = 'ADSL'): Promise<CategorizationResult> => {
+  categorizeSpecification: async (
+    specFilePath: string,
+    datasetType: string = 'ADSL',
+    options?: { signal?: AbortSignal; timeoutMs?: number }
+  ): Promise<CategorizationResult> => {
     return await fileUploadThrottler.throttle(async () => {
-      const response = await apiClient.post('/specification/categorize-path', {
-        spec_file_path: specFilePath,
-        dataset_type: datasetType
-      });
+      const response = await apiClient.post(
+        '/specification/categorize-path',
+        {
+          spec_file_path: specFilePath,
+          dataset_type: datasetType,
+        },
+        {
+          signal: options?.signal,
+          timeout: options?.timeoutMs ?? 180000, // allow up to 3 minutes for large files
+        }
+      );
       return response.data;
     });
   },
 
   // Categorize specification by file upload
-  categorizeSpecificationFile: async (file: File, datasetType: string = 'ADSL'): Promise<CategorizationResult> => {
+  categorizeSpecificationFile: async (
+    file: File,
+    datasetType: string = 'ADSL',
+    options?: { signal?: AbortSignal; timeoutMs?: number; onUploadProgress?: (e: AxiosProgressEvent) => void }
+  ): Promise<CategorizationResult> => {
     return await fileUploadThrottler.throttle(async () => {
       const formData = new FormData();
       formData.append('file', file);
@@ -139,6 +169,9 @@ export const adamApi = {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        signal: options?.signal,
+        timeout: options?.timeoutMs ?? 180000,
+        onUploadProgress: options?.onUploadProgress,
       });
       
       // Debug log to check length/format values
@@ -217,17 +250,35 @@ export const adamApi = {
     return new Promise((resolve, reject) => {
       const baseURL = apiClient.defaults.baseURL || '';
       const url = `${baseURL}/code-generation/generate-code-bulk-stream`;
-      
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       // Use fetch with EventSource fallback
       fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(request),
       })
         .then(async (response) => {
           if (!response.ok) {
+            // Provide more context for auth errors
+            if (response.status === 401) {
+              const errorText = await response.text().catch(() => '');
+              throw new Error(
+                `Authentication required (401). ${
+                  !token
+                    ? 'Please log in first.'
+                    : 'Your session may have expired. Please log in again.'
+                } ${errorText ? `Details: ${errorText}` : ''}`
+              );
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
           }
 
@@ -255,6 +306,8 @@ export const adamApi = {
             for (const line of lines) {
               if (line.startsWith('event: progress')) {
                 continue; // Event type line
+              } else if (line.startsWith('event: complete')) {
+                continue; // Event type line
               } else if (line.startsWith('event: result')) {
                 continue; // Event type line
               } else if (line.startsWith('event: error')) {
@@ -263,12 +316,16 @@ export const adamApi = {
                 const data = line.slice(6); // Remove 'data: ' prefix
                 try {
                   const parsed = JSON.parse(data);
-                  
+
                   // Check if this is a progress update
-                  if (parsed.status) {
+                  if (parsed.status === 'progress' || (parsed.status && !parsed.data)) {
                     onProgress(parsed);
                   }
-                  // Check if this is the result array
+                  // Check if this is the complete event with results
+                  else if (parsed.status === 'success' && Array.isArray(parsed.data)) {
+                    results = parsed.data;
+                  }
+                  // Check if this is just a result array (legacy format)
                   else if (Array.isArray(parsed)) {
                     results = parsed;
                   }
@@ -406,8 +463,137 @@ export const adamApi = {
 
   generateConsolidatedCode: async (request: ConsolidatedCodeRequest): Promise<ConsolidatedCodeResponse> => {
     return await codeGenerationThrottler.throttle(async () => {
-      const response = await apiClient.post('/program-generation/consolidated', request);
+      const response = await apiClient.post('/program-generation/program-generation/consolidated', request);
       return response.data;
+    });
+  },
+
+  // Generate consolidated code with real-time progress streaming
+  generateConsolidatedCodeStream: (
+    request: ConsolidatedCodeRequest,
+    onProgress: (progress: {
+      status: string;
+      progress_pct: number;
+      message: string;
+      step?: string;
+      elapsed_seconds?: number;
+    }) => void,
+    abortSignal?: AbortSignal
+  ): Promise<ConsolidatedCodeResponse> => {
+    return new Promise((resolve, reject) => {
+      const baseURL = apiClient.defaults.baseURL || '';
+      const url = `${baseURL}/program-generation/program-generation/consolidated-stream`;
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const fetchOptions: RequestInit = {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(request),
+      };
+
+      if (abortSignal) {
+        fetchOptions.signal = abortSignal;
+      }
+
+      fetch(url, fetchOptions)
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let result: ConsolidatedCodeResponse | null = null;
+
+          if (!reader) {
+            throw new Error('No response body');
+          }
+
+          // Check if abort signal is already aborted
+          if (abortSignal?.aborted) {
+            reader.cancel();
+            throw new Error('Generation cancelled by user');
+          }
+
+          while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            // Check for abort signal during streaming
+            if (abortSignal?.aborted) {
+              reader.cancel();
+              throw new Error('Generation cancelled by user');
+            }
+
+            // Decode chunk and add to buffer
+            buffer += decoder.decode(value, { stream: true });
+
+            // Process complete SSE messages
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith('event: progress')) {
+                continue; // Event type line
+              } else if (line.startsWith('event: complete')) {
+                continue; // Event type line
+              } else if (line.startsWith('event: error')) {
+                continue; // Event type line
+              } else if (line.startsWith('data: ')) {
+                const data = line.slice(6); // Remove 'data: ' prefix
+                try {
+                  const parsed = JSON.parse(data);
+
+                  // Check if this is a progress update
+                  if (parsed.status && parsed.progress_pct !== undefined) {
+                    console.log('[SSE Progress]', parsed);
+                    onProgress(parsed);
+                  }
+                  // Check if this is the final result (has status field and data field)
+                  else if (parsed.status === 'success' && parsed.data !== undefined) {
+                    // Return the entire response object, not just the data
+                    console.log('[SSE Complete]', parsed);
+                    result = parsed;
+                  }
+                  // Check if this is an error
+                  else if (parsed.error) {
+                    console.error('[SSE Error]', parsed.error);
+                    reject(new Error(parsed.error));
+                    return;
+                  } else {
+                    console.warn('[SSE Unknown]', parsed);
+                  }
+                } catch (e) {
+                  console.error('Failed to parse SSE data:', e, data);
+                }
+              }
+            }
+          }
+
+          if (result) {
+            resolve(result);
+          } else {
+            reject(new Error('No result received from server'));
+          }
+        })
+        .catch((error) => {
+          // Don't reject if it's an abort error - let the component handle it
+          if (error.name === 'AbortError') {
+            reject(new Error('Generation cancelled by user'));
+          } else {
+            reject(error);
+          }
+        });
     });
   },
 
@@ -430,6 +616,182 @@ export const adamApi = {
       model
     });
     return response.data;
+  },
+
+  // ============================================
+  // SUBMISSION READINESS & VALIDATION
+  // ============================================
+
+  // Get submission readiness score
+  getSubmissionReadiness: async (studyId: string, dataset: string) => {
+    const response = await apiClient.get(`/submission/readiness/${studyId}/${dataset}`);
+    return response.data;
+  },
+
+  // Run all validations (preflight, CT, P21)
+  runAllValidations: async (request: {
+    study_id: string;
+    dataset: string;
+    dataset_paths?: string[];
+    ct_file_path?: string;
+    stop_on_error?: boolean;
+  }) => {
+    const response = await apiClient.post('/validation/run-all', request, {
+      timeout: 300000, // 5 minutes for full validation suite
+    });
+    return response.data;
+  },
+
+  // Run pre-P21 structural checks
+  runPreflightValidation: async (request: {
+    study_id: string;
+    dataset: string;
+    dataset_paths?: string[];
+  }) => {
+    const response = await apiClient.post('/validation/preflight', request);
+    return response.data;
+  },
+
+  // Run controlled terminology validation
+  runCTValidation: async (request: {
+    study_id: string;
+    dataset: string;
+    dataset_paths?: string[];
+    ct_file_path?: string;
+  }) => {
+    const response = await apiClient.post('/validation/ct', request);
+    return response.data;
+  },
+
+  // Run P21 Community Edition validation
+  runP21Validation: async (request: {
+    study_id: string;
+    dataset: string;
+    dataset_paths?: string[];
+    rules?: string[];
+    timeout?: number;
+  }) => {
+    const response = await apiClient.post('/validation/p21', request, {
+      timeout: 600000, // 10 minutes for P21
+    });
+    return response.data;
+  },
+
+  // Export validation results
+  exportValidationResults: async (request: {
+    study_id: string;
+    dataset: string;
+    format: 'csv' | 'xlsx' | 'json' | 'pdf';
+    include_preflight?: boolean;
+    include_ct?: boolean;
+    include_p21?: boolean;
+  }) => {
+    const response = await apiClient.post('/validation/export', request, {
+      responseType: 'blob',
+    });
+    return response;
+  },
+
+  // ============================================
+  // DOCUMENT GENERATION (ADRG/SDRG/Define.xml)
+  // ============================================
+
+  // Generate Define.xml
+  generateDefineXml: async (request: {
+    study_id: string;
+    dataset: string;
+    variables?: Array<{
+      name: string;
+      label: string;
+      type: string;
+      length?: number;
+      format?: string;
+      origin?: string;
+      role?: string;
+    }>;
+    include_value_lists?: boolean;
+    include_methods?: boolean;
+  }) => {
+    const response = await apiClient.post('/submission/define-xml', request);
+    return response.data;
+  },
+
+  // Generate ADRG (Analysis Data Reviewer's Guide)
+  generateADRG: async (request: {
+    study_info: {
+      study_id: string;
+      protocol_number?: string;
+      study_name?: string;
+      sponsor?: string;
+    };
+    datasets: Array<{
+      name: string;
+      label: string;
+      structure?: string;
+      purpose?: string;
+    }>;
+    notes?: string;
+    include_derivations?: boolean;
+    include_validation_summary?: boolean;
+  }) => {
+    const response = await apiClient.post('/submission/adrg', request);
+    return response.data;
+  },
+
+  // Generate SDRG (Study Data Reviewer's Guide)
+  generateSDRG: async (request: {
+    study_info: {
+      study_id: string;
+      protocol_number?: string;
+      study_name?: string;
+      sponsor?: string;
+    };
+    datasets: Array<{
+      name: string;
+      label: string;
+      structure?: string;
+      purpose?: string;
+    }>;
+    notes?: string;
+  }) => {
+    const response = await apiClient.post('/submission/sdrg', request);
+    return response.data;
+  },
+
+  // ============================================
+  // eCTD PACKAGING
+  // ============================================
+
+  // Create eCTD package
+  createECTDPackage: async (request: {
+    study_id: string;
+    datasets?: string[];
+    include_define_xml?: boolean;
+    include_adrg?: boolean;
+    include_sdrg?: boolean;
+    include_programs?: boolean;
+    create_zip?: boolean;
+    target_dir?: string;
+  }) => {
+    const response = await apiClient.post('/submission/ectd/package', request, {
+      timeout: 300000, // 5 minutes for packaging
+    });
+    return response.data;
+  },
+
+  // Get package status
+  getPackageStatus: async (packageId: string) => {
+    const response = await apiClient.get(`/submission/ectd/status/${packageId}`);
+    return response.data;
+  },
+
+  // Download package artifact
+  downloadPackageArtifact: async (artifactPath: string) => {
+    const response = await apiClient.get('/submission/ectd/download', {
+      params: { path: artifactPath },
+      responseType: 'blob',
+    });
+    return response;
   },
 
   // ============================================
@@ -462,7 +824,7 @@ export const adamApi = {
   },
 
   // Validate code (syntax check)
-  validateCode: async (request: {
+  validateGeneratedCode: async (request: {
     code: string;
     language: 'R' | 'SAS';
   }) => {

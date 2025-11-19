@@ -1112,6 +1112,12 @@ class LLMIntegrationService:
             raise LLMProviderError("OpenRouter provider not properly initialized")
         
         return await provider.get_available_models()
+    
+    async def generate_completion(self, **kwargs) -> LLMResponse:
+        """
+        Backward-compatible alias for tests expecting a generate_completion method.
+        """
+        return await self.generate(**kwargs)
 
 
 # Global service instance

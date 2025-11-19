@@ -10,11 +10,6 @@ from loguru import logger
 import re
 
 
-class ValidationError(Exception):
-    """Custom validation error"""
-    pass
-
-
 def validate_file_upload(
     file: UploadFile,
     allowed_extensions: List[str],
@@ -164,8 +159,8 @@ def validate_categorized_variables(categorized_vars: Dict[str, Any]) -> None:
     if not categorized_vars:
         raise HTTPException(status_code=400, detail="Categorized variables are required")
 
-    # Check required keys
-    required_keys = ["categories", "total_variables", "dataset_type"]
+    # Check required keys (dataset_type optional for backward compatibility)
+    required_keys = ["categories", "total_variables"]
     missing_keys = [key for key in required_keys if key not in categorized_vars]
 
     if missing_keys:

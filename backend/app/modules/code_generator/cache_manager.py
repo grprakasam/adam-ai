@@ -63,8 +63,9 @@ class CacheManager:
         if key in self.cache:
             entry = self.cache[key]
             age = time.time() - entry['timestamp']
+            ttl_value = entry.get('ttl', self.ttl)
             
-            if age < self.ttl:
+            if age < ttl_value:
                 self.hits += 1
                 logger.debug(f"Cache HIT for key {key[:8]}... (age: {age:.0f}s)")
                 return entry['data']
@@ -77,7 +78,7 @@ class CacheManager:
         logger.debug(f"Cache MISS for key {key[:8]}...")
         return None
     
-    def set(self, key: str, data: Dict[str, Any]):
+    def set(self, key: str, data: Dict[str, Any], ttl: Optional[int] = None):
         """
         Cache result
         
@@ -85,11 +86,21 @@ class CacheManager:
             key: Cache key
             data: Data to cache
         """
+        entry_ttl = ttl if ttl is not None else self.ttl
         self.cache[key] = {
             'data': data,
-            'timestamp': time.time()
+            'timestamp': time.time(),
+            'ttl': entry_ttl
         }
         logger.debug(f"Cached result for key {key[:8]}...")
+    
+    def invalidate(self, key: str) -> bool:
+        """Remove a specific cache entry."""
+        if key in self.cache:
+            del self.cache[key]
+            logger.debug(f"Invalidated cache key {key[:8]}...")
+            return True
+        return False
     
     def clear(self):
         """Clear all cache entries"""
@@ -104,7 +115,7 @@ class CacheManager:
         now = time.time()
         expired_keys = [
             key for key, entry in self.cache.items()
-            if now - entry['timestamp'] >= self.ttl
+            if now - entry['timestamp'] >= entry.get('ttl', self.ttl)
         ]
         
         for key in expired_keys:

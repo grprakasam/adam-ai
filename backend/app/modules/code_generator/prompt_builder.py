@@ -80,6 +80,37 @@ class PromptBuilder:
         self.rules_cache: Dict[str, str] = {}
         logger.info("Initialized PromptBuilder with RuleLoadingService")
     
+    def build_prompt(self, variable: Dict[str, Any], context: Dict[str, Any]) -> str:
+        """
+        Legacy helper used by unit tests to build a simple textual prompt.
+        """
+        variable_name = variable.get('name', 'UNKNOWN')
+        variable_label = variable.get('label', variable_name)
+        derivation = variable.get('derivation', '').strip()
+        dataset = context.get('adam_dataset') or context.get('dataset') or "ADSL"
+        study_id = context.get('study_id', 'UNKNOWN_STUDY')
+        language = (context.get('language') or context.get('programming_language') or "R").upper()
+        sdtm_version = context.get('sdtm_version') or context.get('sdtmVersion') or "Unknown"
+        adam_version = context.get('adam_version') or context.get('adam_ig_version') or "1.3"
+        dependencies = variable.get('dependencies') or []
+        dependency_text = ", ".join(dependencies) if dependencies else "None"
+        
+        prompt_lines = [
+            f"Study: {study_id}",
+            f"Dataset: {dataset}",
+            f"Language: {language}",
+            f"Variable: {variable_name} ({variable_label})",
+        ]
+        if derivation:
+            prompt_lines.append(f"Derivation: {derivation}")
+        prompt_lines.append(f"Dependencies: {dependency_text}")
+        prompt_lines.append(f"Standards: ADAM {adam_version} / SDTM {sdtm_version}")
+        prompt_lines.append(
+            "Generate compliant code that follows CDISC conventions and documents the business rationale."
+        )
+        
+        return "\n".join(prompt_lines)
+    
     async def load_rules(self) -> None:
         """Load all ADAM rules into cache"""
         if not self.rules_cache:
@@ -169,33 +200,18 @@ class PromptBuilder:
                     "Honor these instructions while keeping CDISC/ADaM compliance."
                 )
         
-        # Build prompt
-        prompt = f"""You are an expert CDISC ADAM programmer. Generate ONLY the essential {language} code to implement the derivation logic - nothing more.
+        # Build OPTIMIZED prompt - simplified for speed (reduced token count)
+        # Skip rules_context and template_hint for faster generation
+        prompt = f"""Generate {language} code for ADAM variable derivation. Code only, no explanations.
 
-**Variable:** {variable_name} ({variable_label})
-**Type:** {variable_type}
-**Derivation:** {derivation_logic}
-**Dataset:** {adam_dataset}
-**Standards:** ADAM IG v{context.get('adam_ig_version', '1.3')}, SDTM v{context.get('sdtm_version', 'Unknown')}
-
-{rules_context}
-
+Variable: {variable_name}
+Type: {variable_type}
+Derivation: {derivation_logic}
+Dataset: {adam_dataset}
 {user_note_section}
 
-{template_hint}
+Output ONLY executable {language} code. No comments, no library imports, no examples."""
 
-**CRITICAL REQUIREMENTS:**
-1. Generate ONLY the core derivation code - the direct conversion of the derivation logic into {language}
-2. NO introductory comments (e.g., "Derivation of variable...", "Based on standards...")
-3. NO library loading statements (e.g., library(dplyr))
-4. NO example usage code (e.g., "Example usage:", test data frames, print statements)
-5. NO explanatory text before or after the code
-6. Include ONLY minimal inline comments for complex logic
-7. The code must be a pure function or logic block that can be directly integrated
-8. Follow CDISC standards and variable naming conventions
-
-Return ONLY executable {language} code that implements the derivation logic."""
-        
         return prompt.strip()
     
     def build_rationale_prompt(

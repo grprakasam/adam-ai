@@ -1,0 +1,11 @@
+.history-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-controls .ant-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

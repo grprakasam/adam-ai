@@ -5,13 +5,15 @@ Main service for AI-powered ADAM code generation using configurable LLM provider
 Orchestrates template selection, prompt building, and batch processing.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from loguru import logger
 import re
 from app.config import settings
 from app.modules.llm_integration.service import get_llm_service, LLMIntegrationService
 from .prompt_builder import PromptBuilder
 from .cache_manager import CacheManager
+from .multi_variable_generator import MultiVariableGenerator
+from app.models.input_models import CodeSnippetResponse, Standards
 
 
 def clean_generated_code(code: str, language: str) -> str:
@@ -103,6 +105,152 @@ class CodeGeneratorService:
         
         logger.info(f"✅ Initialized CodeGeneratorService with LLM provider: {settings.DEFAULT_LLM_PROVIDER}")
         logger.info(f"   Batch size: {self.batch_size}, Max concurrent: {self.max_concurrent}")
+    
+    async def _call_llm(
+        self,
+        prompt: str,
+        temperature: float,
+        max_tokens: int,
+        provider: Optional[str],
+        model: Optional[str]
+    ) -> Any:
+        """
+        Call the configured LLM service, supporting both legacy generate_completion and new generate methods.
+        """
+        llm_callable = getattr(self.llm_service, "generate_completion", None)
+        if callable(llm_callable):
+            return await llm_callable(
+                prompt=prompt,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                provider=provider,
+                model=model
+            )
+        return await self.llm_service.generate(
+            prompt=prompt,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            provider=provider,
+            model=model
+        )
+    
+    @staticmethod
+    def _extract_content(response: Any) -> str:
+        """Normalize LLM response payloads to plain text."""
+        if isinstance(response, str):
+            return response.strip()
+        if isinstance(response, dict):
+            content = response.get("content") or response.get("text") or ""
+            return content.strip()
+        if hasattr(response, "content"):
+            content_value = getattr(response, "content")
+            if isinstance(content_value, str):
+                return content_value.strip()
+        return str(response).strip()
+    
+    @staticmethod
+    def _extract_model_name(response: Any) -> Optional[str]:
+        """Best-effort extraction of model name from LLM response objects."""
+        if isinstance(response, dict):
+            return response.get("model")
+        return None
+    
+    def _build_rationale_summary(
+        self,
+        variable_name: str,
+        derivation_logic: str,
+        language: str,
+        context: Dict[str, Any]
+    ) -> str:
+        """Create a deterministic rationale when an LLM rationale is not available."""
+        dataset = context.get("adam_dataset") or context.get("dataset") or "ADSL"
+        category = context.get("category")
+        derivation_text = derivation_logic.strip() if derivation_logic else "the specification"
+        rationale = (
+            f"The {variable_name} derivation for {dataset} is implemented in {language} "
+            f"by translating {derivation_text} directly into executable code."
+        )
+        if category:
+            rationale += f" This variable belongs to the {category} category."
+        return rationale
+    
+    async def generate_code_snippet(
+        self,
+        study_id: str,
+        dataset: str,
+        variable: str,
+        derivation: str,
+        spec_row: Dict[str, Any],
+        standards: Union[Standards, Dict[str, Any]],
+        language: str = "R",
+        context: Optional[Dict[str, Any]] = None,
+        llm_provider: Optional[str] = None,
+        user_note: Optional[str] = None
+    ) -> CodeSnippetResponse:
+        """
+        Backwards-compatible helper used by tests and legacy code paths to generate a single snippet with caching.
+        """
+        standards_data = (
+            standards.model_dump() if isinstance(standards, Standards) else dict(standards or {})
+        )
+        note_fragment = (user_note or "").strip()
+        derivation_for_cache = derivation or ""
+        if note_fragment:
+            derivation_for_cache = f"{derivation_for_cache}|note:{note_fragment}"
+        cache_key = self.cache_manager.generate_cache_key(
+            variable_name=variable,
+            derivation=derivation_for_cache,
+            language=language,
+            adam_dataset=dataset,
+            variable_type=spec_row.get("Type", "")
+        )
+        
+        cached = self.cache_manager.get(cache_key)
+        if cached:
+            return CodeSnippetResponse(**cached)
+        
+        variable_payload = {
+            "name": variable,
+            "label": spec_row.get("Label", ""),
+            "type": spec_row.get("Type", ""),
+            "derivation": derivation,
+            "is_required": str(spec_row.get("Core", "")).strip().lower() == "req"
+        }
+        
+        context_payload: Dict[str, Any] = {
+            "study_id": study_id,
+            "adam_dataset": dataset,
+            "adam_ig_version": standards_data.get("adam_ig_version", "1.3"),
+            "sdtm_version": standards_data.get("sdtm_version", "Unknown"),
+            "meddra_version": standards_data.get("meddra_version", "Unknown")
+        }
+        extra_context = dict(context or {})
+        context_payload.update(extra_context)
+        if "dataset" in extra_context and "adam_dataset" not in context_payload:
+            context_payload["adam_dataset"] = extra_context["dataset"]
+        context_payload.setdefault("required_variables", extra_context.get("required_variables", []))
+        context_payload.setdefault(
+            "sdtm_domains",
+            extra_context.get("sdtm_domains") or extra_context.get("available_sdtm_domains", [])
+        )
+        context_payload.setdefault(
+            "category",
+            extra_context.get("category") or spec_row.get("Category", "General")
+        )
+        context_payload.setdefault("language", language)
+        
+        result = await self.generate_single_variable(
+            variable=variable_payload,
+            language=language,
+            context=context_payload,
+            llm_provider=llm_provider,
+            user_note=user_note
+        )
+        result.setdefault("language", language)
+        
+        response_model = CodeSnippetResponse(**result)
+        self.cache_manager.set(cache_key, response_model.model_dump())
+        return response_model
     
     async def generate_code_for_all_variables(
         self,
@@ -215,43 +363,32 @@ class CodeGeneratorService:
                     user_note=note_summary
                 )
                 
-                # Generate code using LLM service
-                code_response = await self.llm_service.generate(
+                # Generate code using LLM service (supports legacy mock interface)
+                code_response = await self._call_llm(
                     prompt=code_prompt,
-                    temperature=0.2,
-                    max_tokens=2000,
+                    temperature=0.3,  # Slightly higher for faster generation
+                    max_tokens=800,  # Aggressively reduced for much faster responses
                     provider=llm_provider,
                     model=model
                 )
-                raw_code = code_response.get('content', '')
+                raw_code = self._extract_content(code_response)
                 
                 # Clean the generated code to remove unwanted sections
                 code_snippet = clean_generated_code(raw_code, language)
                 
-                # Build prompt for rationale
-                rationale_prompt = self.prompt_builder.build_rationale_prompt(
+                coding_rationale = self._build_rationale_summary(
                     variable_name=variable_name,
-                    code_snippet=code_snippet,
                     derivation_logic=derivation,
-                    language=language
+                    language=language,
+                    context=context
                 )
-                
-                # Generate rationale using LLM service
-                rationale_response = await self.llm_service.generate(
-                    prompt=rationale_prompt,
-                    temperature=0.3,
-                    max_tokens=500,
-                    provider=llm_provider,
-                    model=model
-                )
-                coding_rationale = rationale_response.get('content', '')
                 
                 logger.info(f"✅ Successfully generated code for {variable_name}")
                 
                 # Build result matching old format
                 metadata = {
-                    'provider': settings.DEFAULT_LLM_PROVIDER,
-                    'model': code_response.get('model', settings.DEFAULT_MODEL),
+                    'provider': llm_provider or settings.DEFAULT_LLM_PROVIDER,
+                    'model': self._extract_model_name(code_response) or settings.DEFAULT_MODEL,
                     'language': language,
                     'variable_type': variable_type,
                     'user_note_applied': bool(note_summary)
@@ -261,6 +398,7 @@ class CodeGeneratorService:
 
                 result = {
                     'variable': variable_name,
+                    'language': language,
                     'code_snippet': code_snippet,
                     'coding_rationale': coding_rationale,
                     'metadata': metadata,
@@ -281,6 +419,7 @@ class CodeGeneratorService:
                 
                 return {
                     'variable': variable_name,
+                    'language': language,
                     'code_snippet': fallback_code,
                     'coding_rationale': fallback_rationale,
                     'error': f"Generation failed: {error_msg}. Using fallback template.",
@@ -306,7 +445,7 @@ class CodeGeneratorService:
     ) -> List[Dict[str, Any]]:
         """
         Process multiple variables using LLM service
-        
+
         Args:
             variables: List of variable dictionaries
             language: Programming language
@@ -314,111 +453,226 @@ class CodeGeneratorService:
             llm_provider: LLM provider to use (groq, openai, anthropic, google, openrouter). If None, uses default.
             model: Specific model to use (required for openrouter)
             progress_callback: Optional async callback for progress updates
-            
+
         Returns:
             List of CodeSnippetResponse dictionaries
         """
         import asyncio
-        
+
         results = []
         total_vars = len(variables)
         completed = 0
-        
+
         logger.info(f"Starting to process {total_vars} variables with LLM service")
-        
+
+        # Pre-filter: Check cache for already-generated variables (performance optimization)
+        uncached_variables = []
+        cached_results = []
+
+        for variable in variables:
+            variable_name = variable.get('name', 'Unknown')
+            derivation = variable.get('derivation', '')
+            variable_type = variable.get('type', '')
+            adam_dataset = context.get('adam_dataset', 'ADSL')
+
+            cache_key = self.cache_manager.generate_cache_key(
+                variable_name=variable_name,
+                derivation=derivation,
+                language=language,
+                adam_dataset=adam_dataset,
+                variable_type=variable_type
+            )
+
+            cached = self.cache_manager.get(cache_key)
+            if cached:
+                logger.info(f"Cache hit for {variable_name} - skipping LLM call")
+                cached_results.append((variable, cached))
+            else:
+                uncached_variables.append(variable)
+
+        # Report cache hits
+        cache_hits = len(cached_results)
+        if cache_hits > 0:
+            logger.info(f"✅ Found {cache_hits} cached results, only {len(uncached_variables)} need LLM generation")
+
         if progress_callback:
             await progress_callback({
                 'status': 'started',
                 'total': total_vars,
-                'completed': 0,
-                'message': f'Starting code generation for {total_vars} variables...'
+                'completed': cache_hits,
+                'message': f'Starting code generation for {total_vars} variables ({cache_hits} cached, {len(uncached_variables)} to generate)...'
             })
-        
-        # Process in batches
-        for i in range(0, len(variables), self.batch_size):
-            batch = variables[i:i + self.batch_size]
-            batch_num = i // self.batch_size + 1
-            total_batches = (len(variables) + self.batch_size - 1) // self.batch_size
-            
-            logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} variables)")
-            
-            if progress_callback:
-                await progress_callback({
-                    'status': 'batch_started',
-                    'total': total_vars,
-                    'completed': completed,
-                    'batch': batch_num,
-                    'total_batches': total_batches,
-                    'message': f'Processing batch {batch_num} of {total_batches}...'
-                })
-            
-            # Create tasks for ALL variables in batch (not just max_concurrent)
-            tasks = []
-            for variable in batch:
-                tasks.append(self.generate_single_variable(variable, language, context, llm_provider, model))
-            
-            # Execute tasks with concurrency control via semaphore in generate_single_variable
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Process results
-            for idx, result in enumerate(batch_results):
-                completed += 1
-                variable = batch[idx]
-                variable_name = variable.get('name', 'Unknown')
-                
-                if isinstance(result, Exception):
-                    error_msg = str(result)
-                    logger.error(f"Failed to generate code for {variable_name}: {error_msg}", exc_info=True)
-                    
-                    # Generate fallback with helpful template
-                    fallback_code = self._generate_fallback_code(
-                        variable_name, 
-                        variable.get('type', 'Num'),
-                        language
+
+        # REVOLUTIONARY OPTIMIZATION: Multi-Variable Batch Generation
+        # Generate code for 10 variables in 1 API call instead of 1 variable per call
+        # This reduces API calls by 10x and avoids Groq rate limiting (20 req/min)
+        # Expected improvement: 5 minutes → 30 seconds
+
+        # Add cached results immediately
+        for variable, cached_data in cached_results:
+            results.append(cached_data)
+            completed += 1
+
+        # Report cached results summary
+        if cache_hits > 0 and progress_callback:
+            await progress_callback({
+                'status': 'cache_loaded',
+                'total': total_vars,
+                'completed': completed,
+                'message': f'Loaded {cache_hits} cached results, processing {len(uncached_variables)} new variables...'
+            })
+
+        # Group uncached variables into batches of 10 for multi-variable generation
+        BATCH_SIZE = 10
+        variable_batches = []
+        for i in range(0, len(uncached_variables), BATCH_SIZE):
+            batch = uncached_variables[i:i + BATCH_SIZE]
+            variable_batches.append(batch)
+
+        logger.info(f"🚀 MULTI-VARIABLE BATCH GENERATION: {len(uncached_variables)} variables → {len(variable_batches)} API calls (batch size: {BATCH_SIZE})")
+        logger.info(f"Expected speed improvement: 10x reduction in API calls")
+
+        # Process batches concurrently
+        async def process_batch(batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+            """Process a batch of variables in a single LLM call"""
+            async with self.semaphore:
+                try:
+                    # Build multi-variable prompt
+                    dataset = context.get('adam_dataset', 'ADSL')
+                    batch_prompt = MultiVariableGenerator.build_multi_variable_prompt(
+                        variables=batch,
+                        language=language,
+                        dataset=dataset
                     )
-                    fallback_rationale = self._generate_fallback_rationale(
-                        variable_name,
-                        variable.get('label', ''),
-                        variable.get('derivation', ''),
-                        error_msg
+
+                    logger.info(f"Generating code for batch of {len(batch)} variables")
+
+                    # Make single LLM call for entire batch
+                    batch_response = await self._call_llm(
+                        prompt=batch_prompt,
+                        temperature=0.3,
+                        max_tokens=800 * len(batch),  # Scale max tokens by batch size
+                        provider=llm_provider,
+                        model=model
                     )
-                    
-                    # Add error result with fallback code and helpful guidance
-                    error_result = {
-                        'variable': variable_name,
-                        'code_snippet': fallback_code,
-                        'coding_rationale': fallback_rationale,
-                        'error': f"Generation failed: {error_msg}. Using fallback template.",
-                        'validated': False,
-                        'warnings': ['This is a template - please review and customize'],
-                        'metadata': {
-                            'provider': llm_provider or settings.DEFAULT_LLM_PROVIDER,
-                            'model': 'fallback',
+
+                    raw_response = self._extract_content(batch_response)
+
+                    # Parse multi-variable response
+                    code_snippets = MultiVariableGenerator.parse_multi_variable_response(
+                        response_text=raw_response,
+                        variables=batch
+                    )
+
+                    # Update language field for each result
+                    for snippet in code_snippets:
+                        snippet['language'] = language
+
+                        # Clean the generated code
+                        if 'code_snippet' in snippet:
+                            snippet['code_snippet'] = clean_generated_code(
+                                snippet['code_snippet'],
+                                language
+                            )
+
+                        # Cache individual results
+                        var_name = snippet.get('variable', '')
+                        var_match = next((v for v in batch if v.get('name') == var_name), {})
+                        cache_key = self.cache_manager.generate_cache_key(
+                            variable_name=var_name,
+                            derivation=var_match.get('derivation', ''),
+                            language=language,
+                            adam_dataset=dataset,
+                            variable_type=var_match.get('type', '')
+                        )
+                        self.cache_manager.set(cache_key, snippet)
+
+                    logger.info(f"✅ Batch complete: generated code for {len(code_snippets)} variables")
+                    return code_snippets
+
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.error(f"Batch generation failed: {error_msg}", exc_info=True)
+
+                    # Fallback: generate placeholders for all variables in batch
+                    fallback_results = []
+                    for variable in batch:
+                        var_name = variable.get('name', 'Unknown')
+                        fallback_code = self._generate_fallback_code(
+                            var_name,
+                            variable.get('type', 'Num'),
+                            language
+                        )
+                        fallback_rationale = self._generate_fallback_rationale(
+                            var_name,
+                            variable.get('label', ''),
+                            variable.get('derivation', ''),
+                            error_msg
+                        )
+
+                        fallback_results.append({
+                            'variable': var_name,
                             'language': language,
-                            'variable_type': variable.get('type', 'Num'),
-                            'is_fallback': True
-                        }
-                    }
-                    results.append(error_result)
-                    
-                    if progress_callback:
-                        await progress_callback({
-                            'status': 'variable_error',
-                            'total': total_vars,
-                            'completed': completed,
-                            'variable_name': variable_name,
-                            'message': f'Error generating {variable_name}: {str(result)[:100]}'
+                            'code_snippet': fallback_code,
+                            'coding_rationale': fallback_rationale,
+                            'error': f"Batch generation failed: {error_msg}",
+                            'validated': False,
+                            'warnings': ['Batch generation failed - using template'],
+                            'metadata': {
+                                'provider': llm_provider or settings.DEFAULT_LLM_PROVIDER,
+                                'model': 'fallback',
+                                'language': language,
+                                'variable_type': variable.get('type', 'Num'),
+                                'is_fallback': True,
+                                'batch_failed': True
+                            }
                         })
-                else:
+
+                    return fallback_results
+
+        # Create tasks for all batches
+        batch_tasks = {}
+        for batch in variable_batches:
+            task = asyncio.create_task(process_batch(batch))
+            batch_tasks[task] = batch
+
+        logger.info(f"Submitted {len(batch_tasks)} batch tasks for concurrent processing")
+
+        # Process batch results as they complete
+        for task in asyncio.as_completed(batch_tasks.keys()):
+            batch = batch_tasks[task]
+
+            try:
+                batch_results = await task
+
+                # Add all results from the batch
+                for result in batch_results:
                     results.append(result)
-                    
+                    completed += 1
+
                     if progress_callback:
                         await progress_callback({
                             'status': 'variable_completed',
                             'total': total_vars,
                             'completed': completed,
-                            'variable_name': variable_name,
-                            'message': f'Completed {variable_name} ({completed}/{total_vars})'
+                            'variable_name': result.get('variable', 'Unknown'),
+                            'message': f'Completed {result.get("variable")} ({completed}/{total_vars})'
+                        })
+
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Failed to process batch: {error_msg}", exc_info=True)
+
+                # Handle batch failure (fallback already applied in process_batch)
+                for variable in batch:
+                    completed += 1
+                    if progress_callback:
+                        await progress_callback({
+                            'status': 'variable_error',
+                            'total': total_vars,
+                            'completed': completed,
+                            'variable_name': variable.get('name', 'Unknown'),
+                            'message': f'Batch error: {error_msg[:80]}'
                         })
         
         if progress_callback:
