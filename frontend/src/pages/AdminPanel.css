@@ -1,0 +1,50 @@
+.admin-panel {
+  padding: 24px;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.admin-panel-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  font-size: 20px;
+  font-weight: 600;
+  color: #722ed1;
+}
+
+.admin-panel .ant-tabs-nav {
+  margin-bottom: 24px;
+}
+
+.admin-panel .ant-tabs-tab {
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .admin-panel {
+  background: #1a1a1a;
+}
+
+[data-theme="dark"] .admin-panel-card {
+  background: #2a2a2a;
+  border-color: #404040;
+}
+
+[data-theme="dark"] .admin-panel-header {
+  color: #b37feb;
+}
+
+[data-theme="dark"] .ant-tabs-tab {
+  color: #a0a0a0;
+}
+
+[data-theme="dark"] .ant-tabs-tab-active {
+  color: #b37feb;
+}

@@ -1,0 +1,42 @@
+.study-selector {
+  min-width: 250px;
+}
+
+.study-option {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.study-option-main {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.study-name {
+  color: #262626;
+}
+
+.study-protocol {
+  color: #8c8c8c;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.study-option-meta {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-left: 24px;
+  margin-top: 2px;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .study-name {
+  color: #e8e8e8;
+}
+
+[data-theme="dark"] .study-protocol,
+[data-theme="dark"] .study-option-meta {
+  color: #a0a0a0;
+}

@@ -1,0 +1,271 @@
+# Claude Slash Commands for ADAM AI Project
+
+This file contains custom slash commands for use with Claude AI assistant in VS Code.
+
+## 📋 Code Quality & Review
+
+### `/review-code`
+**Description:** Review code for best practices, bugs, and improvements
+
+**Prompt:**
+Please review the following code for:
+1. Best practices and coding standards
+2. Potential bugs or errors
+3. Performance improvements
+4. Security issues
+5. Readability and maintainability
+
+Provide specific suggestions with code examples where applicable.
+
+---
+
+### `/explain-code`
+**Description:** Explain what the selected code does in detail
+
+**Prompt:**
+Please explain this code in detail:
+1. What it does (high-level overview)
+2. How it works (step-by-step breakdown)
+3. Key concepts or patterns used
+4. Any dependencies or prerequisites
+5. Potential edge cases or limitations
+
+---
+
+### `/optimize`
+**Description:** Suggest optimizations for performance and efficiency
+
+**Prompt:**
+Analyze this code for optimization opportunities:
+1. Performance improvements
+2. Memory efficiency
+3. Algorithmic complexity
+4. Database query optimization (if applicable)
+5. API call efficiency
+
+Provide refactored code with explanations.
+
+---
+
+### `/refactor`
+**Description:** Refactor code for better structure and maintainability
+
+**Prompt:**
+Refactor this code to improve:
+1. Code structure and organization
+2. Naming clarity
+3. Function/method decomposition
+4. DRY principles (Don't Repeat Yourself)
+5. SOLID principles
+
+Provide the refactored code with explanations of changes.
+
+---
+
+### `/fix-bugs`
+**Description:** Identify and fix bugs in the selected code
+
+**Prompt:**
+Analyze this code for bugs and issues:
+1. Logic errors
+2. Type errors
+3. Null/undefined handling
+4. Edge cases not handled
+5. Resource leaks or memory issues
+
+Provide fixed code with explanations.
+
+---
+
+## 🧪 Testing & Documentation
+
+### `/add-tests`
+**Description:** Generate unit tests for the selected code
+
+**Prompt:**
+Generate comprehensive unit tests for this code:
+1. Cover all main functionality
+2. Include edge cases
+3. Test error handling
+4. Use appropriate testing framework (Jest, pytest, etc.)
+5. Include setup and teardown if needed
+
+Provide complete, runnable test code.
+
+---
+
+### `/add-docs`
+**Description:** Generate documentation for the selected code
+
+**Prompt:**
+Generate comprehensive documentation for this code:
+1. Function/class descriptions
+2. Parameter descriptions with types
+3. Return value documentation
+4. Usage examples
+5. Notes about important behavior or edge cases
+
+Use appropriate documentation format (JSDoc, docstrings, etc.).
+
+---
+
+## 🔄 Code Conversion
+
+### `/convert-to-typescript`
+**Description:** Convert JavaScript code to TypeScript
+
+**Prompt:**
+Convert this JavaScript code to TypeScript:
+1. Add proper type annotations
+2. Define interfaces/types for complex objects
+3. Handle null/undefined with proper types
+4. Use TypeScript best practices
+5. Ensure strict mode compatibility
+
+Provide complete TypeScript code.
+
+---
+
+### `/convert-to-python`
+**Description:** Convert code to Python
+
+**Prompt:**
+Convert this code to Python:
+1. Use Pythonic idioms and patterns
+2. Follow PEP 8 style guide
+3. Add type hints
+4. Use appropriate Python standard library features
+5. Include docstrings
+
+Provide complete Python code.
+
+---
+
+## 🔒 Security & Design
+
+### `/security-audit`
+**Description:** Audit code for security vulnerabilities
+
+**Prompt:**
+Perform a security audit of this code:
+1. SQL injection vulnerabilities
+2. XSS (Cross-Site Scripting) risks
+3. Authentication/authorization issues
+4. Input validation problems
+5. Sensitive data exposure
+6. Dependency vulnerabilities
+
+Provide specific fixes with secure code examples.
+
+---
+
+### `/api-design`
+**Description:** Review and improve API design
+
+**Prompt:**
+Review this API design for:
+1. RESTful principles
+2. Consistent naming conventions
+3. Proper HTTP methods and status codes
+4. Request/response structure
+5. Error handling
+6. Versioning strategy
+7. Documentation completeness
+
+Provide improved API design with explanations.
+
+---
+
+### `/database-schema`
+**Description:** Review and optimize database schema
+
+**Prompt:**
+Review this database schema for:
+1. Normalization (appropriate level)
+2. Index optimization
+3. Data types and constraints
+4. Relationships and foreign keys
+5. Performance considerations
+6. Scalability
+
+Provide optimized schema with migration scripts.
+
+---
+
+## 💊 ADAM-Specific Commands
+
+### `/adam-review`
+**Description:** Review ADAM dataset code for CDISC compliance
+
+**Prompt:**
+Review this ADAM dataset code for:
+1. CDISC ADaM IG compliance
+2. Variable naming conventions
+3. Required variables presence
+4. Derivation logic correctness
+5. Metadata completeness
+6. Traceability to SDTM
+
+Provide specific corrections and improvements.
+
+---
+
+## 🛠️ Development Tools
+
+### `/create-component`
+**Description:** Create a new React component with best practices
+
+**Prompt:**
+Create a new React component based on this description:
+1. Use TypeScript
+2. Include proper prop types
+3. Add JSDoc documentation
+4. Follow React best practices
+5. Include basic styling structure
+6. Add error boundary if needed
+7. Make it accessible (ARIA attributes)
+
+Provide complete component code with usage example.
+
+---
+
+### `/git-commit`
+**Description:** Generate a conventional commit message
+
+**Prompt:**
+Generate a conventional commit message for these changes:
+1. Use conventional commits format (type(scope): subject)
+2. Include a clear, concise subject line
+3. Add detailed body if needed
+4. Reference any related issues
+5. Follow best practices
+
+Provide the commit message ready to use.
+
+---
+
+## 📖 How to Use
+
+1. Select the code you want to analyze in your editor
+2. Type `/` followed by the command name (e.g., `/review-code`)
+3. Claude will analyze the selected code using the command's prompt
+
+## 🎯 Quick Reference
+
+| Command | Purpose |
+|---------|---------|
+| `/review-code` | Comprehensive code review |
+| `/explain-code` | Detailed code explanation |
+| `/optimize` | Performance optimization |
+| `/refactor` | Code restructuring |
+| `/fix-bugs` | Bug identification and fixes |
+| `/add-tests` | Generate unit tests |
+| `/add-docs` | Generate documentation |
+| `/convert-to-typescript` | JS to TS conversion |
+| `/convert-to-python` | Code to Python conversion |
+| `/security-audit` | Security vulnerability check |
+| `/api-design` | API design review |
+| `/database-schema` | Database optimization |
+| `/adam-review` | CDISC compliance check |
+| `/create-component` | React component generator |
+| `/git-commit` | Commit message generator |

@@ -1,0 +1,109 @@
+.app-header {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.app-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.app-header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #595959;
+}
+
+.back-button:hover {
+  color: #1890ff;
+}
+
+.app-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1890ff;
+  letter-spacing: -0.5px;
+}
+
+.app-header-study {
+  margin-left: 20px;
+}
+
+.app-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.app-header-bottom {
+  padding: 0 24px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .app-header {
+  background: #1f1f1f;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .app-header-top {
+  border-bottom-color: #333;
+}
+
+[data-theme="dark"] .app-header-title {
+  color: #4dabf7;
+}
+
+[data-theme="dark"] .back-button {
+  color: #a0a0a0;
+}
+
+[data-theme="dark"] .back-button:hover {
+  color: #4dabf7;
+}
+
+[data-theme="dark"] .app-header-bottom {
+  background: #2a2a2a;
+  border-bottom-color: #333;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .app-header-top {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .app-header-left {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .app-header-study {
+    margin-left: 0;
+  }
+
+  .app-header-right {
+    justify-content: space-between;
+  }
+
+  .app-header-title {
+    font-size: 18px;
+  }
+}
