@@ -18,6 +18,7 @@ sqlalchemy==2.0.36
 asyncpg==0.29.0  # PostgreSQL async driver
 alembic==1.13.0  # Database migrations
 psycopg2-binary==2.9.9  # PostgreSQL adapter (for migrations)
+aiosqlite==0.19.0  # Async SQLite driver for development/tests
 
 # File Processing
 python-docx==1.1.0
