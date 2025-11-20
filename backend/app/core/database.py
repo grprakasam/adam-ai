@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 from sqlalchemy import select, text
 from loguru import logger
 import os
@@ -68,15 +69,22 @@ class DatabaseManager:
         """Initialize database engine and session factory"""
         logger.info(f"Initializing database connection: {self._safe_url()}")
 
-        # Create async engine with connection pooling
-        self.engine = create_async_engine(
-            self.database_url,
-            echo=self.echo,
-            pool_size=20,  # Production-grade connection pool
-            max_overflow=10,
-            pool_pre_ping=True,  # Verify connections before using
-            pool_recycle=3600,  # Recycle connections after 1 hour
-        )
+        engine_args = {"echo": self.echo}
+        # SQLite/aioSQLite uses NullPool; avoid pool_size/max_overflow errors
+        if self.database_url.startswith("sqlite"):
+            engine_args["poolclass"] = NullPool
+        else:
+            engine_args.update(
+                {
+                    "pool_size": 20,  # Production-grade connection pool
+                    "max_overflow": 10,
+                    "pool_pre_ping": True,  # Verify connections before using
+                    "pool_recycle": 3600,  # Recycle connections after 1 hour
+                }
+            )
+
+        # Create async engine with appropriate pooling
+        self.engine = create_async_engine(self.database_url, **engine_args)
 
         # Create session factory
         self.session_factory = async_sessionmaker(
