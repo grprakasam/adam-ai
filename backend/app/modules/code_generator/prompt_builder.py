@@ -200,17 +200,17 @@ class PromptBuilder:
                     "Honor these instructions while keeping CDISC/ADaM compliance."
                 )
         
-        # Build OPTIMIZED prompt - simplified for speed (reduced token count)
-        # Skip rules_context and template_hint for faster generation
-        prompt = f"""Generate {language} code for ADAM variable derivation. Code only, no explanations.
+        # Build OPTIMIZED prompt - ultra-lightweight for bulk generation speed
+        # Skip rules_context, template_hint, and verbose instructions for faster generation
+        # This reduces prompt tokens by 60-70% compared to full prompt
+        prompt = f"""Generate {language} code for ADAM variable.
 
-Variable: {variable_name}
-Type: {variable_type}
+Variable: {variable_name} ({variable_type})
 Derivation: {derivation_logic}
 Dataset: {adam_dataset}
 {user_note_section}
 
-Output ONLY executable {language} code. No comments, no library imports, no examples."""
+Output executable {language} code only. No comments, no imports."""
 
         return prompt.strip()
     

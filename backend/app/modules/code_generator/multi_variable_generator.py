@@ -31,26 +31,23 @@ class MultiVariableGenerator:
             Optimized prompt for batch generation
         """
         var_specs = []
-        for v in variables[:10]:  # Max 10 variables per batch
+        # OPTIMIZED: Increased from 10 to 25 variables per batch
+        for v in variables[:25]:  # Max 25 variables per batch (optimized for speed)
             var_specs.append(
                 f"{v.get('name')}: {v.get('type')} - {v.get('derivation', 'Direct mapping')}"
             )
 
         vars_text = "\n".join(var_specs)
 
-        prompt = f"""Generate {language} code for these {len(variables)} ADAM variables. Output JSON only.
+        # OPTIMIZED: Lightweight prompt for faster generation (removed verbose instructions)
+        prompt = f"""Generate {language} code for {len(variables)} ADAM variables. Output JSON only.
 
 Dataset: {dataset}
 Variables:
 {vars_text}
 
-Return JSON array with this exact format:
-[
-  {{"variable": "VAR1", "code": "var1 <- ..."}},
-  {{"variable": "VAR2", "code": "var2 <- ..."}}
-]
-
-Rules: Code only, no comments, no imports, minimal syntax."""
+JSON format: [{{"variable": "VAR1", "code": "code here"}}, ...]
+Code only, no comments, minimal syntax."""
 
         return prompt.strip()
 
