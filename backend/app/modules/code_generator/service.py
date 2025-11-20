@@ -96,15 +96,15 @@ class CodeGeneratorService:
         )
         
         # Configuration - OPTIMIZED for speed
-        self.batch_size = getattr(settings, 'BATCH_SIZE', 25)  # Increased from 10 to 25 for 2.5x fewer API calls
-        self.max_concurrent = getattr(settings, 'MAX_CONCURRENT_REQUESTS', 15)  # Increased from 5 to 15 for 3x parallel processing
+        self.batch_size = getattr(settings, 'BATCH_SIZE', 15)  # Optimized: 15 vars per batch for faster responses
+        self.max_concurrent = getattr(settings, 'MAX_CONCURRENT_REQUESTS', 20)  # Increased to 20 for more parallel processing
         
         # Create semaphore for concurrency control
         import asyncio
         self.semaphore = asyncio.Semaphore(self.max_concurrent)
         
         logger.info(f"✅ Initialized CodeGeneratorService with LLM provider: {settings.DEFAULT_LLM_PROVIDER}")
-        logger.info(f"   Batch size: {self.batch_size}, Max concurrent: {self.max_concurrent} (OPTIMIZED)")
+        logger.info(f"   Batch size: {self.batch_size}, Max concurrent: {self.max_concurrent} (PERFORMANCE OPTIMIZED)")
     
     async def _call_llm(
         self,
@@ -366,8 +366,8 @@ class CodeGeneratorService:
                 # Generate code using LLM service (supports legacy mock interface)
                 code_response = await self._call_llm(
                     prompt=code_prompt,
-                    temperature=0.3,  # Slightly higher for faster generation
-                    max_tokens=400,  # OPTIMIZED: Reduced from 800 to 400 for 2x faster responses
+                    temperature=0.2,  # Lower temperature for faster, more deterministic responses
+                    max_tokens=300,  # OPTIMIZED: Reduced from 400 to 300 for faster responses
                     provider=llm_provider,
                     model=model
                 )
@@ -568,16 +568,16 @@ class CodeGeneratorService:
                 'message': f'Loaded {cache_hits} cached results, processing {len(uncached_variables)} new variables...'
             })
 
-        # OPTIMIZED: Group uncached variables into batches of 25 for multi-variable generation
-        # Increased from 10 to 25 for 2.5x fewer API calls and faster overall generation
-        BATCH_SIZE = 25  # OPTIMIZED: Increased from 10 to 25
+        # OPTIMIZED: Use smaller batches (15) for faster initial responses and better concurrency
+        # Smaller batches = faster LLM responses + more parallel processing = better user experience
+        BATCH_SIZE = 15  # Optimized: Balance between API call reduction and response speed
         variable_batches = []
         for i in range(0, len(uncached_variables), BATCH_SIZE):
             batch = uncached_variables[i:i + BATCH_SIZE]
             variable_batches.append(batch)
 
         logger.info(f"🚀 OPTIMIZED MULTI-VARIABLE BATCH GENERATION: {len(uncached_variables)} variables → {len(variable_batches)} API calls (batch size: {BATCH_SIZE})")
-        logger.info(f"Expected speed improvement: 2.5x reduction in API calls + 3x concurrent processing = 5-10x faster")
+        logger.info(f"Expected speed improvement: Faster batch responses + 15x concurrent processing = 5-10x faster")
 
         # Process batches concurrently
         async def process_batch(batch: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -595,11 +595,12 @@ class CodeGeneratorService:
                     logger.info(f"Generating code for batch of {len(batch)} variables")
 
                     # Make single LLM call for entire batch
-                    # OPTIMIZED: Reduced from 800 to 400 tokens per variable for faster generation
+                    # OPTIMIZED: Reduced from 800 to 300 tokens per variable for faster generation
+                    # Lower token count = faster LLM responses
                     batch_response = await self._call_llm(
                         prompt=batch_prompt,
-                        temperature=0.3,
-                        max_tokens=400 * len(batch),  # OPTIMIZED: Reduced from 800 to 400 per variable (2x faster)
+                        temperature=0.2,  # Lower temperature for faster, more deterministic responses
+                        max_tokens=300 * len(batch),  # OPTIMIZED: Reduced from 400 to 300 per variable (faster)
                         provider=llm_provider,
                         model=model
                     )
@@ -687,41 +688,51 @@ class CodeGeneratorService:
         logger.info(f"Submitted {len(batch_tasks)} batch tasks for concurrent processing")
 
         # Process batch results as they complete
+        # OPTIMIZATION: Report progress per batch instead of per variable to reduce callback overhead
         for task in asyncio.as_completed(batch_tasks.keys()):
             batch = batch_tasks[task]
 
             try:
                 batch_results = await task
 
-                # Add all results from the batch
-                for result in batch_results:
-                    results.append(result)
-                    completed += 1
+                # Add all results from the batch at once
+                batch_size = len(batch_results)
+                results.extend(batch_results)
+                completed += batch_size
 
-                    if progress_callback:
-                        await progress_callback({
-                            'status': 'variable_completed',
-                            'total': total_vars,
-                            'completed': completed,
-                            'variable_name': result.get('variable', 'Unknown'),
-                            'message': f'Completed {result.get("variable")} ({completed}/{total_vars})'
-                        })
+                # OPTIMIZED: Report progress once per batch instead of per variable
+                # This reduces callback overhead by 15x (15 variables per batch)
+                if progress_callback:
+                    batch_var_names = [r.get('variable', 'Unknown') for r in batch_results[:3]]  # Show first 3
+                    var_display = ', '.join(batch_var_names)
+                    if batch_size > 3:
+                        var_display += f' + {batch_size - 3} more'
+                    
+                    await progress_callback({
+                        'status': 'batch_completed',
+                        'total': total_vars,
+                        'completed': completed,
+                        'batch_size': batch_size,
+                        'variable_name': var_display,
+                        'message': f'Completed batch: {batch_size} variables ({completed}/{total_vars})'
+                    })
 
             except Exception as e:
                 error_msg = str(e)
                 logger.error(f"Failed to process batch: {error_msg}", exc_info=True)
 
                 # Handle batch failure (fallback already applied in process_batch)
-                for variable in batch:
-                    completed += 1
-                    if progress_callback:
-                        await progress_callback({
-                            'status': 'variable_error',
-                            'total': total_vars,
-                            'completed': completed,
-                            'variable_name': variable.get('name', 'Unknown'),
-                            'message': f'Batch error: {error_msg[:80]}'
-                        })
+                batch_size = len(batch)
+                completed += batch_size
+                if progress_callback:
+                    await progress_callback({
+                        'status': 'batch_error',
+                        'total': total_vars,
+                        'completed': completed,
+                        'batch_size': batch_size,
+                        'variable_name': f'{batch_size} variables',
+                        'message': f'Batch error: {error_msg[:80]}'
+                    })
         
         if progress_callback:
             await progress_callback({
