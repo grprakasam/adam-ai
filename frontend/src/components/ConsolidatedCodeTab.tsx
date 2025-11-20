@@ -92,13 +92,50 @@ export const ConsolidatedCodeTab: React.FC = () => {
       .filter((snippet) => snippet.accepted === 'accept' && snippet.codeSnippet)
       .map((snippet) => {
         const meta = categorizedMap.get(snippet.variable);
+        // Transform metadata to match backend VariableMetadata schema
+        // Backend requires: name (str), type (str), and optional fields
+        let transformedMetadata = undefined;
+        if (meta?.meta) {
+          const metadataObj: any = {
+            name: snippet.variable, // Required field
+            type: meta.meta.type || 'text', // Required field
+          };
+          
+          // Handle optional fields with proper type conversion
+          if (meta.meta.length) {
+            const lengthValue = typeof meta.meta.length === 'string' ? parseInt(meta.meta.length, 10) : meta.meta.length;
+            if (!isNaN(lengthValue as number)) {
+              metadataObj.length = lengthValue;
+            }
+          }
+          
+          if (meta.meta.format) {
+            metadataObj.format = meta.meta.format;
+          }
+          
+          if (meta.meta.label) {
+            metadataObj.label = meta.meta.label;
+          }
+          
+          // Handle required field - check both 'required' and 'is_required'
+          const isRequired = meta.meta.required === true || 
+                            meta.meta.required === 'true' || 
+                            meta.meta.is_required === true || 
+                            meta.meta.is_required === 'true';
+          if (isRequired) {
+            metadataObj.required = true;
+          }
+          
+          transformedMetadata = metadataObj;
+        }
+        
         return {
           name: snippet.variable,
           category: meta?.category || 'Other Category',
           code_snippet: snippet.codeSnippet,
-          user_notes: snippet.userNotes,
-          derivation_logic: snippet.rationale,
-          metadata: meta?.meta,
+          user_notes: snippet.userNotes && snippet.userNotes.trim() ? snippet.userNotes.trim() : undefined,
+          derivation_logic: snippet.rationale && snippet.rationale.trim() ? snippet.rationale.trim() : undefined,
+          metadata: transformedMetadata,
         };
       });
   };
