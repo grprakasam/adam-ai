@@ -13,8 +13,11 @@ google-generativeai==0.3.1
 pydantic==2.10.5
 pydantic-settings==2.7.1
 
-# Database (Optional - for future enhancements)
+# Database
 sqlalchemy==2.0.23
+asyncpg==0.29.0  # PostgreSQL async driver
+alembic==1.13.0  # Database migrations
+psycopg2-binary==2.9.9  # PostgreSQL adapter (for migrations)
 
 # File Processing
 python-docx==1.1.0

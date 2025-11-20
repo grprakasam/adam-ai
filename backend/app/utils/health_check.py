@@ -11,10 +11,42 @@ import asyncio
 
 from app.config import settings
 from app.modules.llm_integration.service import llm_service
+from app.core.database import db_manager
 
 
 class HealthCheck:
     """Health check manager for application components"""
+
+    @staticmethod
+    async def check_database() -> Dict[str, Any]:
+        """
+        Check database connectivity
+
+        Returns:
+            Dictionary with database status
+        """
+        try:
+            is_healthy = await db_manager.health_check()
+
+            if is_healthy:
+                return {
+                    "status": "healthy",
+                    "connected": True,
+                    "message": "Database is accessible"
+                }
+            else:
+                return {
+                    "status": "unhealthy",
+                    "connected": False,
+                    "message": "Database connection failed"
+                }
+        except Exception as e:
+            logger.error(f"Database health check failed: {str(e)}")
+            return {
+                "status": "unhealthy",
+                "connected": False,
+                "error": str(e)
+            }
 
     @staticmethod
     async def check_llm_providers() -> Dict[str, Any]:
@@ -155,7 +187,8 @@ class HealthCheck:
         start_time = datetime.utcnow()
 
         # Run checks concurrently
-        llm_check, fs_check, config_check = await asyncio.gather(
+        db_check, llm_check, fs_check, config_check = await asyncio.gather(
+            HealthCheck.check_database(),
             HealthCheck.check_llm_providers(),
             asyncio.to_thread(HealthCheck.check_file_system),
             asyncio.to_thread(HealthCheck.check_configuration),
@@ -163,6 +196,8 @@ class HealthCheck:
         )
 
         # Handle exceptions in checks
+        if isinstance(db_check, Exception):
+            db_check = {"status": "unhealthy", "error": str(db_check)}
         if isinstance(llm_check, Exception):
             llm_check = {"status": "unhealthy", "error": str(llm_check)}
         if isinstance(fs_check, Exception):
@@ -175,6 +210,7 @@ class HealthCheck:
 
         # Determine overall status
         statuses = [
+            db_check.get("status"),
             llm_check.get("status"),
             fs_check.get("status"),
             config_check.get("status")
@@ -193,6 +229,7 @@ class HealthCheck:
             "duration_ms": round(duration_ms, 2),
             "version": settings.APP_VERSION,
             "checks": {
+                "database": db_check,
                 "llm_providers": llm_check,
                 "file_system": fs_check,
                 "configuration": config_check

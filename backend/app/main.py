@@ -22,6 +22,7 @@ from app.utils.error_handlers import (
 )
 from app.utils.health_check import HealthCheck
 from app.middleware import RateLimitMiddleware, cleanup_rate_limiter
+from app.core.database import init_db, close_db
 
 
 @asynccontextmanager
@@ -31,6 +32,14 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Debug mode: {settings.DEBUG}")
     logger.info(f"Default LLM Provider: {settings.DEFAULT_LLM_PROVIDER}")
+
+    # Initialize database
+    try:
+        await init_db()
+        logger.info("✅ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        logger.warning("⚠️  Application will continue but database features will be unavailable")
 
     # Start background task for rate limiter cleanup
     cleanup_task = asyncio.create_task(cleanup_rate_limiter())
@@ -44,6 +53,11 @@ async def lifespan(app: FastAPI):
         await cleanup_task
     except asyncio.CancelledError:
         pass
+
+    # Close database connections
+    await close_db()
+    logger.info("Database connections closed")
+
     logger.info(f"Shutting down {settings.APP_NAME}")
 
 
