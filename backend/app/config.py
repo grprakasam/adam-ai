@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     DEFAULT_LLM_PROVIDER: str = "groq"  # groq, openai, anthropic, google, openrouter
     DEFAULT_MODEL: str = "llama-3.3-70b-versatile"  # Groq's fastest 70B model
     DEFAULT_TEMPERATURE: float = 0.3  # Slightly higher for faster generation
-    DEFAULT_MAX_TOKENS: int = 800  # Reduced from 4000 for much faster responses
+    DEFAULT_MAX_TOKENS: int = 400  # OPTIMIZED: Reduced from 800 to 400 for 2x faster responses
 
     # OpenRouter Configuration
     OPENROUTER_MODEL: str = "meta-llama/llama-3.1-70b-instruct"  # Default model
@@ -67,11 +67,11 @@ class Settings(BaseSettings):
     # Gemini Configuration (using fast experimental model for speed)
     GEMINI_MODEL: str = "gemini-2.0-flash-exp"  # Fast experimental model for best speed
     GEMINI_TEMPERATURE: float = 0.3  # Slightly higher for faster generation
-    GEMINI_MAX_TOKENS: int = 800  # Reduced from 1500 for much faster responses
+    GEMINI_MAX_TOKENS: int = 400  # OPTIMIZED: Reduced from 800 to 400 for 2x faster responses
     
-    # Code Generation Configuration
-    BATCH_SIZE: int = 50  # Increased from 25 for better throughput (now primarily for cache batching)
-    MAX_CONCURRENT_REQUESTS: int = 50  # Increased from 20 to 50 for aggressive parallel processing
+    # Code Generation Configuration - OPTIMIZED for speed
+    BATCH_SIZE: int = 25  # OPTIMIZED: Increased from 10 to 25 for 2.5x fewer API calls
+    MAX_CONCURRENT_REQUESTS: int = 15  # OPTIMIZED: Increased from 5 to 15 for 3x parallel processing
     REQUEST_TIMEOUT: int = 45  # Slightly increased for reliability
     CACHE_TTL: int = 3600  # 1 hour
     
