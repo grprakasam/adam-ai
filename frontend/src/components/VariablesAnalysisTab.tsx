@@ -653,9 +653,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
           const results = await adamApi.generateCodeBulkStream(requestPayload, (progress) => {
             // Real-time progress update from backend
-            const { completed, total: totalVars, variable_name, message: progressMessage } = progress;
+            const { completed, total: totalVars, variable_name, message: progressMessage, batch_size, status } = progress;
             
-            updateProgressState(completed, variable_name || progressMessage);
+            // Handle batch progress updates (optimized backend sends batch updates)
+            const displayMessage = status === 'batch_completed' && batch_size
+              ? `Batch completed: ${batch_size} variables`
+              : variable_name || progressMessage;
+            
+            updateProgressState(completed, displayMessage);
             
             // Update toast with real progress
             const elapsedSeconds = (Date.now() - startTime) / 1000;
@@ -698,7 +703,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                     <span style={{ color: '#667eea', fontWeight: 500 }}>{progressPercent}%</span>
                   </div>
                   
-                  {variable_name && (
+                  {(variable_name || displayMessage) && (
                     <div style={{ 
                       fontSize: '12px', 
                       color: '#666',
@@ -707,7 +712,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
                     }}>
-                      📝 {variable_name}
+                      {status === 'batch_completed' ? '⚡' : '📝'} {variable_name || displayMessage}
                     </div>
                   )}
                   

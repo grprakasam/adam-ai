@@ -204,15 +204,18 @@ async def generate_code_bulk_stream(
             progress_callback = enhanced_progress_callback
 
             # Stream progress and results updates
+            # OPTIMIZATION: Use non-blocking queue check with longer timeout for better throughput
             while not generation_task.done():
                 try:
-                    # Check for both progress and result updates with shorter timeout for responsiveness
-                    progress_data = await asyncio.wait_for(progress_queue.get(), timeout=0.05)
+                    # Check for progress updates with optimized timeout
+                    # Longer timeout reduces CPU overhead while maintaining responsiveness
+                    progress_data = await asyncio.wait_for(progress_queue.get(), timeout=0.1)
                     event_data = json.dumps(progress_data)
                     yield f"event: progress\ndata: {event_data}\n\n"
                 except asyncio.TimeoutError:
-                    # Send keepalive less frequently
-                    pass
+                    # Non-blocking: continue loop to check if task is done
+                    # This allows batches to complete faster without waiting
+                    await asyncio.sleep(0.01)  # Small sleep to prevent tight loop
 
             # Drain any remaining progress updates
             while not progress_queue.empty():
