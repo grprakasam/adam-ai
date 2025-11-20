@@ -283,59 +283,47 @@ export const CodeGenerationProgressModal: React.FC<CodeGenerationProgressModalPr
         {/* Detailed Metrics */}
         <div className="metrics-section">
           <div className="metrics-grid">
-            <div className="metric-card">
+            <div className="metric-card metric-card--elapsed">
               <div className="metric-icon">
-                <ClockCircleOutlined style={{ fontSize: '18px', color: '#1890ff' }} />
+                <ClockCircleOutlined />
               </div>
               <div className="metric-content">
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>
-                  Elapsed Time
-                </Text>
-                <Text strong style={{ fontSize: '16px' }}>
-                  {formatDuration(elapsedSeconds)}
-                </Text>
+                <span className="metric-label">Elapsed Time</span>
+                <span className="metric-value">{formatDuration(elapsedSeconds)}</span>
+                <span className="metric-subtext">since generation started</span>
               </div>
             </div>
             
-            <div className="metric-card">
+            <div className="metric-card metric-card--eta">
               <div className="metric-icon">
-                <ClockCircleOutlined style={{ fontSize: '18px', color: '#faad14' }} />
+                <ClockCircleOutlined />
               </div>
               <div className="metric-content">
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>
-                  Estimated Time Remaining
-                </Text>
-                <Text strong style={{ fontSize: '16px', color: '#faad14' }}>
-                  {formatDuration(etaSeconds)}
-                </Text>
+                <span className="metric-label">Estimated Time Remaining</span>
+                <span className="metric-value">{formatDuration(etaSeconds)}</span>
+                <span className="metric-subtext">based on current velocity</span>
               </div>
             </div>
             
-            <div className="metric-card">
+            <div className="metric-card metric-card--dataset">
               <div className="metric-icon">
-                <DatabaseOutlined style={{ fontSize: '18px', color: '#52c41a' }} />
+                <DatabaseOutlined />
               </div>
               <div className="metric-content">
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>
-                  Dataset
-                </Text>
-                <Text strong style={{ fontSize: '16px' }}>
-                  {dataset}
-                </Text>
+                <span className="metric-label">Dataset</span>
+                <span className="metric-value">{dataset}</span>
+                <span className="metric-subtext">target ADaM domain</span>
               </div>
             </div>
             
-            <div className="metric-card">
+            <div className="metric-card metric-card--language">
               <div className="metric-icon">
-                <ApiOutlined style={{ fontSize: '18px', color: '#722ed1' }} />
+                <ApiOutlined />
               </div>
               <div className="metric-content">
-                <Text type="secondary" style={{ fontSize: '11px', display: 'block' }}>
-                  Language
-                </Text>
-                <Text strong style={{ fontSize: '16px' }}>
-                  {language}
-                </Text>
+                <span className="metric-label">Language</span>
+                <span className="metric-value">{language}</span>
+                <span className="metric-subtext">code output preference</span>
               </div>
             </div>
           </div>

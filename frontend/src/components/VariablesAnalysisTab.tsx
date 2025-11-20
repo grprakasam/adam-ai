@@ -493,7 +493,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
     // Count total variables
     const totalVariables = categorizedVariables.total_variables;
-    const estimatedTime = Math.ceil(totalVariables / 2); // Rough estimate: 2 variables per second
 
     // Get provider display name
     const providerNames: Record<string, string> = {
@@ -510,6 +509,239 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
         return `${providerNames[llmProvider]} (${modelName})`;
       }
       return providerNames[llmProvider] || 'AI Provider';
+    };
+
+    const startBulkGeneration = async () => {
+      const total = categorizedVariables.total_variables;
+      if (total === 0) {
+        message.info('No variables available for AI generation.');
+        return;
+      }
+
+      const estimatedTime = Math.ceil(Math.max(total, 1) / 2); // Rough estimate: 2 variables per second
+      const startTime = Date.now();
+      let progressTimer: ReturnType<typeof setInterval> | null = null;
+
+      const stopTimer = () => {
+        if (progressTimer) {
+          clearInterval(progressTimer);
+          progressTimer = null;
+        }
+      };
+
+      const updateProgressState = (completed: number, statusLabel: string) => {
+        setBulkGenerationProgress({
+          isGenerating: true,
+          current: Math.min(completed, total),
+          total,
+          currentVariable: statusLabel,
+        });
+      };
+
+      try {
+        setIsGenerating(true);
+        setProgressModalVisible(true);
+        updateProgressState(0, 'Initializing...');
+        setProgressDetails({
+          status: 'initializing',
+          elapsedSeconds: 0,
+          etaSeconds: estimatedTime,
+        });
+
+        // Create abort controller for cancellation
+        bulkGenerationAbortRef.current = new AbortController();
+        
+        // Update progress timer for real-time updates
+        progressTimer = setInterval(() => {
+          const elapsed = (Date.now() - startTime) / 1000;
+          setProgressDetails(prev => ({
+            ...prev,
+            elapsedSeconds: elapsed,
+          }));
+        }, 100); // Update every 100ms for smooth progress
+
+        const requestPayload: any = {
+          categorized_variables: categorizedVariables,
+          study_id: projectConfig.studyId,
+          dataset: projectConfig.adamDataset || 'ADSL',
+          language: programmingLanguage,
+          standards: {
+            sdtm_version: sdtmVersion,
+            adam_ig_version: adamIgVersion,
+            meddra_version: medraVersion,
+          },
+          llm_provider: llmProvider,
+        };
+
+        if (llmProvider === 'openrouter') {
+          const selectedModelValue = useProjectStore.getState().selectedModel;
+          if (selectedModelValue) {
+            requestPayload.model = selectedModelValue;
+          }
+        }
+
+        const results = await adamApi.generateCodeBulkStream(requestPayload, (progress) => {
+          const { completed, total: totalVars, variable_name, message: progressMessage, batch_size, status, variables } = progress;
+          
+          const displayMessage = status === 'batch_completed' && batch_size
+            ? `Batch completed: ${batch_size} variables`
+            : variable_name || progressMessage || 'Processing variables...';
+          
+          updateProgressState(completed, displayMessage);
+          
+          const elapsedSeconds = (Date.now() - startTime) / 1000;
+          const avgTimePerVar = completed > 0 ? elapsedSeconds / completed : 2;
+          const remainingVars = totalVars - completed;
+          const etaSeconds = Math.max(0, remainingVars * avgTimePerVar);
+          
+          setProgressDetails({
+            status: status || 'processing',
+            variableName: variable_name,
+            batchSize: batch_size,
+            variables: variables || (variable_name ? [variable_name] : undefined),
+            elapsedSeconds,
+            etaSeconds,
+          });
+        });
+
+        stopTimer();
+
+        setBulkCodeSnippets(results);
+
+        const successCount = results.filter(r => !r.error).length;
+        const errorCount = results.filter(r => r.error).length;
+        const totalTime = (Date.now() - startTime) / 1000;
+
+        setBulkGenerationProgress({
+          isGenerating: false,
+          current: total,
+          total,
+          currentVariable: 'Completed',
+        });
+
+        stopTimer();
+        setProgressModalVisible(false);
+
+        const successRate = Math.round((successCount / total) * 100);
+        const hasErrors = errorCount > 0;
+        
+        Modal.success({
+          title: (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <CheckCircleOutlined style={{ fontSize: '28px', color: hasErrors ? '#faad14' : '#52c41a' }} />
+              <span style={{ fontSize: '18px', fontWeight: 600 }}>
+                {hasErrors ? 'Code Generation Completed with Issues' : 'Code Generation Complete! dYZ%'}
+              </span>
+            </div>
+          ),
+          width: 600,
+          icon: null,
+          okText: 'Got it, Continue',
+          okButtonProps: { 
+            size: 'large',
+            style: { height: '40px', fontSize: '14px', fontWeight: 500 }
+          },
+          content: (
+            <div style={{ marginTop: '20px' }}>
+              {/* Statistics Section */}
+              <div style={{ 
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                borderRadius: '12px',
+                padding: '20px',
+                marginBottom: '20px',
+                color: 'white'
+              }}>
+                <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
+                  dY"S Generation Summary
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 700 }}>{total}</div>
+                    <div style={{ fontSize: '12px', opacity: 0.9 }}>Total Variables</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 700, color: '#95de64' }}>{successCount}</div>
+                    <div style={{ fontSize: '12px', opacity: 0.9 }}>�o" Successful</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '32px', fontWeight: 700, color: hasErrors ? '#ffa39e' : '#95de64' }}>{errorCount}</div>
+                    <div style={{ fontSize: '12px', opacity: 0.9 }}>
+                      {hasErrors ? '�s� Needs Attention' : '�o" No Errors'}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Progress Bar */}
+                <div style={{ marginTop: '16px' }}>
+                  <Progress 
+                    percent={successRate} 
+                    strokeColor={hasErrors ? '#faad14' : '#52c41a'}
+                    trailColor="rgba(255, 255, 255, 0.3)"
+                    strokeWidth={12}
+                    format={() => `${successRate}% Success Rate`}
+                  />
+                </div>
+                
+                <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', opacity: 0.9 }}>
+                  �?�,? Completed in {formatDuration(totalTime)}
+                </div>
+              </div>
+              
+              {/* Summary details */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                {hasErrors ? (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    padding: '12px', 
+                    borderRadius: '8px',
+                    background: 'rgba(250, 173, 20, 0.12)',
+                    border: '1px solid rgba(250, 173, 20, 0.4)'
+                  }}>
+                    <AlertCircle size={18} color="#faad14" />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>Some variables need your attention</div>
+                      <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                        Review the warnings and regenerate specific variables if needed.
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    padding: '12px', 
+                    borderRadius: '8px',
+                    background: 'rgba(82, 196, 26, 0.12)',
+                    border: '1px solid rgba(82, 196, 26, 0.4)'
+                  }}>
+                    <CheckCircleOutlined style={{ color: '#52c41a' }} />
+                    <div>
+                      <div style={{ fontWeight: 600 }}>All variables generated successfully!</div>
+                      <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                        You're ready to review and validate the AI-generated code.
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ),
+        });
+
+        message.success(`Generated code for ${successCount} variables in ${formatDuration(totalTime)}${hasErrors ? `, ${errorCount} need review` : ''}`);
+      } catch (error: any) {
+        console.error('Bulk generation failed:', error);
+        stopTimer();
+        setIsGenerating(false);
+        setProgressModalVisible(false);
+        message.error(error.message || 'Code generation failed. Please try again.');
+      } finally {
+        stopTimer();
+        setIsGenerating(false);
+      }
     };
 
     Modal.confirm({
@@ -533,294 +765,8 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
         style: { height: '36px' }
       },
       cancelButtonProps: { style: { height: '36px' } },
-      onOk: async () => {
-        const total = categorizedVariables.total_variables;
-        if (total === 0) {
-          message.info('No variables available for AI generation.');
-          return;
-        }
-
-        const startTime = Date.now();
-        let progressTimer: ReturnType<typeof setInterval> | null = null;
-
-        const stopTimer = () => {
-          if (progressTimer) {
-            clearInterval(progressTimer);
-            progressTimer = null;
-          }
-        };
-
-        const updateProgressState = (completed: number, statusLabel: string) => {
-          setBulkGenerationProgress({
-            isGenerating: true,
-            current: Math.min(completed, total),
-            total,
-            currentVariable: statusLabel,
-          });
-        };
-
-        try {
-          setIsGenerating(true);
-          setProgressModalVisible(true);
-          updateProgressState(0, 'Initializing...');
-          setProgressDetails({
-            status: 'initializing',
-            elapsedSeconds: 0,
-            etaSeconds: estimatedTime,
-          });
-
-          // Create abort controller for cancellation
-          bulkGenerationAbortRef.current = new AbortController();
-          
-          // Update progress timer for real-time updates
-          progressTimer = setInterval(() => {
-            const elapsed = (Date.now() - startTime) / 1000;
-            setProgressDetails(prev => ({
-              ...prev,
-              elapsedSeconds: elapsed,
-            }));
-          }, 100); // Update every 100ms for smooth progress
-
-          const requestPayload: any = {
-            categorized_variables: categorizedVariables,
-            study_id: projectConfig.studyId,
-            dataset: projectConfig.adamDataset || 'ADSL',
-            language: programmingLanguage,
-            standards: {
-              sdtm_version: sdtmVersion,
-              adam_ig_version: adamIgVersion,
-              meddra_version: medraVersion,
-            },
-            llm_provider: llmProvider,
-          };
-
-          // Add model parameter if OpenRouter is selected
-          if (llmProvider === 'openrouter') {
-            const selectedModel = useProjectStore.getState().selectedModel;
-            if (selectedModel) {
-              requestPayload.model = selectedModel;
-            }
-          }
-
-          const results = await adamApi.generateCodeBulkStream(requestPayload, (progress) => {
-            // Real-time progress update from backend
-            const { completed, total: totalVars, variable_name, message: progressMessage, batch_size, status, variables } = progress;
-            
-            // Handle batch progress updates (optimized backend sends batch updates)
-            const displayMessage = status === 'batch_completed' && batch_size
-              ? `Batch completed: ${batch_size} variables`
-              : variable_name || progressMessage || 'Processing variables...';
-            
-            updateProgressState(completed, displayMessage);
-            
-            // Calculate ETA
-            const elapsedSeconds = (Date.now() - startTime) / 1000;
-            const avgTimePerVar = completed > 0 ? elapsedSeconds / completed : 2;
-            const remainingVars = totalVars - completed;
-            const etaSeconds = Math.max(0, remainingVars * avgTimePerVar);
-            
-            // Update progress details for modal
-            setProgressDetails({
-              status: status || 'processing',
-              variableName: variable_name,
-              batchSize: batch_size,
-              variables: variables || (variable_name ? [variable_name] : undefined),
-              elapsedSeconds,
-              etaSeconds,
-            });
-          });
-
-          stopTimer();
-
-          console.log('[Bulk Generation] API returned results:', results.length);
-          console.log('[Bulk Generation] Sample result:', results[0]);
-
-          setBulkCodeSnippets(results);
-
-          const successCount = results.filter(r => !r.error).length;
-          const errorCount = results.filter(r => r.error).length;
-          const totalTime = (Date.now() - startTime) / 1000;
-
-          console.log('[Bulk Generation] Success:', successCount, 'Errors:', errorCount);
-
-          setBulkGenerationProgress({
-            isGenerating: false,
-            current: total,
-            total,
-            currentVariable: 'Completed',
-          });
-
-          // Close the progress modal
-          stopTimer();
-          setProgressModalVisible(false);
-
-          // Show elegant summary modal
-          const successRate = Math.round((successCount / total) * 100);
-          const hasErrors = errorCount > 0;
-          
-          Modal.success({
-            title: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <CheckCircleOutlined style={{ fontSize: '28px', color: hasErrors ? '#faad14' : '#52c41a' }} />
-                <span style={{ fontSize: '18px', fontWeight: 600 }}>
-                  {hasErrors ? 'Code Generation Completed with Issues' : 'Code Generation Complete! 🎉'}
-                </span>
-              </div>
-            ),
-            width: 600,
-            icon: null,
-            okText: 'Got it, Continue',
-            okButtonProps: { 
-              size: 'large',
-              style: { height: '40px', fontSize: '14px', fontWeight: 500 }
-            },
-            content: (
-              <div style={{ marginTop: '20px' }}>
-                {/* Statistics Section */}
-                <div style={{ 
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: '12px',
-                  padding: '20px',
-                  marginBottom: '20px',
-                  color: 'white'
-                }}>
-                  <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
-                    📊 Generation Summary
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '32px', fontWeight: 700 }}>{total}</div>
-                      <div style={{ fontSize: '12px', opacity: 0.9 }}>Total Variables</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '32px', fontWeight: 700, color: '#95de64' }}>{successCount}</div>
-                      <div style={{ fontSize: '12px', opacity: 0.9 }}>✓ Successful</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '32px', fontWeight: 700, color: hasErrors ? '#ffa39e' : '#95de64' }}>{errorCount}</div>
-                      <div style={{ fontSize: '12px', opacity: 0.9 }}>
-                        {hasErrors ? '⚠ Needs Attention' : '✓ No Errors'}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Progress Bar */}
-                  <div style={{ marginTop: '16px' }}>
-                    <Progress 
-                      percent={successRate} 
-                      strokeColor={hasErrors ? '#faad14' : '#52c41a'}
-                      trailColor="rgba(255, 255, 255, 0.3)"
-                      strokeWidth={12}
-                      format={() => `${successRate}% Success Rate`}
-                    />
-                  </div>
-                  
-                  <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', opacity: 0.9 }}>
-                    ⏱️ Completed in {formatDuration(totalTime)}
-                  </div>
-                </div>
-
-                {/* Error Alert */}
-                {hasErrors && (
-                  <div style={{
-                    background: '#fff7e6',
-                    border: '1px solid #ffd591',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '20px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                      <AlertCircle size={20} color="#faad14" style={{ marginTop: '2px', flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontWeight: 600, color: '#ad6800', marginBottom: '4px' }}>
-                          {errorCount} Variable{errorCount > 1 ? 's' : ''} Need{errorCount === 1 ? 's' : ''} Attention
-                        </div>
-                        <div style={{ fontSize: '13px', color: '#ad6800' }}>
-                          Some variables encountered errors during generation. Review them in the Pair Programming panel and regenerate if needed.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Next Steps Section */}
-                <div style={{
-                  background: '#f0f5ff',
-                  border: '1px solid #adc6ff',
-                  borderRadius: '8px',
-                  padding: '16px'
-                }}>
-                  <div style={{ fontWeight: 600, color: '#1890ff', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Info size={18} />
-                    Next Steps in Pair Programming
-                  </div>
-                  <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '13px', color: '#595959' }}>
-                    <li style={{ marginBottom: '8px' }}>
-                      <strong>Review Generated Code:</strong> Examine each variable's code snippet, rationale, and AI suggestions in the panel below
-                    </li>
-                    <li style={{ marginBottom: '8px' }}>
-                      <strong>Approve or Modify:</strong> Use "Accept", "Modify", or "Reject" for each variable based on your review
-                    </li>
-                    {hasErrors && (
-                      <li style={{ marginBottom: '8px', color: '#faad14', fontWeight: 500 }}>
-                        <strong>Address Errors:</strong> Click the regenerate button (🔄) for variables with errors
-                      </li>
-                    )}
-                    <li style={{ marginBottom: '8px' }}>
-                      <strong>Add Notes:</strong> Document any changes or decisions in the notes field for traceability
-                    </li>
-                    <li style={{ marginBottom: 0 }}>
-                      <strong>Generate Consolidated Code:</strong> Once {successRate >= 80 ? 'satisfied' : '80%+ approved'}, proceed to create the final ADAM program
-                    </li>
-                  </ol>
-                </div>
-
-                {/* Tip */}
-                <div style={{
-                  marginTop: '16px',
-                  padding: '12px 16px',
-                  background: '#f6ffed',
-                  border: '1px solid #b7eb8f',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  color: '#389e0d'
-                }}>
-                  💡 <strong>Pro Tip:</strong> Variables with high confidence scores are highlighted in green. Focus your review on lower-confidence items first.
-                </div>
-              </div>
-            ),
-          });
-
-        } catch (err: any) {
-          stopTimer();
-          
-          // Handle abort/cancellation
-          if (err.name === 'AbortError' || err.name === 'CanceledError') {
-            // User cancelled - already handled by handleCancelBulkGeneration
-            return;
-          }
-          
-          const errorMsg = err.response?.data?.detail || err.message || 'Failed to generate code';
-
-          // Don't populate with mock snippets - just show error and keep cells empty
-          setBulkGenerationProgress({
-            isGenerating: false,
-            current: 0,
-            total,
-            currentVariable: 'Failed',
-          });
-
-          setProgressModalVisible(false);
-          message.error({
-            content: `Code generation failed: ${errorMsg}`,
-            duration: 5,
-          });
-          console.error('Bulk generation error:', err);
-        } finally {
-          stopTimer();
-          setIsGenerating(false);
-          bulkGenerationAbortRef.current = null;
-        }
+      onOk: () => {
+        void startBulkGeneration();
       },
     });
   };

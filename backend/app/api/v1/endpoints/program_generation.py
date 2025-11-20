@@ -5,6 +5,7 @@ Endpoints for generating complete ADAM programs
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
 from loguru import logger
@@ -292,7 +293,8 @@ async def generate_consolidated_code(request: ConsolidatedCodeRequest) -> Dict[s
 
         logger.info(f"Consolidated code generated successfully: {result_dict.get('data', {}).get('summary', {}).get('lines_of_code', 0)} lines")
 
-        return result_dict
+        # Ensure any datetime or complex types are properly JSON-serializable
+        return jsonable_encoder(result_dict)
 
     except HTTPException:
         raise
@@ -345,7 +347,8 @@ async def generate_consolidated_code_stream(request: ConsolidatedCodeRequest):
 
             # Stream all collected progress updates
             for progress_data in progress_queue:
-                yield f"event: progress\ndata: {json.dumps(progress_data)}\n\n"
+                # Ensure datetime and other non-JSON types are encoded
+                yield f"event: progress\ndata: {json.dumps(jsonable_encoder(progress_data))}\n\n"
                 await asyncio.sleep(0.01)  # Small delay to allow streaming
 
             # Convert Pydantic model to dict
@@ -362,7 +365,8 @@ async def generate_consolidated_code_stream(request: ConsolidatedCodeRequest):
             logger.info(f"Consolidated code generated successfully: {result_dict.get('data', {}).get('summary', {}).get('lines_of_code', 0)} lines")
 
             # Stream final result
-            yield f"event: complete\ndata: {json.dumps(result_dict)}\n\n"
+            # Encode any datetime or complex types in the final payload
+            yield f"event: complete\ndata: {json.dumps(jsonable_encoder(result_dict))}\n\n"
 
         except Exception as e:
             logger.error(f"Error in consolidated code stream: {str(e)}", exc_info=True)
