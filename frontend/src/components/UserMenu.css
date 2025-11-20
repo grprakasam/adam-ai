@@ -1,0 +1,96 @@
+.user-menu-trigger {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.user-menu-trigger:hover {
+  opacity: 0.8;
+}
+
+.user-menu {
+  width: 280px;
+  border-radius: 8px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.user-menu-header {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.user-menu-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-menu-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu-email {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu-role {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #1890ff;
+  color: white;
+  border-radius: 3px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.admin-menu-item {
+  color: #722ed1 !important;
+}
+
+.admin-menu-item:hover {
+  background: #f5f0ff !important;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .user-menu {
+  background: #2a2a2a;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .user-menu-header {
+  background: #1f1f1f;
+  border-bottom-color: #333;
+}
+
+[data-theme="dark"] .user-menu-name {
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .user-menu-email {
+  color: #a0a0a0;
+}
+
+[data-theme="dark"] .user-menu-role {
+  background: #4dabf7;
+}
+
+[data-theme="dark"] .admin-menu-item {
+  color: #b37feb !important;
+}
+
+[data-theme="dark"] .admin-menu-item:hover {
+  background: #2a1a3a !important;
+}

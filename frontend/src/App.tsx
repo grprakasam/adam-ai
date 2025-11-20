@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ConfigProvider, theme, message, Modal } from 'antd';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import Header from './components/Header';
+import { AppHeader } from './components/AppHeader';
 import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import LandingPage from './components/LandingPage';
@@ -40,6 +40,7 @@ function App() {
   }, []);
   const [viewMode, setViewMode] = useState<ViewMode>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentStudyId, setCurrentStudyId] = useState<string | undefined>(undefined);
   const [language] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
@@ -176,11 +177,14 @@ function App() {
     });
   };
 
-  const handleOpenStudy = async (_studyName: string) => {
+  const handleOpenStudy = async (studyName: string) => {
     // Initialize workspace
     clearHistory();
     initializeWorkspace();
     setIsRightPanelUnlocked(false);
+
+    // Set the current study
+    setCurrentStudyId(studyName);
 
     // Move to workspace view
     setViewMode('workspace');
@@ -206,6 +210,20 @@ function App() {
 
     // Friendly UX messaging
     message.success({ content: 'Workspace initialized! Configure your project to generate code.', duration: 2 });
+  };
+
+  const handleStudyChange = (studyId: string) => {
+    Modal.confirm({
+      title: 'Switch Study?',
+      content: 'Are you sure you want to switch studies? Any unsaved work will remain in the current study.',
+      okText: 'Switch',
+      cancelText: 'Cancel',
+      onOk: () => {
+        setCurrentStudyId(studyId);
+        setIsRightPanelUnlocked(false);
+        message.info(`Switched to study: ${studyId}`);
+      }
+    });
   };
 
   return (
@@ -248,12 +266,13 @@ function App() {
               <CodeMigrationPage onBack={() => setViewMode('landing')} />
             ) : (
               <>
-                <Header
+                <AppHeader
                   onBackToLanding={() => setViewMode('landing')}
                   currentUser={currentUser}
                   onLogout={handleLogout}
-                  onOpenHelpCenter={openHelpCenter}
-                  onOpenPreferences={openPreferences}
+                  showStudySelector={true}
+                  currentStudyId={currentStudyId}
+                  onStudyChange={handleStudyChange}
                 />
 
                 <HelpCenterDrawer open={isHelpCenterOpen} onClose={closeHelpCenter} activeTab={activeTab} />

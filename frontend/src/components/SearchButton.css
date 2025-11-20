@@ -1,0 +1,253 @@
+.search-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
+  min-width: 200px;
+}
+
+.search-button:hover {
+  border-color: #1890ff;
+  background: white;
+}
+
+.search-icon {
+  font-size: 14px;
+  color: #8c8c8c;
+}
+
+.search-hint {
+  font-size: 14px;
+  color: #8c8c8c;
+  flex: 1;
+}
+
+.search-kbd {
+  font-size: 12px;
+  padding: 2px 6px;
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  color: #8c8c8c;
+  font-family: monospace;
+}
+
+.search-modal .ant-modal-body {
+  padding: 0;
+}
+
+.search-input {
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  border-radius: 0;
+  padding: 16px 20px;
+}
+
+.search-input:focus,
+.search-input:hover {
+  border-color: #f0f0f0;
+  box-shadow: none;
+}
+
+.search-results {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.search-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
+}
+
+.search-suggestions {
+  padding: 20px;
+}
+
+.search-suggestion-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8c8c;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.search-suggestion-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.search-suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 6px;
+  background: #fafafa;
+  color: #595959;
+  font-size: 14px;
+}
+
+.search-tip {
+  padding: 12px;
+  background: #f5f8ff;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #595959;
+  text-align: center;
+}
+
+.search-tip kbd {
+  padding: 2px 6px;
+  background: white;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  font-family: monospace;
+  margin: 0 4px;
+}
+
+.search-result-item {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item:focus {
+  background: #f5f8ff;
+  outline: none;
+}
+
+.search-result-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  margin-top: 2px;
+}
+
+.search-result-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.search-result-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+  flex: 1;
+}
+
+.search-result-desc {
+  font-size: 13px;
+  color: #8c8c8c;
+  line-height: 1.5;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .search-button {
+  background: #2a2a2a;
+  border-color: #404040;
+}
+
+[data-theme="dark"] .search-button:hover {
+  border-color: #4dabf7;
+  background: #333;
+}
+
+[data-theme="dark"] .search-kbd {
+  background: #1f1f1f;
+  border-color: #404040;
+}
+
+[data-theme="dark"] .search-input {
+  background: #2a2a2a;
+  color: #e0e0e0;
+  border-bottom-color: #333;
+}
+
+[data-theme="dark"] .search-suggestion-item {
+  background: #1f1f1f;
+  color: #a0a0a0;
+}
+
+[data-theme="dark"] .search-tip {
+  background: #1a3a52;
+  color: #a0a0a0;
+}
+
+[data-theme="dark"] .search-tip kbd {
+  background: #1f1f1f;
+  border-color: #404040;
+}
+
+[data-theme="dark"] .search-result-item {
+  border-bottom-color: #333;
+}
+
+[data-theme="dark"] .search-result-item:hover,
+[data-theme="dark"] .search-result-item:focus {
+  background: #333;
+}
+
+[data-theme="dark"] .search-result-title {
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .search-result-desc {
+  color: #a0a0a0;
+}
+
+/* Scrollbar */
+.search-results::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-results::-webkit-scrollbar-track {
+  background: #f0f0f0;
+}
+
+.search-results::-webkit-scrollbar-thumb {
+  background: #bfbfbf;
+  border-radius: 3px;
+}
+
+[data-theme="dark"] .search-results::-webkit-scrollbar-track {
+  background: #1f1f1f;
+}
+
+[data-theme="dark"] .search-results::-webkit-scrollbar-thumb {
+  background: #404040;
+}
+
+@media (max-width: 768px) {
+  .search-button {
+    min-width: auto;
+  }
+
+  .search-hint {
+    display: none;
+  }
+}

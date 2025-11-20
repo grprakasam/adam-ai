@@ -1,7 +1,7 @@
 import { Card, Button, Space, message, Tabs, Tooltip } from 'antd';
 import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, WarningOutlined, CloseCircleOutlined, EditOutlined, CheckOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
 import { api } from '../services/api';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
@@ -24,6 +24,17 @@ interface RightPanelProps {
   onSwitchProject?: () => void;
 }
 
+type WorkspaceTabKey =
+  | 'pair'
+  | 'validation'
+  | 'consolidated'
+  | 'testdata'
+  | 'traceability'
+  | 'validator'
+  | 'submission';
+
+type WorkspaceGroup = 'generation' | 'validation' | 'submission';
+
 // Tab tooltips for better discoverability
 const TAB_TOOLTIPS: Record<string, string> = {
   pair: 'Generate AI code snippets for individual variables with pair programming assistance',
@@ -41,7 +52,72 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
   const validationTimeoutRef = useRef<number | null>(null);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability' | 'validator' | 'submission'>('pair');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>('pair');
+  const [activeGroup, setActiveGroup] = useState<WorkspaceGroup>('generation');
+
+  // Mapping of which tabs belong to which high-level navigation group
+  const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
+    generation: ['pair', 'consolidated', 'traceability'],
+    validation: ['validator', 'testdata'],
+    submission: ['submission', 'validation'],
+  };
+
+  // Keep active tab consistent with active group
+  useEffect(() => {
+    const allowed = GROUP_TABS[activeGroup];
+    if (!allowed.includes(activeWorkspaceTab)) {
+      setActiveWorkspaceTab(allowed[0]);
+    }
+  }, [activeGroup, activeWorkspaceTab]);
+
+  // Respond to top navigation selections (nav-container)
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ path?: string }>).detail || {};
+      const path = detail.path;
+      if (!path) return;
+
+      switch (path) {
+        case '/pair-programming':
+          setActiveGroup('generation');
+          setActiveWorkspaceTab('pair');
+          break;
+        case '/consolidated-code':
+        case '/generation-history':
+          setActiveGroup('generation');
+          setActiveWorkspaceTab('consolidated');
+          break;
+        case '/traceability':
+          setActiveGroup('generation');
+          setActiveWorkspaceTab('traceability');
+          break;
+        case '/code-validator':
+        case '/validation-reports':
+          setActiveGroup('validation');
+          setActiveWorkspaceTab('validator');
+          break;
+        case '/test-with-data':
+          setActiveGroup('validation');
+          setActiveWorkspaceTab('testdata');
+          break;
+        case '/submission-dashboard':
+        case '/submission-package':
+          setActiveGroup('submission');
+          setActiveWorkspaceTab('submission');
+          break;
+        case '/my-validation':
+          setActiveGroup('submission');
+          setActiveWorkspaceTab('validation');
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('adam-ai:navigate-workspace', handler);
+    return () => window.removeEventListener('adam-ai:navigate-workspace', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validateCode = useCallback(
     async (code: string) => {
@@ -119,87 +195,136 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       </section>
     );
   }
-if (!generationResult) {
+  if (!generationResult) {
+    const navigateToMyValidation = () => {
+      setActiveGroup('submission');
+      setActiveWorkspaceTab('validation');
+    };
+
+    const navigateToConsolidated = () => {
+      setActiveGroup('generation');
+      setActiveWorkspaceTab('consolidated');
+    };
+
+    const navigateToTraceability = () => {
+      setActiveGroup('generation');
+      setActiveWorkspaceTab('traceability');
+    };
+
     try {
+      const allItems = [
+        {
+          key: 'pair',
+          group: 'generation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.pair}>
+              <span>
+                Pair Programming{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: (
+            <VariablesAnalysisTab
+              onSwitchProject={onSwitchProject}
+              onNavigateToValidation={navigateToMyValidation}
+              onNavigateToConsolidated={navigateToConsolidated}
+              onNavigateToTraceability={navigateToTraceability}
+            />
+          ),
+        },
+        {
+          key: 'validation',
+          group: 'submission' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.validation}>
+              <span>
+                My Validation{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <MyValidationTab />,
+        },
+        {
+          key: 'consolidated',
+          group: 'generation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.consolidated}>
+              <span>
+                Consolidated Code{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <ConsolidatedCodeTab />,
+        },
+        {
+          key: 'validator',
+          group: 'validation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.validator}>
+              <span>
+                Code Validator{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <CodeValidatorTab />,
+        },
+        {
+          key: 'testdata',
+          group: 'validation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.testdata}>
+              <span>
+                Test With Data{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <TestWithDataPanel />,
+        },
+        {
+          key: 'traceability',
+          group: 'generation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.traceability}>
+              <span>
+                Traceability{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <TraceabilityTab />,
+        },
+        {
+          key: 'submission',
+          group: 'submission' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.submission}>
+              <span>
+                Submission Readiness{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <SubmissionReadinessTab />,
+        },
+      ];
+
+      const itemsForGroup = allItems.filter((item) =>
+        GROUP_TABS[activeGroup].includes(item.key as WorkspaceTabKey),
+      );
+
       return (
         <section className="right-panel" role="region" aria-label="Workspace tools">
           <Tabs
             className="workspace-tabs"
             activeKey={activeWorkspaceTab}
-            onChange={(key) => setActiveWorkspaceTab(key as 'pair' | 'validation' | 'consolidated' | 'testdata' | 'traceability' | 'validator' | 'submission')}
+            onChange={(key) => setActiveWorkspaceTab(key as WorkspaceTabKey)}
             aria-label="Workspace tabs"
-            items={[
-              {
-                key: 'pair',
-                label: (
-                  <Tooltip title={TAB_TOOLTIPS.pair}>
-                    <span>Pair Programming <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
-                  </Tooltip>
-                ),
-                children: (
-                  <VariablesAnalysisTab
-                    onSwitchProject={onSwitchProject}
-                    onNavigateToValidation={() => setActiveWorkspaceTab('validation')}
-                    onNavigateToConsolidated={() => setActiveWorkspaceTab('consolidated')}
-                    onNavigateToTraceability={() => setActiveWorkspaceTab('traceability')}
-                  />
-                ),
-              },
-              {
-                key: 'validation',
-                label: (
-                  <Tooltip title={TAB_TOOLTIPS.validation}>
-                    <span>My Validation <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
-                  </Tooltip>
-                ),
-                children: <MyValidationTab />,
-              },
-              {
-                key: 'consolidated',
-                label: (
-                  <Tooltip title={TAB_TOOLTIPS.consolidated}>
-                    <span>Consolidated Code <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
-                  </Tooltip>
-                ),
-                children: <ConsolidatedCodeTab />,
-              },
-              {
-                key: 'validator',
-                label: (
-                  <Tooltip title={TAB_TOOLTIPS.validator}>
-                    <span>Code Validator <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
-                  </Tooltip>
-                ),
-                children: <CodeValidatorTab />,
-              },
-              {
-                key: 'testdata',
-                label: (
-                  <Tooltip title={TAB_TOOLTIPS.testdata}>
-                    <span>Test With Data <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
-                  </Tooltip>
-                ),
-                children: <TestWithDataPanel />,
-              },
-              {
-                key: 'traceability',
-                label: (
-                  <Tooltip title={TAB_TOOLTIPS.traceability}>
-                    <span>Traceability <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
-                  </Tooltip>
-                ),
-                children: <TraceabilityTab />,
-              },
-              {
-                key: 'submission',
-                label: (
-                  <Tooltip title={TAB_TOOLTIPS.submission}>
-                    <span>Submission Readiness <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} /></span>
-                  </Tooltip>
-                ),
-                children: <SubmissionReadinessTab />,
-              },
-            ]}
+            items={itemsForGroup}
           />
         </section>
       );
