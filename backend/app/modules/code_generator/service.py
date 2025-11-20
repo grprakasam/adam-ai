@@ -5,11 +5,11 @@ Main service for AI-powered ADAM code generation using configurable LLM provider
 Orchestrates template selection, prompt building, and batch processing.
 """
 
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Set
 from loguru import logger
 import re
 from app.config import settings
-from app.modules.llm_integration.service import get_llm_service, LLMIntegrationService
+from app.modules.llm_integration.service import get_llm_service, LLMIntegrationService, LLMProviderError
 from .prompt_builder import PromptBuilder
 from .cache_manager import CacheManager
 from .multi_variable_generator import MultiVariableGenerator
@@ -102,6 +102,7 @@ class CodeGeneratorService:
         # Create semaphore for concurrency control
         import asyncio
         self.semaphore = asyncio.Semaphore(self.max_concurrent)
+        self._validated_providers: Set[str] = set()
         
         logger.info(f"✅ Initialized CodeGeneratorService with LLM provider: {settings.DEFAULT_LLM_PROVIDER}")
         logger.info(f"   Batch size: {self.batch_size}, Max concurrent: {self.max_concurrent} (PERFORMANCE OPTIMIZED)")
@@ -133,6 +134,36 @@ class CodeGeneratorService:
             provider=provider,
             model=model
         )
+
+    async def _ensure_provider_ready(self, provider: Optional[str]) -> None:
+        """
+        Validate the selected provider before launching long-running batches.
+
+        Raises:
+            LLMProviderError: If the provider is missing, unreachable, or misconfigured.
+        """
+        provider_name = (provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'groq')).lower()
+        if provider_name in self._validated_providers:
+            return
+
+        try:
+            is_ready = await self.llm_service.validate_provider(provider_name)
+        except LLMProviderError as exc:
+            logger.error(f"Provider validation failed for {provider_name}: {exc}")
+            raise
+        except Exception as exc:
+            logger.error(f"Unexpected provider validation error for {provider_name}: {exc}")
+            raise LLMProviderError(
+                f"Failed to validate provider '{provider_name}': {exc}"
+            ) from exc
+
+        if not is_ready:
+            raise LLMProviderError(
+                f"LLM provider '{provider_name}' is not available. "
+                "Verify API credentials before starting code generation."
+            )
+
+        self._validated_providers.add(provider_name)
     
     @staticmethod
     def _extract_content(response: Any) -> str:
@@ -283,6 +314,9 @@ class CodeGeneratorService:
         )
         
         try:
+            provider_to_use = llm_provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'groq')
+            await self._ensure_provider_ready(provider_to_use)
+
             # Collect all variables from all categories
             all_variables = self.collect_all_variables(categorized_variables)
             logger.info(f"Collected {len(all_variables)} total variables")
@@ -305,7 +339,7 @@ class CodeGeneratorService:
                 variables=all_variables,
                 language=language,
                 context=context,
-                llm_provider=llm_provider
+                llm_provider=provider_to_use
             )
             
             logger.info(f"Bulk code generation complete: {len(results)} results")
@@ -340,6 +374,8 @@ class CodeGeneratorService:
         """
         variable_name = variable.get('name', 'Unknown')
         note_summary = user_note.strip() if isinstance(user_note, str) else None
+        provider_to_use = llm_provider or getattr(settings, 'DEFAULT_LLM_PROVIDER', 'groq')
+        await self._ensure_provider_ready(provider_to_use)
         
         # Use semaphore to control concurrency
         async with self.semaphore:
@@ -368,7 +404,7 @@ class CodeGeneratorService:
                     prompt=code_prompt,
                     temperature=0.2,  # Lower temperature for faster, more deterministic responses
                     max_tokens=300,  # OPTIMIZED: Reduced from 400 to 300 for faster responses
-                    provider=llm_provider,
+                    provider=provider_to_use,
                     model=model
                 )
                 raw_code = self._extract_content(code_response)
@@ -387,7 +423,7 @@ class CodeGeneratorService:
                 
                 # Build result matching old format
                 metadata = {
-                    'provider': llm_provider or settings.DEFAULT_LLM_PROVIDER,
+                    'provider': provider_to_use or settings.DEFAULT_LLM_PROVIDER,
                     'model': self._extract_model_name(code_response) or settings.DEFAULT_MODEL,
                     'language': language,
                     'variable_type': variable_type,
@@ -679,21 +715,22 @@ class CodeGeneratorService:
 
                     return fallback_results
 
+        # Wrapper so we know which batch completed when processing as_completed iterator
+        async def run_batch(batch: List[Dict[str, Any]]):
+            """Execute batch generation and retain batch metadata for progress updates."""
+            batch_result = await process_batch(batch)
+            return batch, batch_result
+
         # Create tasks for all batches
-        batch_tasks = {}
-        for batch in variable_batches:
-            task = asyncio.create_task(process_batch(batch))
-            batch_tasks[task] = batch
+        batch_tasks = [asyncio.create_task(run_batch(batch)) for batch in variable_batches]
 
         logger.info(f"Submitted {len(batch_tasks)} batch tasks for concurrent processing")
 
         # Process batch results as they complete
         # OPTIMIZATION: Report progress per batch instead of per variable to reduce callback overhead
-        for task in asyncio.as_completed(batch_tasks.keys()):
-            batch = batch_tasks[task]
-
+        for task in asyncio.as_completed(batch_tasks):
             try:
-                batch_results = await task
+                batch, batch_results = await task
 
                 # Add all results from the batch at once
                 batch_size = len(batch_results)

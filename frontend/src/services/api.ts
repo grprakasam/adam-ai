@@ -463,7 +463,7 @@ export const adamApi = {
 
   generateConsolidatedCode: async (request: ConsolidatedCodeRequest): Promise<ConsolidatedCodeResponse> => {
     return await codeGenerationThrottler.throttle(async () => {
-      const response = await apiClient.post('/program-generation/program-generation/consolidated', request);
+      const response = await apiClient.post('/program-generation/consolidated', request);
       return response.data;
     });
   },
@@ -482,7 +482,7 @@ export const adamApi = {
   ): Promise<ConsolidatedCodeResponse> => {
     return new Promise((resolve, reject) => {
       const baseURL = apiClient.defaults.baseURL || '';
-      const url = `${baseURL}/program-generation/program-generation/consolidated-stream`;
+      const url = `${baseURL}/program-generation/consolidated-stream`;
 
       // Get auth token from localStorage
       const token = localStorage.getItem(ACCESS_TOKEN_KEY);

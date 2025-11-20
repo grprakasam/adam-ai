@@ -4,6 +4,7 @@ API endpoints for code generation using Google Gemini
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
+from fastapi.encoders import jsonable_encoder
 from loguru import logger
 from typing import List
 import json
@@ -198,19 +199,20 @@ async def generate_code_bulk_stream(
                 # Queue individual variable results for streaming
                 if progress_data.get('status') == 'variable_completed':
                     # Mark that this variable is complete for frontend to consume it
-                    results_queue.put({'type': 'progress', 'data': progress_data})
+                    await results_queue.put({'type': 'progress', 'data': progress_data})
 
             # Update progress callback
             progress_callback = enhanced_progress_callback
 
             # Stream progress and results updates
-            # OPTIMIZATION: Use non-blocking queue check with longer timeout for better throughput
+            # OPTIMIZATION: Use non-blocking queue check with tuned timeout for throughput
             while not generation_task.done():
                 try:
                     # Check for progress updates with optimized timeout
-                    # Longer timeout reduces CPU overhead while maintaining responsiveness
+                    # Slightly longer timeout reduces CPU overhead while maintaining responsiveness
                     progress_data = await asyncio.wait_for(progress_queue.get(), timeout=0.1)
-                    event_data = json.dumps(progress_data)
+                    # Encode to ensure datetimes and other complex types serialize
+                    event_data = json.dumps(jsonable_encoder(progress_data))
                     yield f"event: progress\ndata: {event_data}\n\n"
                 except asyncio.TimeoutError:
                     # Non-blocking: continue loop to check if task is done
@@ -220,8 +222,8 @@ async def generate_code_bulk_stream(
             # Drain any remaining progress updates
             while not progress_queue.empty():
                 try:
-                    progress_data = await progress_queue.get_nowait()
-                    event_data = json.dumps(progress_data)
+                    progress_data = progress_queue.get_nowait()
+                    event_data = json.dumps(jsonable_encoder(progress_data))
                     yield f"event: progress\ndata: {event_data}\n\n"
                 except asyncio.QueueEmpty:
                     break
@@ -232,7 +234,7 @@ async def generate_code_bulk_stream(
 
             # Send final results with completion marker
             logger.info(f"Successfully generated {len(results)} code snippets (streaming)")
-            yield f"event: complete\ndata: {json.dumps({'status': 'success', 'data': results})}\n\n"
+            yield f"event: complete\ndata: {json.dumps(jsonable_encoder({'status': 'success', 'data': results}))}\n\n"
             
         except CustomValidationError as e:
             logger.error(f"Validation error: {str(e)}", exc_info=True)
