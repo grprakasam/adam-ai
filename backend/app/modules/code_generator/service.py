@@ -708,12 +708,16 @@ class CodeGeneratorService:
                     if batch_size > 3:
                         var_display += f' + {batch_size - 3} more'
                     
+                    # Include variable list for detailed display
+                    all_var_names = [r.get('variable', 'Unknown') for r in batch_results]
+                    
                     await progress_callback({
                         'status': 'batch_completed',
                         'total': total_vars,
                         'completed': completed,
                         'batch_size': batch_size,
                         'variable_name': var_display,
+                        'variables': all_var_names,  # Full list for detailed display
                         'message': f'Completed batch: {batch_size} variables ({completed}/{total_vars})'
                     })
 

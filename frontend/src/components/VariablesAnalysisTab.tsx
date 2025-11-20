@@ -10,6 +10,7 @@ import { useApprovalProgress } from '../hooks/useApprovalProgress';
 import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGenerationDialog';
 import { ProgramDownloadModal } from './ProgramDownloadModal';
 import { showNavigationConfirmation } from './ConfirmationDialog';
+import { CodeGenerationProgressModal } from './CodeGenerationProgressModal';
 import './VariablesAnalysisTab.css';
 import AnalyzingVariablesStatus from './AnalyzingVariablesStatus';
 
@@ -101,6 +102,21 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
     current: 0,
     total: 0,
     currentVariable: '',
+  });
+  
+  // Enhanced progress modal state
+  const [progressModalVisible, setProgressModalVisible] = useState(false);
+  const [progressDetails, setProgressDetails] = useState<{
+    status: string;
+    variableName?: string;
+    batchSize?: number;
+    variables?: string[];
+    elapsedSeconds: number;
+    etaSeconds: number;
+  }>({
+    status: 'initializing',
+    elapsedSeconds: 0,
+    etaSeconds: 0,
   });
 
   // Final code generation state
@@ -455,7 +471,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
       currentVariable: '',
     });
     setIsGenerating(false);
-    message.destroy('bulk-ai-inputs');
+    setProgressModalVisible(false);
     message.info('Code generation cancelled by user');
   };
 
@@ -524,7 +540,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
           return;
         }
 
-        const progressKey = 'bulk-ai-inputs';
         const startTime = Date.now();
         let progressTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -544,91 +559,27 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
           });
         };
 
-        const updateToast = (completed: number, statusLabel: string) => {
-          const elapsedSeconds = (Date.now() - startTime) / 1000;
-          const etaSeconds = Math.max(0, estimatedTime - elapsedSeconds);
-          const progressPercent = Math.round((completed / total) * 100);
-
-          message.open({
-            key: progressKey,
-            type: 'loading',
-            duration: 0,
-            content: (
-              <div className="bulk-progress-message" style={{ width: '320px' }}>
-                <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '14px' }}>
-                  {statusLabel}
-                </div>
-                
-                {/* Visual Progress Bar */}
-                <Progress
-                  percent={progressPercent}
-                  status="active"
-                  strokeColor={{
-                    '0%': '#667eea',
-                    '100%': '#764ba2',
-                  }}
-                  trailColor="#f0f0f0"
-                  strokeWidth={8}
-                  showInfo={false}
-                  style={{ marginBottom: '8px' }}
-                />
-                
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between',
-                  fontSize: '13px',
-                  marginBottom: '6px'
-                }}>
-                  <span style={{ fontWeight: 500 }}>{completed}/{total} variables</span>
-                  <span style={{ color: '#667eea', fontWeight: 500 }}>{progressPercent}%</span>
-                </div>
-                
-                <div style={{ 
-                  fontSize: '11px', 
-                  color: '#999',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px'
-                }}>
-                  <span>⏱️ {formatDuration(elapsedSeconds)}</span>
-                  <span>⏳ ~{formatDuration(etaSeconds)}</span>
-                </div>
-                
-                {/* Cancel Button */}
-                <button
-                  onClick={handleCancelBulkGeneration}
-                  style={{
-                    width: '100%',
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    color: '#ff4d4f',
-                    background: 'white',
-                    border: '1px solid #ff4d4f',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#fff1f0';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'white';
-                  }}
-                >
-                  Cancel Generation
-                </button>
-              </div>
-            ),
-          });
-        };
-
         try {
           setIsGenerating(true);
+          setProgressModalVisible(true);
           updateProgressState(0, 'Initializing...');
-          updateToast(0, 'Initializing...');
+          setProgressDetails({
+            status: 'initializing',
+            elapsedSeconds: 0,
+            etaSeconds: estimatedTime,
+          });
 
           // Create abort controller for cancellation
           bulkGenerationAbortRef.current = new AbortController();
+          
+          // Update progress timer for real-time updates
+          progressTimer = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            setProgressDetails(prev => ({
+              ...prev,
+              elapsedSeconds: elapsed,
+            }));
+          }, 100); // Update every 100ms for smooth progress
 
           const requestPayload: any = {
             categorized_variables: categorizedVariables,
@@ -653,105 +604,29 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
           const results = await adamApi.generateCodeBulkStream(requestPayload, (progress) => {
             // Real-time progress update from backend
-            const { completed, total: totalVars, variable_name, message: progressMessage, batch_size, status } = progress;
+            const { completed, total: totalVars, variable_name, message: progressMessage, batch_size, status, variables } = progress;
             
             // Handle batch progress updates (optimized backend sends batch updates)
             const displayMessage = status === 'batch_completed' && batch_size
               ? `Batch completed: ${batch_size} variables`
-              : variable_name || progressMessage;
+              : variable_name || progressMessage || 'Processing variables...';
             
             updateProgressState(completed, displayMessage);
             
-            // Update toast with real progress
+            // Calculate ETA
             const elapsedSeconds = (Date.now() - startTime) / 1000;
             const avgTimePerVar = completed > 0 ? elapsedSeconds / completed : 2;
             const remainingVars = totalVars - completed;
-            const etaSeconds = remainingVars * avgTimePerVar;
-            const progressPercent = Math.round((completed / totalVars) * 100);
+            const etaSeconds = Math.max(0, remainingVars * avgTimePerVar);
             
-            message.open({
-              key: progressKey,
-              type: 'loading',
-              duration: 0,
-              content: (
-                <div className="bulk-progress-message" style={{ width: '320px' }}>
-                  <div style={{ fontWeight: 600, marginBottom: '8px', fontSize: '14px' }}>
-                    Generating AI Code
-                  </div>
-                  
-                  {/* Visual Progress Bar */}
-                  <Progress
-                    percent={progressPercent}
-                    status="active"
-                    strokeColor={{
-                      '0%': '#667eea',
-                      '100%': '#764ba2',
-                    }}
-                    trailColor="#f0f0f0"
-                    strokeWidth={8}
-                    showInfo={false}
-                    style={{ marginBottom: '8px' }}
-                  />
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    fontSize: '13px',
-                    marginBottom: '6px'
-                  }}>
-                    <span style={{ fontWeight: 500 }}>{completed}/{totalVars} variables</span>
-                    <span style={{ color: '#667eea', fontWeight: 500 }}>{progressPercent}%</span>
-                  </div>
-                  
-                  {(variable_name || displayMessage) && (
-                    <div style={{ 
-                      fontSize: '12px', 
-                      color: '#666',
-                      marginBottom: '6px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {status === 'batch_completed' ? '⚡' : '📝'} {variable_name || displayMessage}
-                    </div>
-                  )}
-                  
-                  <div style={{ 
-                    fontSize: '11px', 
-                    color: '#999',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px'
-                  }}>
-                    <span>⏱️ {formatDuration(elapsedSeconds)}</span>
-                    <span>⏳ ~{formatDuration(etaSeconds)}</span>
-                  </div>
-                  
-                  {/* Cancel Button */}
-                  <button
-                    onClick={handleCancelBulkGeneration}
-                    style={{
-                      width: '100%',
-                      padding: '6px 12px',
-                      fontSize: '12px',
-                      color: '#ff4d4f',
-                      background: 'white',
-                      border: '1px solid #ff4d4f',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#fff1f0';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'white';
-                    }}
-                  >
-                    Cancel Generation
-                  </button>
-                </div>
-              ),
+            // Update progress details for modal
+            setProgressDetails({
+              status: status || 'processing',
+              variableName: variable_name,
+              batchSize: batch_size,
+              variables: variables || (variable_name ? [variable_name] : undefined),
+              elapsedSeconds,
+              etaSeconds,
             });
           });
 
@@ -775,8 +650,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
             currentVariable: 'Completed',
           });
 
-          // Close the progress message
-          message.destroy(progressKey);
+          // Close the progress modal
+          stopTimer();
+          setProgressModalVisible(false);
 
           // Show elegant summary modal
           const successRate = Math.round((successCount / total) * 100);
@@ -934,8 +810,8 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
             currentVariable: 'Failed',
           });
 
+          setProgressModalVisible(false);
           message.error({
-            key: progressKey,
             content: `Code generation failed: ${errorMsg}`,
             duration: 5,
           });
@@ -1649,6 +1525,24 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
         programCode={finalProgramCode}
         language={programmingLanguage as 'R' | 'SAS'}
         datasetName={projectConfig.adamDataset || 'ADSL'}
+      />
+
+      {/* Enhanced Code Generation Progress Modal */}
+      <CodeGenerationProgressModal
+        visible={progressModalVisible}
+        total={bulkGenerationProgress.total || categorizedVariables?.total_variables || 0}
+        completed={bulkGenerationProgress.current}
+        currentStatus={bulkGenerationProgress.currentVariable || progressDetails.status}
+        status={progressDetails.status}
+        variableName={progressDetails.variableName}
+        batchSize={progressDetails.batchSize}
+        variables={progressDetails.variables}
+        elapsedSeconds={progressDetails.elapsedSeconds}
+        etaSeconds={progressDetails.etaSeconds}
+        onCancel={handleCancelBulkGeneration}
+        llmProvider={llmProvider}
+        language={programmingLanguage}
+        dataset={projectConfig.adamDataset || 'ADSL'}
       />
     </div>
   );
