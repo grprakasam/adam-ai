@@ -1,32 +1,37 @@
-/* Traceability Tab - Clean Modern Theme */
+/* Traceability Tab - Professional Fluid Layout with Mobile-First Design */
 
 .traceability-tab {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 24px;
-  background: #f8f9fa;
+  width: 100%;
   height: 100%;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
   overflow: hidden;
+  padding: 0;
 }
 
-/* Header - Matching Pair Programming gradient */
+/* ===== HEADER ===== */
 .traceability-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-radius: 10px;
+  border-radius: 0;
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25),
-              0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .traceability-header .header-info {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex: 1;
+  min-width: 0;
 }
 
 .traceability-header .header-info svg {
@@ -38,17 +43,20 @@
   font-size: 17px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .traceability-header .header-subtitle {
   font-size: 13px;
   opacity: 0.9;
   font-weight: 400;
+  margin-left: 8px;
 }
 
 .traceability-header .header-actions {
   display: flex;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .traceability-header .header-actions .ant-btn-lg {
@@ -59,6 +67,7 @@
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   border: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .traceability-header .header-actions .ant-btn-primary {
@@ -69,8 +78,8 @@
 .traceability-header .header-actions .ant-btn-primary:hover:not(:disabled) {
   background: #f0fdf4;
   color: #047857;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .traceability-header .header-actions .ant-btn-primary:disabled {
@@ -80,46 +89,56 @@
   box-shadow: none;
 }
 
-/* Split Layout */
+/* ===== MAIN LAYOUT ===== */
 .traceability-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 300px 1fr;
   gap: 20px;
+  padding: 20px;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
-/* Side Panel */
+/* ===== CONTROLS PANEL ===== */
 .traceability-controls-panel {
   display: flex;
   flex-direction: column;
   gap: 16px;
   overflow-y: auto;
-  padding-right: 8px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .controls-section {
   background: white;
-  border-radius: 10px;
-  padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.controls-section:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   font-size: 13px;
-  font-weight: 600;
-  color: #374151;
+  font-weight: 700;
+  color: #1e293b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .section-header .anticon {
   color: #10b981;
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .control-item {
@@ -132,9 +151,11 @@
 
 .control-label {
   display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   margin-bottom: 8px;
 }
 
@@ -144,81 +165,153 @@
 }
 
 .control-item .ant-radio-button-wrapper {
-  height: 36px;
-  line-height: 34px;
+  height: 40px;
+  line-height: 38px;
   font-size: 13px;
+  font-weight: 500;
   border-color: #d1d5db;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .control-item .ant-radio-button-wrapper:hover {
   color: #10b981;
+  border-color: #10b981;
+  background: #f0fdf4;
 }
 
 .control-item .ant-radio-button-wrapper-checked {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-color: #10b981;
-  color: white;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border-color: #10b981 !important;
+  color: white !important;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
 }
 
 .control-item .ant-radio-button-wrapper-checked:hover {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  border-color: #059669;
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  border-color: #059669 !important;
+}
+
+.control-item .ant-radio-button-wrapper:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.control-item .ant-radio-button-wrapper:last-child {
+  border-radius: 0 8px 8px 0;
 }
 
 /* Info Sections */
 .info-sections {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 12px;
 }
 
 .info-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  padding: 8px 12px;
-  background: #f9fafb;
-  border-radius: 6px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-radius: 8px;
   border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+  gap: 12px;
+}
+
+.info-item:hover {
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  border-color: #10b981;
+  transform: translateX(2px);
 }
 
 .info-label {
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .info-value {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: #1f2937;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
 }
 
 /* Progress Section */
 .progress-section {
-  padding: 12px;
-  background: #f9fafb;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  padding: 14px;
+  background: #f0fdf4;
+  border-radius: 8px;
+  border: 1px solid #bbf7d0;
 }
 
 .progress-info {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 12px;
-  color: #6b7280;
+  color: #059669;
   text-align: center;
+  font-weight: 600;
 }
 
-/* Main Content Area */
+/* Export Button */
+.controls-section .ant-btn-block {
+  height: 40px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.controls-section .ant-btn-block:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== MAIN CONTENT ===== */
 .traceability-main-content {
   background: white;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Scrollbar */
+.traceability-main-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.traceability-main-content::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 5px;
+}
+
+.traceability-main-content::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+  border-radius: 5px;
+  border: 2px solid #f3f4f6;
+}
+
+.traceability-main-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #059669 0%, #047857 100%);
+}
+
+/* Firefox Scrollbar */
+.traceability-main-content,
+.traceability-controls-panel {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f3f4f6;
 }
 
 /* Loading Content */
@@ -227,8 +320,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 80px 20px;
   text-align: center;
+  min-height: 400px;
 }
 
 .loading-content h3 {
@@ -249,6 +343,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .viewer-header {
@@ -261,56 +356,68 @@
   font-size: 15px;
   font-weight: 600;
   color: #1f2937;
+  flex-wrap: wrap;
 }
 
 .viewer-header .anticon {
   color: #10b981;
-  font-size: 16px;
+  font-size: 18px;
 }
 
-/* Scrollbar Styling */
-.traceability-controls-panel::-webkit-scrollbar,
-.traceability-main-content::-webkit-scrollbar {
-  width: 6px;
-}
+/* ===== RESPONSIVE DESIGN ===== */
 
-.traceability-controls-panel::-webkit-scrollbar-track,
-.traceability-main-content::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-
-.traceability-controls-panel::-webkit-scrollbar-thumb,
-.traceability-main-content::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
-  border-radius: 10px;
-}
-
-.traceability-controls-panel::-webkit-scrollbar-thumb:hover,
-.traceability-main-content::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
+/* Large Tablets and Desktop (1025px - 1439px) */
+@media (min-width: 1025px) and (max-width: 1439px) {
   .traceability-layout {
-    grid-template-columns: 250px 1fr;
+    grid-template-columns: 280px 1fr;
   }
 }
 
+/* Tablets (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .traceability-layout {
+    grid-template-columns: 260px 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .controls-section {
+    padding: 16px;
+  }
+
+  .traceability-main-content {
+    padding: 20px;
+  }
+}
+
+/* Mobile and Small Tablets (≤768px) */
 @media (max-width: 768px) {
-  .traceability-layout {
-    grid-template-columns: 1fr;
+  .traceability-tab {
+    padding: 0;
   }
 
-  .traceability-controls-panel {
-    max-height: 300px;
-  }
-
+  /* Header Mobile */
   .traceability-header {
     flex-direction: column;
     gap: 12px;
-    align-items: flex-start;
+    align-items: stretch;
+    padding: 14px 16px;
+    border-radius: 0;
+  }
+
+  .traceability-header .header-info {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .traceability-header .header-title {
+    font-size: 16px;
+  }
+
+  .traceability-header .header-subtitle {
+    font-size: 12px;
+    margin-left: 0;
+    width: 100%;
   }
 
   .traceability-header .header-actions {
@@ -319,58 +426,176 @@
 
   .traceability-header .header-actions .ant-btn-lg {
     width: 100%;
+    min-height: 48px;
+  }
+
+  /* Layout Mobile - Stack Vertically */
+  .traceability-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+    height: auto;
+    overflow: visible;
+  }
+
+  /* Controls Panel Mobile */
+  .traceability-controls-panel {
+    gap: 12px;
+  }
+
+  .controls-section {
+    padding: 16px;
+  }
+
+  .section-header {
+    font-size: 12px;
+    padding-bottom: 10px;
+  }
+
+  .control-item .ant-radio-button-wrapper {
+    height: 44px;
+    line-height: 42px;
+    font-size: 13px;
+  }
+
+  /* Main Content Mobile */
+  .traceability-main-content {
+    padding: 16px;
+    min-height: 400px;
+  }
+
+  .loading-content {
+    padding: 60px 20px;
+    min-height: 300px;
+  }
+
+  .loading-content h3 {
+    font-size: 16px;
+  }
+
+  .loading-content p {
+    font-size: 13px;
+  }
+
+  .viewer-header {
+    font-size: 14px;
   }
 }
 
-/* Dark Mode Support */
-[data-theme="dark"] .traceability-tab {
-  background: #1a1a1a;
+/* Small Phones (≤480px) */
+@media (max-width: 480px) {
+  .traceability-header {
+    padding: 12px;
+  }
+
+  .traceability-header .header-title {
+    font-size: 15px;
+  }
+
+  .traceability-header .header-subtitle {
+    font-size: 11px;
+  }
+
+  .traceability-layout {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .controls-section,
+  .traceability-main-content {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .control-item .ant-radio-button-wrapper {
+    font-size: 12px;
+    padding: 0 8px;
+  }
+
+  .info-item {
+    padding: 10px 12px;
+  }
+
+  .info-label {
+    font-size: 11px;
+  }
+
+  .info-value {
+    font-size: 13px;
+  }
 }
 
-[data-theme="dark"] .controls-section,
-[data-theme="dark"] .traceability-main-content {
-  background: #2d2d2d;
-  border-color: #404040;
+/* Touch Device Optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .traceability-header .header-actions .ant-btn-lg,
+  .control-item .ant-radio-button-wrapper,
+  .controls-section .ant-btn-block {
+    min-height: 48px;
+  }
+
+  .info-item {
+    padding: 14px;
+  }
 }
 
-[data-theme="dark"] .section-header,
-[data-theme="dark"] .viewer-header {
-  color: #e5e7eb;
-  border-bottom-color: #404040;
+/* Landscape Mobile Optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+  .traceability-layout {
+    grid-template-columns: 240px 1fr;
+    height: calc(100vh - 80px);
+    overflow: hidden;
+  }
+
+  .traceability-controls-panel {
+    max-height: none;
+  }
 }
 
-[data-theme="dark"] .control-label,
-[data-theme="dark"] .info-value {
-  color: #d1d5db;
+/* Alert Spacing */
+.traceability-main-content > .ant-alert {
+  margin-bottom: 16px;
 }
 
-[data-theme="dark"] .info-label,
-[data-theme="dark"] .progress-info {
-  color: #9ca3af;
+/* Empty State Enhancements */
+.traceability-main-content .ant-empty {
+  padding: 60px 20px;
 }
 
-[data-theme="dark"] .info-item,
-[data-theme="dark"] .progress-section {
-  background: #1f1f1f;
-  border-color: #404040;
+.traceability-main-content .ant-empty h3 {
+  margin: 16px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
 }
 
-[data-theme="dark"] .control-item .ant-radio-button-wrapper {
-  background: #2d2d2d;
-  border-color: #404040;
-  color: #d1d5db;
+.traceability-main-content .ant-empty p {
+  color: #6b7280;
+  margin: 0;
+  font-size: 14px;
 }
 
-[data-theme="dark"] .control-item .ant-radio-button-wrapper-checked {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-color: #10b981;
-  color: white;
+@media (max-width: 768px) {
+  .traceability-main-content .ant-empty {
+    padding: 40px 16px;
+  }
+
+  .traceability-main-content .ant-empty h3 {
+    font-size: 15px;
+  }
+
+  .traceability-main-content .ant-empty p {
+    font-size: 13px;
+  }
 }
 
-[data-theme="dark"] .loading-content h3 {
-  color: #e5e7eb;
+/* Smooth Animations */
+.controls-section,
+.info-item,
+.traceability-header .header-actions .ant-btn-lg {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-[data-theme="dark"] .loading-content p {
-  color: #9ca3af;
+/* Progress Bar Enhancement */
+.progress-section .ant-progress-bg {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%) !important;
 }
