@@ -1,3 +1,18 @@
+
+
+instead of the code snippet, can i get a pseudo code or logic or algorithm 
+
+adam visualiser
+
+
+make the planner and reviewer as slash commads
+
+docker- r and sas
+
+
+
+
+
 Goal 
 
 Think in terms of an Domain expert, ADAM Programmer and an expert ui ux designer to architect a workable plan to implement the following features

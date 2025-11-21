@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect } from 'react';
 import {
   Alert,
   Button,
-  Card,
   Descriptions,
   Divider,
   Empty,
@@ -12,19 +11,17 @@ import {
   Radio,
   Select,
   Space,
-  Statistic,
+  Switch,
   Tag,
   Tooltip,
-  Typography,
 } from 'antd';
-import { DownloadOutlined, RedoOutlined, FileDoneOutlined, CopyOutlined, CheckCircleOutlined, CloseOutlined } from '@ant-design/icons';
+import { DownloadOutlined, RedoOutlined, FileDoneOutlined, CopyOutlined, CheckCircleOutlined, CloseOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
+import { Code2 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { ConsolidatedCodeRequest, ConsolidatedCodeData, ConsolidatedVariable } from '../types';
 import './ConsolidatedCodeTab.css';
-
-const { Title, Paragraph, Text } = Typography;
 
 export const ConsolidatedCodeTab: React.FC = () => {
   const {
@@ -51,6 +48,12 @@ export const ConsolidatedCodeTab: React.FC = () => {
   const [activeLanguage, setActiveLanguage] = useState<'R' | 'SAS'>(programmingLanguage);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  
+  // Additional ADAM-specific settings
+  const [includeMetadata, setIncludeMetadata] = useState<boolean>(true);
+  const [includeTraceability, setIncludeTraceability] = useState<boolean>(true);
+  const [includeValidation, setIncludeValidation] = useState<boolean>(true);
+  const [sortVariables, setSortVariables] = useState<boolean>(true);
 
   // Real-time elapsed time tracking
   useEffect(() => {
@@ -167,8 +170,14 @@ export const ConsolidatedCodeTab: React.FC = () => {
             <Descriptions.Item label="Categories">{variablesByCategory.size}</Descriptions.Item>
             <Descriptions.Item label="Language">{activeLanguage}</Descriptions.Item>
             <Descriptions.Item label="Comment Level">{commentVerbosity}</Descriptions.Item>
-            <Descriptions.Item label="Execution Mode">{executionMode}</Descriptions.Item>
             <Descriptions.Item label="Dataset">{projectConfig.adamDataset || 'ADSL'}</Descriptions.Item>
+            <Descriptions.Item label="Options" span={1}></Descriptions.Item>
+            <Descriptions.Item label="Metadata" span={2}>
+              {includeMetadata ? '✓' : '✗'} Headers, 
+              {includeTraceability ? ' ✓' : ' ✗'} Traceability, 
+              {includeValidation ? ' ✓' : ' ✗'} Validation, 
+              {sortVariables ? ' ✓' : ' ✗'} Sorted
+            </Descriptions.Item>
           </Descriptions>
           
           <Divider style={{ margin: '12px 0' }}>Variables by Category</Divider>
@@ -229,7 +238,10 @@ export const ConsolidatedCodeTab: React.FC = () => {
       execution_mode: executionMode,
       approved_variables: approvedVariables,
       user_preferences: {
-        optimization_level: 'standard',
+        include_metadata: includeMetadata,
+        include_traceability: includeTraceability,
+        include_validation: includeValidation,
+        sort_variables: sortVariables,
       },
       standards_version: {
         adam: projectConfig.adamIgVersion,
@@ -313,242 +325,294 @@ export const ConsolidatedCodeTab: React.FC = () => {
   };
 
   const summarisedOptimizations = consolidatedCode?.summary.optimizations_applied || [];
+  const approvedCount = buildApprovedVariables().length;
+  const hasApprovedSnippets = approvedCount > 0;
 
   return (
     <div className="consolidated-tab">
+      {/* Header with gradient - matching Pair Programming style */}
       <div className="consolidated-header">
-        <div>
-          <Title level={4}>Consolidated ADAM Code</Title>
-          <Paragraph>
-            Generate a clean, performance-optimised program using the approved variables from pair programming.
-          </Paragraph>
+        <div className="header-info">
+          <Code2 size={20} />
+          <span className="header-title">Consolidated ADAM Code</span>
+          <span className="header-subtitle">
+            {approvedCount} approved • {consolidatedCode ? 'Generated' : 'Ready'}
+          </span>
         </div>
-
-        <Space>
-          {consolidatedCode && (
-            <Tooltip title="Clear the last generated code">
-              <Button
-                icon={<RedoOutlined />}
-                disabled={isGeneratingConsolidated}
-                onClick={resetConsolidated}
-              >
-                Reset Output
-              </Button>
-            </Tooltip>
-          )}
+        <div className="header-actions">
           <Button
             type="primary"
             icon={<FileDoneOutlined />}
             onClick={handleGenerate}
             loading={isGeneratingConsolidated}
-            disabled={!canGenerateConsolidated() || isGeneratingConsolidated}
+            disabled={!hasApprovedSnippets || isGeneratingConsolidated}
+            size="large"
           >
-            {isGeneratingConsolidated ? 'Generating…' : 'Generate Consolidated Code'}
+            {isGeneratingConsolidated ? 'Generating...' : 'Generate Code'}
           </Button>
-        </Space>
+        </div>
       </div>
 
-      <Card className="consolidated-controls-card">
-        <div className="consolidated-controls">
-          <div>
-            <Text className="label">Target Language</Text>
-            <Select<'R' | 'SAS'>
-              value={activeLanguage}
-              onChange={(val) => setActiveLanguage(val)}
-              options={[
-                { value: 'R', label: 'R' },
-                { value: 'SAS', label: 'SAS' },
-              ]}
-              style={{ width: 140 }}
-            />
-          </div>
-          <div>
-            <Text className="label">Comment Verbosity</Text>
-            <Select
-              value={commentVerbosity}
-              onChange={setCommentVerbosity}
-              options={[
-                { value: 'low', label: 'Low' },
-                { value: 'medium', label: 'Medium' },
-                { value: 'high', label: 'High' },
-              ]}
-              style={{ width: 160 }}
-            />
-          </div>
-          <div>
-            <Text className="label">Execution Mode</Text>
-            <Radio.Group
-              value={executionMode}
-              onChange={(e) => setExecutionMode(e.target.value)}
-            >
-              <Radio.Button value="api">Secure API</Radio.Button>
-              <Radio.Button value="local">Local Ollama</Radio.Button>
-            </Radio.Group>
-            <Paragraph style={{ margin: 0, color: '#6b7280', fontSize: 12 }}>
-              {executionMode === 'local'
-                ? 'All processing happens locally; no API calls will be made.'
-                : 'Routes through configured LLM provider with secure APIs.'}
-            </Paragraph>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="progress-card">
-        <div className="progress-grid">
-          <Statistic title="Approved Variables" value={buildApprovedVariables().length} />
-          <Statistic title="Progress" value={`${consolidatedProgress}%`} />
-          <Statistic
-            title="Last Duration"
-            value={
-              consolidatedDuration
-                ? `${consolidatedDuration.toFixed(1)}s`
-                : '—'
-            }
-          />
-          <Statistic
-            title="Status"
-            value={
-              isGeneratingConsolidated
-                ? `${consolidatedStatus || 'Generating'}... (${elapsedTime}s elapsed)`
-                : (consolidatedStatus || 'Idle')
-            }
-          />
-        </div>
-        {isGeneratingConsolidated && (
-          <>
-            <Progress percent={consolidatedProgress} status="active" />
-            <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', justifyContent: 'center', gap: 12 }}>
-              <div style={{ color: '#1890ff', fontSize: '13px' }}>
-                {consolidatedProgress}% complete • {elapsedTime}s elapsed
-              </div>
-              <Button
-                danger
-                icon={<CloseOutlined />}
-                size="small"
-                onClick={handleCancel}
-                style={{ marginLeft: 'auto' }}
-              >
-                Cancel
-              </Button>
+      {/* Split layout: Controls Panel + Main Content */}
+      <div className="consolidated-layout">
+        {/* Side Panel: Controls */}
+        <div className="consolidated-controls-panel">
+          <div className="controls-section">
+            <div className="section-header">
+              <FileTextOutlined />
+              <span>Generation Settings</span>
             </div>
-          </>
-        )}
-      </Card>
 
-      {consolidatedCode ? (
-        <>
-          <Card
-            className="code-viewer-card"
-            title="Optimized Consolidated Program"
-            extra={
-              <Space>
-                <Button icon={<CopyOutlined />} onClick={handleCopy}>
-                  Copy
-                </Button>
-                <Button icon={<DownloadOutlined />} onClick={handleDownload}>
-                  Download
-                </Button>
-              </Space>
-            }
-          >
-            <Editor
-              height="420px"
-              language={activeLanguage === 'R' ? 'r' : 'sas'}
-              value={consolidatedCode.consolidated_code}
-              options={{
-                readOnly: true,
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: 'on',
-                scrollBeyondLastLine: false,
-              }}
-            />
-          </Card>
+            <div className="control-item">
+              <label className="control-label">Target Language</label>
+              <Radio.Group
+                value={activeLanguage}
+                onChange={(e) => setActiveLanguage(e.target.value)}
+                buttonStyle="solid"
+                style={{ width: '100%' }}
+              >
+                <Radio.Button value="R" style={{ width: '50%', textAlign: 'center' }}>
+                  R
+                </Radio.Button>
+                <Radio.Button value="SAS" style={{ width: '50%', textAlign: 'center' }}>
+                  SAS
+                </Radio.Button>
+              </Radio.Group>
+            </div>
 
-          <div className="summary-grid">
-            <Card title="Summary">
-              <Space wrap>
-                <Tag color="blue">{consolidatedCode.summary.total_variables} variables</Tag>
-                <Tag color="purple">{consolidatedCode.summary.categories_included} categories</Tag>
-                <Tag color="green">{consolidatedCode.summary.lines_of_code} LOC</Tag>
-                <Tag color="cyan">{consolidatedCode.summary.file_size_kb.toFixed(1)} KB</Tag>
-                {consolidatedCode.summary.confidence_score && (
-                  <Tag color="gold">Confidence {consolidatedCode.summary.confidence_score}%</Tag>
-                )}
-              </Space>
-              <Paragraph style={{ marginTop: 12 }}>
-                Generation time: {consolidatedCode.summary.generation_time_seconds.toFixed(1)}s
-              </Paragraph>
-              {summarisedOptimizations.length > 0 && (
-                <>
-                  <Text strong>Optimizations:</Text>
-                  <ul>
-                    {summarisedOptimizations.map((opt) => (
-                      <li key={opt}>{opt}</li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </Card>
-
-            <Card title="Validation Results">
-              <Space direction="vertical">
-                <Tag color={consolidatedCode.validation_results.syntax_valid ? 'green' : 'red'}>
-                  {consolidatedCode.validation_results.syntax_valid ? 'Syntax Valid' : 'Syntax Issues'}
-                </Tag>
-                <Tag color={consolidatedCode.validation_results.cdisc_compliant ? 'green' : 'red'}>
-                  {consolidatedCode.validation_results.cdisc_compliant ? 'CDISC Compliant' : 'CDISC Issues'}
-                </Tag>
-                {consolidatedCode.validation_results.warnings.length > 0 && (
-                  <div>
-                    <Text strong>Warnings:</Text>
-                    <ul>
-                      {consolidatedCode.validation_results.warnings.map((warning, idx) => (
-                        <li key={`warn-${idx}`}>{warning}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {consolidatedCode.validation_results.errors.length > 0 && (
-                  <div>
-                    <Text strong>Errors:</Text>
-                    <ul>
-                      {consolidatedCode.validation_results.errors.map((err, idx) => (
-                        <li key={`err-${idx}`}>{err}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </Space>
-            </Card>
-
-            <Card title="Generation Metadata">
-              <Paragraph>
-                Provider: <strong>{consolidatedCode.metadata.llm_provider}</strong>
-              </Paragraph>
-              <Paragraph>
-                Model: <strong>{consolidatedCode.metadata.model_used}</strong>
-              </Paragraph>
-              <Paragraph>
-                Execution Mode: <strong>{consolidatedCode.metadata.execution_mode}</strong>
-              </Paragraph>
-              <Paragraph>
-                Generated At: {new Date(consolidatedCode.metadata.generated_at).toLocaleString()}
-              </Paragraph>
-            </Card>
+            <div className="control-item">
+              <label className="control-label">Comment Verbosity</label>
+              <Radio.Group
+                value={commentVerbosity}
+                onChange={(e) => setCommentVerbosity(e.target.value)}
+                buttonStyle="solid"
+                style={{ width: '100%', display: 'flex' }}
+              >
+                <Radio.Button value="low" style={{ flex: 1, textAlign: 'center' }}>
+                  Low
+                </Radio.Button>
+                <Radio.Button value="medium" style={{ flex: 1, textAlign: 'center' }}>
+                  Medium
+                </Radio.Button>
+                <Radio.Button value="high" style={{ flex: 1, textAlign: 'center' }}>
+                  High
+                </Radio.Button>
+              </Radio.Group>
+            </div>
           </div>
-        </>
-      ) : (
-        <Card>
-          <Empty
-            description={
-              canGenerateConsolidated()
-                ? 'Click "Generate Consolidated Code" to assemble the final program.'
-                : 'Approve all variables in the pair programming tab to enable consolidated generation.'
-            }
-          />
-        </Card>
-      )}
+
+          <div className="controls-section">
+            <div className="section-header">
+              <SettingOutlined />
+              <span>ADAM Options</span>
+            </div>
+
+            <div className="control-item switch-item">
+              <div className="switch-row">
+                <label className="switch-label">Include Metadata Headers</label>
+                <Switch 
+                  checked={includeMetadata} 
+                  onChange={setIncludeMetadata}
+                  size="small"
+                />
+              </div>
+              <span className="switch-hint">Add dataset metadata and attributes</span>
+            </div>
+
+            <div className="control-item switch-item">
+              <div className="switch-row">
+                <label className="switch-label">Include Traceability</label>
+                <Switch 
+                  checked={includeTraceability} 
+                  onChange={setIncludeTraceability}
+                  size="small"
+                />
+              </div>
+              <span className="switch-hint">Link to SDTM source variables</span>
+            </div>
+
+            <div className="control-item switch-item">
+              <div className="switch-row">
+                <label className="switch-label">Add Data Validation</label>
+                <Switch 
+                  checked={includeValidation} 
+                  onChange={setIncludeValidation}
+                  size="small"
+                />
+              </div>
+              <span className="switch-hint">Include validation checks in code</span>
+            </div>
+
+            <div className="control-item switch-item">
+              <div className="switch-row">
+                <label className="switch-label">Sort Variables by Order</label>
+                <Switch 
+                  checked={sortVariables} 
+                  onChange={setSortVariables}
+                  size="small"
+                />
+              </div>
+              <span className="switch-hint">Arrange by category and alphabetically</span>
+            </div>
+          </div>
+
+          {isGeneratingConsolidated && (
+            <div className="controls-section">
+              <div className="section-header">
+                <CheckCircleOutlined />
+                <span>Progress</span>
+              </div>
+              <div className="progress-section">
+                <Progress percent={consolidatedProgress} status="active" size="small" />
+                <div className="progress-info">
+                  {consolidatedStatus || 'Generating'} • {elapsedTime}s
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Main Content Area */}
+        <div className="consolidated-main-content">
+          {consolidatedCode ? (
+            <>
+              <div className="code-viewer-header">
+                <div className="viewer-title">
+                  <FileTextOutlined />
+                  <span>Generated Program</span>
+                  <Tag color="green">{consolidatedCode.summary.lines_of_code} lines</Tag>
+                  <Tag color="blue">{consolidatedCode.summary.file_size_kb.toFixed(1)} KB</Tag>
+                </div>
+                <Space>
+                  <Button icon={<CopyOutlined />} onClick={handleCopy} size="small">
+                    Copy
+                  </Button>
+                  <Button icon={<DownloadOutlined />} onClick={handleDownload} size="small">
+                    Download
+                  </Button>
+                </Space>
+              </div>
+
+              <div className="code-viewer">
+                <Editor
+                  height="500px"
+                  language={activeLanguage === 'R' ? 'r' : 'sas'}
+                  value={consolidatedCode.consolidated_code}
+                  options={{
+                    readOnly: true,
+                    minimap: { enabled: false },
+                    fontSize: 13,
+                    lineNumbers: 'on',
+                    scrollBeyondLastLine: false,
+                    wordWrap: 'on',
+                  }}
+                />
+              </div>
+
+              <div className="info-sections">
+                <div className="info-section">
+                  <div className="info-header">Summary</div>
+                  <div className="info-content">
+                    <Space wrap size="small">
+                      <Tag color="blue">{consolidatedCode.summary.total_variables} variables</Tag>
+                      <Tag color="purple">{consolidatedCode.summary.categories_included} categories</Tag>
+                      {consolidatedCode.summary.confidence_score && (
+                        <Tag color="gold">Confidence {consolidatedCode.summary.confidence_score}%</Tag>
+                      )}
+                    </Space>
+                    {summarisedOptimizations.length > 0 && (
+                      <div className="optimizations-list">
+                        <strong>Optimizations Applied:</strong>
+                        <ul>
+                          {summarisedOptimizations.map((opt, idx) => (
+                            <li key={idx}>{opt}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="info-section">
+                  <div className="info-header">Validation</div>
+                  <div className="info-content">
+                    <Space direction="vertical" size="small">
+                      <Tag color={consolidatedCode.validation_results.syntax_valid ? 'green' : 'red'}>
+                        {consolidatedCode.validation_results.syntax_valid ? '✓ Syntax Valid' : '✗ Syntax Issues'}
+                      </Tag>
+                      <Tag color={consolidatedCode.validation_results.cdisc_compliant ? 'green' : 'red'}>
+                        {consolidatedCode.validation_results.cdisc_compliant ? '✓ CDISC Compliant' : '✗ CDISC Issues'}
+                      </Tag>
+                      {consolidatedCode.validation_results.warnings.length > 0 && (
+                        <div className="validation-messages">
+                          <strong>Warnings:</strong>
+                          <ul>
+                            {consolidatedCode.validation_results.warnings.map((warning, idx) => (
+                              <li key={idx}>{warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {consolidatedCode.validation_results.errors.length > 0 && (
+                        <div className="validation-messages">
+                          <strong>Errors:</strong>
+                          <ul>
+                            {consolidatedCode.validation_results.errors.map((err, idx) => (
+                              <li key={idx}>{err}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </Space>
+                  </div>
+                </div>
+
+                <div className="info-section">
+                  <div className="info-header">Metadata</div>
+                  <div className="info-content">
+                    <div className="metadata-item">
+                      <span className="meta-label">Provider:</span>
+                      <span className="meta-value">{consolidatedCode.metadata.llm_provider}</span>
+                    </div>
+                    <div className="metadata-item">
+                      <span className="meta-label">Model:</span>
+                      <span className="meta-value">{consolidatedCode.metadata.model_used}</span>
+                    </div>
+                    <div className="metadata-item">
+                      <span className="meta-label">Mode:</span>
+                      <span className="meta-value">{consolidatedCode.metadata.execution_mode}</span>
+                    </div>
+                    <div className="metadata-item">
+                      <span className="meta-label">Generated:</span>
+                      <span className="meta-value">{new Date(consolidatedCode.metadata.generated_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="empty-state">
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <div>
+                    <p style={{ fontSize: '15px', fontWeight: 500, marginBottom: '8px' }}>
+                      {canGenerateConsolidated()
+                        ? 'Ready to Generate'
+                        : 'Approval Required'}
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#64748b' }}>
+                      {canGenerateConsolidated()
+                        ? 'Click "Generate Code" in the side panel to create your consolidated program.'
+                        : 'Approve all variables in the Pair Programming tab first.'}
+                    </p>
+                  </div>
+                }
+              />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

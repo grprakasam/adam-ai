@@ -43,8 +43,10 @@
 .right-panel .workspace-utilities-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 /* Workspace content area */

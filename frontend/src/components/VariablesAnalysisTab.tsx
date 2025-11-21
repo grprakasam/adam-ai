@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
-import { CheckCircleOutlined, CloseCircleOutlined, FileDoneOutlined, LinkOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, FileDoneOutlined, LinkOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
@@ -11,6 +11,7 @@ import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGen
 import { ProgramDownloadModal } from './ProgramDownloadModal';
 import { showNavigationConfirmation } from './ConfirmationDialog';
 import { CodeGenerationProgressModal } from './CodeGenerationProgressModal';
+import { LAYOUT_PRESETS, type LayoutPresetKey } from './WorkspaceLayoutControls';
 import './VariablesAnalysisTab.css';
 import AnalyzingVariablesStatus from './AnalyzingVariablesStatus';
 
@@ -41,16 +42,6 @@ const getCategorySortKey = (name: string, fallbackIndex: number) => {
 };
 
 type DisplayCategory = VariableCategory & { displayName: string; sortKey: number };
-type LayoutPresetKey = 'balanced' | 'focused' | 'immersive' | 'ultra';
-const LAYOUT_PRESETS: Record<
-  LayoutPresetKey,
-  { label: string; subtitle: string; columns: string; pairPercentage: number }
-> = {
-  balanced: { label: 'Balanced', subtitle: '30% / 70%', columns: '30% 70%', pairPercentage: 70 },
-  focused: { label: 'Focused', subtitle: '25% / 75%', columns: '25% 75%', pairPercentage: 75 },
-  immersive: { label: 'Immersive', subtitle: '20% / 80%', columns: '20% 80%', pairPercentage: 80 },
-  ultra: { label: 'Ultra Focus', subtitle: '5% / 95%', columns: '5% 95%', pairPercentage: 95 },
-};
 
 interface VariablesAnalysisTabProps {
   onSwitchProject?: () => void;
@@ -69,6 +60,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
     setIsCategorizingVariables,
     setIsGenerating,
     setBulkCodeSnippets,
+    clearAllAIResults,
     programmingLanguage,
     setProgrammingLanguage,
     sdtmVersion,
@@ -116,14 +108,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
   const [isGeneratingFinalCode, setIsGeneratingFinalCode] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [finalProgramCode, setFinalProgramCode] = useState('');
-  const [layoutPreset, setLayoutPreset] = useState<LayoutPresetKey>('focused');
-  const layoutOptions = useMemo(
-    () =>
-      (Object.entries(LAYOUT_PRESETS) as [LayoutPresetKey, (typeof LAYOUT_PRESETS)[LayoutPresetKey]][]).sort(
-        (a, b) => a[1].pairPercentage - b[1].pairPercentage
-      ),
-    []
-  );
+  
+  // Get layout preset from store
+  const layoutPreset = useProjectStore((state) => state.workspaceLayoutPreset);
 
   // Loading visualizer state for categorization
   const [categorizeStartedAt, setCategorizeStartedAt] = useState<number | null>(null);
@@ -252,6 +239,43 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
       resetWorkspace();
       window.location.reload();
     }
+  };
+
+  // Handle refresh AI results - Clear all AI-generated code and cache
+  const handleRefreshAIResults = () => {
+    Modal.confirm({
+      title: 'Refresh AI Results?',
+      icon: <RefreshCw size={20} style={{ color: '#faad14' }} />,
+      content: (
+        <div style={{ marginTop: '12px' }}>
+          <p style={{ marginBottom: '12px', fontWeight: 500 }}>
+            This will clear all AI-generated content including:
+          </p>
+          <ul style={{ paddingLeft: '24px', marginBottom: '12px' }}>
+            <li>Code snippets for all variables</li>
+            <li>Coding rationales and AI inputs</li>
+            <li>User notes and acceptance states</li>
+            <li>Consolidated code generation</li>
+            <li>Traceability matrix data</li>
+          </ul>
+          <p style={{ marginBottom: 0, color: '#8c8c8c', fontSize: '13px' }}>
+            Your variable categorization will be preserved. You can regenerate AI code after clearing.
+          </p>
+        </div>
+      ),
+      okText: 'Clear AI Results',
+      okType: 'primary',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancel',
+      width: 520,
+      onOk: () => {
+        clearAllAIResults();
+        message.success({
+          content: 'All AI results cleared successfully! You can now generate fresh code.',
+          duration: 4,
+        });
+      },
+    });
   };
 
   const handleCategorizeVariables = async () => {
@@ -863,6 +887,47 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
           </div>
         </div>
         <div className="header-actions-compact">
+          <Tooltip
+            title={
+              llmConnectionStatus !== 'connected'
+                ? 'Test the connection first using the "Test Connection" button in the header'
+                : bulkGenerationProgress.isGenerating
+                ? 'Generation in progress...'
+                : 'Generate code snippets for all variables using AI'
+            }
+          >
+            <Button
+              onClick={handleGenerateCode}
+              disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables || llmConnectionStatus !== 'connected'}
+              icon={bulkGenerationProgress.isGenerating ? <Loader2 size={14} className="spinning" /> : <Zap size={14} />}
+              className="action-button-compact action-button-primary"
+              size="small"
+              type="primary"
+            >
+              {bulkGenerationProgress.isGenerating ? `Generating (${bulkGenerationProgress.current}/${bulkGenerationProgress.total})` : 'Get AI Inputs'}
+            </Button>
+          </Tooltip>
+          <Button
+            onClick={onNavigateToValidation}
+            icon={<CheckCircleOutlined />}
+            className="action-button-compact"
+            size="small"
+            type="default"
+            title="View validation results and quality checks"
+          >
+            My Validation
+          </Button>
+          <Button
+            onClick={onNavigateToConsolidated}
+            disabled={!canGenerateConsolidated}
+            icon={<FileDoneOutlined />}
+            className="action-button-compact"
+            size="small"
+            type="default"
+            title="Generate consolidated ADAM program"
+          >
+            Consolidated Code
+          </Button>
           <Button
             onClick={handleCategorizeVariables}
             disabled={isCategorizingVariables}
@@ -872,6 +937,16 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
             type="default"
           >
             Re-analyze
+          </Button>
+          <Button
+            onClick={handleRefreshAIResults}
+            icon={<RefreshCw size={14} />}
+            className="action-button-compact action-button-warning"
+            size="small"
+            type="default"
+            title="Clear all AI-generated code and start fresh"
+          >
+            Refresh AI Results
           </Button>
           <Button
             onClick={handleRefresh}
@@ -888,42 +963,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
       {sortedCategories.length > 0 ? (
         <>
-          <div className="layout-toggle">
-            <Button
-              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="7" height="18" rx="1" />
-                <rect x="14" y="3" width="7" height="18" rx="1" />
-              </svg>}
-              onClick={() => {
-                const event = new CustomEvent('adam-ai:toggle-left-panel');
-                window.dispatchEvent(event);
-              }}
-              className="panel-toggle-btn-workspace"
-              size="middle"
-              title="Toggle Configuration Panel"
-            >
-              Toggle Panel
-            </Button>
-            <div className="layout-toggle-label">Workspace layout</div>
-            <div className="layout-toggle-buttons">
-              {layoutOptions.map(([key, preset]) => {
-                const isActive = layoutPreset === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`layout-toggle-button ${isActive ? 'active' : ''}`}
-                    onClick={() => setLayoutPreset(key)}
-                    aria-pressed={isActive}
-                  >
-                    <span className="layout-toggle-title">{preset.label}</span>
-                    <span className="layout-toggle-subtitle">{preset.subtitle}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Top Section: Tabs (configurable split) + Pair Programming */}
           <div
             className="tabs-and-pair-programming"
@@ -957,69 +996,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                   <PairProgrammingArea
                     variables={activeCategoryData.variables}
                     categoryName={activeCategoryData.displayName || activeCategoryData.name}
-                    getAiInputsButton={
-                      <Tooltip
-                        title={
-                          llmConnectionStatus !== 'connected'
-                            ? 'Test the connection first using the "Test Connection" button in the header'
-                            : bulkGenerationProgress.isGenerating
-                            ? 'Generation in progress...'
-                            : 'Generate code snippets for all variables using AI'
-                        }
-                      >
-                        <button
-                          className="generate-button primary-action"
-                          onClick={handleGenerateCode}
-                          disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables || llmConnectionStatus !== 'connected'}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '8px 20px',
-                            fontSize: '14px',
-                            fontWeight: 600,
-                            background: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                              ? '#d9d9d9' 
-                              : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                            border: 'none',
-                            color: '#fff',
-                            borderRadius: '6px',
-                            cursor: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                              ? 'not-allowed' 
-                              : 'pointer',
-                            boxShadow: (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                              ? 'none' 
-                              : '0 2px 8px rgba(59, 130, 246, 0.4)',
-                            transition: 'all 0.3s ease',
-                            opacity: llmConnectionStatus !== 'connected' ? 0.6 : 1,
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!bulkGenerationProgress.isGenerating && llmConnectionStatus === 'connected') {
-                              e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.5)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = (bulkGenerationProgress.isGenerating || llmConnectionStatus !== 'connected') 
-                              ? 'none' 
-                              : '0 2px 8px rgba(59, 130, 246, 0.4)';
-                          }}
-                        >
-                          {bulkGenerationProgress.isGenerating ? (
-                            <>
-                              <Loader2 size={16} className="spinning" />
-                              <span>Generating... ({bulkGenerationProgress.current}/{bulkGenerationProgress.total})</span>
-                            </>
-                          ) : (
-                            <>
-                              <Zap size={16} />
-                              <span>Get AI Inputs</span>
-                            </>
-                          )}
-                        </button>
-                      </Tooltip>
-                    }
                     onOpenValidation={onNavigateToValidation}
                     onOpenConsolidated={onNavigateToConsolidated}
                     canOpenConsolidated={canGenerateConsolidated}
