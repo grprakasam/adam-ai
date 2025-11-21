@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { message, Tooltip, Button, Dropdown, Checkbox, Segmented } from 'antd';
-import { Code2, Loader2, AlertCircle, RefreshCw, Info, Columns, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { message, Tooltip } from 'antd';
+import { Code2, Loader2, AlertCircle, RefreshCw, Info, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import { showRegenerateConfirmation } from './ConfirmationDialog';
 import type { CodeSnippetRequest, VariableInfo } from '../types';
 import './PairProgrammingArea.css';
-import { FileDoneOutlined, CheckCircleOutlined } from '@ant-design/icons';
-import type { MenuProps } from 'antd';
 
 interface PairProgrammingAreaProps {
   variables: VariableInfo[];
@@ -32,6 +30,7 @@ interface ColumnDefinition {
   isAdvanced: boolean; // Only shown when snippets are generated
 }
 
+// Kept for reference only - not used in card-based layout
 const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   { id: 'variable', label: 'Variable', alwaysVisible: true, isAdvanced: false },
   { id: 'label', label: 'Label', alwaysVisible: false, isAdvanced: false },
@@ -46,6 +45,7 @@ const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   { id: 'notes', label: 'User Notes', alwaysVisible: false, isAdvanced: true },
 ];
 
+// Note: STORAGE_KEY kept for backward compatibility with old localStorage
 const STORAGE_KEY = 'pairProgramming_visibleColumns_v1';
 
 // Simple syntax highlighting function for R and SAS
@@ -125,88 +125,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     selectedModel
   } = useProjectStore();
 
-  const [expandedRationale, setExpandedRationale] = useState<Set<string>>(new Set());
-  const [columnDropdownOpen, setColumnDropdownOpen] = useState(false);
-  const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
-  const showAdvancedColumns = hasAnySnippets;
-  
-  // View density state (compact/comfortable/spacious)
-  const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable' | 'spacious'>('comfortable');
-  
-  // Column width preset state (narrow/standard/wide)
-  const [columnWidthPreset, setColumnWidthPreset] = useState<'narrow' | 'standard' | 'wide'>('standard');
 
-  // Column visibility state
-  const [visibleColumns, setVisibleColumns] = useState<Set<ColumnId>>(() => {
-    // Load from localStorage or default to all columns visible
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return new Set(parsed);
-      }
-    } catch (error) {
-      console.error('Failed to load column visibility preferences:', error);
-    }
-    // Default: all columns visible
-    return new Set(COLUMN_DEFINITIONS.map(col => col.id));
-  });
-
-  // Save column visibility to localStorage whenever it changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(visibleColumns)));
-      console.log('[PairProgrammingArea] Saved column visibility to localStorage:', Array.from(visibleColumns));
-    } catch (error) {
-      console.error('Failed to save column visibility preferences:', error);
-    }
-  }, [visibleColumns]);
-
-  // Debug: Log when visible columns change
-  useEffect(() => {
-    console.log('[PairProgrammingArea] Visible columns updated:', {
-      count: visibleColumns.size,
-      columns: Array.from(visibleColumns)
-    });
-  }, [visibleColumns]);
-
-  // Toggle column visibility
-  const toggleColumn = (columnId: ColumnId) => {
-    const column = COLUMN_DEFINITIONS.find(col => col.id === columnId);
-    if (column?.alwaysVisible) {
-      console.log(`[PairProgrammingArea] Cannot toggle always-visible column: ${columnId}`);
-      return; // Cannot hide always-visible columns
-    }
-
-    setVisibleColumns(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(columnId)) {
-        newSet.delete(columnId);
-        console.log(`[PairProgrammingArea] Column hidden: ${columnId}. Visible columns:`, Array.from(newSet));
-      } else {
-        newSet.add(columnId);
-        console.log(`[PairProgrammingArea] Column shown: ${columnId}. Visible columns:`, Array.from(newSet));
-      }
-      return newSet;
-    });
-  };
-
-  // Check if a column should be rendered
-  const isColumnVisible = (columnId: ColumnId): boolean => {
-    const column = COLUMN_DEFINITIONS.find(col => col.id === columnId);
-    if (!column) return false;
-    
-    // Always show if it's marked as always visible
-    if (column.alwaysVisible) return true;
-    
-    // For advanced columns, check if snippets are generated AND if user wants to see them
-    if (column.isAdvanced) {
-      return showAdvancedColumns && visibleColumns.has(columnId);
-    }
-    
-    // For basic columns, just check if user wants to see them
-    return visibleColumns.has(columnId);
-  };
 
   // Debug logging
   React.useEffect(() => {
@@ -216,36 +135,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
       sampleSnippet: Object.values(pairProgramming.snippets)[0]
     });
   }, [pairProgramming.snippets]);
-
-  // Debug logging for variables length/format
-  React.useEffect(() => {
-    const armVars = variables.filter(v => v.name.includes('ARM'));
-    if (armVars.length > 0) {
-      console.log('[PairProgrammingArea] ARM variables length/format:', armVars.map(v => ({
-        name: v.name,
-        type: v.type,
-        length: v.length,
-        format: v.format
-      })));
-    }
-  }, [variables]);
-
-  // Handle scroll indicators
-  React.useEffect(() => {
-    const container = document.querySelector('.pair-programming-table-container');
-    if (!container) return;
-
-    const handleScroll = () => {
-      if (container.scrollLeft > 20) {
-        container.classList.add('scrolled-left');
-      } else {
-        container.classList.remove('scrolled-left');
-      }
-    };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Auto-detect derivation column from spec
   const getDerivationText = (variable: VariableInfo): string => {
@@ -363,16 +252,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     setPairProgrammingAcceptance(variable, accepted);
   };
 
-  const toggleRationale = (variable: string) => {
-    const newExpanded = new Set(expandedRationale);
-    if (newExpanded.has(variable)) {
-      newExpanded.delete(variable);
-    } else {
-      newExpanded.add(variable);
-    }
-    setExpandedRationale(newExpanded);
-  };
-
   const handleRegenerateWithConfirmation = async (variable: VariableInfo) => {
     const snippet = pairProgramming.snippets[variable.name];
 
@@ -403,18 +282,63 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     );
   };
 
-  if (variables.length === 0) {
-    return (
-      <div className="pair-programming-empty">
-        <Code2 size={48} />
-        <p>No variables in this category</p>
-      </div>
-    );
-  }
+  // Filter and search variables
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'generated' | 'pending'>('all');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const filteredVariables = useMemo(() => {
+    return variables.filter(variable => {
+      const matchesSearch = 
+        variable.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (variable.label && variable.label.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      if (filterStatus === 'all') return matchesSearch;
+      
+      const snippet = pairProgramming.snippets[variable.name];
+      if (filterStatus === 'generated') {
+        return matchesSearch && snippet?.codeSnippet;
+      }
+      if (filterStatus === 'pending') {
+        return matchesSearch && !snippet?.codeSnippet;
+      }
+      return matchesSearch;
+    });
+  }, [variables, pairProgramming.snippets, searchQuery, filterStatus]);
+
+  const toggleCardExpansion = (variableName: string) => {
+    setExpandedCards(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(variableName)) {
+        newSet.delete(variableName);
+      } else {
+        newSet.add(variableName);
+      }
+      return newSet;
+    });
+  };
+
+  const getStatusBadgeClass = (status?: string) => {
+    if (!status) return '';
+    return `status-${status}`;
+  };
+
+  const getStatusBadgeLabel = (status?: string) => {
+    switch (status) {
+      case 'accept':
+        return '✓ Accepted';
+      case 'reject':
+        return '✗ Rejected';
+      case 'modify':
+        return 'Modify';
+      default:
+        return '';
+    }
+  };
 
   return (
     <div className="pair-programming-area">
-      {/* Header with actions */}
+      {/* Sticky Header */}
       <div className="pair-programming-header">
         <div className="header-info">
           <Code2 size={20} />
@@ -425,389 +349,294 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         </div>
       </div>
 
-      {/* Column Selector Toolbar */}
-      <div className="column-selector-toolbar">
-        <Dropdown
-          open={columnDropdownOpen}
-          onOpenChange={(open) => setColumnDropdownOpen(open)}
-          menu={{
-            items: COLUMN_DEFINITIONS.map(column => ({
-              key: column.id,
-              label: (
-                <div 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!column.alwaysVisible && !(column.isAdvanced && !showAdvancedColumns)) {
-                      toggleColumn(column.id);
-                    }
-                  }}
-                  style={{ width: '100%', cursor: 'pointer' }}
-                >
-                  <Checkbox
-                    checked={visibleColumns.has(column.id)}
-                    disabled={column.alwaysVisible || (column.isAdvanced && !showAdvancedColumns)}
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {column.label}
-                    {column.alwaysVisible && ' (Always visible)'}
-                    {column.isAdvanced && !showAdvancedColumns && ' (Generate snippets first)'}
-                  </Checkbox>
-                </div>
-              ),
-              onClick: () => {
-                // Prevent menu from closing
-                return false;
-              }
-            }))
-          }}
-          trigger={['click']}
-        >
-          <Button icon={<Columns size={16} />}>
-            Customize Columns ({visibleColumns.size}/{COLUMN_DEFINITIONS.length})
-          </Button>
-        </Dropdown>
-        <span className="toolbar-hint">
-          Select which columns to display in the table
-        </span>
-      </div>
-
-      {/* Visibility Controls Toolbar */}
-      <div className="visibility-controls-toolbar">
-        <div className="control-group">
-          <span className="control-label">View Density:</span>
-          <Segmented
-            value={viewDensity}
-            onChange={(value) => setViewDensity(value as 'compact' | 'comfortable' | 'spacious')}
-            options={[
-              { label: 'Compact', value: 'compact', icon: <ZoomOut size={14} /> },
-              { label: 'Comfortable', value: 'comfortable', icon: <Maximize2 size={14} /> },
-              { label: 'Spacious', value: 'spacious', icon: <ZoomIn size={14} /> }
-            ]}
-          />
-        </div>
-        
-        <div className="control-group">
-          <span className="control-label">Column Width:</span>
-          <Segmented
-            value={columnWidthPreset}
-            onChange={(value) => setColumnWidthPreset(value as 'narrow' | 'standard' | 'wide')}
-            options={[
-              { label: 'Narrow', value: 'narrow' },
-              { label: 'Standard', value: 'standard' },
-              { label: 'Wide', value: 'wide' }
-            ]}
-          />
-        </div>
-        
-        <div className="scroll-hint">
-          <Info size={14} />
-          <span>Use horizontal scrollbar below to view all columns</span>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className={`pair-programming-table-container density-${viewDensity} width-${columnWidthPreset}`}>
-        {!showAdvancedColumns && (
-          <div className="pair-programming-hint">
-            <Info size={16} />
-            <div>
-              <div className="hint-title">Pair programming helpers will appear after AI inputs are generated.</div>
-              <div className="hint-subtitle">Click "Get AI Inputs" to reveal coding rationale, snippet previews, acceptance, and notes.</div>
-            </div>
+      {/* Scrollable Content Area with Search & Filter */}
+      <div className="pair-programming-area-content">
+        {/* Search & Filter Toolbar */}
+        <div className="pair-programming-toolbar">
+          <div className="search-box">
+            <Search size={16} />
+            <input
+              type="text"
+              placeholder="Search variables by name or label..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="search-input"
+            />
+            {searchQuery && (
+              <button 
+                className="search-clear"
+                onClick={() => setSearchQuery('')}
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
           </div>
-        )}
-        <table className="pair-programming-table">
-          <thead>
-            <tr>
-              {isColumnVisible('variable') && <th className="col-variable">Variable</th>}
-              {isColumnVisible('label') && <th className="col-label">Label</th>}
-              {isColumnVisible('type') && <th className="col-type">Type</th>}
-              {isColumnVisible('length') && <th className="col-length">Length</th>}
-              {isColumnVisible('format') && <th className="col-format">Format</th>}
-              {isColumnVisible('origin') && <th className="col-origin">Origin</th>}
-              {isColumnVisible('derivation') && <th className="col-derivation">Derivation Logic</th>}
-              {isColumnVisible('rationale') && <th className="col-rationale">Coding Rationale</th>}
-              {isColumnVisible('code') && <th className="col-code">Code Snippet ({programmingLanguage})</th>}
-              {isColumnVisible('acceptance') && <th className="col-acceptance">Acceptance</th>}
-              {isColumnVisible('notes') && <th className="col-notes">User Notes</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {variables.map((variable) => {
+
+          <div className="filter-buttons">
+            <button 
+              className={`filter-btn ${filterStatus === 'all' ? 'active' : ''}`}
+              onClick={() => setFilterStatus('all')}
+            >
+              All ({variables.length})
+            </button>
+            <button 
+              className={`filter-btn ${filterStatus === 'generated' ? 'active' : ''}`}
+              onClick={() => setFilterStatus('generated')}
+            >
+              Generated ({Object.keys(pairProgramming.snippets).length})
+            </button>
+            <button 
+              className={`filter-btn ${filterStatus === 'pending' ? 'active' : ''}`}
+              onClick={() => setFilterStatus('pending')}
+            >
+              Pending ({variables.length - Object.keys(pairProgramming.snippets).length})
+            </button>
+          </div>
+        </div>
+
+        {/* Variables Grid */}
+        {filteredVariables.length > 0 ? (
+          <div className="pair-programming-variables-grid">
+            {filteredVariables.map((variable) => {
               const snippet = pairProgramming.snippets[variable.name];
               const isGenerating = pairProgramming.isGenerating[variable.name];
-              const isExpanded = expandedRationale.has(variable.name);
+              const isExpanded = expandedCards.has(variable.name);
               const trimmedNotes = snippet?.userNotes?.trim() ?? '';
               const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
-              const canRegenerate = snippet?.accepted === 'modify' && Boolean(trimmedNotes) && Boolean(snippet?.codeSnippet);
-              const regenerateDisabled = !canRegenerate || !!isGenerating;
-              const regenerateTitle = (() => {
-                if (isGenerating) {
-                  return 'Please wait until this variable finishes generating.';
-                }
-                if (!snippet?.codeSnippet) {
-                  return 'Generate code for this variable first.';
-                }
-                if (snippet?.accepted !== 'modify') {
-                  return 'Select "Modify" to enable note-driven refresh.';
-                }
-                if (!trimmedNotes) {
-                  return 'Add user notes describing the change before refreshing.';
-                }
-                return 'Refresh this snippet using your notes.';
-              })();
-              const notesHint = (() => {
-                if (!snippet?.codeSnippet) {
-                  return 'Generate code to start capturing notes.';
-                }
-                if (snippet?.accepted !== 'modify') {
-                  return 'Select "Modify" when you need to guide the AI.';
-                }
-                if (!trimmedNotes) {
-                  return 'User notes are required to request updated code.';
-                }
-                return 'Notes saved. Click the refresh icon to regenerate.';
-              })();
-              const notesPlaceholder =
-                snippet?.accepted === 'modify'
-                  ? 'Describe the change you expect in this snippet...'
-                  : 'Select "Modify" to enable notes';
-
-              // Debug log for first few variables
-              if (variables.indexOf(variable) < 3) {
-                console.log(`[PairProgrammingArea] Variable ${variable.name}:`, {
-                  hasSnippet: !!snippet,
-                  snippet: snippet,
-                  codeSnippet: snippet?.codeSnippet,
-                  rationale: snippet?.rationale,
-                  error: snippet?.error
-                });
-              }
 
               return (
-                <tr key={variable.name} className={`variable-row ${snippet?.accepted === 'modify' ? 'needs-modification' : ''}`}>
-                  {/* Variable */}
-                  {isColumnVisible('variable') && (
-                    <td className="col-variable">
-                      <div className="variable-name-cell">
-                        <span className="variable-name">{variable.name}</span>
-                        {variable.is_required && (
-                          <span className="required-badge">Required</span>
-                        )}
+                <div 
+                  key={variable.name}
+                  className={`variable-card ${isExpanded ? 'expanded' : ''}`}
+                  onClick={() => toggleCardExpansion(variable.name)}
+                >
+                  {/* Card Header */}
+                  <div className="variable-card-header">
+                    <div className="variable-card-title">
+                      <div className="variable-card-name">
+                        {variable.name}
                       </div>
-                    </td>
-                  )}
-                  
-                  {/* Label */}
-                  {isColumnVisible('label') && (
-                    <td className="col-label">
-                      <div className="label-cell">
-                        {variable.label ? (
-                          <Tooltip title={variable.label}>
-                            <span className="variable-label">{variable.label}</span>
-                          </Tooltip>
-                        ) : (
-                          <span className="no-data">—</span>
-                        )}
+                      <div className="variable-card-label">
+                        {variable.label || 'No label'}
                       </div>
-                    </td>
-                  )}
+                    </div>
+                    
+                    <div className="variable-card-badges">
+                      {variable.is_required && (
+                        <span className="variable-badge required">Required</span>
+                      )}
+                      {isGenerating && (
+                        <span className="variable-badge status-pending">
+                          ⏳ Generating
+                        </span>
+                      )}
+                      {!isGenerating && snippet?.accepted && (
+                        <span className={`variable-badge ${getStatusBadgeClass(snippet.accepted)}`}>
+                          {getStatusBadgeLabel(snippet.accepted)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-                  {/* Type */}
-                  {isColumnVisible('type') && (
-                    <td className="col-type">
-                      <div className="type-cell">
-                        {variable.type ? (
-                          <span className={`type-badge type-${variable.type.toLowerCase()}`}>
-                            {variable.type}
-                          </span>
-                        ) : (
-                          <span className="no-data">—</span>
-                        )}
+                  {/* Quick Info */}
+                  <div className="variable-card-content">
+                    <div className="variable-info-row">
+                      <div className="variable-info-label">Type:</div>
+                      <div className="variable-info-value">
+                        {variable.type || '—'}
                       </div>
-                    </td>
-                  )}
+                    </div>
 
-                  {/* Length */}
-                  {isColumnVisible('length') && (
-                    <td className="col-length">
-                      <div className="length-chip">
-                        {variable.length ? (
-                          <span className="chip chip-length">{variable.length}</span>
-                        ) : (
-                          <span className="no-data">—</span>
-                        )}
+                    {variable.length && (
+                      <div className="variable-info-row">
+                        <div className="variable-info-label">Length:</div>
+                        <div className="variable-info-value">{variable.length}</div>
                       </div>
-                    </td>
-                  )}
-                  
-                  {/* Format */}
-                  {isColumnVisible('format') && (
-                    <td className="col-format">
-                      <div className="format-chip">
-                        {variable.format ? (
-                          <span className="chip chip-format">{variable.format}</span>
-                        ) : (
-                          <span className="no-data">—</span>
-                        )}
-                      </div>
-                    </td>
-                  )}
+                    )}
 
-                  {/* Origin */}
-                  {isColumnVisible('origin') && (
-                    <td className="col-origin">
-                      <div className="origin-cell">
-                        {variable.origin || variable.extra?.Origin || variable.extra?.origin ? (
-                          <span className="origin-text">
-                            {variable.origin || variable.extra?.Origin || variable.extra?.origin}
-                          </span>
-                        ) : (
-                          <span className="no-data">—</span>
-                        )}
+                    {variable.format && (
+                      <div className="variable-info-row">
+                        <div className="variable-info-label">Format:</div>
+                        <div className="variable-info-value">{variable.format}</div>
                       </div>
-                    </td>
-                  )}
+                    )}
 
-                  {/* Derivation Logic */}
-                  {isColumnVisible('derivation') && (
-                    <td className="col-derivation">
-                      <div className="derivation-text">
-                        {getDerivationText(variable)}
+                    <div className="variable-info-row">
+                      <div className="variable-info-label">Origin:</div>
+                      <div className="variable-info-value">
+                        {variable.origin || variable.extra?.Origin || variable.extra?.origin || '—'}
                       </div>
-                    </td>
-                  )}
+                    </div>
+                  </div>
 
-                  {/* Coding Rationale */}
-                  {isColumnVisible('rationale') && (
-                    <td className="col-rationale">
-                      {snippet?.rationale ? (
-                        <div className="rationale-cell">
-                          <div className={`rationale-text ${isExpanded ? 'expanded' : ''}`}>
+                  {/* Expandable Details */}
+                  {isExpanded && (
+                    <div className="variable-card-details">
+                      {/* Derivation */}
+                      {variable.derivation && (
+                        <div className="detail-block">
+                          <div className="detail-block-title">Derivation Logic</div>
+                          <div className="detail-block-content">
+                            {getDerivationText(variable)}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Rationale */}
+                      {snippet?.rationale && (
+                        <div className="detail-block">
+                          <div className="detail-block-title">Coding Rationale</div>
+                          <div className="detail-block-content">
                             {snippet.rationale}
                           </div>
-                          {snippet.rationale.length > 150 && (
-                            <button
-                              className="expand-button"
-                              onClick={() => toggleRationale(variable.name)}
-                            >
-                              {isExpanded ? 'Show less' : 'Show more'}
-                            </button>
+                        </div>
+                      )}
+
+                      {/* Code Snippet */}
+                      {isGenerating ? (
+                        <div className="detail-block">
+                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                          <div className="code-loading-expanded">
+                            <Loader2 size={20} className="spinning" />
+                            <span>Generating code...</span>
+                          </div>
+                        </div>
+                      ) : snippet?.error ? (
+                        <div className="detail-block">
+                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                          <div className="code-error-expanded">
+                            <AlertCircle size={16} />
+                            <span>{snippet.error}</span>
+                          </div>
+                        </div>
+                      ) : snippet?.codeSnippet ? (
+                        <div className="detail-block">
+                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                          <pre className="detail-code-block">
+                            <code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} />
+                          </pre>
+                          {snippet?.metadata?.user_note_applied && (
+                            <div className="code-badge-expanded note-applied">
+                              ✓ Generated using user notes
+                            </div>
                           )}
                         </div>
                       ) : (
-                        <span className="no-data">—</span>
+                        <div className="detail-block">
+                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                          <div className="detail-block-content" style={{ color: '#9ca3af' }}>
+                            Not generated yet. Click "Generate" below.
+                          </div>
+                        </div>
                       )}
-                    </td>
-                  )}
 
-                  {/* Code Snippet */}
-                  {isColumnVisible('code') && (
-                    <td className="col-code">
-                      {isGenerating ? (
-                        <div className="code-loading">
-                          <Loader2 size={20} className="spinning" />
-                          <span>Generating code...</span>
+                      {/* User Notes */}
+                      {snippet?.accepted === 'modify' && (
+                        <div className="detail-block">
+                          <div className="detail-block-title">User Notes</div>
+                          <textarea
+                            className={`detail-textarea ${needsNotes ? 'required' : ''}`}
+                            placeholder="Describe the change you expect in this snippet..."
+                            value={snippet?.userNotes || ''}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              handleNotesChange(variable.name, e.target.value);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            rows={3}
+                          />
                         </div>
-                      ) : snippet?.error ? (
-                        <div className="code-error">
-                          <AlertCircle size={16} />
-                          <span>{snippet.error}</span>
-                          <button 
-                            className="retry-button"
-                            onClick={() => handleGenerateSnippet(variable)}
-                          >
-                            <RefreshCw size={14} />
-                            Retry
-                          </button>
-                        </div>
-                      ) : snippet?.codeSnippet ? (
-                        <div className="code-snippet-cell">
-                          <div className="code-actions">
-                            {snippet?.metadata?.user_note_applied && (
-                              <span
-                                className="code-badge note-applied"
-                                title={snippet?.metadata?.user_note_summary || 'Generated using user notes'}
-                              >
-                                Notes applied
-                              </span>
-                            )}
+                      )}
+
+                      {/* Acceptance Buttons */}
+                      {snippet?.codeSnippet && (
+                        <div className="detail-block">
+                          <div className="detail-block-title">Acceptance</div>
+                          <div className="acceptance-button-group">
                             <button
-                              className="regenerate-button"
-                              onClick={() => handleRegenerateWithConfirmation(variable)}
-                              disabled={regenerateDisabled}
-                              title={regenerateTitle}
+                              className={`acceptance-btn ${snippet?.accepted === 'accept' ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAcceptanceChange(variable.name, 'accept');
+                              }}
                             >
-                              <RefreshCw size={14} />
+                              ✓ Accept
+                            </button>
+                            <button
+                              className={`acceptance-btn ${snippet?.accepted === 'modify' ? 'active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAcceptanceChange(variable.name, 'modify');
+                              }}
+                            >
+                              ✎ Modify
                             </button>
                           </div>
-                          <pre className="code-block">
-                            <code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} />
-                          </pre>
-                        </div>
-                      ) : (
-                        <div className="code-placeholder">
-                          —
                         </div>
                       )}
-                    </td>
+                    </div>
                   )}
 
-                  {/* Acceptance */}
-                  {isColumnVisible('acceptance') && (
-                    <td className="col-acceptance">
-                      <div className="acceptance-cell">
-                        <div className="radio-group">
-                          <label className="radio-option">
-                            <input
-                              type="radio"
-                              name={`acceptance-${variable.name}`}
-                              value="accept"
-                              checked={snippet?.accepted === 'accept'}
-                              onChange={() => handleAcceptanceChange(variable.name, 'accept')}
-                              disabled={!snippet?.codeSnippet}
-                            />
-                            <span className="radio-label">Accept</span>
-                          </label>
-                          <label className="radio-option">
-                            <input
-                              type="radio"
-                              name={`acceptance-${variable.name}`}
-                              value="modify"
-                              checked={snippet?.accepted === 'modify'}
-                              onChange={() => handleAcceptanceChange(variable.name, 'modify')}
-                              disabled={!snippet?.codeSnippet}
-                            />
-                            <span className="radio-label">Modify</span>
-                          </label>
-                        </div>
-                      </div>
-                    </td>
-                  )}
-
-                  {/* User Notes */}
-                  {isColumnVisible('notes') && (
-                    <td className="col-notes">
-                      <div className="notes-field">
-                        <textarea
-                          className={`notes-textarea ${needsNotes ? 'modify-required' : ''}`}
-                          placeholder={notesPlaceholder}
-                          value={snippet?.userNotes || ''}
-                          onChange={(e) => handleNotesChange(variable.name, e.target.value)}
-                          rows={3}
-                          disabled={snippet?.accepted === 'accept' || !snippet?.codeSnippet}
-                        />
-                        <div className={`notes-hint ${needsNotes ? 'warning' : ''}`}>
-                          {notesHint}
-                        </div>
-                      </div>
-                    </td>
-                  )}
-                </tr>
+                  {/* Card Footer - Actions */}
+                  <div className="variable-card-footer" onClick={(e) => e.stopPropagation()}>
+                    <button 
+                      className="secondary"
+                      onClick={() => toggleCardExpansion(variable.name)}
+                      title={isExpanded ? 'Show less' : 'Show more details'}
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp size={14} />
+                          Show Less
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown size={14} />
+                          Show More
+                        </>
+                      )}
+                    </button>
+                    <button 
+                      className="primary"
+                      onClick={() => handleGenerateSnippet(variable)}
+                      disabled={isGenerating}
+                      title={isGenerating ? 'Generating code...' : 'Generate AI code snippet'}
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 size={14} className="spinning" />
+                          Generating...
+                        </>
+                      ) : snippet?.accepted === 'modify' && trimmedNotes ? (
+                        <>
+                          <RefreshCw size={14} />
+                          Regenerate
+                        </>
+                      ) : (
+                        <>
+                          <Code2 size={14} />
+                          Generate
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
+          </div>
+        ) : (
+          <div className="pair-programming-empty">
+            <div className="pair-programming-empty-title">
+              {searchQuery ? 'No Variables Match Your Search' : 'No Variables Found'}
+            </div>
+            <div className="pair-programming-empty-subtitle">
+              {searchQuery 
+                ? 'Try adjusting your search filters' 
+                : 'Load a dataset to see variables here'}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

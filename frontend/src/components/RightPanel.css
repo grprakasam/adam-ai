@@ -67,14 +67,28 @@
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .right-panel {
-    padding: var(--mobile-spacing);
+    padding: 12px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    min-height: calc(100vh - var(--mobile-header-height));
+    min-height: calc(100vh - var(--mobile-header-height, 56px));
+    width: 100%;
   }
 
   .right-panel.locked {
-    padding: var(--space-4);
+    padding: 16px;
+  }
+
+  .right-panel .workspace-utilities {
+    position: static;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .right-panel .workspace-navigation-section {
+    position: static;
+    margin-bottom: 12px;
+    padding: 12px;
   }
 }
 

@@ -62,7 +62,28 @@
   }
 
   .tab-panel {
-    padding: var(--space-4);
+    padding: 16px;
+  }
+
+  .generate-cta {
+    padding: 16px;
+  }
+
+  .generate-button {
+    height: 44px;
+    font-size: 14px;
+  }
+}
+
+/* Large tablets and iPad Pro */
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .left-panel {
+    width: 340px;
+    min-width: 340px;
+  }
+
+  .tab-panel {
+    padding: 20px;
   }
 }
 
