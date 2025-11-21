@@ -3,16 +3,87 @@
 .pair-programming-area {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 24px;
+  width: 100%;
+  height: 100%;
   background: #f8f9fa;
   border-radius: 12px;
   margin-top: 20px;
-  /* Ensure the area doesn't auto-widen with table content */
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden; /* Prevent content from causing horizontal expansion */
   box-sizing: border-box;
+  overflow: hidden; /* Prevent outer overflow */
+}
+
+/* Main content area with split panes */
+.pair-programming-area-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Left pane - Table */
+.pair-programming-left-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  border-right: 2px solid #e5e7eb;
+}
+
+/* Right pane - Details panel */
+.pair-programming-right-pane {
+  width: 400px;
+  background: white;
+  border-left: 1px solid #e5e7eb;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.pair-programming-right-panel-content {
+  padding: 24px;
+  flex: 1;
+}
+
+.pair-programming-right-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #9ca3af;
+  text-align: center;
+  gap: 12px;
+}
+
+.pair-programming-right-panel-empty svg {
+  opacity: 0.5;
+  width: 48px;
+  height: 48px;
+}
+
+.pair-programming-right-panel-empty p {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.pair-programming-area > * {
+  flex-shrink: 0; /* Prevent shrinking */
+}
+
+.pair-programming-area > .pair-programming-header,
+.pair-programming-area > .column-selector-toolbar,
+.pair-programming-area > .scroll-hint {
+  flex-shrink: 0; /* Keep header/toolbar fixed */
+}
+
+.pair-programming-area > .pair-programming-table-container {
+  flex: 1; /* Take remaining space */
+  overflow-x: auto; /* Horizontal scrolling for table */
+  overflow-y: auto; /* Vertical scrolling for table */
+  min-height: 0; /* Important for flex children to scroll */
 }
 
 /* Mobile responsiveness */
@@ -23,6 +94,21 @@
     border-radius: 8px;
     margin-top: 16px;
   }
+
+  .pair-programming-area-content {
+    flex-direction: column;
+  }
+
+  .pair-programming-left-pane {
+    border-right: none;
+  }
+
+  .pair-programming-right-pane {
+    width: 100%;
+    border-left: none;
+    border-top: 2px solid #e5e7eb;
+    max-height: 300px;
+  }
 }
 
 /* Header - Enhanced with gradient and better spacing */
@@ -32,10 +118,11 @@
   align-items: center;
   padding: 16px 24px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border-radius: 10px;
+  border-radius: 0;
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25),
-              0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2),
+              0 1px 2px rgba(0, 0, 0, 0.1);
+  min-height: fit-content;
 }
 
 .header-info {
@@ -113,11 +200,11 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-  border-radius: 8px;
-  border: 1px solid #bae6fd;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 12px 24px;
+  background: white;
+  border-radius: 0;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: none;
 }
 
 .column-selector-toolbar button {
@@ -194,10 +281,10 @@
   align-items: center;
   gap: 8px;
   margin-left: auto;
-  padding: 8px 16px;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  border-radius: 6px;
-  border: 1px solid #fbbf24;
+  padding: 12px 24px;
+  background: #fef3c7;
+  border-radius: 0;
+  border-bottom: 1px solid #fcd34d;
   font-size: 12px;
   font-weight: 600;
   color: #92400e;
@@ -333,23 +420,21 @@
 
 /* Table Container - Enhanced with better shadows and INCREASED HEIGHT FOR MORE RECORDS */
 .pair-programming-table-container {
-  overflow-x: scroll; /* Horizontal scrollbar always visible */
+  overflow-x: auto; /* Horizontal scrollbar when needed */
   overflow-y: auto; /* Vertical scrollbar when needed */
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06),
-              0 4px 12px rgba(0, 0, 0, 0.08),
-              0 8px 24px rgba(0, 0, 0, 0.04);
+  border-radius: 0;
+  box-shadow: none;
   border: 1px solid #e5e7eb;
+  border-top: none;
   position: relative; /* Required for sticky positioning context */
-  flex: 1; /* Take remaining space in parent container */
-  max-height: 600px; /* Maximum height to enable scrolling and sticky header */
-  min-height: 400px; /* Minimum height to ensure usability */
-  width: 100%; /* Fixed width - takes full width of parent */
-  max-width: 100%; /* Prevent container from expanding beyond parent */
-  /* Prevent the container from auto-widening when content increases */
+  width: fit-content; /* Auto width based on table content */
+  min-width: 100%; /* Fill parent width */
+  max-width: none; /* Remove max-width restriction */
   box-sizing: border-box; /* Include padding and border in width calculation */
   display: block; /* Ensure block display for proper overflow behavior */
+  padding: 0; /* Remove padding */
+  margin: 0; /* Remove margin */
 }
 
 .pair-programming-hint {
@@ -552,12 +637,14 @@
 
 /* Table - Enhanced typography and spacing with proper alignment */
 .pair-programming-table {
-  width: max-content; /* Allow table to grow beyond container width */
-  min-width: 1400px; /* Minimum width to ensure horizontal scrollbar appears */
+  width: auto; /* Auto width based on total column widths */
   border-collapse: collapse; /* Ensures borders merge properly */
-  table-layout: auto; /* Auto layout to respect content and min-width */
+  table-layout: fixed; /* Fixed layout for consistent column widths */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', sans-serif;
   display: table !important; /* Force table display */
+  margin: 0;
+  padding: 0;
+  background: white;
 }
 
 .pair-programming-table thead {
@@ -584,13 +671,13 @@
 }
 
 .pair-programming-table th {
-  padding: 18px 20px;
+  padding: 14px 12px;
   text-align: left;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #374151;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.6px;
   border-bottom: 3px solid #10b981;
   white-space: nowrap;
   background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
@@ -619,16 +706,18 @@
 
 /* Cell styles - all borders here for consistent alignment */
 .pair-programming-table td {
-  padding: 20px;
+  padding: 12px;
   vertical-align: top;
   background: white;
   transition: all 0.2s ease;
   border-bottom: 3px solid #000000; /* Black horizontal line */
   border-right: 1px solid #e5e7eb; /* Light vertical separator */
   box-sizing: border-box; /* Include padding in width calculation */
-  overflow: visible; /* Allow content to display properly */
+  overflow: hidden;
+  text-overflow: ellipsis;
   word-wrap: break-word; /* Enable word wrapping */
   word-break: break-word; /* Break long words if needed */
+  font-size: 12px;
 }
 
 .pair-programming-table td:last-child {
@@ -639,180 +728,192 @@
   background: transparent;
 }
 
-/* Column Widths - Optimized for readability (STANDARD) */
+/* Column Widths - Optimized for readability (STANDARD) - FIXED WIDTHS */
 .col-variable {
-  width: 200px;
-  min-width: 180px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
 }
 
 .col-label {
-  width: 300px;
-  min-width: 250px;
+  width: 160px;
+  min-width: 160px;
+  max-width: 160px;
 }
 
 .col-type {
-  width: 110px;
-  min-width: 110px;
+  width: 75px;
+  min-width: 75px;
+  max-width: 75px;
   text-align: center;
 }
 
 .col-length,
 .col-format {
-  width: 110px;
-  min-width: 100px;
+  width: 75px;
+  min-width: 75px;
+  max-width: 75px;
   text-align: center;
 }
 
 .col-origin {
-  width: 150px;
-  min-width: 150px;
-  max-width: 150px;
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
 }
 
 .col-derivation {
-  width: 250px;
-  min-width: 250px;
-  max-width: 250px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
 }
 
 .col-rationale {
-  width: 300px;
-  min-width: 300px;
-  max-width: 300px;
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
 }
 
 .col-code {
-  width: 400px;
-  min-width: 400px;
-  max-width: 400px;
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
 }
 
 .col-acceptance {
-  width: 150px;
-  min-width: 150px;
-  max-width: 150px;
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
 }
 
 .col-notes {
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
-}
-
-/* Column Width Presets - NARROW */
-.pair-programming-table-container.width-narrow .col-variable {
-  width: 150px;
-  min-width: 130px;
-}
-
-.pair-programming-table-container.width-narrow .col-label {
-  width: 200px;
-  min-width: 180px;
-}
-
-.pair-programming-table-container.width-narrow .col-type {
-  width: 90px;
-  min-width: 90px;
-}
-
-.pair-programming-table-container.width-narrow .col-length,
-.pair-programming-table-container.width-narrow .col-format {
-  width: 90px;
-  min-width: 80px;
-}
-
-.pair-programming-table-container.width-narrow .col-origin {
   width: 120px;
   min-width: 120px;
   max-width: 120px;
 }
 
+/* Column Width Presets - NARROW */
+.pair-programming-table-container.width-narrow .col-variable {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+}
+
+.pair-programming-table-container.width-narrow .col-label {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+
+.pair-programming-table-container.width-narrow .col-type {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+}
+
+.pair-programming-table-container.width-narrow .col-length,
+.pair-programming-table-container.width-narrow .col-format {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+}
+
+.pair-programming-table-container.width-narrow .col-origin {
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+}
+
 .pair-programming-table-container.width-narrow .col-derivation {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+}
+
+.pair-programming-table-container.width-narrow .col-rationale {
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
+}
+
+.pair-programming-table-container.width-narrow .col-code {
+  width: 140px;
+  min-width: 140px;
+  max-width: 140px;
+}
+
+.pair-programming-table-container.width-narrow .col-acceptance {
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+}
+
+.pair-programming-table-container.width-narrow .col-notes {
+  width: 90px;
+  min-width: 90px;
+  max-width: 90px;
+}
+
+/* Column Width Presets - WIDE */
+.pair-programming-table-container.width-wide .col-variable {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+}
+
+.pair-programming-table-container.width-wide .col-label {
   width: 200px;
   min-width: 200px;
   max-width: 200px;
 }
 
-.pair-programming-table-container.width-narrow .col-rationale {
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
+.pair-programming-table-container.width-wide .col-type {
+  width: 85px;
+  min-width: 85px;
+  max-width: 85px;
 }
 
-.pair-programming-table-container.width-narrow .col-code {
-  width: 320px;
-  min-width: 320px;
-  max-width: 320px;
+.pair-programming-table-container.width-wide .col-length,
+.pair-programming-table-container.width-wide .col-format {
+  width: 85px;
+  min-width: 85px;
+  max-width: 85px;
 }
 
-.pair-programming-table-container.width-narrow .col-acceptance {
+.pair-programming-table-container.width-wide .col-origin {
   width: 130px;
   min-width: 130px;
   max-width: 130px;
 }
 
-.pair-programming-table-container.width-narrow .col-notes {
-  width: 180px;
-  min-width: 180px;
-  max-width: 180px;
-}
-
-/* Column Width Presets - WIDE */
-.pair-programming-table-container.width-wide .col-variable {
-  width: 250px;
-  min-width: 230px;
-}
-
-.pair-programming-table-container.width-wide .col-label {
-  width: 400px;
-  min-width: 350px;
-}
-
-.pair-programming-table-container.width-wide .col-type {
-  width: 130px;
-  min-width: 130px;
-}
-
-.pair-programming-table-container.width-wide .col-length,
-.pair-programming-table-container.width-wide .col-format {
-  width: 130px;
-  min-width: 120px;
-}
-
-.pair-programming-table-container.width-wide .col-origin {
-  width: 200px;
-  min-width: 200px;
-  max-width: 200px;
-}
-
 .pair-programming-table-container.width-wide .col-derivation {
-  width: 350px;
-  min-width: 350px;
-  max-width: 350px;
+  width: 170px;
+  min-width: 170px;
+  max-width: 170px;
 }
 
 .pair-programming-table-container.width-wide .col-rationale {
-  width: 400px;
-  min-width: 400px;
-  max-width: 400px;
-}
-
-.pair-programming-table-container.width-wide .col-code {
-  width: 550px;
-  min-width: 550px;
-  max-width: 550px;
-}
-
-.pair-programming-table-container.width-wide .col-acceptance {
   width: 180px;
   min-width: 180px;
   max-width: 180px;
 }
 
+.pair-programming-table-container.width-wide .col-code {
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+}
+
+.pair-programming-table-container.width-wide .col-acceptance {
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
+}
+
 .pair-programming-table-container.width-wide .col-notes {
-  width: 280px;
-  min-width: 280px;
-  max-width: 280px;
+  width: 150px;
+  min-width: 150px;
+  max-width: 150px;
 }
 .notes-field {
   display: flex;
@@ -1040,21 +1141,34 @@
   transform: translateY(-1px);
 }
 
-/* Code Snippet Cell - Professional code display */
+/* Code Snippet Cell - Modern Card Design */
 .code-snippet-cell {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  min-width: 0; /* Allow flexbox to shrink */
-  max-width: 100%; /* Prevent overflow */
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+}
+
+.code-snippet-cell:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
 }
 
 .code-actions {
   display: flex;
   gap: 8px;
-  margin-bottom: 4px;
-  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  flex-wrap: wrap;
   align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .code-badge {
@@ -1139,29 +1253,75 @@
 
 .code-block {
   margin: 0;
-  padding: 16px;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 2px solid #334155;
+  padding: 20px;
+  background: linear-gradient(135deg, #f0f4f8 0%, #e8ecf1 100%);
+  border: 1px solid #cbd5e1;
   border-radius: 10px;
   overflow-x: auto;
   max-height: 320px;
   overflow-y: auto;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3),
-              0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04);
   position: relative;
+  transition: all 0.2s ease;
+}
+
+.code-block:hover {
+  background: linear-gradient(135deg, #e8ecf1 0%, #dce2e8 100%);
+  border-color: #94a3b8;
 }
 
 .code-block code {
-  font-family: 'Fira Code', 'SF Mono', 'Consolas', 'Monaco', monospace;
+  font-family: 'Fira Code', 'SF Mono', 'Consolas', 'Monaco', 'Cascadia Code', monospace;
   font-size: 13px;
-  color: #f1f5f9;
+  color: #1e293b;
   line-height: 1.8;
-  white-space: pre-wrap; /* Enable wrapping */
-  word-wrap: break-word; /* Break long words */
-  word-break: break-word; /* Break long words */
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-word;
   display: block;
-  overflow-wrap: break-word; /* Modern word breaking */
+  overflow-wrap: break-word;
+  font-weight: 400;
 }
+
+/* Syntax Highlighting Colors - GitHub Light Theme */
+.code-block .keyword {
+  color: #cf222e;
+  font-weight: 600;
+}
+
+.code-block .function {
+  color: #8250df;
+  font-weight: 500;
+}
+
+.code-block .variable {
+  color: #0969da;
+  font-weight: 500;
+}
+
+.code-block .string {
+  color: #0a3069;
+  background: rgba(84, 174, 255, 0.08);
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+.code-block .number {
+  color: #0550ae;
+  font-weight: 500;
+}
+
+.code-block .comment {
+  color: #57606a;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+.code-block .operator {
+  color: #cf222e;
+  font-weight: 600;
+}
+
 
 .generate-button {
   display: flex;
@@ -1194,24 +1354,24 @@
 }
 
 .code-block::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #f1f5f9;
   border-radius: 5px;
 }
 
 .code-block::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #475569 0%, #334155 100%);
+  background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
   border-radius: 5px;
-  border: 2px solid #0f172a;
+  border: 2px solid #f1f5f9;
 }
 
 .code-block::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+  background: linear-gradient(135deg, #afb8c1 0%, #8c959f 100%);
 }
 
 .code-placeholder {
-  padding: 16px;
+  padding: 24px;
   border: 2px dashed #cbd5e1;
-  border-radius: 8px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   color: #64748b;
   font-size: 13px;
@@ -1779,5 +1939,121 @@
 .notes-textarea.modify-required::placeholder {
   color: #d97706;
   font-weight: var(--font-weight-medium);
+}
+
+/* ===== RIGHT PANEL DETAIL STYLES ===== */
+
+.right-panel-variable-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-section-content {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.detail-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #f0f4f8 0%, #e8ecf1 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-top: 8px;
+}
+
+.detail-code-block {
+  background: linear-gradient(135deg, #f0f4f8 0%, #f1f5f9 100%);
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 12px;
+  font-family: 'Fira Code', 'SF Mono', 'Consolas', monospace;
+  font-size: 11px;
+  color: #1e293b;
+  overflow-x: auto;
+  line-height: 1.6;
+  max-height: 200px;
+}
+
+.right-panel-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  margin-top: 12px;
+}
+
+.right-panel-actions button {
+  flex: 1;
+  min-width: 80px;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.right-panel-actions button:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #1f2937;
+}
+
+.right-panel-actions button.primary {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.right-panel-actions button.primary:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+.detail-value-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.detail-value-label {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #1f2937;
+  font-weight: 600;
 }
 

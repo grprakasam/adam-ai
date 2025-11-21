@@ -9,13 +9,11 @@ import {
   Modal,
   Progress,
   Radio,
-  Select,
   Space,
   Switch,
   Tag,
-  Tooltip,
 } from 'antd';
-import { DownloadOutlined, RedoOutlined, FileDoneOutlined, CopyOutlined, CheckCircleOutlined, CloseOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
+import { DownloadOutlined, FileDoneOutlined, CopyOutlined, CheckCircleOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons';
 import { Code2 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { useProjectStore } from '../store/projectStore';
@@ -170,8 +168,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
             <Descriptions.Item label="Categories">{variablesByCategory.size}</Descriptions.Item>
             <Descriptions.Item label="Language">{activeLanguage}</Descriptions.Item>
             <Descriptions.Item label="Comment Level">{commentVerbosity}</Descriptions.Item>
-            <Descriptions.Item label="Dataset">{projectConfig.adamDataset || 'ADSL'}</Descriptions.Item>
-            <Descriptions.Item label="Options" span={1}></Descriptions.Item>
+            <Descriptions.Item label="Dataset" span={2}>{projectConfig.adamDataset || 'ADSL'}</Descriptions.Item>
             <Descriptions.Item label="Metadata" span={2}>
               {includeMetadata ? '✓' : '✗'} Headers, 
               {includeTraceability ? ' ✓' : ' ✗'} Traceability, 

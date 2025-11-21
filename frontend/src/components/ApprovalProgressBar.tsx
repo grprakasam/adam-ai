@@ -1,8 +1,5 @@
 import React from 'react';
-import { Progress, Tooltip } from 'antd';
-import { Info } from 'lucide-react';
 import { useApprovalProgress } from '../hooks/useApprovalProgress';
-import { VisuallyHidden } from './a11y/VisuallyHidden';
 import './ApprovalProgressBar.css';
 
 /**
@@ -10,7 +7,7 @@ import './ApprovalProgressBar.css';
  * Shows approval progress and threshold status
  */
 export const ApprovalProgressBar: React.FC = () => {
-  const { totalVariables, approvedVariables, percentage, isReadyForGeneration } = 
+  const { totalVariables } = 
     useApprovalProgress();
 
   // Don't show if no variables

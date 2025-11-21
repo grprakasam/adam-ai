@@ -549,6 +549,28 @@ export const useProjectStore = create<ProjectStore>()(
         isWorkspaceInitialized: false,
       }),
 
+      // Clear all AI-generated results while preserving categorization
+      clearAllAIResults: () => set((state) => ({
+        pairProgramming: {
+          snippets: {},
+          rationales: {},
+          userNotes: {},
+          isGenerating: {},
+        },
+        consolidatedCode: null,
+        consolidatedProgress: 0,
+        consolidatedStatus: null,
+        consolidatedDuration: null,
+        traceabilityMatrix: null,
+        isGeneratingTraceability: false,
+        traceabilityError: null,
+        validationResults: null,
+        // Keep categorized variables and configuration
+        categorizedVariables: state.categorizedVariables,
+        projectConfig: state.projectConfig,
+        specificationFile: state.specificationFile,
+      })),
+
       // Cleanup all loading states
       cleanupLoadingStates: () =>
         set((state) => ({
