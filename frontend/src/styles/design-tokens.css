@@ -136,6 +136,20 @@
   --border-color: var(--gray-200);
   --border-color-hover: var(--gray-300);
   --border-color-focus: var(--primary-500);
+
+  /* === RESPONSIVE BREAKPOINTS === */
+  --breakpoint-xs: 320px;   /* Extra small devices (phones portrait) */
+  --breakpoint-sm: 640px;   /* Small devices (phones landscape) */
+  --breakpoint-md: 768px;   /* Medium devices (tablets) */
+  --breakpoint-lg: 1024px;  /* Large devices (laptops) */
+  --breakpoint-xl: 1280px;  /* Extra large devices (desktops) */
+  --breakpoint-2xl: 1536px; /* 2X large devices (large desktops) */
+
+  /* === MOBILE-SPECIFIC === */
+  --mobile-header-height: 56px;
+  --mobile-sidebar-width: 280px;
+  --mobile-spacing: 16px;
+  --touch-target-min: 44px; /* Minimum touch target size */
 }
 
 /* === DENSITY === */

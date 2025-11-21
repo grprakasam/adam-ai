@@ -92,12 +92,112 @@ a:focus-visible {
 .ant-input,
 .ant-select-selector {
   border-radius: 6px !important;
+  min-height: var(--touch-target-min);
 }
 
 .ant-btn {
   border-radius: 6px !important;
+  min-height: var(--touch-target-min);
+  padding: 0 16px;
 }
 
 .ant-tabs-tab {
   border-radius: 6px 6px 0 0 !important;
+  min-height: var(--touch-target-min);
+}
+
+/* === RESPONSIVE UTILITIES === */
+
+/* Mobile-first touch targets */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .ant-btn {
+    min-height: 48px;
+    padding: 0 20px;
+    font-size: 15px;
+  }
+
+  .ant-input,
+  .ant-select-selector {
+    min-height: 48px;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .ant-modal {
+    margin: 0;
+    max-width: 100%;
+  }
+
+  .ant-modal-content {
+    border-radius: 0;
+  }
+
+  .ant-drawer-content-wrapper {
+    width: 100% !important;
+    max-width: var(--mobile-sidebar-width) !important;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 768px) and (max-width: 1024px) {
+  :root {
+    --sidebar-width: 320px;
+  }
+}
+
+/* Hide on mobile */
+.hide-mobile {
+  display: initial;
+}
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Show only on mobile */
+.show-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .show-mobile {
+    display: block !important;
+  }
+}
+
+/* Responsive container */
+.responsive-container {
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--mobile-spacing);
+}
+
+@media (min-width: 640px) {
+  .responsive-container {
+    max-width: 640px;
+  }
+}
+
+@media (min-width: 768px) {
+  .responsive-container {
+    max-width: 768px;
+    padding: 0 var(--workspace-gap);
+  }
+}
+
+@media (min-width: 1024px) {
+  .responsive-container {
+    max-width: 1024px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .responsive-container {
+    max-width: 1280px;
+  }
 }

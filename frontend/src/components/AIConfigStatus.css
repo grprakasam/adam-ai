@@ -1,0 +1,475 @@
+/* ========================================
+   AI Configuration Component - Horizontal Layout
+   Professional UI/UX Design
+   ======================================== */
+
+/* Main Container - Horizontal Layout */
+.ai-config-status {
+  display: inline-flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  height: 40px;
+  padding: 0;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04),
+              0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  overflow: visible;
+  visibility: visible;
+}
+
+.ai-config-status:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08),
+              0 2px 4px rgba(0, 0, 0, 0.06);
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+}
+
+/* Section Container - Horizontal Grouping */
+.ai-config-section {
+  display: inline-flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 100%;
+  flex-shrink: 0;
+  visibility: visible;
+}
+
+/* Icon Section */
+.ai-config-section:first-child {
+  padding-left: 14px;
+  padding-right: 12px;
+}
+
+.ai-config-icon {
+  font-size: 18px;
+  color: #3b82f6;
+  line-height: 1;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.ai-config-status:hover .ai-config-icon {
+  color: #2563eb;
+  transform: scale(1.1);
+}
+
+.ai-config-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  line-height: 1;
+  transition: color 0.3s ease;
+}
+
+.ai-config-status:hover .ai-config-label {
+  color: #0f172a;
+}
+
+/* Vertical Divider between sections */
+.ai-config-divider {
+  width: 1px;
+  height: 24px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #cbd5e1 20%,
+    #cbd5e1 80%,
+    transparent 100%
+  );
+  flex-shrink: 0;
+  margin: 0;
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Horizontal Separator within sections */
+.ai-config-separator {
+  width: 1px;
+  height: 16px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+/* ========================================
+   Provider & Model Selects - Inline
+   ======================================== */
+
+.ai-provider-select-compact,
+.ai-model-select-compact {
+  flex-shrink: 0;
+  z-index: 1001;
+}
+
+.ai-provider-select-compact {
+  width: 120px;
+}
+
+.ai-model-select-compact {
+  width: 160px;
+}
+
+.ai-provider-select-compact .ant-select-selector,
+.ai-model-select-compact .ant-select-selector {
+  background: white !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  padding: 0 10px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.ai-provider-select-compact:hover .ant-select-selector,
+.ai-model-select-compact:hover .ant-select-selector {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1) !important;
+}
+
+.ai-provider-select-compact.ant-select-focused .ant-select-selector,
+.ai-model-select-compact.ant-select-focused .ant-select-selector {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+}
+
+.ai-provider-select-compact .ant-select-selection-item,
+.ai-model-select-compact .ant-select-selection-item {
+  padding: 0 !important;
+  line-height: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.ai-model-select-compact .ant-select-selection-item {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Arrow Icon */
+.ai-provider-select-compact .ant-select-arrow,
+.ai-model-select-compact .ant-select-arrow {
+  display: flex;
+  align-items: center;
+  right: 8px;
+}
+
+/* Provider/Model Option in Dropdown */
+.provider-option {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.5;
+  width: 100%;
+}
+
+.provider-option .anticon {
+  color: #3b82f6;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.provider-option span {
+  font-weight: 500;
+  line-height: 1.5;
+  flex: 1;
+}
+
+/* ========================================
+   Test Button & Status Badge - Inline
+   ======================================== */
+
+/* Test Connection Button */
+.ai-config-test-button-compact {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  border: 1.5px solid #e2e8f0 !important;
+  background: white !important;
+  color: #64748b !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+  line-height: 1 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.ai-config-test-button-compact:hover {
+  border-color: #3b82f6 !important;
+  color: #3b82f6 !important;
+  background: #eff6ff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15) !important;
+}
+
+.ai-config-test-button-compact.ant-btn-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.25) !important;
+}
+
+.ai-config-test-button-compact.ant-btn-primary:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.35) !important;
+}
+
+.ai-config-test-button-compact.ant-btn-dangerous {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+  border-color: transparent !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.25) !important;
+}
+
+.ai-config-test-button-compact.ant-btn-dangerous:hover {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 100%) !important;
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.35) !important;
+}
+
+.ai-config-test-button-compact .anticon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* Status Badge - Horizontal */
+.ai-status-badge {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 1px solid #6ee7b7;
+  border-radius: 8px;
+  color: #065f46;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(16, 185, 129, 0.15);
+}
+
+.ai-status-badge .anticon {
+  font-size: 14px;
+  color: #10b981;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(16, 185, 129, 0.4));
+}
+
+.ai-status-badge span {
+  line-height: 1;
+}
+
+/* ========================================
+   Dropdown & Loading States
+   ======================================== */
+
+/* Ensure dropdown containers are visible */
+.ai-provider-select-compact .ant-select-dropdown,
+.ai-model-select-compact .ant-select-dropdown {
+  z-index: 1050 !important;
+}
+
+.ai-model-loading {
+  padding: 10px 14px;
+  text-align: center;
+  color: #64748b;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 1200px) {
+  .ai-config-status {
+    height: 38px;
+  }
+  
+  .ai-config-label {
+    font-size: 12px;
+  }
+  
+  .ai-provider-select-compact {
+    width: 100px;
+  }
+  
+  .ai-model-select-compact {
+    width: 140px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .ai-config-label {
+    display: none;
+  }
+  
+  .ai-config-section:first-child {
+    padding-left: 14px;
+    padding-right: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ai-config-status {
+    display: none;
+  }
+}
+
+/* Mobile layout mode */
+body[data-layout-mode="mobile"] .ai-config-status {
+  display: none;
+}
+
+/* ========================================
+   Dark Mode Support
+   ======================================== */
+
+[data-theme="dark"] .ai-config-status {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-color: #334155;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3),
+              0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .ai-config-status:hover {
+  border-color: #475569;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4),
+              0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .ai-config-icon {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .ai-config-status:hover .ai-config-icon {
+  color: #93c5fd;
+}
+
+[data-theme="dark"] .ai-config-label {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .ai-config-status:hover .ai-config-label {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .ai-config-divider {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #475569 20%,
+    #475569 80%,
+    transparent 100%
+  );
+}
+
+[data-theme="dark"] .ai-config-separator {
+  background: #334155;
+}
+
+[data-theme="dark"] .ai-provider-select-compact .ant-select-selector,
+[data-theme="dark"] .ai-model-select-compact .ant-select-selector {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .ai-provider-select-compact:hover .ant-select-selector,
+[data-theme="dark"] .ai-model-select-compact:hover .ant-select-selector {
+  border-color: #60a5fa !important;
+}
+
+[data-theme="dark"] .ai-provider-select-compact .ant-select-selection-item,
+[data-theme="dark"] .ai-model-select-compact .ant-select-selection-item {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .provider-option {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .provider-option .anticon {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .ai-config-test-button-compact {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .ai-config-test-button-compact:hover {
+  border-color: #60a5fa !important;
+  color: #60a5fa !important;
+  background: #1e293b !important;
+}
+
+[data-theme="dark"] .ai-status-badge {
+  background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+  border-color: #059669;
+  color: #6ee7b7;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .ai-status-badge .anticon {
+  color: #34d399;
+}
+
+/* ========================================
+   Animations & Transitions
+   ======================================== */
+
+@keyframes pulse-subtle {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.ai-status-badge .anticon {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+/* Smooth loading spinner */
+.ai-model-loading .anticon-loading {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

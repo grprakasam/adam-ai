@@ -1,0 +1,376 @@
+/* ========================================
+   Workspace Navigation - Modern UI/UX Design
+   ======================================== */
+
+.workspace-navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* ========================================
+   Main Section Selector - Segmented Control
+   ======================================== */
+
+.nav-main-sections {
+  display: flex;
+  gap: 8px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 6px;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.nav-section-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  font-weight: 600;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.nav-section-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--section-color);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 8px;
+}
+
+.nav-section-btn:hover::before {
+  opacity: 0.08;
+}
+
+.nav-section-btn.active {
+  background: white;
+  color: var(--section-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1),
+              0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.nav-section-btn.active::before {
+  opacity: 0.05;
+}
+
+.nav-section-icon {
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  transition: transform 0.3s ease;
+}
+
+.nav-section-btn:hover .nav-section-icon {
+  transform: scale(1.1);
+}
+
+.nav-section-btn.active .nav-section-icon {
+  transform: scale(1.15);
+}
+
+.nav-section-label {
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+
+.nav-section-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40%;
+  height: 3px;
+  background: var(--section-color);
+  border-radius: 2px 2px 0 0;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ========================================
+   Sub-navigation - Card Grid
+   ======================================== */
+
+.nav-sub-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.nav-item-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-item-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--item-color);
+  transform: scaleY(0);
+  transition: transform 0.3s ease;
+  transform-origin: bottom;
+}
+
+.nav-item-card:hover {
+  border-color: var(--item-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08),
+              0 0 0 1px var(--item-color);
+  transform: translateY(-2px);
+}
+
+.nav-item-card:hover::before {
+  transform: scaleY(1);
+}
+
+.nav-item-card:active {
+  transform: translateY(0);
+}
+
+.nav-item-card.selected {
+  border-color: var(--item-color);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 1));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12),
+              0 0 0 2px var(--item-color);
+}
+
+.nav-item-card.selected::before {
+  transform: scaleY(1);
+}
+
+.nav-item-selected-indicator {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  background: var(--item-color);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px white, 0 0 8px var(--item-color);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+.nav-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--item-color), var(--item-color));
+  opacity: 0.1;
+  border-radius: 10px;
+  font-size: 20px;
+  color: var(--item-color);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.nav-item-card:hover .nav-item-icon,
+.nav-item-card.selected .nav-item-icon {
+  opacity: 1;
+  color: white;
+  transform: rotate(5deg) scale(1.1);
+}
+
+.nav-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-item-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 4px;
+  transition: color 0.3s ease;
+}
+
+.nav-item-card:hover .nav-item-label,
+.nav-item-card.selected .nav-item-label {
+  color: var(--item-color);
+}
+
+.nav-item-description {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-item-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+/* ========================================
+   Responsive Design
+   ======================================== */
+
+@media (max-width: 768px) {
+  .workspace-navigation {
+    gap: 12px;
+  }
+
+  .nav-main-sections {
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px;
+  }
+
+  .nav-section-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .nav-section-icon {
+    font-size: 16px;
+  }
+
+  .nav-sub-sections {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .nav-item-card {
+    padding: 12px;
+  }
+
+  .nav-item-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .nav-item-label {
+    font-size: 13px;
+  }
+
+  .nav-item-description {
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .nav-sub-sections {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ========================================
+   Dark Mode Support
+   ======================================== */
+
+[data-theme="dark"] .nav-main-sections {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .nav-section-btn {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .nav-section-btn.active {
+  background: #1e293b;
+  color: var(--section-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3),
+              0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .nav-item-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .nav-item-card:hover,
+[data-theme="dark"] .nav-item-card.selected {
+  background: #1e293b;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4),
+              0 0 0 1px var(--item-color);
+}
+
+[data-theme="dark"] .nav-item-selected-indicator {
+  box-shadow: 0 0 0 2px #1e293b, 0 0 8px var(--item-color);
+}
+
+[data-theme="dark"] .nav-item-label {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .nav-item-description {
+  color: #94a3b8;
+}
+
+/* ========================================
+   Accessibility
+   ======================================== */
+
+.nav-section-btn:focus-visible,
+.nav-item-card:focus-visible {
+  outline: 2px solid var(--section-color, var(--item-color));
+  outline-offset: 2px;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .nav-section-btn,
+  .nav-item-card,
+  .nav-section-icon,
+  .nav-item-icon {
+    transition: none;
+  }
+
+  .nav-section-indicator {
+    animation: none;
+  }
+}
+
