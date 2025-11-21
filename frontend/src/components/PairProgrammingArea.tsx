@@ -12,7 +12,6 @@ import type { MenuProps } from 'antd';
 interface PairProgrammingAreaProps {
   variables: VariableInfo[];
   categoryName: string;
-  getAiInputsButton?: React.ReactNode;
   onOpenValidation?: () => void;
   onOpenConsolidated?: () => void;
   canOpenConsolidated?: boolean;
@@ -52,7 +51,6 @@ const STORAGE_KEY = 'pairProgramming_visibleColumns_v1';
 export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   variables,
   categoryName,
-  getAiInputsButton,
   onOpenValidation,
   onOpenConsolidated,
   canOpenConsolidated,
@@ -366,27 +364,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           <span className="header-subtitle">
             {variables.length} variables • {Object.keys(pairProgramming.snippets).length} generated
           </span>
-        </div>
-        <div className="header-actions">
-          {getAiInputsButton}
-          {Object.keys(pairProgramming.snippets).length > 0 && (
-            <Button
-              type="default"
-              icon={<CheckCircleOutlined />}
-              onClick={onOpenValidation}
-            >
-              My Validation
-            </Button>
-          )}
-          <Button
-            type="primary"
-            icon={<FileDoneOutlined />}
-            className="consolidated-nav-button"
-            onClick={onOpenConsolidated}
-            disabled={!canOpenConsolidated}
-          >
-            Consolidated Code
-          </Button>
         </div>
       </div>
 

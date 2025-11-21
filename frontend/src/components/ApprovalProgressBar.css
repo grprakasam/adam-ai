@@ -16,10 +16,16 @@
 .approval-progress-content {
   display: flex;
   align-items: center;
-  gap: 24px;
-  max-width: 1200px;
+  justify-content: flex-end;
+  max-width: 100%;
   width: 100%;
   padding: 0 24px;
+}
+
+.progress-bar-logo {
+  height: 40px;
+  width: auto;
+  object-fit: contain;
 }
 
 .progress-section {

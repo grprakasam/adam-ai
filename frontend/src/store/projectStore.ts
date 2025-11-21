@@ -155,6 +155,10 @@ export interface ProjectStore {
   isGenerating: boolean;
   setIsGenerating: (generating: boolean) => void;
   
+  // Workspace Layout
+  workspaceLayoutPreset: 'balanced' | 'focused' | 'immersive' | 'ultra';
+  setWorkspaceLayoutPreset: (preset: 'balanced' | 'focused' | 'immersive' | 'ultra') => void;
+  
   // Workspace Initialization
   isWorkspaceInitialized: boolean;
   initializeWorkspace: () => void;
@@ -170,6 +174,7 @@ export interface ProjectStore {
   // Cleanup helpers
   cleanupLoadingStates: () => void;
   cleanupGenerationStates: () => void;
+  clearAllAIResults: () => void;
 
   // Traceability
   traceabilityMatrix: TraceabilityMatrix | null;
@@ -253,6 +258,7 @@ const initialState = {
   },
   isGenerating: false,
   isWorkspaceInitialized: false,
+  workspaceLayoutPreset: 'focused' as 'balanced' | 'focused' | 'immersive' | 'ultra',
   commentVerbosity: 'medium' as 'low' | 'medium' | 'high',
   executionMode: 'api' as 'api' | 'local',
   consolidatedCode: null as ConsolidatedCodeData | null,
@@ -441,6 +447,8 @@ export const useProjectStore = create<ProjectStore>()(
         })),
 
       setIsGenerating: (generating) => set({ isGenerating: generating }),
+
+      setWorkspaceLayoutPreset: (preset) => set({ workspaceLayoutPreset: preset }),
 
       getCompletionPercentage: () => {
         const state = get();

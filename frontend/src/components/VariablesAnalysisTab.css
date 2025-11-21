@@ -104,6 +104,7 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .action-button-compact {
@@ -122,6 +123,31 @@
   border-color: #3b82f6 !important;
   color: #3b82f6 !important;
   background: #eff6ff !important;
+}
+
+.action-button-compact.action-button-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  border-color: #059669 !important;
+  color: white !important;
+  font-weight: 600 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3) !important;
+}
+
+.action-button-compact.action-button-primary:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  border-color: #047857 !important;
+  color: white !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.action-button-compact.action-button-primary:disabled {
+  background: #d1d5db !important;
+  border-color: #d1d5db !important;
+  color: #9ca3af !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  transform: none !important;
 }
 
 .action-button-compact.action-button-danger {
@@ -215,6 +241,28 @@
 [data-theme="dark"] .action-button-compact.action-button-danger:hover {
   border-color: #dc2626 !important;
   background: #7f1d1d !important;
+}
+
+/* Warning Button Variant - for Refresh AI Results */
+.action-button-compact.action-button-warning {
+  border-color: #fbbf24 !important;
+  color: #f59e0b !important;
+}
+
+.action-button-compact.action-button-warning:hover {
+  background: #fef3c7 !important;
+  border-color: #f59e0b !important;
+  color: #d97706 !important;
+}
+
+[data-theme="dark"] .action-button-compact.action-button-warning {
+  border-color: #78350f !important;
+  color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .action-button-compact.action-button-warning:hover {
+  border-color: #f59e0b !important;
+  background: #78350f !important;
 }
 
 /* Panel Toggle Button */
