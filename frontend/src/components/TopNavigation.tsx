@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Dropdown, Space, Badge } from 'antd';
+import { Dropdown } from 'antd';
 import {
   CodeOutlined,
   CheckCircleOutlined,
@@ -24,12 +24,20 @@ interface TopNavigationProps {
   currentStudy?: any;
   onStudyChange?: (study: any) => void;
   onNavigate?: (path: string) => void;
+  showLogo?: boolean;
+  showUtilities?: boolean;
+  showStudySelector?: boolean;
+  embedded?: boolean;
 }
 
 export const TopNavigation: React.FC<TopNavigationProps> = ({
   currentStudy,
   onStudyChange,
-  onNavigate
+  onNavigate,
+  showLogo = true,
+  showUtilities = true,
+  showStudySelector = true,
+  embedded = false
 }) => {
   const [activeMenu, setActiveMenu] = useState<string>('');
 
@@ -141,15 +149,19 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
     </div>
   );
 
+  const containerClass = `nav-container ${showUtilities ? '' : 'nav-compact'}`;
+
   return (
-    <div className="top-navigation">
-      <div className="nav-container">
+    <div className={`top-navigation ${embedded ? 'embedded' : ''}`}>
+      <div className={containerClass}>
         {/* Left Side - Logo & Main Menu */}
         <div className="nav-left">
-          <div className="nav-logo" onClick={() => handleNavigate('/')}>
-            <img src="/adam-logo.svg" alt="ADAM AI" className="logo-image" />
-            <span className="logo-text">ADAM AI</span>
-          </div>
+          {showLogo && (
+            <div className="nav-logo" onClick={() => handleNavigate('/')}>
+              <img src="/adam-logo.svg" alt="ADAM AI" className="logo-image" />
+              <span className="logo-text">ADAM AI</span>
+            </div>
+          )}
 
           <div className="nav-menu">
             <Dropdown
@@ -191,24 +203,28 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
         </div>
 
         {/* Right Side - Utilities */}
-        <div className="nav-right">
-          <StudySelector
-            value={currentStudy?.id}
-            onStudyChange={onStudyChange}
-          />
+        {showUtilities && (
+          <div className="nav-right">
+            {showStudySelector && onStudyChange && (
+              <StudySelector
+                value={currentStudy?.id}
+                onStudyChange={onStudyChange}
+              />
+            )}
 
-          <div className="nav-divider" />
+            {showStudySelector && onStudyChange && <div className="nav-divider" />}
 
-          <SearchButton />
+            <SearchButton />
 
-          <NotificationBell />
+            <NotificationBell />
 
-          <DarkModeToggle />
+            <DarkModeToggle />
 
-          <div className="nav-divider" />
+            <div className="nav-divider" />
 
-          <UserMenu />
-        </div>
+            <UserMenu />
+          </div>
+        )}
       </div>
     </div>
   );

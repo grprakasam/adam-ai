@@ -33,7 +33,7 @@ faker==33.1.0
 numpy>=1.26.0
 
 # Code Validation
-rpy2==3.5.14  # R integration for validation
+# rpy2==3.5.14  # R integration for validation
 
 # CORS and Security
 python-jose[cryptography]==3.3.0

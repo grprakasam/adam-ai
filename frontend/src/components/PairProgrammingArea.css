@@ -8,6 +8,11 @@
   background: #f8f9fa;
   border-radius: 12px;
   margin-top: 20px;
+  /* Ensure the area doesn't auto-widen with table content */
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden; /* Prevent content from causing horizontal expansion */
+  box-sizing: border-box;
 }
 
 /* Header - Enhanced with gradient and better spacing */
@@ -58,10 +63,218 @@
   align-items: center;
 }
 
+/* Column Selector Toolbar */
+.column-selector-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 8px;
+  border: 1px solid #bae6fd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.column-selector-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  height: auto;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.column-selector-toolbar button:hover {
+  background: #0ea5e9;
+  color: white;
+  border-color: #0284c7;
+}
+
+.column-selector-toolbar button svg {
+  flex-shrink: 0;
+}
+
+.toolbar-hint {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* Visibility Controls Toolbar */
+.visibility-controls-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  border: 2px solid #dee2e6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.control-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-radius: 6px;
+  border: 1px solid #fbbf24;
+  font-size: 12px;
+  font-weight: 600;
+  color: #92400e;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.scroll-hint svg {
+  flex-shrink: 0;
+  color: #d97706;
+}
+
+/* Ant Design Segmented Component Styling for Visibility Controls */
+.visibility-controls-toolbar .ant-segmented {
+  background: #ffffff;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  padding: 2px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.visibility-controls-toolbar .ant-segmented-item {
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 6px 14px;
+  transition: all 0.2s ease;
+}
+
+.visibility-controls-toolbar .ant-segmented-item:hover {
+  background: #f3f4f6;
+}
+
+.visibility-controls-toolbar .ant-segmented-item-selected {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: white !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.visibility-controls-toolbar .ant-segmented-item-icon {
+  margin-right: 6px;
+}
+
+/* Responsive adjustments for visibility controls */
+@media (max-width: 1400px) {
+  .visibility-controls-toolbar {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  
+  .scroll-hint {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+  }
+}
+
+/* Custom styling for column selector dropdown menu */
+.ant-dropdown-menu-item {
+  padding: 0 !important;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.ant-dropdown-menu-item > span {
+  padding: 0 !important;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: #f0f9ff !important;
+}
+
+.ant-dropdown-menu-item > span > div {
+  padding: 8px 12px;
+  width: 100%;
+}
+
+.ant-dropdown-menu-item .ant-checkbox-wrapper {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.ant-dropdown-menu-item .ant-checkbox {
+  top: 0;
+}
+
+.ant-dropdown-menu-item:hover .ant-checkbox-inner {
+  border-color: #10b981 !important;
+}
+
+.ant-dropdown-menu-item .ant-checkbox-checked .ant-checkbox-inner {
+  background-color: #10b981 !important;
+  border-color: #10b981 !important;
+}
+
+.ant-dropdown-menu-item .ant-checkbox-wrapper-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ant-dropdown-menu-item:has(.ant-checkbox-wrapper-disabled) {
+  cursor: not-allowed;
+}
+
+.ant-dropdown-menu-item:has(.ant-checkbox-wrapper-disabled):hover {
+  background: transparent !important;
+}
+
+.ant-dropdown-menu-item .ant-checkbox-wrapper-disabled .ant-checkbox-inner {
+  border-color: #d9d9d9 !important;
+  background-color: #f5f5f5 !important;
+}
+
+/* Ensure the dropdown stays open when clicking checkboxes */
+.ant-dropdown-menu {
+  max-height: 400px;
+  overflow-y: auto;
+  min-width: 250px;
+}
+
 /* Table Container - Enhanced with better shadows and INCREASED HEIGHT FOR MORE RECORDS */
 .pair-programming-table-container {
-  overflow-x: scroll; /* Always show horizontal scrollbar */
-  overflow-y: auto; /* Vertical scrolling within this container */
+  overflow-x: scroll; /* Horizontal scrollbar always visible */
+  overflow-y: auto; /* Vertical scrollbar when needed */
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06),
@@ -70,7 +283,13 @@
   border: 1px solid #e5e7eb;
   position: relative; /* Required for sticky positioning context */
   flex: 1; /* Take remaining space in parent container */
+  max-height: 600px; /* Maximum height to enable scrolling and sticky header */
   min-height: 400px; /* Minimum height to ensure usability */
+  width: 100%; /* Fixed width - takes full width of parent */
+  max-width: 100%; /* Prevent container from expanding beyond parent */
+  /* Prevent the container from auto-widening when content increases */
+  box-sizing: border-box; /* Include padding and border in width calculation */
+  display: block; /* Ensure block display for proper overflow behavior */
 }
 
 .pair-programming-hint {
@@ -98,51 +317,122 @@
   color: #4d7c0f;
 }
 
-/* Custom Scrollbar Styling - Modern and Bold */
+/* Custom Scrollbar Styling - Modern, Bold, and Always Visible */
 .pair-programming-table-container::-webkit-scrollbar {
-  height: 14px;
-  width: 14px; /* Width for vertical scrollbar */
+  height: 20px; /* Increased for better visibility */
+  width: 20px; /* Increased for vertical scrollbar */
+  -webkit-appearance: none; /* Remove default appearance */
 }
 
 .pair-programming-table-container::-webkit-scrollbar-track {
-  background: linear-gradient(to right, #f3f4f6, #e5e7eb);
-  border-radius: 10px;
-  margin: 4px;
+  background: linear-gradient(to right, #e5e7eb, #d1d5db);
+  border-radius: 12px;
+  margin: 6px;
+  border: 2px solid #9ca3af;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+  -webkit-appearance: none; /* Remove default appearance */
 }
 
 .pair-programming-table-container::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #8B0000 0%, #DC143C 100%);
-  border-radius: 10px;
-  border: 2px solid #f9fafb;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
-  transition: background 0.2s ease;
+  background: linear-gradient(135deg, #DC143C 0%, #FF1744 50%, #DC143C 100%);
+  border-radius: 12px;
+  border: 3px solid #f9fafb;
+  box-shadow: 0 2px 8px rgba(220, 20, 60, 0.5),
+              inset 0 1px 2px rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  animation: scrollbarPulse 3s ease-in-out infinite;
+}
+
+@keyframes scrollbarPulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(220, 20, 60, 0.5),
+                inset 0 1px 2px rgba(255, 255, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(220, 20, 60, 0.8),
+                inset 0 1px 2px rgba(255, 255, 255, 0.5);
+  }
 }
 
 .pair-programming-table-container::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #A52A2A 0%, #FF6347 100%);
+  background: linear-gradient(135deg, #FF1744 0%, #FF5252 50%, #FF1744 100%);
+  border-width: 2px;
+  transform: scale(1.05);
+  box-shadow: 0 4px 16px rgba(220, 20, 60, 0.8),
+              inset 0 2px 4px rgba(255, 255, 255, 0.4);
 }
 
 .pair-programming-table-container::-webkit-scrollbar-thumb:active {
-  background: linear-gradient(135deg, #6B0000 0%, #8B0000 100%);
+  background: linear-gradient(135deg, #B71C1C 0%, #C62828 50%, #B71C1C 100%);
+  box-shadow: 0 6px 20px rgba(183, 28, 28, 0.9),
+              inset 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* Corner where scrollbars meet */
 .pair-programming-table-container::-webkit-scrollbar-corner {
-  background: #f3f4f6;
+  background: #d1d5db;
+  border-radius: 12px;
 }
 
-/* Firefox scrollbar styling - Always visible */
+/* Firefox scrollbar styling - Always visible and prominent */
 .pair-programming-table-container {
-  scrollbar-width: thick;
-  scrollbar-color: #8B0000 #f3f4f6;
+  scrollbar-width: auto; /* Auto width scrollbar for Firefox (always visible) */
+  scrollbar-color: #DC143C #e5e7eb;
+}
+
+/* Ensure scrollbars are always rendered (Webkit browsers) */
+.pair-programming-table-container::-webkit-scrollbar-thumb:horizontal {
+  min-width: 40px; /* Minimum thumb width for horizontal scrollbar */
+}
+
+.pair-programming-table-container::-webkit-scrollbar-thumb:vertical {
+  min-height: 40px; /* Minimum thumb height for vertical scrollbar */
+}
+
+/* Add shadow overlays to indicate more content (left and right) */
+.pair-programming-table-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 18px; /* Account for vertical scrollbar */
+  bottom: 18px; /* Account for horizontal scrollbar */
+  width: 40px;
+  background: linear-gradient(to left, rgba(220, 20, 60, 0.25), transparent);
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+  z-index: 50;
+}
+
+.pair-programming-table-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 18px; /* Account for horizontal scrollbar */
+  width: 40px;
+  background: linear-gradient(to right, rgba(220, 20, 60, 0.15), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 50;
+}
+
+/* Show left indicator when scrolled */
+.pair-programming-table-container.scrolled-left::before {
+  opacity: 1;
+}
+
+.pair-programming-table-container:hover::after {
+  opacity: 0.7;
 }
 
 /* Table - Enhanced typography and spacing with proper alignment */
 .pair-programming-table {
-  width: 100%;
+  width: max-content; /* Allow table to grow beyond container width */
+  min-width: 1400px; /* Minimum width to ensure horizontal scrollbar appears */
   border-collapse: collapse; /* Ensures borders merge properly */
-  table-layout: fixed; /* Fixed layout for consistent column widths */
-  min-width: 1690px;
+  table-layout: auto; /* Auto layout to respect content and min-width */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'SF Pro Display', sans-serif;
   display: table !important; /* Force table display */
 }
@@ -186,6 +476,7 @@
   z-index: 100;
   border-right: 1px solid #e5e7eb; /* Vertical separator */
   box-sizing: border-box; /* Include padding in width calculation */
+  transition: padding 0.2s ease, font-size 0.2s ease;
 }
 
 .pair-programming-table th:last-child {
@@ -208,7 +499,7 @@
   padding: 20px;
   vertical-align: top;
   background: white;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
   border-bottom: 3px solid #000000; /* Black horizontal line */
   border-right: 1px solid #e5e7eb; /* Light vertical separator */
   box-sizing: border-box; /* Include padding in width calculation */
@@ -224,7 +515,7 @@
   background: transparent;
 }
 
-/* Column Widths - Optimized for readability */
+/* Column Widths - Optimized for readability (STANDARD) */
 .col-variable {
   width: 200px;
   min-width: 180px;
@@ -282,6 +573,122 @@
   width: 220px;
   min-width: 220px;
   max-width: 220px;
+}
+
+/* Column Width Presets - NARROW */
+.pair-programming-table-container.width-narrow .col-variable {
+  width: 150px;
+  min-width: 130px;
+}
+
+.pair-programming-table-container.width-narrow .col-label {
+  width: 200px;
+  min-width: 180px;
+}
+
+.pair-programming-table-container.width-narrow .col-type {
+  width: 90px;
+  min-width: 90px;
+}
+
+.pair-programming-table-container.width-narrow .col-length,
+.pair-programming-table-container.width-narrow .col-format {
+  width: 90px;
+  min-width: 80px;
+}
+
+.pair-programming-table-container.width-narrow .col-origin {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+
+.pair-programming-table-container.width-narrow .col-derivation {
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+}
+
+.pair-programming-table-container.width-narrow .col-rationale {
+  width: 220px;
+  min-width: 220px;
+  max-width: 220px;
+}
+
+.pair-programming-table-container.width-narrow .col-code {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+}
+
+.pair-programming-table-container.width-narrow .col-acceptance {
+  width: 130px;
+  min-width: 130px;
+  max-width: 130px;
+}
+
+.pair-programming-table-container.width-narrow .col-notes {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+}
+
+/* Column Width Presets - WIDE */
+.pair-programming-table-container.width-wide .col-variable {
+  width: 250px;
+  min-width: 230px;
+}
+
+.pair-programming-table-container.width-wide .col-label {
+  width: 400px;
+  min-width: 350px;
+}
+
+.pair-programming-table-container.width-wide .col-type {
+  width: 130px;
+  min-width: 130px;
+}
+
+.pair-programming-table-container.width-wide .col-length,
+.pair-programming-table-container.width-wide .col-format {
+  width: 130px;
+  min-width: 120px;
+}
+
+.pair-programming-table-container.width-wide .col-origin {
+  width: 200px;
+  min-width: 200px;
+  max-width: 200px;
+}
+
+.pair-programming-table-container.width-wide .col-derivation {
+  width: 350px;
+  min-width: 350px;
+  max-width: 350px;
+}
+
+.pair-programming-table-container.width-wide .col-rationale {
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
+}
+
+.pair-programming-table-container.width-wide .col-code {
+  width: 550px;
+  min-width: 550px;
+  max-width: 550px;
+}
+
+.pair-programming-table-container.width-wide .col-acceptance {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+}
+
+.pair-programming-table-container.width-wide .col-notes {
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
 }
 .notes-field {
   display: flex;
@@ -955,6 +1362,103 @@
   margin: 0;
   font-size: var(--font-size-base);
   color: #6b7280;
+}
+
+/* View Density Presets */
+
+/* COMPACT View - Minimal spacing for maximum data density */
+.pair-programming-table-container.density-compact .pair-programming-table th {
+  padding: 10px 12px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.pair-programming-table-container.density-compact .pair-programming-table td {
+  padding: 12px 14px;
+  font-size: 12px;
+}
+
+.pair-programming-table-container.density-compact .variable-name {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.pair-programming-table-container.density-compact .code-block {
+  padding: 12px;
+  font-size: 12px;
+  max-height: 250px;
+}
+
+.pair-programming-table-container.density-compact .derivation-text,
+.pair-programming-table-container.density-compact .rationale-text {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.pair-programming-table-container.density-compact .notes-textarea {
+  padding: 8px;
+  font-size: 12px;
+  min-height: 60px;
+}
+
+.pair-programming-table-container.density-compact .radio-option {
+  padding: 6px 12px;
+  gap: 8px;
+}
+
+.pair-programming-table-container.density-compact .radio-label {
+  font-size: 12px;
+}
+
+/* COMFORTABLE View - Default, balanced spacing (already defined above) */
+
+/* SPACIOUS View - Generous spacing for maximum readability */
+.pair-programming-table-container.density-spacious .pair-programming-table th {
+  padding: 24px 28px;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.pair-programming-table-container.density-spacious .pair-programming-table td {
+  padding: 28px 32px;
+  font-size: 14px;
+}
+
+.pair-programming-table-container.density-spacious .variable-name {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.pair-programming-table-container.density-spacious .code-block {
+  padding: 20px;
+  font-size: 14px;
+  max-height: 400px;
+}
+
+.pair-programming-table-container.density-spacious .derivation-text,
+.pair-programming-table-container.density-spacious .rationale-text {
+  padding: 16px 18px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.pair-programming-table-container.density-spacious .notes-textarea {
+  padding: 16px;
+  font-size: 14px;
+  min-height: 100px;
+}
+
+.pair-programming-table-container.density-spacious .radio-option {
+  padding: 14px 20px;
+  gap: 12px;
+}
+
+.pair-programming-table-container.density-spacious .radio-label {
+  font-size: 14px;
+}
+
+.pair-programming-table-container.density-spacious .code-snippet-cell {
+  gap: 14px;
 }
 
 /* Responsive */
