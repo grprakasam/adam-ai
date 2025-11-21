@@ -135,6 +135,26 @@
   overflow: hidden;
 }
 
+/* First row items - larger */
+.nav-item-card:nth-child(-n+3) {
+  padding: 24px;
+}
+
+.nav-item-card:nth-child(-n+3) .nav-item-icon {
+  width: 56px;
+  height: 56px;
+  font-size: 28px;
+}
+
+.nav-item-card:nth-child(-n+3) .nav-item-label {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.nav-item-card:nth-child(-n+3) .nav-item-description {
+  font-size: 13px;
+}
+
 .nav-item-card::before {
   content: '';
   position: absolute;

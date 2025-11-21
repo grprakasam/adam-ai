@@ -48,6 +48,64 @@ const COLUMN_DEFINITIONS: ColumnDefinition[] = [
 
 const STORAGE_KEY = 'pairProgramming_visibleColumns_v1';
 
+// Simple syntax highlighting function for R and SAS
+const highlightCode = (code: string, language: string): string => {
+  let highlighted = code;
+
+  // Escape HTML
+  highlighted = highlighted
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  if (language === 'R') {
+    // R Keywords
+    const rKeywords = /\b(library|require|function|if|else|for|while|repeat|in|next|break|return|TRUE|FALSE|NULL|NA|NaN|Inf|c|data\.frame|list|matrix|vector|factor|as\.numeric|as\.character|as\.Date|merge|subset|transform|mutate|select|filter|arrange|group_by|summarise|summarize|left_join|inner_join|full_join|anti_join)\b/g;
+    highlighted = highlighted.replace(rKeywords, '<span class="keyword">$&</span>');
+
+    // R Assignment operators
+    highlighted = highlighted.replace(/(&lt;-|&lt;&lt;-|-&gt;|-&gt;&gt;)/g, '<span class="operator">$&</span>');
+
+    // R Functions (word followed by parenthesis)
+    highlighted = highlighted.replace(/\b([a-zA-Z_][a-zA-Z0-9._]*)\s*(?=\()/g, '<span class="function">$1</span>');
+
+    // Variables with $ accessor
+    highlighted = highlighted.replace(/\b([a-zA-Z_][a-zA-Z0-9._]*)\$/g, '<span class="variable">$1</span>$');
+
+    // Strings
+    highlighted = highlighted.replace(/(&quot;[^&quot;]*&quot;|'[^']*')/g, '<span class="string">$&</span>');
+
+    // Numbers
+    highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="number">$&</span>');
+
+    // Comments
+    highlighted = highlighted.replace(/(#[^\n]*)/g, '<span class="comment">$&</span>');
+
+  } else if (language === 'SAS') {
+    // SAS Keywords
+    const sasKeywords = /\b(data|set|merge|by|if|then|else|do|end|proc|run|quit|output|input|infile|cards|datalines|length|format|label|retain|drop|keep|where|sort|means|freq|print|sql|select|from|join|on|create|table|as|into|insert|update|delete|grant|revoke)\b/gi;
+    highlighted = highlighted.replace(sasKeywords, '<span class="keyword">$&</span>');
+
+    // SAS Assignment
+    highlighted = highlighted.replace(/=/g, '<span class="operator">=</span>');
+
+    // SAS Functions (word followed by parenthesis)
+    highlighted = highlighted.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?=\()/g, '<span class="function">$1</span>');
+
+    // Strings
+    highlighted = highlighted.replace(/(&quot;[^&quot;]*&quot;|'[^']*')/g, '<span class="string">$&</span>');
+
+    // Numbers
+    highlighted = highlighted.replace(/\b(\d+\.?\d*)\b/g, '<span class="number">$&</span>');
+
+    // Comments (both * and /* */ style)
+    highlighted = highlighted.replace(/(\*[^\n;]*;)/g, '<span class="comment">$&</span>');
+    highlighted = highlighted.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="comment">$&</span>');
+  }
+
+  return highlighted;
+};
+
 export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   variables,
   categoryName,
@@ -684,7 +742,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                             </button>
                           </div>
                           <pre className="code-block">
-                            <code>{snippet.codeSnippet}</code>
+                            <code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} />
                           </pre>
                         </div>
                       ) : (

@@ -27,6 +27,7 @@ import {
   CodeOutlined,
   AimOutlined,
   TrophyOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import type { TraceabilityVariable } from '../types/traceability';
 import './TraceabilityDetailDrawer.css';

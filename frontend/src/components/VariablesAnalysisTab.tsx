@@ -929,6 +929,16 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
             Consolidated Code
           </Button>
           <Button
+            onClick={onNavigateToTraceability}
+            icon={<LinkOutlined />}
+            className="action-button-compact"
+            size="small"
+            type="default"
+            title="View traceability matrix and lineage graph"
+          >
+            Traceability
+          </Button>
+          <Button
             onClick={handleCategorizeVariables}
             disabled={isCategorizingVariables}
             icon={isCategorizingVariables ? <LoadingOutlined /> : <RefreshCw size={14} />}
@@ -1076,47 +1086,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                   }}
                 >
                   Go to Consolidated Code Tab
-                </Button>
-              </div>
-            )}
-
-            {/* Call-to-Action for Traceability Matrix */}
-            {!bulkGenerationProgress.isGenerating && approvedCount > 0 && specificationFile && (
-              <div style={{
-                background: 'linear-gradient(135deg, #14b8a6 0%, #0891b2 100%)',
-                padding: '20px',
-                borderRadius: '12px',
-                marginBottom: '16px',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(20, 184, 166, 0.3)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
-                  <LinkOutlined style={{ fontSize: '24px' }} />
-                  <div>
-                    <div style={{ fontSize: '18px', fontWeight: 600 }}>Generate Traceability Matrix</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                      Create complete SDTM-to-ADAM lineage documentation for {approvedCount} approved variables with AI-powered insights.
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<LinkOutlined />}
-                  onClick={() => {
-                    generateTraceability();
-                    onNavigateToTraceability?.();
-                  }}
-                  style={{
-                    background: 'white',
-                    color: '#14b8a6',
-                    border: 'none',
-                    fontWeight: 600,
-                    height: '44px',
-                    borderRadius: '8px'
-                  }}
-                >
-                  View Traceability Matrix
                 </Button>
               </div>
             )}
