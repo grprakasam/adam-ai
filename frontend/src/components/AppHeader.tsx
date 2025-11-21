@@ -27,6 +27,7 @@ interface AppHeaderProps {
   showStudySelector?: boolean;
   currentStudyId?: string;
   onStudyChange?: (studyId: string) => void;
+  onNavigate?: (path: string) => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -35,7 +36,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onLogout,
   showStudySelector = false,
   currentStudyId,
-  onStudyChange
+  onStudyChange,
+  onNavigate
 }) => {
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const resetWorkspace = useProjectStore((state) => state.resetWorkspace);
@@ -88,7 +90,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               Home
             </Button>
           )}
-          <div className="app-header-title">ADAM AI</div>
+          <div className="app-brand">
+            <div className="app-brand-title">ADAM AI</div>
+            <div className="app-brand-subtitle">Workspace</div>
+          </div>
 
           {showStudySelector && onStudyChange && (
             <div className="app-header-study">
@@ -112,7 +117,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* Bottom row: Navigation */}
       <div className="app-header-bottom">
-        <TopNavigation />
+        <TopNavigation
+          embedded
+          showLogo={false}
+          showUtilities={false}
+          showStudySelector={false}
+          onNavigate={onNavigate}
+        />
       </div>
     </div>
   );
