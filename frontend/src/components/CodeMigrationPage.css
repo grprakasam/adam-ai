@@ -126,4 +126,55 @@
   .language-selectors {
     flex-direction: column;
   }
+
+  .migration-page {
+    padding: 24px 32px;
+  }
+}
+
+@media (max-width: 768px) {
+  .migration-page {
+    padding: var(--mobile-spacing);
+    gap: 16px;
+  }
+
+  .migration-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .migration-header-left {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .migration-header-controls {
+    width: 100%;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .language-selectors {
+    width: 100%;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .language-group,
+  .mode-toggle {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .upload-card,
+  .variables-card,
+  .chat-card {
+    border-radius: 12px;
+  }
+
+  .chat-messages {
+    max-height: 300px;
+  }
 }

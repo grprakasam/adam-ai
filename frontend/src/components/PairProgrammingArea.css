@@ -15,6 +15,16 @@
   box-sizing: border-box;
 }
 
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .pair-programming-area {
+    padding: var(--mobile-spacing);
+    gap: 16px;
+    border-radius: 8px;
+    margin-top: 16px;
+  }
+}
+
 /* Header - Enhanced with gradient and better spacing */
 .pair-programming-header {
   display: flex;
@@ -58,6 +68,41 @@
   gap: 12px;
 }
 
+@media (max-width: 768px) {
+  .pair-programming-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: 8px;
+  }
+
+  .header-info {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  .header-subtitle {
+    font-size: 12px;
+    margin-left: 0;
+  }
+
+  .header-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .header-actions button {
+    width: 100%;
+  }
+}
+
 .consolidated-nav-button {
   display: inline-flex;
   align-items: center;
@@ -95,6 +140,21 @@
 
 .column-selector-toolbar button svg {
   flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .column-selector-toolbar {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .column-selector-toolbar button {
+    font-size: 12px;
+    padding: 8px 12px;
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
 }
 
 .toolbar-hint {

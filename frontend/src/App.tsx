@@ -11,8 +11,7 @@ import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useProjectStore } from './store/projectStore';
-import AutoSaveIndicator from './components/AutoSaveIndicator';
-import { HistoryControls } from './components/HistoryControls';
+import { usePreferencesStore } from './store/preferencesStore';
 import { RecoverySuggestions } from './components/RecoverySuggestions';
 import { HelpCenterDrawer } from './components/HelpCenterDrawer';
 import { PreferencesDrawer } from './components/PreferencesDrawer';
@@ -38,6 +37,15 @@ function App() {
     window.addEventListener('adam-ai:open-left-tab', handler as any);
     return () => window.removeEventListener('adam-ai:open-left-tab', handler as any);
   }, []);
+
+  // Listen for left panel toggle event from workspace
+  useEffect(() => {
+    const handler = () => {
+      setIsLeftPanelCollapsed(prev => !prev);
+    };
+    window.addEventListener('adam-ai:toggle-left-panel', handler as any);
+    return () => window.removeEventListener('adam-ai:toggle-left-panel', handler as any);
+  }, []);
   const [viewMode, setViewMode] = useState<ViewMode>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentStudyId, setCurrentStudyId] = useState<string | undefined>(undefined);
@@ -48,10 +56,12 @@ function App() {
   const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(false);
   const [isHelpCenterOpen, setHelpCenterOpen] = useState(false);
   const [isPreferencesOpen, setPreferencesOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mainContentRef = useRef<HTMLElement | null>(null);
   const undo = useWorkspaceHistory((state) => state.undo);
   const redo = useWorkspaceHistory((state) => state.redo);
   const clearHistory = useWorkspaceHistory((state) => state.clear);
+  const layoutMode = usePreferencesStore((state) => state.layoutMode);
   useApplyPreferences();
 
   // Access Zustand store
@@ -96,8 +106,34 @@ function App() {
   }, [viewMode]);
 
   const toggleLeftPanel = useCallback(() => {
-    setIsLeftPanelCollapsed((prev) => !prev);
+    // Check if mobile view (considering layout mode preference)
+    const actualWidth = window.innerWidth;
+    const isMobile = 
+      layoutMode === 'mobile' || 
+      (layoutMode === 'auto' && actualWidth <= 768);
+    
+    if (isMobile) {
+      setIsMobileMenuOpen((prev) => !prev);
+    } else {
+      setIsLeftPanelCollapsed((prev) => !prev);
+    }
+  }, [layoutMode]);
+
+  const closeMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(false);
   }, []);
+
+  // Determine if we should use mobile layout
+  const useMobileLayout = 
+    layoutMode === 'mobile' || 
+    (layoutMode === 'auto' && window.innerWidth <= 768);
+
+  // Close mobile menu when switching to desktop layout
+  useEffect(() => {
+    if (layoutMode === 'desktop') {
+      setIsMobileMenuOpen(false);
+    }
+  }, [layoutMode]);
 
   const focusMainContent = useCallback(() => {
     mainContentRef.current?.focus();
@@ -273,23 +309,33 @@ function App() {
                   showStudySelector={true}
                   currentStudyId={currentStudyId}
                   onStudyChange={handleStudyChange}
+                  onToggleMobileMenu={toggleLeftPanel}
                 />
 
                 <HelpCenterDrawer open={isHelpCenterOpen} onClose={closeHelpCenter} activeTab={activeTab} />
                 <PreferencesDrawer open={isPreferencesOpen} onClose={closePreferences} />
 
-                <div className="workspace-utilities">
-                  <AutoSaveIndicator />
-                  <HistoryControls />
-                </div>
-
                 <div className="main-content" role="region" aria-label="Workspace canvas">
-                  <div className="left-panel-wrapper">
+                  {/* Mobile backdrop */}
+                  <div 
+                    className={`mobile-backdrop ${isMobileMenuOpen ? 'active' : ''}`}
+                    onClick={closeMobileMenu}
+                    aria-hidden="true"
+                  />
+                  
+                  <div className={`left-panel-wrapper ${isMobileMenuOpen ? 'active' : ''}`}>
                     <LeftPanel
                       activeTab={activeTab}
-                      onTabChange={setActiveTab}
+                      onTabChange={(tab) => {
+                        setActiveTab(tab);
+                        // Close mobile menu when tab changes on mobile
+                        if (window.innerWidth <= 768) {
+                          closeMobileMenu();
+                        }
+                      }}
                       isCollapsed={isLeftPanelCollapsed}
                       onOpenHelpCenter={openHelpCenter}
+                      onCloseMobile={closeMobileMenu}
                     />
                     <button
                       type="button"

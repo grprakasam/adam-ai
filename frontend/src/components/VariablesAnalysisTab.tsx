@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Tabs, message, Modal, Tooltip, Button, Select, Progress } from 'antd';
+import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
-import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ApiOutlined, SwapOutlined, FileDoneOutlined, LinkOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, CloseCircleOutlined, FileDoneOutlined, LinkOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
@@ -76,22 +76,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
     medraVersion,
     tempSpecFile,
     llmProvider,
-    setLlmProvider,
     llmConnectionStatus,
     selectedModel,
-    setSelectedModel,
-    availableModels,
-    setAvailableModels,
-    llmConnectionMessage,
-    setLlmConnectionStatus,
     resetWorkspace,
     getCompletionPercentage,
   } = useProjectStore();
 
   const [activeCategory, setActiveCategory] = useState<string>('0');
   const [error, setError] = useState<string | null>(null);
-  const [loadingModels, setLoadingModels] = useState(false);
-  const [modelError, setModelError] = useState<string | null>(null);
   const [bulkGenerationProgress, setBulkGenerationProgress] = useState<{
     isGenerating: boolean;
     current: number;
@@ -231,49 +223,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [specificationFile, categorizedVariables, isCategorizingVariables, projectConfig.adamDataset]);
 
-  // Fetch OpenRouter models when provider is OpenRouter
-  useEffect(() => {
-    const fetchModels = async () => {
-      if (llmProvider === 'openrouter') {
-        if (availableModels.length > 0) {
-          console.log('Models already loaded:', availableModels.length);
-          return;
-        }
-        
-        console.log('Fetching OpenRouter models...');
-        setLoadingModels(true);
-        setModelError(null);
-        
-        try {
-          const models = await adamApi.getOpenRouterModels();
-          console.log('Received models:', models?.length || 0, models);
-          
-          if (!models || models.length === 0) {
-            setModelError('No models available. Check OpenRouter API key configuration.');
-            console.error('No models returned from API');
-            return;
-          }
-          
-          setAvailableModels(models);
-          
-          // Set default model if none selected
-          if (!selectedModel && models.length > 0) {
-            console.log('Setting default model:', models[0].id);
-            setSelectedModel(models[0].id);
-          }
-        } catch (error: any) {
-          const errorMsg = error.response?.data?.detail || error.message || 'Failed to load models';
-          console.error('Failed to fetch OpenRouter models:', errorMsg, error);
-          setModelError(errorMsg);
-        } finally {
-          setLoadingModels(false);
-        }
-      }
-    };
-    
-    fetchModels();
-  }, [llmProvider, availableModels.length, selectedModel, setAvailableModels, setSelectedModel]);
-
   const formatDuration = (seconds: number) => {
     const safeSeconds = Math.max(0, Math.round(seconds));
     const mins = Math.floor(safeSeconds / 60);
@@ -282,57 +231,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
       return `${mins}m ${secs.toString().padStart(2, '0')}s`;
     }
     return `${secs}s`;
-  };
-
-  // Test LLM connection
-  const handleTestConnection = async () => {
-    setLlmConnectionStatus('testing', 'Testing connection...');
-    
-    try {
-      console.log('Testing connection to:', llmProvider, 'model:', selectedModel);
-      
-      const result = await adamApi.testLLMConnection(
-        llmProvider,
-        llmProvider === 'openrouter' ? selectedModel || undefined : undefined
-      );
-      
-      if (result.success) {
-        setLlmConnectionStatus('connected', result.message);
-        message.success({
-          content: (
-            <span>
-              <CheckCircleOutlined style={{ color: '#52c41a', marginRight: 8 }} />
-              {result.message}
-            </span>
-          ),
-          duration: 3,
-        });
-      } else {
-        setLlmConnectionStatus('failed', result.message);
-        message.error({
-          content: (
-            <span>
-              <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
-              {result.message}
-            </span>
-          ),
-          duration: 5,
-        });
-      }
-    } catch (error: any) {
-      const errorMsg = error.response?.data?.detail || error.message || 'Connection test failed';
-      setLlmConnectionStatus('failed', errorMsg);
-      message.error({
-        content: (
-          <span>
-            <CloseCircleOutlined style={{ color: '#ff4d4f', marginRight: 8 }} />
-            {errorMsg}
-          </span>
-        ),
-        duration: 5,
-      });
-      console.error('Connection test failed:', error);
-    }
   };
 
   // Handle workspace refresh
@@ -937,217 +835,75 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
 
   return (
     <div className="variables-analysis-tab">
-      {/* Model Configuration Section */}
-      <div className="variables-header-with-config">
-        {/* Left side: Switch Project & Language Selection */}
-        <div className="header-config-left">
-          {onSwitchProject && (
-            <Button
-              icon={<SwapOutlined />}
-              onClick={onSwitchProject}
-              className="switch-project-button"
-              size="large"
-            >
-              Switch Project
-            </Button>
-          )}
-          <div className="compact-group">
-            <span className="compact-label">Language:</span>
-            <div className="language-buttons-compact">
-              <Button
-                type={programmingLanguage === 'R' ? 'primary' : 'default'}
-                onClick={() => setProgrammingLanguage('R')}
-                className={programmingLanguage === 'R' ? 'active' : ''}
-              >
-                R
-              </Button>
-              <Button
-                type={programmingLanguage === 'SAS' ? 'primary' : 'default'}
-                onClick={() => setProgrammingLanguage('SAS')}
-                className={programmingLanguage === 'SAS' ? 'active' : ''}
-              >
-                SAS
-              </Button>
+      <div className="variables-header-compact">
+        <div className="header-info-group">
+          <h2 className="header-title">
+            <FileSearch size={18} />
+            <span>Variables Analysis</span>
+          </h2>
+          <div className="header-stats-compact">
+            <div className="stat-item">
+              <span className="stat-value">{categorizedVariables?.total_variables || 0}</span>
+              <span className="stat-label">Variables</span>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item">
+              <span className="stat-value">{sortedCategories.length}</span>
+              <span className="stat-label">Categories</span>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item stat-item-dataset">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <rect x="2" y="10" width="4" height="8" rx="1" fill="#10b981" />
+                <rect x="8" y="6" width="4" height="12" rx="1" fill="#ec4899" />
+                <rect x="14" y="2" width="4" height="16" rx="1" fill="#3b82f6" />
+              </svg>
+              <span className="stat-dataset">{projectConfig.adamDataset || 'ADSL'}</span>
             </div>
           </div>
         </div>
-
-        {/* Right side: AI Model Configuration Group */}
-        <div className="header-config-right">
-          <div className="ai-model-config-group">
-            <div className="config-group-header">
-              <span className="config-group-icon">🤖</span>
-              <span className="config-group-title">AI Configuration</span>
-            </div>
-            
-            <div className="config-group-content">
-              {/* LLM Provider */}
-              <div className="config-item">
-                <span className="config-label">Provider:</span>
-                <Select
-                  value={llmProvider}
-                  onChange={(value) => setLlmProvider(value)}
-                  className="config-select"
-                  placeholder="Provider"
-                >
-                  <Select.Option value="groq">🚀 Groq</Select.Option>
-                  <Select.Option value="openai">🧠 OpenAI</Select.Option>
-                  <Select.Option value="anthropic">✨ Anthropic</Select.Option>
-                  <Select.Option value="google">🌐 Google</Select.Option>
-                  <Select.Option value="openrouter">🌟 OpenRouter</Select.Option>
-                </Select>
-              </div>
-
-              {/* Model Selection (OpenRouter only) */}
-              {llmProvider === 'openrouter' && (
-                <div className="config-item">
-                  <span className="config-label">Model:</span>
-                  <Select
-                    value={selectedModel}
-                    onChange={(value) => setSelectedModel(value)}
-                    showSearch
-                    optionFilterProp="label"
-                    loading={loadingModels}
-                    className="config-select"
-                    placeholder="Select Model"
-                    notFoundContent={
-                      modelError ? (
-                        <div style={{ padding: '12px', color: '#ff4d4f', fontSize: '12px' }}>
-                          <AlertCircle size={14} style={{ marginRight: 4 }} />
-                          {modelError}
-                        </div>
-                      ) : (
-                        <div style={{ padding: '12px', color: '#999', fontSize: '12px' }}>
-                          No models available
-                        </div>
-                      )
-                    }
-                  >
-                    {availableModels.map(model => (
-                      <Select.Option value={model.id} label={model.name} key={model.id}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <div style={{ fontWeight: 500 }}>{model.name}</div>
-                            {model.context_length && (
-                              <small style={{ color: '#999' }}>
-                                {Math.round(model.context_length / 1000)}K context
-                              </small>
-                            )}
-                          </div>
-                        </div>
-                      </Select.Option>
-                    ))}
-                  </Select>
-                </div>
-              )}
-
-              {/* Connection Test */}
-              <div className="config-item config-item-test">
-                <Tooltip title={llmConnectionMessage || 'Test LLM connection'}>
-                  <Button
-                    icon={
-                      llmConnectionStatus === 'testing' ? <LoadingOutlined /> :
-                      llmConnectionStatus === 'connected' ? <CheckCircleOutlined /> :
-                      llmConnectionStatus === 'failed' ? <CloseCircleOutlined /> :
-                      <ApiOutlined />
-                    }
-                    onClick={handleTestConnection}
-                    loading={llmConnectionStatus === 'testing'}
-                    type={llmConnectionStatus === 'connected' ? 'primary' : 'default'}
-                    danger={llmConnectionStatus === 'failed'}
-                    className="config-test-button"
-                  >
-                    {llmConnectionStatus === 'connected' ? 'Connected' : 
-                     llmConnectionStatus === 'failed' ? 'Failed' : 
-                     'Test Connection'}
-                  </Button>
-                </Tooltip>
-                
-                {llmConnectionStatus === 'connected' && (
-                  <span className="config-status-badge success">
-                    <span className="status-dot connected"></span>
-                    Ready
-                  </span>
-                )}
-                {llmConnectionStatus === 'failed' && (
-                  <span className="config-status-badge error">
-                    <span className="status-dot failed"></span>
-                    Error
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="variables-header">
-        <div className="header-left">
-          <div className="header-icon">
-            <FileSearch size={24} />
-          </div>
-          <div className="header-content">
-            <h2>Variables Analysis</h2>
-            <div className="header-stats-visual">
-              <div className="stat-card stat-card-primary">
-                <div className="stat-icon">
-                  <div className="icon-circle">
-                    {categorizedVariables?.total_variables || 0}
-                  </div>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label-visual">Total Variables</span>
-                </div>
-              </div>
-              <div className="stat-card stat-card-secondary">
-                <div className="stat-icon">
-                  <div className="icon-circle-alt">
-                    {categorizedVariables?.categories?.length || 0}
-                  </div>
-                </div>
-                <div className="stat-info">
-                  <span className="stat-label-visual">Categories</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Dataset Display - Centered */}
-        <div className="header-center">
-          <div className="dataset-badge">
-            <div className="dataset-icon">📊</div>
-            <div className="dataset-content">
-              <span className="dataset-label">Dataset</span>
-              <span className="dataset-value">{categorizedVariables?.dataset_type || 'ADSL'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="header-right">
-          <button
-            className="recategorize-button"
+        <div className="header-actions-compact">
+          <Button
             onClick={handleCategorizeVariables}
             disabled={isCategorizingVariables}
+            icon={isCategorizingVariables ? <LoadingOutlined /> : <RefreshCw size={14} />}
+            className="action-button-compact"
+            size="small"
+            type="default"
           >
-            <Loader2 size={20} className={isCategorizingVariables ? 'spinning' : ''} />
-            Re-analyze Variables
-          </button>
-
-          <button
-            className="refresh-button"
+            Re-analyze
+          </Button>
+          <Button
             onClick={handleRefresh}
+            icon={<RefreshCw size={14} />}
+            className="action-button-compact action-button-danger"
+            size="small"
+            type="default"
             title="Reset workspace and start fresh"
           >
-            <RefreshCw size={20} />
-            Clear All & Restart
-          </button>
+            Clear & Restart
+          </Button>
         </div>
       </div>
 
       {sortedCategories.length > 0 ? (
         <>
           <div className="layout-toggle">
+            <Button
+              icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="18" rx="1" />
+                <rect x="14" y="3" width="7" height="18" rx="1" />
+              </svg>}
+              onClick={() => {
+                const event = new CustomEvent('adam-ai:toggle-left-panel');
+                window.dispatchEvent(event);
+              }}
+              className="panel-toggle-btn-workspace"
+              size="middle"
+              title="Toggle Configuration Panel"
+            >
+              Toggle Panel
+            </Button>
             <div className="layout-toggle-label">Workspace layout</div>
             <div className="layout-toggle-buttons">
               {layoutOptions.map(([key, preset]) => {

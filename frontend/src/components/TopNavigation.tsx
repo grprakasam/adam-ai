@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dropdown } from 'antd';
 import {
   CodeOutlined,
@@ -40,9 +40,40 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   embedded = false
 }) => {
   const [activeMenu, setActiveMenu] = useState<string>('');
+  const [activeSection, setActiveSection] = useState<string>('');
+
+  // Update active section based on path
+  const updateActiveSection = (path: string) => {
+    if (['/pair-programming', '/consolidated-code', '/traceability', '/generation-history'].includes(path)) {
+      setActiveSection('code-generation');
+    } else if (['/code-validator', '/test-with-data', '/validation-reports'].includes(path)) {
+      setActiveSection('code-validation');
+    } else if (['/submission-dashboard', '/my-validation', '/submission-package'].includes(path)) {
+      setActiveSection('submission-readiness');
+    } else {
+      setActiveSection('');
+    }
+  };
+
+  // Listen for navigation events to sync active state
+  useEffect(() => {
+    const handleNavigationEvent = (event: CustomEvent) => {
+      const path = event.detail?.path;
+      if (path) {
+        setActiveMenu(path);
+        updateActiveSection(path);
+      }
+    };
+
+    window.addEventListener('adam-ai:navigate-workspace' as any, handleNavigationEvent);
+    return () => {
+      window.removeEventListener('adam-ai:navigate-workspace' as any, handleNavigationEvent);
+    };
+  }, []);
 
   const handleNavigate = (path: string) => {
     setActiveMenu(path);
+    updateActiveSection(path);
 
     // Notify workspace (RightPanel) about navigation choice
     try {
@@ -169,7 +200,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
               trigger={['hover']}
               placement="bottomLeft"
             >
-              <div className="nav-menu-item">
+              <div className={`nav-menu-item ${activeSection === 'code-generation' ? 'active' : ''}`}>
                 <CodeOutlined />
                 <span>Code Generation</span>
                 <DownOutlined className="nav-menu-arrow" />
@@ -181,7 +212,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
               trigger={['hover']}
               placement="bottomLeft"
             >
-              <div className="nav-menu-item">
+              <div className={`nav-menu-item ${activeSection === 'code-validation' ? 'active' : ''}`}>
                 <CheckCircleOutlined />
                 <span>Code Validation</span>
                 <DownOutlined className="nav-menu-arrow" />
@@ -193,7 +224,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
               trigger={['hover']}
               placement="bottomLeft"
             >
-              <div className="nav-menu-item">
+              <div className={`nav-menu-item ${activeSection === 'submission-readiness' ? 'active' : ''}`}>
                 <FileProtectOutlined />
                 <span>Submission Readiness</span>
                 <DownOutlined className="nav-menu-arrow" />

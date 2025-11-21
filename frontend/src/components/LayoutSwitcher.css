@@ -1,0 +1,73 @@
+.layout-switcher-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gray-700);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  font-size: 18px;
+  padding: 0;
+}
+
+.layout-switcher-button:hover {
+  background: var(--gray-100);
+  color: var(--primary-600);
+}
+
+.layout-switcher-button:active {
+  transform: scale(0.95);
+}
+
+.layout-switcher-button .layout-icon {
+  font-size: 18px;
+}
+
+/* Active state indicators */
+.layout-switcher-button.mobile {
+  color: var(--primary-600);
+}
+
+.layout-switcher-button.desktop {
+  color: var(--success-600);
+}
+
+.layout-switcher-button.auto {
+  color: var(--gray-600);
+}
+
+/* Dark mode support */
+[data-theme="dark"] .layout-switcher-button {
+  color: var(--gray-400);
+}
+
+[data-theme="dark"] .layout-switcher-button:hover {
+  background: var(--gray-800);
+  color: var(--primary-400);
+}
+
+[data-theme="dark"] .layout-switcher-button.mobile {
+  color: var(--primary-400);
+}
+
+[data-theme="dark"] .layout-switcher-button.desktop {
+  color: var(--success-400);
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .layout-switcher-button {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .layout-switcher-button .layout-icon {
+    font-size: 20px;
+  }
+}
+

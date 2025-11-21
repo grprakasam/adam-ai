@@ -19,6 +19,7 @@
   position: relative;
 }
 
+/* Workspace utilities moved to RightPanel.css - now displayed within the workspace panel */
 .workspace-utilities {
   display: flex;
   justify-content: space-between;
@@ -77,4 +78,180 @@
 
 .panel-toggle-btn.collapsed:active {
   transform: translate(-50%, -50%) scale(0.95);
+}
+
+/* === RESPONSIVE DESIGN === */
+
+/* Mobile Layout Styles - Applied via media query OR layout mode */
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .workspace-utilities {
+    padding: var(--space-2) var(--mobile-spacing);
+    gap: var(--space-2);
+  }
+
+  /* On mobile, left panel becomes a drawer overlay */
+  .left-panel-wrapper {
+    position: fixed;
+    top: var(--mobile-header-height);
+    left: 0;
+    bottom: 0;
+    z-index: 999;
+    width: var(--mobile-sidebar-width);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .left-panel-wrapper.active {
+    transform: translateX(0);
+  }
+
+  /* Mobile backdrop */
+  .mobile-backdrop {
+    position: fixed;
+    top: var(--mobile-header-height);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Hide desktop toggle button on mobile */
+  .panel-toggle-btn {
+    display: none;
+  }
+}
+
+/* Force Mobile Layout (when layout mode is set to 'mobile') */
+body[data-layout-mode="mobile"] .main-content {
+  flex-direction: column;
+}
+
+body[data-layout-mode="mobile"] .workspace-utilities {
+  padding: var(--space-2) var(--mobile-spacing);
+  gap: var(--space-2);
+}
+
+body[data-layout-mode="mobile"] .left-panel-wrapper {
+  position: fixed;
+  top: var(--mobile-header-height);
+  left: 0;
+  bottom: 0;
+  z-index: 999;
+  width: var(--mobile-sidebar-width);
+  transform: translateX(-100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+}
+
+body[data-layout-mode="mobile"] .left-panel-wrapper.active {
+  transform: translateX(0);
+}
+
+body[data-layout-mode="mobile"] .mobile-backdrop {
+  position: fixed;
+  top: var(--mobile-header-height);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body[data-layout-mode="mobile"] .mobile-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body[data-layout-mode="mobile"] .panel-toggle-btn {
+  display: none;
+}
+
+body[data-layout-mode="mobile"] .hide-mobile {
+  display: none !important;
+}
+
+body[data-layout-mode="mobile"] .show-mobile {
+  display: block !important;
+}
+
+/* Force Desktop Layout (when layout mode is set to 'desktop') */
+body[data-layout-mode="desktop"] .main-content {
+  flex-direction: row;
+}
+
+body[data-layout-mode="desktop"] .left-panel-wrapper {
+  position: relative;
+  top: auto;
+  left: auto;
+  bottom: auto;
+  transform: none !important;
+}
+
+body[data-layout-mode="desktop"] .mobile-backdrop {
+  display: none;
+}
+
+body[data-layout-mode="desktop"] .panel-toggle-btn {
+  display: flex;
+}
+
+body[data-layout-mode="desktop"] .hide-mobile {
+  display: revert !important;
+}
+
+body[data-layout-mode="desktop"] .show-mobile {
+  display: none !important;
+}
+
+body[data-layout-mode="desktop"] .mobile-menu-btn {
+  display: none !important;
+}
+
+/* Tablet Devices */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .left-panel-wrapper {
+    flex-shrink: 0;
+  }
+
+  .workspace-utilities {
+    padding: 0 var(--space-4) var(--space-2);
+  }
+}
+
+/* Desktop & Larger */
+@media (min-width: 1025px) {
+  .main-content {
+    gap: 0;
+  }
+}
+
+/* Large Desktop Optimizations */
+@media (min-width: 1536px) {
+  :root {
+    --sidebar-width: 420px;
+  }
+}
+
+/* Landscape Mobile Optimization */
+@media (max-width: 768px) and (orientation: landscape) {
+  .workspace-utilities {
+    padding: var(--space-1) var(--mobile-spacing);
+  }
 }

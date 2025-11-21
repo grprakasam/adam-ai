@@ -138,3 +138,30 @@
     height: 28px;
   }
 }
+
+@media (max-width: 768px) {
+  .tab-navigation {
+    margin: var(--space-3);
+    padding: var(--space-3);
+    border-radius: 16px;
+  }
+
+  .tab-item {
+    height: 56px;
+    padding: 0 var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .tab-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .tab-label {
+    font-size: 14px;
+  }
+
+  .tab-meta {
+    display: none; /* Hide badges on mobile to save space */
+  }
+}

@@ -83,6 +83,21 @@
   font-size: var(--text-base);
 }
 
+/* Mobile button adjustments */
+@media (max-width: 768px) {
+  .btn {
+    min-height: var(--touch-target-min);
+    padding: 0 var(--space-4);
+    font-size: 15px;
+  }
+
+  .btn-lg {
+    min-height: 52px;
+    padding: 0 var(--space-5);
+    font-size: 16px;
+  }
+}
+
 /* === INPUTS === */
 .input {
   width: 100%;
@@ -124,6 +139,15 @@
 .input-error:focus {
   border-color: var(--error-500);
   box-shadow: var(--shadow-focus-error);
+}
+
+/* Mobile input adjustments */
+@media (max-width: 768px) {
+  .input {
+    min-height: var(--touch-target-min);
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 0 var(--space-3);
+  }
 }
 
 /* === TEXTAREA === */

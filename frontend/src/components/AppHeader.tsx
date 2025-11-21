@@ -1,13 +1,16 @@
 import React from 'react';
 import { Button, Space } from 'antd';
-import { HomeOutlined } from '@ant-design/icons';
+import { HomeOutlined, MenuOutlined } from '@ant-design/icons';
 import { TopNavigation } from './TopNavigation';
 import { NotificationBell } from './NotificationBell';
 import { SearchButton } from './SearchButton';
 import { DarkModeToggle } from './DarkModeToggle';
+import { LayoutSwitcher } from './LayoutSwitcher';
 import { UserMenu } from './UserMenu';
 import { StudySelector } from './StudySelector';
+import { AIConfigStatus } from './AIConfigStatus';
 import { useProjectStore } from '../store/projectStore';
+import { usePreferencesStore } from '../store/preferencesStore';
 import { showNavigationConfirmation } from './ConfirmationDialog';
 import { useWorkspaceHistory } from '../store/historyStore';
 import './AppHeader.css';
@@ -28,6 +31,7 @@ interface AppHeaderProps {
   currentStudyId?: string;
   onStudyChange?: (studyId: string) => void;
   onNavigate?: (path: string) => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -37,11 +41,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   showStudySelector = false,
   currentStudyId,
   onStudyChange,
-  onNavigate
+  onNavigate,
+  onToggleMobileMenu
 }) => {
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const resetWorkspace = useProjectStore((state) => state.resetWorkspace);
   const clearHistory = useWorkspaceHistory((state) => state.clear);
+  const layoutMode = usePreferencesStore((state) => state.layoutMode);
+
+  // Determine if we should show mobile menu button
+  const showMobileMenu = 
+    layoutMode === 'mobile' || 
+    (layoutMode === 'auto' && window.innerWidth <= 768);
 
   const handleBackToLanding = async () => {
     if (!onBackToLanding) return;
@@ -78,10 +89,22 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     <div className="app-header">
       {/* Top row: Branding, Study Selector, Utilities */}
       <div className="app-header-top">
+        {/* Mobile Menu Button */}
+        {onToggleMobileMenu && showMobileMenu && (
+          <Button
+            className="mobile-menu-btn"
+            icon={<MenuOutlined />}
+            onClick={onToggleMobileMenu}
+            size="large"
+            type="text"
+            aria-label="Toggle menu"
+          />
+        )}
+
         <div className="app-header-left">
           {onBackToLanding && (
             <Button
-              className="back-button"
+              className="back-button hide-mobile"
               icon={<HomeOutlined />}
               onClick={handleBackToLanding}
               size="middle"
@@ -92,11 +115,11 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           <div className="app-brand">
             <div className="app-brand-title">ADAM AI</div>
-            <div className="app-brand-subtitle">Workspace</div>
+            <div className="app-brand-subtitle hide-mobile">Workspace</div>
           </div>
 
           {showStudySelector && onStudyChange && (
-            <div className="app-header-study">
+            <div className="app-header-study hide-mobile">
               <StudySelector
                 value={currentStudyId}
                 onChange={onStudyChange}
@@ -107,23 +130,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
         <div className="app-header-right">
           <Space size="middle">
-            <SearchButton />
-            <NotificationBell />
+            {/* AI Configuration Status - before search */}
+            <AIConfigStatus className="hide-mobile" />
+            <SearchButton className="hide-mobile" />
+            <NotificationBell className="hide-mobile" />
+            <LayoutSwitcher />
             <DarkModeToggle />
             <UserMenu user={normalizedUser} onLogout={onLogout} />
           </Space>
         </div>
-      </div>
-
-      {/* Bottom row: Navigation */}
-      <div className="app-header-bottom">
-        <TopNavigation
-          embedded
-          showLogo={false}
-          showUtilities={false}
-          showStudySelector={false}
-          onNavigate={onNavigate}
-        />
       </div>
     </div>
   );

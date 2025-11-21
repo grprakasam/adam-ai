@@ -12,6 +12,10 @@ import { TraceabilityTab } from './TraceabilityTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
+import AutoSaveIndicator from './AutoSaveIndicator';
+import { HistoryControls } from './HistoryControls';
+import { WorkspaceNavigation } from './WorkspaceNavigation';
+import { WorkspaceControls } from './WorkspaceControls';
 import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
@@ -319,13 +323,22 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
       return (
         <section className="right-panel" role="region" aria-label="Workspace tools">
-          <Tabs
-            className="workspace-tabs"
-            activeKey={activeWorkspaceTab}
-            onChange={(key) => setActiveWorkspaceTab(key as WorkspaceTabKey)}
-            aria-label="Workspace tabs"
-            items={itemsForGroup}
-          />
+          <div className="workspace-utilities">
+            <WorkspaceControls onSwitchProject={onSwitchProject} />
+            <div className="workspace-utilities-right">
+              <AutoSaveIndicator />
+              <HistoryControls />
+            </div>
+          </div>
+          <div className="workspace-navigation-section">
+            <WorkspaceNavigation 
+              activeTab={activeWorkspaceTab}
+              onTabChange={(tab) => setActiveWorkspaceTab(tab as WorkspaceTabKey)}
+            />
+          </div>
+          <div className="workspace-content">
+            {itemsForGroup.find(item => item.key === activeWorkspaceTab)?.children}
+          </div>
         </section>
       );
     } catch (error) {

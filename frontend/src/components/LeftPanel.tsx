@@ -13,6 +13,7 @@ interface LeftPanelProps {
   onTabChange?: (tab: string) => void;
   isCollapsed?: boolean;
   onOpenHelpCenter?: () => void;
+  onCloseMobile?: () => void;
 }
 
 const LeftPanel = ({
@@ -20,6 +21,7 @@ const LeftPanel = ({
   onTabChange,
   isCollapsed = false,
   onOpenHelpCenter,
+  onCloseMobile,
 }: LeftPanelProps) => {
   // Support both controlled and uncontrolled usage
   const [uncontrolledActive, setUncontrolledActive] = useState<string>(controlledActiveTab || 'project');
