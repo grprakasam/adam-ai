@@ -979,80 +979,35 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
             </div>
           </div>
 
-          {/* Bottom Action Area - Generate ADAM Code */}
-          <div className="bottom-action-area" style={{
-            padding: '20px 24px',
-            background: 'linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%)',
-            borderTop: '2px solid #e5e7eb',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Bottom Action Area - Compact Status Bar */}
+          <div className="bottom-action-area">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {isReadyForGeneration ? (
                 <>
-                  <CheckCircleOutlined style={{ fontSize: '24px', color: '#10B981' }} />
+                  <CheckCircleOutlined style={{ fontSize: '16px', color: '#10B981' }} />
                   <div>
-                    <div style={{ fontSize: '16px', fontWeight: 600, color: '#10B981' }}>
-                      Ready for Generation!
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#10B981' }}>
+                      Ready • {percentage}%
                     </div>
-                    <div style={{ fontSize: '13px', color: '#6b7280' }}>
-                      {percentage}% of variables approved • Click the button to generate complete ADAM program
+                    <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                      {approvedCount} approved
                     </div>
                   </div>
                 </>
               ) : (
                 <>
-                  <Info size={24} color="#f59e0b" />
+                  <Info size={16} color="#f59e0b" />
                   <div>
-                    <div style={{ fontSize: '16px', fontWeight: 600, color: '#f59e0b' }}>
-                      Approval Progress: {percentage}%
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#f59e0b' }}>
+                      {percentage}% Approved
                     </div>
-                    <div style={{ fontSize: '13px', color: '#6b7280' }}>
-                      {80 - percentage}% more approvals needed to generate ADAM program
+                    <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                      {80 - percentage}% more needed
                     </div>
                   </div>
                 </>
               )}
             </div>
-
-            {/* Call-to-Action for Consolidated Code */}
-            {isReadyForGeneration && !isGeneratingFinalCode && approvedCount > 0 && (
-              <div style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                padding: '20px',
-                borderRadius: '12px',
-                marginBottom: '16px',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
-                  <FileDoneOutlined style={{ fontSize: '24px' }} />
-                  <div>
-                    <div style={{ fontSize: '18px', fontWeight: 600 }}>Ready for Consolidated Code Generation</div>
-                    <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                      You have {approvedCount} approved variables ready for consolidation into an optimized ADAM program.
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<FileDoneOutlined />}
-                  onClick={() => onNavigateToConsolidated && onNavigateToConsolidated()}
-                  style={{
-                    background: 'white',
-                    color: '#667eea',
-                    border: 'none',
-                    fontWeight: 600,
-                    height: '44px',
-                    borderRadius: '8px'
-                  }}
-                >
-                  Go to Consolidated Code Tab
-                </Button>
-              </div>
-            )}
 
             <Tooltip
               title={
@@ -1065,39 +1020,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
                 className="generate-adam-code-button-bottom"
                 onClick={handleGenerateADAMCode}
                 disabled={!isReadyForGeneration || isGeneratingFinalCode}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '16px 40px',
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  background: isReadyForGeneration && !isGeneratingFinalCode
-                    ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                    : '#d1d5db',
-                  border: 'none',
-                  color: '#fff',
-                  borderRadius: '10px',
-                  cursor: isReadyForGeneration && !isGeneratingFinalCode ? 'pointer' : 'not-allowed',
-                  boxShadow: isReadyForGeneration && !isGeneratingFinalCode
-                    ? '0 8px 20px rgba(16, 185, 129, 0.5)'
-                    : 'none',
-                  transition: 'all 0.3s ease',
-                  animation: isReadyForGeneration ? 'pulse 2s ease-in-out infinite' : 'none',
-                  minWidth: '280px',
-                }}
-                onMouseEnter={(e) => {
-                  if (isReadyForGeneration && !isGeneratingFinalCode) {
-                    e.currentTarget.style.transform = 'translateY(-3px)';
-                    e.currentTarget.style.boxShadow = '0 12px 28px rgba(16, 185, 129, 0.6)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = isReadyForGeneration
-                    ? '0 8px 20px rgba(16, 185, 129, 0.5)'
-                    : 'none';
-                }}
               >
                 {isGeneratingFinalCode ? (
                   <>
