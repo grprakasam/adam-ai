@@ -196,6 +196,9 @@ class CodeGeneratorService:
         """Create a deterministic rationale when an LLM rationale is not available."""
         dataset = context.get("adam_dataset") or context.get("dataset") or "ADSL"
         category = context.get("category")
+        # Ensure derivation_logic is a string, not None
+        if derivation_logic is None:
+            derivation_logic = ''
         derivation_text = derivation_logic.strip() if derivation_logic else "the specification"
         rationale = (
             f"The {variable_name} derivation for {dataset} is implemented in {language} "
@@ -384,9 +387,13 @@ class CodeGeneratorService:
                 logger.info(f"Applying user guidance for {variable_name}: {note_summary[:120]}")
             
             try:
-                variable_label = variable.get('label', '')
-                variable_type = variable.get('type', '')
-                derivation = variable.get('derivation', '')
+                variable_label = variable.get('label', '') or ''
+                variable_type = variable.get('type', '') or ''
+                derivation = variable.get('derivation') or ''
+                # Ensure derivation is a string, not None
+                if derivation is None:
+                    derivation = ''
+                derivation = str(derivation).strip()
                 
                 # Build prompt for code generation
                 code_prompt = await self.prompt_builder.build_code_generation_prompt(

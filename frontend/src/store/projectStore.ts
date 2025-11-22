@@ -246,7 +246,7 @@ const initialState = {
     isGenerating: {},
   },
   programmingLanguage: 'R' as 'R' | 'SAS',
-  llmProvider: 'groq' as LLMProvider,
+  llmProvider: 'google' as LLMProvider,
   selectedModel: null,
   availableModels: [],
   llmConnectionStatus: 'untested' as 'untested' | 'testing' | 'connected' | 'failed',
@@ -379,18 +379,29 @@ export const useProjectStore = create<ProjectStore>()(
         })),
 
       setPairProgrammingAcceptance: (variable, accepted) =>
-        set((state) => ({
-          pairProgramming: {
-            ...state.pairProgramming,
-            snippets: {
-              ...state.pairProgramming.snippets,
-              [variable]: {
-                ...state.pairProgramming.snippets[variable],
-                accepted,
+        set((state) => {
+          const existingSnippet = state.pairProgramming.snippets[variable];
+          
+          // If snippet doesn't exist, we can't set acceptance (code must be generated first)
+          if (!existingSnippet) {
+            console.warn(`Cannot set acceptance for ${variable}: snippet does not exist`);
+            return state;
+          }
+
+          // Update the acceptance while preserving all other fields
+          return {
+            pairProgramming: {
+              ...state.pairProgramming,
+              snippets: {
+                ...state.pairProgramming.snippets,
+                [variable]: {
+                  ...existingSnippet,
+                  accepted,
+                },
               },
             },
-          },
-        })),
+          };
+        }),
 
       setBulkCodeSnippets: (snippets) =>
         set((state) => {
@@ -405,12 +416,23 @@ export const useProjectStore = create<ProjectStore>()(
               return;
             }
             
+            // Auto-approve variables after code generation
+            // Only preserve 'modify' status if user explicitly marked it for modification
+            // Otherwise, auto-approve when code is generated
+            const existingAcceptance = state.pairProgramming.snippets[variable]?.accepted;
+            const hasCode = !!snippet.code_snippet && !snippet.error;
+            
+            // Auto-approve if code exists and not explicitly marked as 'modify'
+            // If already 'modify', keep it as 'modify' (user wants changes)
+            // Otherwise, auto-approve
+            const autoApproved = hasCode && existingAcceptance !== 'modify' ? 'accept' : existingAcceptance;
+            
             newSnippets[variable] = {
               variable: variable,
               codeSnippet: snippet.code_snippet || '',
               rationale: snippet.coding_rationale || '',
               userNotes: state.pairProgramming.snippets[variable]?.userNotes || '',
-              accepted: state.pairProgramming.snippets[variable]?.accepted || 'accept',
+              accepted: autoApproved || (hasCode ? 'accept' : null), // Auto-approve if code exists
               generatedAt: new Date(),
               language: state.programmingLanguage,
               error: snippet.error,
@@ -619,13 +641,36 @@ export const useProjectStore = create<ProjectStore>()(
 
       canGenerateConsolidated: () => {
         const state = get();
-        const snippets = Object.values(state.pairProgramming.snippets);
-        if (snippets.length === 0) {
+        const snippets = state.pairProgramming?.snippets || {};
+        const categorizedVariables = state.categorizedVariables;
+        
+        // If no categorized variables, can't generate
+        if (!categorizedVariables?.categories || categorizedVariables.categories.length === 0) {
           return false;
         }
-        return snippets.every(
-          (snippet) => snippet.accepted === 'accept' && !!snippet.codeSnippet
-        );
+        
+        // Count variables with code (regardless of approval status)
+        // Generate consolidated code for all variables that have code snippets
+        let variablesWithCode = 0;
+        
+        categorizedVariables.categories.forEach((category) => {
+          if (category?.variables && Array.isArray(category.variables)) {
+            category.variables.forEach((variable) => {
+              if (variable?.name) {
+                const varName = variable.name;
+                const snippet = snippets[varName];
+                
+                // Count if variable has code (regardless of approval status)
+                if (snippet && snippet.codeSnippet && !snippet.error) {
+                  variablesWithCode++;
+                }
+              }
+            });
+          }
+        });
+        
+        // Can generate if at least one variable has code
+        return variablesWithCode > 0;
       },
 
       // Traceability actions

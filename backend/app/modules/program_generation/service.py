@@ -13,6 +13,35 @@ class ProgramGeneratorService:
     
     def __init__(self):
         logger.info("Initialized ProgramGeneratorService")
+        # Verify all required methods are available
+        self._verify_methods()
+    
+    def _verify_methods(self):
+        """Verify that all required methods exist on this instance"""
+        required_methods = [
+            'generate_program_header',
+            'generate_data_input_section',
+            'generate_input_section',
+            'generate_output_section',
+            'order_variables_by_dependency',
+            'assemble_derivation_code',
+            'generate_complete_program',
+            'generate_program_with_notes',
+            'integrate_user_notes',
+            'generate_preferences_comment'
+        ]
+        
+        missing_methods = []
+        for method_name in required_methods:
+            if not hasattr(self, method_name):
+                missing_methods.append(method_name)
+        
+        if missing_methods:
+            error_msg = f"ProgramGeneratorService is missing required methods: {', '.join(missing_methods)}"
+            logger.error(error_msg)
+            raise AttributeError(error_msg)
+        
+        logger.debug(f"All {len(required_methods)} required methods verified successfully")
     
     def generate_program_header(
         self,
@@ -35,9 +64,15 @@ class ProgramGeneratorService:
         Returns:
             Formatted program header
         """
+        # Normalize inputs
+        language = str(language).upper() if language else "R"
+        dataset = str(dataset) if dataset else "ADSL"
+        study_id = str(study_id) if study_id else ""
+        author = str(author) if author else "ADAM AI Code Generator"
+        
         current_date = datetime.now().strftime("%Y-%m-%d")
         
-        if language.upper() == "SAS":
+        if language == "SAS":
             header = f"""/*******************************************************************************
 * Program: {dataset}.sas
 * Purpose: Generate ADAM {dataset} dataset
@@ -114,19 +149,35 @@ library(lubridate)
         Returns:
             Data input code
         """
-        if language.upper() == "SAS":
+        # Normalize language
+        language = str(language).upper() if language else "R"
+        
+        # Filter out None values - handle case where sdtm_domains itself is None
+        if sdtm_domains is None:
+            sdtm_domains = []
+        valid_domains = [str(d).lower() for d in sdtm_domains if d is not None and str(d).strip()]
+        
+        if language == "SAS":
             input_code = "\n/* Read input SDTM datasets */\n"
-            for domain in sdtm_domains:
-                input_code += f"libname sdtm '&sdtmpath';\n"
-                input_code += f"data {domain.lower()};\n"
-                input_code += f"    set sdtm.{domain.lower()};\n"
+            if valid_domains:
+                input_code += "libname sdtm '&sdtmpath';\n"
+            for domain in valid_domains:
+                input_code += f"data {domain};\n"
+                input_code += f"    set sdtm.{domain};\n"
                 input_code += f"run;\n\n"
         else:  # R
             input_code = "\n# Read input SDTM datasets\n"
-            for domain in sdtm_domains:
-                input_code += f"{domain.lower()} <- read_sas(file.path(sdtm_path, '{domain.lower()}.sas7bdat'))\n"
+            for domain in valid_domains:
+                input_code += f"{domain} <- read_sas(file.path(sdtm_path, '{domain}.sas7bdat'))\n"
         
         return input_code
+    
+    # Alias for backward compatibility (in case old code references this)
+    def generate_input_section(self, language: str, sdtm_domains: List[str]) -> str:
+        """
+        Alias for generate_data_input_section for backward compatibility
+        """
+        return self.generate_data_input_section(language, sdtm_domains)
     
     def order_variables_by_dependency(
         self,
@@ -146,15 +197,17 @@ library(lubridate)
         
         # First: Direct mappings and simple derivations
         for var in variables:
-            derivation = var.get('derivation', '').lower()
-            if any(word in derivation for word in ['direct', 'copy', 'retain', 'from sdtm']):
+            derivation = var.get('derivation', '') or ''
+            derivation_lower = str(derivation).lower()
+            if any(word in derivation_lower for word in ['direct', 'copy', 'retain', 'from sdtm']):
                 ordered.append(var)
         
         # Second: Calculated fields
         for var in variables:
             if var not in ordered:
-                derivation = var.get('derivation', '').lower()
-                if any(word in derivation for word in ['calculate', 'compute', 'derive']):
+                derivation = var.get('derivation', '') or ''
+                derivation_lower = str(derivation).lower()
+                if any(word in derivation_lower for word in ['calculate', 'compute', 'derive']):
                     ordered.append(var)
         
         # Third: Flags and indicators
@@ -235,28 +288,32 @@ library(lubridate)
         Returns:
             Output code
         """
-        if language.upper() == "SAS":
+        # Normalize inputs
+        language = str(language).upper() if language else "R"
+        dataset = str(dataset).lower() if dataset else "adsl"
+        
+        if language == "SAS":
             output_code = f"""
 /* Save output dataset */
 libname adam '&adampath';
-data adam.{dataset.lower()};
+data adam.{dataset};
     set adam_data;
 run;
 
 /* Print summary statistics */
-proc contents data=adam.{dataset.lower()};
+proc contents data=adam.{dataset};
 run;
 
-proc means data=adam.{dataset.lower()} n nmiss mean std min max;
+proc means data=adam.{dataset} n nmiss mean std min max;
 run;
 """
         else:  # R
             output_code = f"""
 # Save output dataset
-write_sas(adam_data, file.path(adam_path, "{dataset.lower()}.sas7bdat"))
+write_sas(adam_data, file.path(adam_path, "{dataset}.sas7bdat"))
 
 # Print summary statistics
-cat("\n=== Dataset Summary ===\n")
+cat("\\n=== Dataset Summary ===\\n")
 print(dim(adam_data))
 print(str(adam_data))
 print(summary(adam_data))
@@ -388,16 +445,22 @@ print(summary(adam_data))
         Returns:
             Enhanced code snippet with user notes
         """
-        if not user_note or not user_note.strip():
-            return code_snippet
+        if not user_note or not str(user_note).strip():
+            return code_snippet or ""
+        
+        # Normalize language
+        language = str(language).upper() if language else "R"
+        variable_name = str(variable_name) if variable_name else ""
+        user_note = str(user_note).strip()
         
         # Format user note as comment
-        if language.upper() == "SAS":
-            note_comment = f"/* USER NOTE ({variable_name}): {user_note.strip()} */\n    "
+        if language == "SAS":
+            note_comment = f"/* USER NOTE ({variable_name}): {user_note} */\n    "
         else:  # R
-            note_comment = f"  # USER NOTE ({variable_name}): {user_note.strip()}\n  "
+            note_comment = f"  # USER NOTE ({variable_name}): {user_note}\n  "
         
         # Prepend note to code snippet
+        code_snippet = code_snippet or ""
         return note_comment + code_snippet
     
     def generate_preferences_comment(
@@ -415,7 +478,11 @@ print(summary(adam_data))
         Returns:
             Formatted comment with preferences
         """
-        if language.upper() == "SAS":
+        # Normalize language
+        language = str(language).upper() if language else "R"
+        preferences = preferences or {}
+        
+        if language == "SAS":
             comment = "\n/*\n* USER PREFERENCES:\n"
             if preferences.get('sasProcs'):
                 comment += f"*   SAS Procedures: {', '.join(preferences['sasProcs'])}\n"
@@ -469,6 +536,19 @@ print(summary(adam_data))
             Dictionary containing program code and metadata
         """
         try:
+            # Validate required parameters
+            if not language:
+                raise ValueError("Language parameter is required")
+            if not dataset:
+                raise ValueError("Dataset parameter is required")
+            if not study_id:
+                raise ValueError("Study ID parameter is required")
+            
+            # Normalize language to uppercase string
+            language = str(language).upper() if language else "R"
+            dataset = str(dataset) if dataset else "ADSL"
+            study_id = str(study_id) if study_id else ""
+            
             logger.info(f"Generating program with notes for {dataset} in {language}")
             logger.info(f"Approved variables: {len(approved_variables)}")
             logger.info(f"Variables with notes: {len(user_notes) if user_notes else 0}")
@@ -510,30 +590,39 @@ print(summary(adam_data))
             program_parts.append(header)
             
             # 2. Input section
-            program_parts.append(self.generate_input_section(
+            # Filter out None values from sdtm_domains and ensure all are strings
+            if sdtm_domains is None:
+                sdtm_domains = ['dm', 'ex', 'ae']
+            valid_sdtm_domains = [str(d).strip().lower() for d in sdtm_domains if d is not None and str(d).strip()]
+            if not valid_sdtm_domains:
+                valid_sdtm_domains = ['dm', 'ex', 'ae']  # Default fallback
+            program_parts.append(self.generate_data_input_section(
                 language=language,
-                sdtm_domains=sdtm_domains or ['dm', 'ex', 'ae']
+                sdtm_domains=valid_sdtm_domains
             ))
             
             # 3. Derivation code with user notes
-            if language.upper() == "SAS":
+            if language == "SAS":
                 derivation_code = "\n/* Derive ADAM variables (approved only) */\ndata adam_data;\n"
                 derivation_code += "    set sdtm_data;\n\n"
                 
                 for var in ordered_variables:
-                    var_name = var.get('name', '')
-                    code = code_snippets.get(var_name, '')
+                    var_name = str(var.get('name', '')).strip() if var.get('name') else ''
+                    if not var_name:
+                        continue
+                    code = code_snippets.get(var_name, '') or ''
                     
                     if code:
                         # Add user notes if present
+                        var_label = str(var.get('label', '')).strip() if var.get('label') else ''
                         enhanced_code = self.integrate_user_notes(
                             variable_name=var_name,
-                            code_snippet=code,
-                            user_note=user_notes.get(var_name),
+                            code_snippet=str(code),
+                            user_note=user_notes.get(var_name) if user_notes else None,
                             language=language
                         )
                         
-                        derivation_code += f"    /* {var_name}: {var.get('label', '')} */\n"
+                        derivation_code += f"    /* {var_name}: {var_label} */\n"
                         derivation_code += f"    {enhanced_code}\n\n"
                 
                 derivation_code += "run;\n"
@@ -541,19 +630,22 @@ print(summary(adam_data))
                 derivation_code = "\n# Derive ADAM variables (approved only)\nadam_data <- sdtm_data %>%\n"
                 
                 for i, var in enumerate(ordered_variables):
-                    var_name = var.get('name', '')
-                    code = code_snippets.get(var_name, '')
+                    var_name = str(var.get('name', '')).strip() if var.get('name') else ''
+                    if not var_name:
+                        continue
+                    code = code_snippets.get(var_name, '') or ''
                     
                     if code:
                         # Add user notes if present
+                        var_label = str(var.get('label', '')).strip() if var.get('label') else ''
                         enhanced_code = self.integrate_user_notes(
                             variable_name=var_name,
-                            code_snippet=code,
-                            user_note=user_notes.get(var_name),
+                            code_snippet=str(code),
+                            user_note=user_notes.get(var_name) if user_notes else None,
                             language=language
                         )
                         
-                        derivation_code += f"  # {var_name}: {var.get('label', '')}\n"
+                        derivation_code += f"  # {var_name}: {var_label}\n"
                         derivation_code += f"  {enhanced_code}"
                         if i < len(ordered_variables) - 1:
                             derivation_code += " %>%\n"

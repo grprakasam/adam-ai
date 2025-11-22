@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     PORT: int = 8000
     
     # CORS
-    CORS_ORIGINS: str = "http://localhost:3000,https://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002,http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,https://localhost:4173,http://127.0.0.1:4173,http://localhost:4174,https://localhost:4174,http://127.0.0.1:4174"
+    CORS_ORIGINS: str = "http://localhost:3000,https://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:3002,http://127.0.0.1:3002,http://localhost:3003,http://127.0.0.1:3003,http://localhost:3004,http://127.0.0.1:3004,http://localhost:3005,http://127.0.0.1:3005,http://localhost:5173,https://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,https://localhost:4173,http://127.0.0.1:4173,http://localhost:4174,https://localhost:4174,http://127.0.0.1:4174"
     
     @field_validator('CORS_ORIGINS')
     @classmethod
@@ -54,8 +54,8 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: Optional[str] = None  # Access to 100+ models
     
     # Default LLM Configuration
-    DEFAULT_LLM_PROVIDER: str = "groq"  # groq, openai, anthropic, google, openrouter
-    DEFAULT_MODEL: str = "llama-3.3-70b-versatile"  # Groq's fastest 70B model
+    DEFAULT_LLM_PROVIDER: str = "google"  # groq, openai, anthropic, google, openrouter
+    DEFAULT_MODEL: str = "gemini-2.0-flash-exp"  # Google's fast experimental model
     DEFAULT_TEMPERATURE: float = 0.3  # Slightly higher for faster generation
     DEFAULT_MAX_TOKENS: int = 400  # OPTIMIZED: Reduced from 800 to 400 for 2x faster responses
 

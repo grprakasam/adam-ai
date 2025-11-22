@@ -155,14 +155,11 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
   }, [isCategorizingVariables]);
 
   // Get approval progress
-  const { percentage, isReadyForGeneration } = useApprovalProgress();
+  const { percentage, isReadyForGeneration, totalVariables, approvedVariables } = useApprovalProgress();
   const canGenerateConsolidated = useProjectStore((state) => state.canGenerateConsolidated());
 
-  // Get approved variables count
-  const approvedCount = useProjectStore((state) => {
-    const snippets = state.pairProgramming.snippets;
-    return Object.values(snippets).filter(snippet => snippet.accepted === 'accept').length;
-  });
+  // Use approved count from hook for consistency
+  const approvedCount = approvedVariables;
 
   const sortedCategories: DisplayCategory[] = useMemo(() => {
     if (!categorizedVariables?.categories) {
@@ -704,10 +701,28 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       message.loading({ content: 'Generating complete ADAM program...', key: 'finalGen', duration: 0 });
 
       // Collect approved variables and their data
+      // Include all variables with generated code (auto-approved) unless explicitly marked as 'modify'
       const pairProgramming = useProjectStore.getState().pairProgramming;
       const approvedVarNames = Object.entries(pairProgramming.snippets)
-        .filter(([_, snippet]) => snippet.accepted === 'accept')
+        .filter(([_, snippet]) => {
+          // Include if:
+          // 1. Has code snippet and not marked as 'modify' (auto-approved)
+          // 2. OR explicitly marked as 'accept'
+          return (snippet.codeSnippet && !snippet.error && snippet.accepted !== 'modify') 
+            || snippet.accepted === 'accept';
+        })
         .map(([name, _]) => name);
+
+      // Validate that we have at least one approved variable
+      if (approvedVarNames.length === 0) {
+        message.warning({
+          content: 'No approved variables found. Please approve at least one variable in the pair programming area before generating consolidated code.',
+          key: 'finalGen',
+          duration: 5,
+        });
+        setIsGeneratingFinalCode(false);
+        return;
+      }
 
       // Collect user notes for approved variables
       const userNotes: Record<string, string> = {};
@@ -987,10 +1002,10 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
                   <CheckCircleOutlined style={{ fontSize: '16px', color: '#10B981' }} />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: '#10B981' }}>
-                      Ready • {percentage}%
+                      Ready • {approvedCount} approved
                     </div>
                     <div style={{ fontSize: '11px', color: '#6b7280' }}>
-                      {approvedCount} approved
+                      {approvedCount} of {totalVariables} variables ({percentage}%)
                     </div>
                   </div>
                 </>
@@ -999,10 +1014,10 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
                   <Info size={16} color="#f59e0b" />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 600, color: '#f59e0b' }}>
-                      {percentage}% Approved
+                      No variables approved yet
                     </div>
                     <div style={{ fontSize: '11px', color: '#6b7280' }}>
-                      {80 - percentage}% more needed
+                      Approve variables to generate consolidated code
                     </div>
                   </div>
                 </>
@@ -1011,15 +1026,15 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
 
             <Tooltip
               title={
-                !isReadyForGeneration
-                  ? `${80 - percentage}% more approvals needed (currently ${percentage}%)`
-                  : 'Generate complete ADAM program from approved variables'
+                approvedCount > 0
+                  ? `Generate complete ADAM program from ${approvedCount} approved variable${approvedCount !== 1 ? 's' : ''}`
+                  : 'Approve variables in the pair programming area to include them in the consolidated code'
               }
             >
               <button
                 className="generate-adam-code-button-bottom"
                 onClick={handleGenerateADAMCode}
-                disabled={!isReadyForGeneration || isGeneratingFinalCode}
+                disabled={isGeneratingFinalCode}
               >
                 {isGeneratingFinalCode ? (
                   <>

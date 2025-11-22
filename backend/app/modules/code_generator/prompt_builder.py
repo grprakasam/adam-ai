@@ -25,10 +25,15 @@ class TemplateSelector:
         Returns:
             Template name if found, None otherwise
         """
-        if not derivation:
+        if derivation is None or not derivation:
             return None
         
-        derivation_lower = derivation.lower()
+        # Ensure derivation is a string
+        derivation_str = str(derivation).strip()
+        if not derivation_str:
+            return None
+        
+        derivation_lower = derivation_str.lower()
         
         # Pattern matching for template selection
         if "flag" in derivation_lower or "y/n" in derivation_lower:
@@ -174,6 +179,11 @@ class PromptBuilder:
         # Load rules if not already loaded
         await self.load_rules()
         
+        # Ensure derivation_logic is a string, not None
+        if derivation_logic is None:
+            derivation_logic = ''
+        derivation_logic = str(derivation_logic).strip()
+        
         # Select appropriate template
         template_name = self.template_selector.select_template(derivation_logic, language)
         template_hint = ""
@@ -233,6 +243,11 @@ Output executable {language} code only. No comments, no imports."""
         Returns:
             Formatted prompt for rationale generation
         """
+        # Ensure derivation_logic is a string, not None
+        if derivation_logic is None:
+            derivation_logic = ''
+        derivation_logic = str(derivation_logic).strip()
+        
         prompt = f"""Provide a brief, high-level rationale (2-3 sentences) explaining how the derivation logic was translated into {language} code for the variable {variable_name}.
 
 **Derivation Logic:**

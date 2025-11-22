@@ -43,19 +43,24 @@ export const FinalCodeGenerationDialog: React.FC<FinalCodeGenerationDialogProps>
     const approved: Array<{ name: string; category: string; notes?: string }> = [];
     const notes: Record<string, string> = {};
 
-    if (categorizedVariables) {
-      Object.entries(categorizedVariables).forEach(([category, variables]) => {
-        if (Array.isArray(variables)) {
-          variables.forEach((variable) => {
-            const varName = variable.name || variable.variable_name;
-            if (varName && snippets[varName]?.accepted === 'accept') {
+    if (categorizedVariables?.categories) {
+      categorizedVariables.categories.forEach((category) => {
+        if (category?.variables && Array.isArray(category.variables)) {
+          category.variables.forEach((variable) => {
+            const varName = variable.name;
+            const snippet = snippets[varName];
+            // Include if has code and not marked as 'modify' (auto-approved)
+            // OR explicitly marked as 'accept'
+            if (varName && snippet && 
+                ((snippet.codeSnippet && !snippet.error && snippet.accepted !== 'modify') 
+                 || snippet.accepted === 'accept')) {
               approved.push({
                 name: varName,
-                category,
-                notes: snippets[varName]?.userNotes,
+                category: category.name,
+                notes: snippet?.userNotes,
               });
-              if (snippets[varName]?.userNotes?.trim()) {
-                notes[varName] = snippets[varName].userNotes;
+              if (snippet?.userNotes?.trim()) {
+                notes[varName] = snippet.userNotes;
               }
             }
           });

@@ -103,7 +103,7 @@ Code only, minimal syntax."""
                     'warnings': [],
                     'error': None,
                     'metadata': {
-                        'provider': 'groq',
+                        'provider': 'google',
                         'generation_method': 'multi_variable_batch',
                         'variable_type': var_match.get('type', 'Unknown')
                     }
