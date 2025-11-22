@@ -602,6 +602,7 @@
   gap: 10px;
   flex: 1;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .header-info svg {
@@ -609,6 +610,81 @@
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
   width: 18px;
   height: 18px;
+}
+
+/* Filter buttons in header-info */
+.header-info .header-filters {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.header-info .header-filters .filter-btn {
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  backdrop-filter: blur(4px);
+}
+
+.header-info .header-filters .filter-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.header-info .header-filters .filter-btn.active {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.95);
+  color: #10b981;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Field Visibility button in header-info */
+.header-info .header-field-visibility {
+  margin-left: 8px;
+}
+
+.header-info .header-field-visibility .field-selector-btn {
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 26px;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-info .header-field-visibility .field-selector-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: white;
+}
+
+.header-info .header-field-visibility .field-selector-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .header-title {
@@ -646,9 +722,10 @@
   .header-info {
     width: 100%;
     flex-direction: row;
-    gap: 10px;
+    gap: 8px;
     text-align: left;
     align-items: center;
+    flex-wrap: wrap;
   }
 
   .header-info svg {
@@ -663,6 +740,34 @@
   .header-subtitle {
     font-size: 11px;
     margin-left: 8px;
+  }
+
+  /* Filter buttons in header on mobile */
+  .header-info .header-filters {
+    margin-left: 0;
+    width: 100%;
+    order: 3;
+    margin-top: 8px;
+    gap: 4px;
+  }
+
+  .header-info .header-filters .filter-btn {
+    flex: 1;
+    font-size: 10px;
+    padding: 4px 8px;
+    height: 24px;
+  }
+
+  /* Field Visibility in header on mobile */
+  .header-info .header-field-visibility {
+    margin-left: auto;
+    order: 2;
+  }
+
+  .header-info .header-field-visibility .field-selector-btn {
+    font-size: 10px;
+    padding: 4px 10px;
+    height: 24px;
   }
 
   .header-actions {

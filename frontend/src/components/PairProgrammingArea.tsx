@@ -117,8 +117,17 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     setPairProgrammingAcceptance,
     programmingLanguage,
     llmProvider,
-    selectedModel
+    selectedModel,
+    categorizedVariables
   } = useProjectStore();
+
+  // Get ALL variables from all categories for accurate counts
+  const allVariables = useMemo(() => {
+    if (!categorizedVariables?.categories) return [];
+    return categorizedVariables.categories.flatMap(category => 
+      category.variables || []
+    );
+  }, [categorizedVariables]);
 
 
 
@@ -462,98 +471,97 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           <Code2 size={20} />
           <span className="header-title">Pair Programming Area</span>
           <span className="header-subtitle">
-            {variables.length} variables • {variables.filter(v => pairProgramming.snippets[v.name]?.codeSnippet).length} generated
+            {categoryName}: {variables.length} variables • {variables.filter(v => pairProgramming.snippets[v.name]?.codeSnippet).length} generated
           </span>
-        </div>
-      </div>
-
-      {/* Search & Filter Toolbar - Immediately below header, always visible */}
-      <div className="pair-programming-toolbar">
-          <div className="search-box">
-            <Search size={16} />
-            <input
-              type="text"
-              placeholder="Search variables by name or label..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-            />
-            {searchQuery && (
-              <button 
-                className="search-clear"
-                onClick={() => setSearchQuery('')}
-                title="Clear search"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          <div className="filter-buttons">
+          
+          {/* Filter Buttons - Moved to header-info */}
+          <div className="filter-buttons header-filters">
             <button 
               className={`filter-btn ${filterStatus === 'all' ? 'active' : ''}`}
               onClick={() => setFilterStatus('all')}
             >
-              All ({variables.length})
+              All ({allVariables.length})
             </button>
             <button 
               className={`filter-btn ${filterStatus === 'generated' ? 'active' : ''}`}
               onClick={() => setFilterStatus('generated')}
             >
-              Generated ({variables.filter(v => pairProgramming.snippets[v.name]?.codeSnippet).length})
+              Generated ({allVariables.filter(v => pairProgramming.snippets[v.name]?.codeSnippet).length})
             </button>
             <button 
               className={`filter-btn ${filterStatus === 'pending' ? 'active' : ''}`}
               onClick={() => setFilterStatus('pending')}
             >
-              Pending ({variables.filter(v => !pairProgramming.snippets[v.name]?.codeSnippet).length})
+              Pending ({allVariables.filter(v => !pairProgramming.snippets[v.name]?.codeSnippet).length})
             </button>
           </div>
-        </div>
 
-      {/* Field Visibility Control - Only Field Visibility, Density and Size controls removed */}
-      <div className="visibility-controls-toolbar">
-        <div className="control-group">
-          <Dropdown
-            open={fieldDropdownOpen}
-            onOpenChange={(open) => setFieldDropdownOpen(open)}
-            menu={{
-              items: FIELD_DEFINITIONS.map(field => ({
-                key: field.id,
-                label: (
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!field.alwaysVisible && !(field.requiresSnippet && !hasAnySnippets)) {
-                        toggleField(field.id);
-                      }
-                    }}
-                    style={{ width: '100%', cursor: 'pointer' }}
-                  >
-                    <Checkbox
-                      checked={visibleFields.has(field.id)}
-                      disabled={field.alwaysVisible || (field.requiresSnippet && !hasAnySnippets)}
-                      style={{ pointerEvents: 'none' }}
+          {/* Field Visibility Button - Moved to header-info */}
+          <div className="header-field-visibility">
+            <Dropdown
+              open={fieldDropdownOpen}
+              onOpenChange={(open) => setFieldDropdownOpen(open)}
+              menu={{
+                items: FIELD_DEFINITIONS.map(field => ({
+                  key: field.id,
+                  label: (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!field.alwaysVisible && !(field.requiresSnippet && !hasAnySnippets)) {
+                          toggleField(field.id);
+                        }
+                      }}
+                      style={{ width: '100%', cursor: 'pointer' }}
                     >
-                      {field.label}
-                      {field.alwaysVisible && ' (Always visible)'}
-                      {field.requiresSnippet && !hasAnySnippets && ' (Generate snippets first)'}
-                    </Checkbox>
-                  </div>
-                ),
-                onClick: () => {
-                  // Prevent menu from closing
-                  return false;
-                }
-              }))
-            }}
-            trigger={['click']}
-          >
-            <button className="field-selector-btn">
-              <Eye size={16} />
-              Field Visibility ({visibleFields.size}/{FIELD_DEFINITIONS.length})
+                      <Checkbox
+                        checked={visibleFields.has(field.id)}
+                        disabled={field.alwaysVisible || (field.requiresSnippet && !hasAnySnippets)}
+                        style={{ pointerEvents: 'none' }}
+                      >
+                        {field.label}
+                        {field.alwaysVisible && ' (Always visible)'}
+                        {field.requiresSnippet && !hasAnySnippets && ' (Generate snippets first)'}
+                      </Checkbox>
+                    </div>
+                  ),
+                  onClick: () => {
+                    // Prevent menu from closing
+                    return false;
+                  }
+                }))
+              }}
+              trigger={['click']}
+            >
+              <button className="field-selector-btn">
+                <Eye size={16} />
+                Field Visibility ({visibleFields.size}/{FIELD_DEFINITIONS.length})
+              </button>
+            </Dropdown>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Toolbar - Only search box remains */}
+      <div className="pair-programming-toolbar">
+        <div className="search-box">
+          <Search size={16} />
+          <input
+            type="text"
+            placeholder="Search variables by name or label..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button 
+              className="search-clear"
+              onClick={() => setSearchQuery('')}
+              title="Clear search"
+            >
+              ✕
             </button>
-          </Dropdown>
+          )}
         </div>
       </div>
 
