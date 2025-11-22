@@ -1,34 +1,49 @@
 .auto-save-indicator {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius-lg);
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  font-size: var(--text-sm);
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--surface-elevated, #f9fafb);
+  border: 1px solid var(--border-color, #e5e7eb);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  font-size: 10px;
+  height: 26px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
 }
 
 .auto-save-indicator .indicator-state {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--gray-700);
+  gap: 4px;
+  color: var(--gray-700, #374151);
+  font-size: 10px;
 }
 
 .auto-save-indicator .indicator-state svg {
-  font-size: 14px;
+  font-size: 11px;
+  flex-shrink: 0;
 }
 
 .auto-save-indicator .timestamp {
-  color: var(--gray-500);
-  font-size: 12px;
+  color: var(--gray-500, #6b7280);
+  font-size: 9px;
+  white-space: nowrap;
 }
 
 .auto-save-indicator .indicator-hint {
   color: var(--warning-600);
-  font-size: 12px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.auto-save-indicator button {
+  height: 22px !important;
+  padding: 0 8px !important;
+  font-size: 10px !important;
+  border-radius: 4px !important;
+  line-height: 1.2 !important;
 }
 
 .auto-save-indicator.status-error {

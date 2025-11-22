@@ -1,12 +1,196 @@
 /* ========================================
-   Workspace Navigation - Modern UI/UX Design
+   Workspace Navigation - SINGLE ROW Design - Space Optimized
    ======================================== */
 
 .workspace-navigation {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   width: 100%;
+}
+
+/* Single Row Navigation Container */
+.workspace-navigation-single-row {
+  display: flex;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.workspace-navigation-single-row::-webkit-scrollbar {
+  height: 4px;
+}
+
+.workspace-navigation-single-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workspace-navigation-single-row::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 2px;
+}
+
+.workspace-navigation-single-row::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.nav-single-row-container {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  min-width: fit-content;
+  padding: 2px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  height: 100%;
+}
+
+.nav-single-row-container::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/* Section Button - Inline Style - Ultra Compact */
+.nav-section-btn-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  position: relative;
+  height: 26px;
+  line-height: 1;
+}
+
+.nav-section-btn-inline:hover {
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--section-color);
+}
+
+.nav-section-btn-inline.active {
+  background: white;
+  color: var(--section-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.nav-section-icon-inline {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.nav-section-label-inline {
+  white-space: nowrap;
+}
+
+/* Navigation Item Pills - Ultra Compact Horizontal */
+.nav-item-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: white;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 600;
+  font-size: 11px;
+  color: #1e293b;
+  white-space: nowrap;
+  position: relative;
+  height: 26px;
+  line-height: 1;
+}
+
+/* Remove inactive section styling - items are only shown for active section */
+
+.nav-item-pill:hover {
+  border-color: var(--item-color);
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nav-item-pill.selected {
+  background: var(--item-color);
+  border-color: var(--item-color);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.nav-item-pill.selected .nav-item-icon-pill {
+  color: white;
+}
+
+.nav-item-icon-pill {
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  line-height: 1;
+  color: var(--item-color);
+  transition: color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.nav-item-pill.selected .nav-item-icon-pill {
+  color: white;
+}
+
+.nav-item-label-pill {
+  white-space: nowrap;
+}
+
+.nav-item-active-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 6px;
+  height: 6px;
+  background: white;
+  border: 1.5px solid var(--item-color);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px white;
+}
+
+/* Dividers - Ultra Compact */
+.nav-divider {
+  width: 1px;
+  height: 18px;
+  background: #cbd5e1;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.nav-item-divider {
+  width: 1px;
+  height: 14px;
+  background: #e5e7eb;
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+
+.nav-item-badge-pill {
+  margin-left: 2px;
 }
 
 /* ========================================
@@ -15,10 +199,10 @@
 
 .nav-main-sections {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  padding: 6px;
-  border-radius: 12px;
+  padding: 4px;
+  border-radius: 8px;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
@@ -27,17 +211,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 20px;
+  gap: 6px;
+  padding: 6px 14px;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: #64748b;
 }
 
@@ -67,18 +251,18 @@
 }
 
 .nav-section-icon {
-  font-size: 18px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   transition: transform 0.3s ease;
 }
 
 .nav-section-btn:hover .nav-section-icon {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .nav-section-btn.active .nav-section-icon {
-  transform: scale(1.15);
+  transform: scale(1.08);
 }
 
 .nav-section-label {
@@ -117,17 +301,17 @@
 .nav-sub-sections {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
 .nav-item-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 10px 12px;
   background: white;
   border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: left;
@@ -135,24 +319,29 @@
   overflow: hidden;
 }
 
-/* First row items - larger */
+/* First row items - compact but slightly larger */
 .nav-item-card:nth-child(-n+3) {
-  padding: 24px;
+  padding: 12px 14px;
 }
 
 .nav-item-card:nth-child(-n+3) .nav-item-icon {
-  width: 56px;
-  height: 56px;
-  font-size: 28px;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .nav-item-card:nth-child(-n+3) .nav-item-label {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 2px;
 }
 
 .nav-item-card:nth-child(-n+3) .nav-item-description {
-  font-size: 13px;
+  font-size: 11px;
+  line-height: 1.2;
 }
 
 .nav-item-card::before {
@@ -196,13 +385,13 @@
 
 .nav-item-selected-indicator {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 8px;
-  height: 8px;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
   background: var(--item-color);
   border-radius: 50%;
-  box-shadow: 0 0 0 2px white, 0 0 8px var(--item-color);
+  box-shadow: 0 0 0 2px white, 0 0 6px var(--item-color);
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
@@ -221,22 +410,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 32px;
+  height: 32px;
   background: linear-gradient(135deg, var(--item-color), var(--item-color));
   opacity: 0.1;
-  border-radius: 10px;
-  font-size: 20px;
+  border-radius: 8px;
+  font-size: 16px;
   color: var(--item-color);
   flex-shrink: 0;
   transition: all 0.3s ease;
+  min-width: 32px;
+  min-height: 32px;
 }
 
 .nav-item-card:hover .nav-item-icon,
 .nav-item-card.selected .nav-item-icon {
   opacity: 1;
   color: white;
-  transform: rotate(5deg) scale(1.1);
+  transform: rotate(5deg) scale(1.05);
 }
 
 .nav-item-content {
@@ -245,11 +436,12 @@
 }
 
 .nav-item-label {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #1e293b;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   transition: color 0.3s ease;
+  line-height: 1.2;
 }
 
 .nav-item-card:hover .nav-item-label,
@@ -258,9 +450,9 @@
 }
 
 .nav-item-description {
-  font-size: 12px;
+  font-size: 11px;
   color: #64748b;
-  line-height: 1.4;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
