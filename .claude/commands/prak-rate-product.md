@@ -35,6 +35,18 @@ You are a SaaS market expert and product analyst. Analyze the ADAM AI Code Gener
    - Market positioning assessment
    - Recommendations for improvement
 
+5. **3 Recommendations:**
+   -list the top 3 strengths and improvement areas
+   -list top 3 weaknesses and how to improve them
+   -list top 3 trends and how to adapt to them
+   -list top 3 market opportunities and how to capitalize on them
+   -list top 3 market threats and how to mitigate them
+   -list top 3 market challenges and how to overcome them
+   -list next 3 steps to improve the product to make this a market leader
+   -list next 3 steps to improve the product to make this a adam programmer replacement tool
+   
+
+
 **Output Format:**
 - Parameter ratings with justification
 - Competitive comparison table

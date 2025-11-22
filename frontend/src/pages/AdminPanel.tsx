@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Tabs, Badge } from 'antd';
+import { Card, Tabs } from 'antd';
 import {
   UserOutlined,
   AuditOutlined,

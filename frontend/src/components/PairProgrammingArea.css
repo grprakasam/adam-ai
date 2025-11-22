@@ -7,22 +7,17 @@
   height: 100%;
   background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
   border-radius: 0;
-  margin-top: 0;
-  box-sizing: border-box;
-  overflow: hidden;
+  margin: 0;
   padding: 0;
+  box-sizing: border-box;
+  overflow: visible; /* Changed from hidden to visible to allow sticky positioning */
   /* Content area - lower z-index ensures headers stay on top */
   position: relative;
   z-index: 1;
+  gap: 0; /* No gap between header, toolbar, and content */
 }
 
-/* Header - Sticky and prominent but with lower z-index than parent workspace headers */
-.pair-programming-header {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  flex-shrink: 0;
-}
+/* Duplicate header definition removed - using main definition below */
 
 /* Main content wrapper - Scrollable grid */
 .pair-programming-area-content {
@@ -32,8 +27,8 @@
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
-  padding: 24px;
-  gap: 20px;
+  padding: 12px 24px 24px 24px;
+  gap: 16px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
   overscroll-behavior: contain; /* Prevent scroll chaining */
@@ -41,6 +36,8 @@
   position: relative;
   z-index: 1;
   background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  /* Remove top padding since toolbar is now outside */
+  margin-top: 0;
 }
 
 /* Custom scrollbar for the content area */
@@ -434,48 +431,66 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: 10px 20px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-radius: 0;
   color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  min-height: fit-content;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
   width: 100%;
-  /* Sticky positioning - stays below workspace header group */
+  /* Sticky positioning - stays at top of scrolling container */
   position: sticky;
-  top: 76px; /* Offset by workspace-header-group height (68px) + margin (8px) */
-  z-index: 150; /* Below workspace header (200) but above content (1) */
+  top: 0; /* Stick to top of scrolling ancestor */
+  z-index: 200; /* High z-index to stay above all content */
   /* ALWAYS visible - no hiding */
   transform: translateY(0) !important;
   opacity: 1 !important;
+  visibility: visible !important;
   transition: none; /* Remove transition to ensure instant visibility */
   overflow: visible;
   flex-shrink: 0;
+  /* Fixed height for precise calculations */
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  /* Remove any margin that creates unwanted space */
+  margin: 0;
+  margin-bottom: 0;
+  /* Ensure it stays on top when scrolling */
+  position: -webkit-sticky; /* Safari support */
+  position: sticky;
 }
 
 .header-info {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .header-info svg {
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+  width: 18px;
+  height: 18px;
 }
 
 .header-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   color: white;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .header-subtitle {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
-  margin-left: 16px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-left: 10px;
   font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .header-actions {
@@ -2375,49 +2390,67 @@
   font-weight: 600;
 }
 
-/* Search and Filter Toolbar Styles - Sticky below headers */
+/* Search and Filter Toolbar Styles - Immediately Below Header, Always Visible */
 .pair-programming-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 8px 16px;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
-  margin-bottom: 16px;
-  /* Keep toolbar sticky below pair programming header */
+  border-radius: 0;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  margin: 0;
+  /* Always visible - sticky positioning, immediately below pair header */
+  position: -webkit-sticky; /* Safari support */
   position: sticky;
-  top: 152px; /* workspace-header-group (68px) + pair-header (~76px) + margins */
-  z-index: 140; /* Below pair header (150) but above content (1) */
-  /* Always visible */
+  top: 48px; /* Immediately below pair-header (48px) */
+  z-index: 199; /* Just below pair header (200) but above content */
+  /* Crisp and compact */
+  flex-shrink: 0;
+  min-height: 44px;
+  max-height: 44px;
+  overflow: visible;
   transition: none;
+  /* Ensure it never scrolls behind */
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  /* Remove any margin/padding that creates unwanted space */
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .search-box {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
   background: #f9fafb;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 10px 14px;
-  transition: all 0.2s ease;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 5px;
+  padding: 6px 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  height: 28px;
 }
 
 .search-box:focus-within {
   border-color: #10b981;
   background: white;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1),
+              0 1px 3px rgba(16, 185, 129, 0.15);
+  transform: translateY(-1px);
 }
 
 .search-box svg {
   color: #6b7280;
   flex-shrink: 0;
+  width: 14px;
+  height: 14px;
 }
 
 .search-input {
@@ -2425,9 +2458,12 @@
   border: none;
   background: transparent;
   outline: none;
-  font-size: 14px;
+  font-size: 13px;
   color: #1f2937;
   font-family: inherit;
+  padding: 0;
+  height: 100%;
+  line-height: 1;
 }
 
 .search-input::placeholder {
@@ -2440,10 +2476,16 @@
   border-radius: 4px;
   color: #6b7280;
   cursor: pointer;
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: 2px 6px;
+  font-size: 11px;
   font-weight: 600;
   transition: all 0.2s ease;
+  line-height: 1;
+  height: 20px;
+  min-width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .search-clear:hover {
@@ -2453,21 +2495,28 @@
 
 .filter-buttons {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .filter-btn {
-  padding: 8px 16px;
+  padding: 5px 12px;
   background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 5px;
   color: #6b7280;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .filter-btn:hover {
@@ -2480,58 +2529,67 @@
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-color: #10b981;
   color: white;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35),
+              0 1px 3px rgba(16, 185, 129, 0.2);
+  transform: translateY(-1px);
 }
 
 /* Mobile optimizations for toolbar */
 @media (max-width: 768px) {
   .pair-programming-toolbar {
-    padding: 12px;
-    gap: 10px;
-    border-radius: 8px;
+    flex-direction: column;
+    padding: 8px 10px;
+    gap: 8px;
+    border-radius: 6px;
+    min-height: auto;
+    max-height: none;
   }
 
   .search-box {
-    padding: 10px 12px;
+    width: 100%;
+    padding: 6px 10px;
+    height: 32px;
   }
 
   .search-input {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .filter-buttons {
+    width: 100%;
     gap: 6px;
+    justify-content: stretch;
   }
 
   .filter-btn {
     flex: 1;
-    min-width: calc(33.333% - 4px);
-    font-size: 12px;
-    padding: 10px 12px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    font-size: 11px;
+    padding: 6px 10px;
+    height: 32px;
+    min-width: 0;
   }
 }
 
 /* Small mobile devices */
 @media (max-width: 480px) {
   .pair-programming-toolbar {
-    padding: 10px;
+    padding: 6px 8px;
+    gap: 6px;
   }
 
   .search-box {
-    padding: 8px 10px;
+    padding: 6px 8px;
+    height: 30px;
   }
 
   .search-input {
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .filter-btn {
-    min-width: 100%;
-    font-size: 13px;
+    font-size: 11px;
+    padding: 5px 8px;
+    height: 30px;
   }
 }
 

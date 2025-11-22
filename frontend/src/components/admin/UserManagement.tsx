@@ -72,7 +72,7 @@ export const UserManagement: React.FC = () => {
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: User) => (
+      render: (_: any, _record: User) => (
         <Space>
           <Button size="small" icon={<EditOutlined />}>Edit</Button>
           <Button size="small" danger icon={<DeleteOutlined />}>Delete</Button>

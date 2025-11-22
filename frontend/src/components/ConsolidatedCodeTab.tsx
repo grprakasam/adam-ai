@@ -33,19 +33,16 @@ export const ConsolidatedCodeTab: React.FC = () => {
     isGeneratingConsolidated,
     consolidatedProgress,
     consolidatedStatus,
-    consolidatedDuration,
     setCommentVerbosity,
-    setExecutionMode,
     setConsolidatedCode,
     setIsGeneratingConsolidated,
     setConsolidatedProgress,
     setConsolidatedDuration,
-    resetConsolidated,
     canGenerateConsolidated,
   } = useProjectStore();
   const [activeLanguage, setActiveLanguage] = useState<'R' | 'SAS'>(programmingLanguage);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const [, setAbortController] = useState<AbortController | null>(null);
   
   // Additional ADAM-specific settings
   const [includeMetadata, setIncludeMetadata] = useState<boolean>(true);
@@ -117,12 +114,9 @@ export const ConsolidatedCodeTab: React.FC = () => {
           if (meta.meta.label) {
             metadataObj.label = meta.meta.label;
           }
-          
-          // Handle required field - check both 'required' and 'is_required'
-          const isRequired = meta.meta.required === true || 
-                            meta.meta.required === 'true' || 
-                            meta.meta.is_required === true || 
-                            meta.meta.is_required === 'true';
+
+          // Handle required field
+          const isRequired = meta.meta.required === true;
           if (isRequired) {
             metadataObj.required = true;
           }
@@ -287,15 +281,6 @@ export const ConsolidatedCodeTab: React.FC = () => {
     } finally {
       setIsGeneratingConsolidated(false);
       setAbortController(null);
-    }
-  };
-
-  const handleCancel = () => {
-    if (abortController) {
-      abortController.abort();
-      setAbortController(null);
-      setIsGeneratingConsolidated(false);
-      message.info('Cancelling code generation...');
     }
   };
 

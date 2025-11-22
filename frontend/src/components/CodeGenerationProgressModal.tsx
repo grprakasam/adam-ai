@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Progress, Typography, Space, Tag, Divider, Spin, Tooltip } from 'antd';
-import { 
-  CheckCircleOutlined, 
-  LoadingOutlined, 
+import { Modal, Progress, Typography, Tag, Divider, Spin } from 'antd';
+import {
+  CheckCircleOutlined,
+  LoadingOutlined,
   ClockCircleOutlined,
   ThunderboltOutlined,
   DatabaseOutlined,
-  ApiOutlined,
-  CloseCircleOutlined
+  ApiOutlined
 } from '@ant-design/icons';
 import { Zap, X } from 'lucide-react';
 import './CodeGenerationProgressModal.css';
@@ -55,16 +54,12 @@ export const CodeGenerationProgressModal: React.FC<CodeGenerationProgressModalPr
   dataset = 'ADSL'
 }) => {
   const [variables, setVariables] = useState<VariableStatus[]>([]);
-  const [processingBatches, setProcessingBatches] = useState<Set<number>>(new Set());
-  const [completedBatches, setCompletedBatches] = useState<Set<number>>(new Set());
   const [currentBatchId, setCurrentBatchId] = useState<number>(0);
 
   // Calculate metrics
   const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
   const remaining = total - completed;
-  const avgTimePerVar = completed > 0 ? elapsedSeconds / completed : 0;
   const varsPerSecond = elapsedSeconds > 0 ? completed / elapsedSeconds : 0;
-  const successRate = completed > 0 ? 100 : 0;
 
   // Determine current phase
   const getPhase = () => {
@@ -98,7 +93,6 @@ export const CodeGenerationProgressModal: React.FC<CodeGenerationProgressModalPr
         });
         return updated;
       });
-      setCompletedBatches(prev => new Set([...prev, currentBatchId]));
       setCurrentBatchId(prev => prev + 1);
     } else if (status === 'processing' && variableName) {
       // Mark variable as processing
@@ -125,7 +119,7 @@ export const CodeGenerationProgressModal: React.FC<CodeGenerationProgressModalPr
           // Mark processing variables as completed
           const updated = prev.map(v => {
             if (v.status === 'processing') {
-              return { ...v, status: 'completed', completedAt: Date.now() };
+              return { ...v, status: 'completed' as const, completedAt: Date.now() };
             }
             return v;
           });
@@ -172,7 +166,6 @@ export const CodeGenerationProgressModal: React.FC<CodeGenerationProgressModalPr
 
   const processingVars = variables.filter(v => v.status === 'processing');
   const completedVars = variables.filter(v => v.status === 'completed');
-  const pendingCount = total - completed;
 
   return (
     <Modal

@@ -1,6 +1,6 @@
 .left-panel {
-  width: var(--sidebar-width, 380px);
-  min-width: var(--sidebar-width, 380px);
+  width: var(--sidebar-width, 560px);
+  min-width: var(--sidebar-width, 560px);
   background: var(--surface-base);
   border-right: var(--border-width) solid var(--border-color);
   overflow: hidden;
@@ -57,8 +57,8 @@
 /* Tablet adjustments */
 @media (min-width: 769px) and (max-width: 1024px) {
   .left-panel {
-    width: 320px;
-    min-width: 320px;
+    width: 480px;
+    min-width: 480px;
   }
 
   .tab-panel {
@@ -78,8 +78,8 @@
 /* Large tablets and iPad Pro */
 @media (min-width: 1025px) and (max-width: 1280px) {
   .left-panel {
-    width: 340px;
-    min-width: 340px;
+    width: 520px;
+    min-width: 520px;
   }
 
   .tab-panel {

@@ -20,7 +20,6 @@ interface WorkspaceNavigationProps {
 }
 
 type MainSection = 'generation' | 'validation' | 'submission';
-type SubSection = string;
 
 interface NavigationItem {
   key: string;
@@ -141,8 +140,6 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
       })
     );
   };
-
-  const currentSection = NAVIGATION_STRUCTURE[activeSection];
 
   return (
     <div className="workspace-navigation-single-row">
