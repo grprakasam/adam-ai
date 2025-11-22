@@ -1,9 +1,12 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { message } from 'antd';
-import { Code2, Loader2, AlertCircle, RefreshCw, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { message, Segmented, Dropdown, Checkbox } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
+import { Code2, Loader2, AlertCircle, RefreshCw, Search, ChevronDown, ChevronUp, ZoomIn, ZoomOut, Maximize2, Eye, Layout } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
+import { showRegenerateConfirmation } from './ConfirmationDialog';
 import type { CodeSnippetRequest, VariableInfo } from '../types';
+import type { MenuProps } from 'antd';
 import './PairProgrammingArea.css';
 
 interface PairProgrammingAreaProps {
@@ -15,6 +18,32 @@ interface GenerateSnippetOptions {
   userNote?: string;
   silent?: boolean;
 }
+
+// Field visibility configuration
+type FieldId = 'type' | 'length' | 'format' | 'origin' | 'derivation' | 'rationale' | 'code';
+
+interface FieldDefinition {
+  id: FieldId;
+  label: string;
+  alwaysVisible: boolean;
+  requiresSnippet: boolean; // Only shown when snippets are generated
+}
+
+const FIELD_DEFINITIONS: FieldDefinition[] = [
+  { id: 'type', label: 'Type', alwaysVisible: false, requiresSnippet: false },
+  { id: 'length', label: 'Length', alwaysVisible: false, requiresSnippet: false },
+  { id: 'format', label: 'Format', alwaysVisible: false, requiresSnippet: false },
+  { id: 'origin', label: 'Origin', alwaysVisible: false, requiresSnippet: false },
+  { id: 'derivation', label: 'Derivation Logic', alwaysVisible: false, requiresSnippet: false },
+  { id: 'rationale', label: 'Coding Rationale', alwaysVisible: false, requiresSnippet: true },
+  { id: 'code', label: 'Code Snippet', alwaysVisible: false, requiresSnippet: true },
+];
+
+const STORAGE_KEYS = {
+  viewDensity: 'pairProgramming_viewDensity',
+  cardSizePreset: 'pairProgramming_cardSizePreset',
+  visibleFields: 'pairProgramming_visibleFields_v1',
+};
 
 
 // Simple syntax highlighting function for R and SAS
@@ -164,14 +193,19 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
       const response = await adamApi.generateCodeSnippet(payload);
 
       const nextUserNotes = options.userNote ?? existingSnippet?.userNotes ?? '';
-      const nextAcceptance = existingSnippet?.accepted ?? (trimmedUserNote ? 'modify' : 'accept');
+      // Auto-approve after code generation unless explicitly marked as 'modify'
+      // If user marked as 'modify', keep it as 'modify' (they want changes)
+      // Otherwise, auto-approve when code is successfully generated
+      const nextAcceptance = existingSnippet?.accepted === 'modify' 
+        ? 'modify' 
+        : 'accept'; // Auto-approve after generation
 
       setPairProgrammingSnippet(variable.name, {
         variable: variable.name,
         codeSnippet: response.code_snippet,
         rationale: response.coding_rationale,
         userNotes: nextUserNotes,
-        accepted: nextAcceptance,
+        accepted: nextAcceptance, // Auto-approve after generation
         generatedAt: new Date(),
         language: programmingLanguage,
         metadata: response.metadata,
@@ -216,12 +250,157 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
   const handleAcceptanceChange = (variable: string, accepted: 'accept' | 'modify') => {
     setPairProgrammingAcceptance(variable, accepted);
+    // Provide immediate feedback
+    if (accepted === 'accept') {
+      message.success(`${variable} approved`, 1.5);
+    } else {
+      message.info(`${variable} marked for modification`, 1.5);
+    }
+  };
+
+  const handleRegenerateWithConfirmation = async (variable: VariableInfo) => {
+    const snippet = pairProgramming.snippets[variable.name];
+
+    if (!snippet) {
+      await handleGenerateSnippet(variable);
+      return;
+    }
+
+    if (!snippet.codeSnippet) {
+      await handleGenerateSnippet(variable);
+      return;
+    }
+
+    // Check if user notes are required for regeneration
+    const trimmedNotes = snippet.userNotes?.trim() ?? '';
+    
+    if (snippet.accepted === 'modify' && !trimmedNotes) {
+      message.warning('Add user notes to describe the desired changes before regenerating.');
+      return;
+    }
+
+    // Show confirmation dialog before regenerating
+    await showRegenerateConfirmation(async () => {
+      await handleGenerateSnippet(variable, { 
+        userNote: snippet.userNotes || undefined 
+      });
+    });
   };
 
   // Filter and search variables
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'generated' | 'pending'>('all');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  // View density state (compact/comfortable/spacious) - Load from localStorage
+  const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable' | 'spacious'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.viewDensity);
+      if (saved && ['compact', 'comfortable', 'spacious'].includes(saved)) {
+        return saved as 'compact' | 'comfortable' | 'spacious';
+      }
+    } catch (error) {
+      console.error('Failed to load view density preference:', error);
+    }
+    return 'comfortable'; // Default
+  });
+
+  // Card size preset state (small/standard/large) - Load from localStorage
+  const [cardSizePreset, setCardSizePreset] = useState<'small' | 'standard' | 'large'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.cardSizePreset);
+      if (saved && ['small', 'standard', 'large'].includes(saved)) {
+        return saved as 'small' | 'standard' | 'large';
+      }
+    } catch (error) {
+      console.error('Failed to load card size preference:', error);
+    }
+    return 'standard'; // Default
+  });
+
+  // Field visibility state - Load from localStorage
+  const [visibleFields, setVisibleFields] = useState<Set<FieldId>>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.visibleFields);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return new Set(parsed);
+      }
+    } catch (error) {
+      console.error('Failed to load field visibility preferences:', error);
+    }
+    // Default: all fields visible
+    return new Set(FIELD_DEFINITIONS.map(field => field.id));
+  });
+
+  const [fieldDropdownOpen, setFieldDropdownOpen] = useState(false);
+  const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
+
+  // Save preferences to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.viewDensity, viewDensity);
+      console.log('[PairProgrammingArea] Saved view density to localStorage:', viewDensity);
+    } catch (error) {
+      console.error('Failed to save view density preference:', error);
+    }
+  }, [viewDensity]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.cardSizePreset, cardSizePreset);
+      console.log('[PairProgrammingArea] Saved card size preset to localStorage:', cardSizePreset);
+    } catch (error) {
+      console.error('Failed to save card size preference:', error);
+    }
+  }, [cardSizePreset]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.visibleFields, JSON.stringify(Array.from(visibleFields)));
+      console.log('[PairProgrammingArea] Saved field visibility to localStorage:', Array.from(visibleFields));
+    } catch (error) {
+      console.error('Failed to save field visibility preferences:', error);
+    }
+  }, [visibleFields]);
+
+  // Toggle field visibility
+  const toggleField = (fieldId: FieldId) => {
+    const field = FIELD_DEFINITIONS.find(f => f.id === fieldId);
+    if (field?.alwaysVisible) {
+      console.log(`[PairProgrammingArea] Cannot toggle always-visible field: ${fieldId}`);
+      return;
+    }
+
+    setVisibleFields(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fieldId)) {
+        newSet.delete(fieldId);
+        console.log(`[PairProgrammingArea] Field hidden: ${fieldId}. Visible fields:`, Array.from(newSet));
+      } else {
+        newSet.add(fieldId);
+        console.log(`[PairProgrammingArea] Field shown: ${fieldId}. Visible fields:`, Array.from(newSet));
+      }
+      return newSet;
+    });
+  };
+
+  // Check if a field should be rendered
+  const isFieldVisible = (fieldId: FieldId): boolean => {
+    const field = FIELD_DEFINITIONS.find(f => f.id === fieldId);
+    if (!field) return false;
+    
+    // Always show if it's marked as always visible
+    if (field.alwaysVisible) return true;
+    
+    // For snippet-dependent fields, check if snippets are generated AND if user wants to see them
+    if (field.requiresSnippet) {
+      return hasAnySnippets && visibleFields.has(fieldId);
+    }
+    
+    // For basic fields, just check if user wants to see them
+    return visibleFields.has(fieldId);
+  };
 
   const filteredVariables = useMemo(() => {
     return variables.filter(variable => {
@@ -262,7 +441,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   const getStatusBadgeLabel = (status?: string) => {
     switch (status) {
       case 'accept':
-        return '✓ Accepted';
+        return '✓ Approved';
       case 'reject':
         return '✗ Rejected';
       case 'modify':
@@ -283,7 +462,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           <Code2 size={20} />
           <span className="header-title">Pair Programming Area</span>
           <span className="header-subtitle">
-            {variables.length} variables • {Object.keys(pairProgramming.snippets).length} generated
+            {variables.length} variables • {variables.filter(v => pairProgramming.snippets[v.name]?.codeSnippet).length} generated
           </span>
         </div>
       </div>
@@ -321,22 +500,71 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
               className={`filter-btn ${filterStatus === 'generated' ? 'active' : ''}`}
               onClick={() => setFilterStatus('generated')}
             >
-              Generated ({Object.keys(pairProgramming.snippets).length})
+              Generated ({variables.filter(v => pairProgramming.snippets[v.name]?.codeSnippet).length})
             </button>
             <button 
               className={`filter-btn ${filterStatus === 'pending' ? 'active' : ''}`}
               onClick={() => setFilterStatus('pending')}
             >
-              Pending ({variables.length - Object.keys(pairProgramming.snippets).length})
+              Pending ({variables.filter(v => !pairProgramming.snippets[v.name]?.codeSnippet).length})
             </button>
           </div>
         </div>
 
+      {/* Field Visibility Control - Only Field Visibility, Density and Size controls removed */}
+      <div className="visibility-controls-toolbar">
+        <div className="control-group">
+          <Dropdown
+            open={fieldDropdownOpen}
+            onOpenChange={(open) => setFieldDropdownOpen(open)}
+            menu={{
+              items: FIELD_DEFINITIONS.map(field => ({
+                key: field.id,
+                label: (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!field.alwaysVisible && !(field.requiresSnippet && !hasAnySnippets)) {
+                        toggleField(field.id);
+                      }
+                    }}
+                    style={{ width: '100%', cursor: 'pointer' }}
+                  >
+                    <Checkbox
+                      checked={visibleFields.has(field.id)}
+                      disabled={field.alwaysVisible || (field.requiresSnippet && !hasAnySnippets)}
+                      style={{ pointerEvents: 'none' }}
+                    >
+                      {field.label}
+                      {field.alwaysVisible && ' (Always visible)'}
+                      {field.requiresSnippet && !hasAnySnippets && ' (Generate snippets first)'}
+                    </Checkbox>
+                  </div>
+                ),
+                onClick: () => {
+                  // Prevent menu from closing
+                  return false;
+                }
+              }))
+            }}
+            trigger={['click']}
+          >
+            <button className="field-selector-btn">
+              <Eye size={16} />
+              Field Visibility ({visibleFields.size}/{FIELD_DEFINITIONS.length})
+            </button>
+          </Dropdown>
+        </div>
+      </div>
+
       {/* Scrollable Content Area */}
-      <div ref={contentAreaRef} className="pair-programming-area-content">
+      <div 
+        ref={contentAreaRef} 
+        className={`pair-programming-area-content density-${viewDensity} size-${cardSizePreset}`}
+      >
         {/* Variables Grid */}
         {filteredVariables.length > 0 ? (
-          <div className="pair-programming-variables-grid">
+          <div className={`pair-programming-variables-grid density-${viewDensity} size-${cardSizePreset}`}>
             {filteredVariables.map((variable) => {
               const snippet = pairProgramming.snippets[variable.name];
               const isGenerating = pairProgramming.isGenerating[variable.name];
@@ -370,50 +598,68 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                           ⏳ Generating
                         </span>
                       )}
-                      {!isGenerating && snippet?.accepted && (
-                        <span className={`variable-badge ${getStatusBadgeClass(snippet.accepted)}`}>
-                          {getStatusBadgeLabel(snippet.accepted)}
+                      {/* Show status badge - auto-approved when code exists, unless marked as 'modify' */}
+                      {!isGenerating && snippet?.codeSnippet && !snippet?.error && (
+                        <span className={`variable-badge ${getStatusBadgeClass(snippet.accepted === 'modify' ? 'modify' : 'accept')}`}>
+                          {snippet.accepted === 'modify' ? '⚠ Modify' : '✓ Approved'}
                         </span>
+                      )}
+                      {/* Modify button - allows user to mark approved variables for modification */}
+                      {!isGenerating && snippet?.codeSnippet && snippet?.accepted !== 'modify' && (
+                        <button
+                          className="acceptance-btn-header modify-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAcceptanceChange(variable.name, 'modify');
+                          }}
+                          title="Mark for modification"
+                        >
+                          ✎ Modify
+                        </button>
                       )}
                     </div>
                   </div>
 
                   {/* Quick Info */}
                   <div className="variable-card-content">
-                    <div className="variable-info-row">
-                      <div className="variable-info-label">Type:</div>
-                      <div className="variable-info-value">
-                        {variable.type || '—'}
+                    {isFieldVisible('type') && (
+                      <div className="variable-info-row">
+                        <div className="variable-info-label">Type:</div>
+                        <div className="variable-info-value">
+                          {variable.type || '—'}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    {variable.length && (
+                    {isFieldVisible('length') && variable.length && (
                       <div className="variable-info-row">
                         <div className="variable-info-label">Length:</div>
                         <div className="variable-info-value">{variable.length}</div>
                       </div>
                     )}
 
-                    {variable.format && (
+                    {isFieldVisible('format') && variable.format && (
                       <div className="variable-info-row">
                         <div className="variable-info-label">Format:</div>
                         <div className="variable-info-value">{variable.format}</div>
                       </div>
                     )}
 
-                    <div className="variable-info-row">
-                      <div className="variable-info-label">Origin:</div>
-                      <div className="variable-info-value">
-                        {variable.origin || variable.extra?.Origin || variable.extra?.origin || '—'}
+                    {isFieldVisible('origin') && (
+                      <div className="variable-info-row">
+                        <div className="variable-info-label">Origin:</div>
+                        <div className="variable-info-value">
+                          {variable.origin || variable.extra?.Origin || variable.extra?.origin || '—'}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Expandable Details */}
                   {isExpanded && (
                     <div className="variable-card-details">
                       {/* Derivation */}
-                      {variable.derivation && (
+                      {isFieldVisible('derivation') && variable.derivation && (
                         <div className="detail-block">
                           <div className="detail-block-title">Derivation Logic</div>
                           <div className="detail-block-content">
@@ -423,7 +669,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       )}
 
                       {/* Rationale */}
-                      {snippet?.rationale && (
+                      {isFieldVisible('rationale') && snippet?.rationale && (
                         <div className="detail-block">
                           <div className="detail-block-title">Coding Rationale</div>
                           <div className="detail-block-content">
@@ -433,44 +679,48 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       )}
 
                       {/* Code Snippet */}
-                      {isGenerating ? (
-                        <div className="detail-block">
-                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                          <div className="code-loading-expanded">
-                            <Loader2 size={20} className="spinning" />
-                            <span>Generating code...</span>
-                          </div>
-                        </div>
-                      ) : snippet?.error ? (
-                        <div className="detail-block">
-                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                          <div className="code-error-expanded">
-                            <AlertCircle size={16} />
-                            <span>{snippet.error}</span>
-                          </div>
-                        </div>
-                      ) : snippet?.codeSnippet ? (
-                        <div className="detail-block">
-                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                          <pre className="detail-code-block">
-                            <code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} />
-                          </pre>
-                          {snippet?.metadata?.user_note_applied && (
-                            <div className="code-badge-expanded note-applied">
-                              ✓ Generated using user notes
+                      {isFieldVisible('code') && (
+                        <>
+                          {isGenerating ? (
+                            <div className="detail-block">
+                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                              <div className="code-loading-expanded">
+                                <Loader2 size={20} className="spinning" />
+                                <span>Generating code...</span>
+                              </div>
+                            </div>
+                          ) : snippet?.error ? (
+                            <div className="detail-block">
+                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                              <div className="code-error-expanded">
+                                <AlertCircle size={16} />
+                                <span>{snippet.error}</span>
+                              </div>
+                            </div>
+                          ) : snippet?.codeSnippet ? (
+                            <div className="detail-block">
+                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                              <pre className="detail-code-block">
+                                <code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} />
+                              </pre>
+                              {snippet?.metadata?.user_note_applied && (
+                                <div className="code-badge-expanded note-applied">
+                                  ✓ Generated using user notes
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="detail-block">
+                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
+                              <div className="detail-block-content" style={{ color: '#9ca3af' }}>
+                                Not generated yet. Use "Get AI Inputs" button to generate code for all variables.
+                              </div>
                             </div>
                           )}
-                        </div>
-                      ) : (
-                        <div className="detail-block">
-                          <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                          <div className="detail-block-content" style={{ color: '#9ca3af' }}>
-                            Not generated yet. Click "Generate" below.
-                          </div>
-                        </div>
+                        </>
                       )}
 
-                      {/* User Notes */}
+                      {/* User Notes - Show when marked as modify or when approved (for future modifications) */}
                       {snippet?.accepted === 'modify' && (
                         <div className="detail-block">
                           <div className="detail-block-title">User Notes</div>
@@ -485,44 +735,24 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                             onClick={(e) => e.stopPropagation()}
                             rows={3}
                           />
+                          {needsNotes && (
+                            <div className="notes-hint warning" style={{ marginTop: '6px', fontSize: '11px', color: '#f59e0b' }}>
+                              ⚠ User notes are required to regenerate code with modifications
+                            </div>
+                          )}
                         </div>
                       )}
 
-                      {/* Acceptance Buttons */}
-                      {snippet?.codeSnippet && (
-                        <div className="detail-block">
-                          <div className="detail-block-title">Acceptance</div>
-                          <div className="acceptance-button-group">
-                            <button
-                              className={`acceptance-btn ${snippet?.accepted === 'accept' ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAcceptanceChange(variable.name, 'accept');
-                              }}
-                            >
-                              ✓ Accept
-                            </button>
-                            <button
-                              className={`acceptance-btn ${snippet?.accepted === 'modify' ? 'active' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleAcceptanceChange(variable.name, 'modify');
-                              }}
-                            >
-                              ✎ Modify
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
 
-                  {/* Card Footer - Actions */}
+                  {/* Card Footer - Show More/Less Only */}
                   <div className="variable-card-footer" onClick={(e) => e.stopPropagation()}>
                     <button 
                       className="secondary"
                       onClick={() => toggleCardExpansion(variable.name)}
                       title={isExpanded ? 'Show less' : 'Show more details'}
+                      style={{ width: '100%' }}
                     >
                       {isExpanded ? (
                         <>
@@ -533,29 +763,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                         <>
                           <ChevronDown size={14} />
                           Show More
-                        </>
-                      )}
-                    </button>
-                    <button 
-                      className="primary"
-                      onClick={() => handleGenerateSnippet(variable)}
-                      disabled={isGenerating}
-                      title={isGenerating ? 'Generating code...' : 'Generate AI code snippet'}
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 size={14} className="spinning" />
-                          Generating...
-                        </>
-                      ) : snippet?.accepted === 'modify' && trimmedNotes ? (
-                        <>
-                          <RefreshCw size={14} />
-                          Regenerate
-                        </>
-                      ) : (
-                        <>
-                          <Code2 size={14} />
-                          Generate
                         </>
                       )}
                     </button>

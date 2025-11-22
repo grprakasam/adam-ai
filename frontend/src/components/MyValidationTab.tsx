@@ -92,7 +92,7 @@ export const MyValidationTab: React.FC = () => {
   // Handle approval change
   const handleApprovalChange = (variable: string, acceptance: 'accept' | 'modify') => {
     setPairProgrammingAcceptance(variable, acceptance);
-    message.success(`${variable} marked as ${acceptance === 'accept' ? 'Accepted' : 'Needs Modification'}`);
+    message.success(`${variable} marked as ${acceptance === 'accept' ? 'Approved' : 'Needs Modification'}`);
   };
 
   // Handle view code
@@ -164,7 +164,7 @@ export const MyValidationTab: React.FC = () => {
       key: 'acceptance',
       width: 160,
       filters: [
-        { text: 'Accepted', value: 'accept' },
+        { text: 'Approved', value: 'accept' },
         { text: 'Needs Modification', value: 'modify' },
         { text: 'Pending', value: 'pending' },
       ],
@@ -248,7 +248,7 @@ export const MyValidationTab: React.FC = () => {
                 strokeColor={approvalStats.percentage >= 80 ? '#52c41a' : '#1890ff'}
               />
               <div style={{ display: 'flex', gap: '16px', fontSize: '12px' }}>
-                <Text type="success">✓ Accepted: {approvalStats.accepted}</Text>
+                <Text type="success">✓ Approved: {approvalStats.accepted}</Text>
                 <Text type="warning">⚠ Needs Modification: {approvalStats.modified}</Text>
                 <Text type="secondary">○ Pending: {approvalStats.pending}</Text>
               </div>

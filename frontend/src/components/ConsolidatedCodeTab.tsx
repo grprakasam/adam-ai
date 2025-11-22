@@ -86,8 +86,13 @@ export const ConsolidatedCodeTab: React.FC = () => {
   }, [categorizedVariables]);
 
   const buildApprovedVariables = (): ConsolidatedVariable[] => {
+    // Include ALL variables with code, regardless of approval status
+    // This allows generating consolidated code even for variables marked as 'modify' or not yet approved
     return Object.values(pairProgramming.snippets)
-      .filter((snippet) => snippet.accepted === 'accept' && snippet.codeSnippet)
+      .filter((snippet) => {
+        // Include any variable that has code (regardless of approval status)
+        return !!snippet.codeSnippet && !snippet.error;
+      })
       .map((snippet) => {
         const meta = categorizedMap.get(snippet.variable);
         // Transform metadata to match backend VariableMetadata schema
@@ -151,7 +156,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
       content: (
         <div>
           <Alert
-            message={`Ready to generate consolidated code for ${approvedVariables.length} approved variables`}
+            message={`Ready to generate consolidated code for ${approvedVariables.length} variables with code`}
             type="info"
             showIcon
             style={{ marginBottom: 16 }}
@@ -199,13 +204,13 @@ export const ConsolidatedCodeTab: React.FC = () => {
 
   const handleGenerate = async () => {
     if (!canGenerateConsolidated()) {
-      message.warning('Approve all variables before generating consolidated code.');
+      message.warning('No variables with code found. Please generate code for at least one variable first.');
       return;
     }
 
     const approvedVariables = buildApprovedVariables();
     if (!approvedVariables.length) {
-      message.warning('No approved variables found.');
+      message.warning('No variables with code found. Please generate code for variables first.');
       return;
     }
 
@@ -307,8 +312,8 @@ export const ConsolidatedCodeTab: React.FC = () => {
   };
 
   const summarisedOptimizations = consolidatedCode?.summary.optimizations_applied || [];
-  const approvedCount = buildApprovedVariables().length;
-  const hasApprovedSnippets = approvedCount > 0;
+  const variablesWithCode = buildApprovedVariables().length;
+  const hasCodeSnippets = variablesWithCode > 0;
 
   return (
     <div className="consolidated-tab">
@@ -318,7 +323,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
           <Code2 size={20} />
           <span className="header-title">Consolidated ADAM Code</span>
           <span className="header-subtitle">
-            {approvedCount} approved • {consolidatedCode ? 'Generated' : 'Ready'}
+            {variablesWithCode} variables with code • {consolidatedCode ? 'Generated' : 'Ready'}
           </span>
         </div>
         <div className="header-actions">
@@ -327,7 +332,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
             icon={<FileDoneOutlined />}
             onClick={handleGenerate}
             loading={isGeneratingConsolidated}
-            disabled={!hasApprovedSnippets || isGeneratingConsolidated}
+            disabled={!hasCodeSnippets || isGeneratingConsolidated}
             size="large"
           >
             {isGeneratingConsolidated ? 'Generating...' : 'Generate Code'}
@@ -581,12 +586,12 @@ export const ConsolidatedCodeTab: React.FC = () => {
                     <p style={{ fontSize: '15px', fontWeight: 500, marginBottom: '8px' }}>
                       {canGenerateConsolidated()
                         ? 'Ready to Generate'
-                        : 'Approval Required'}
+                        : 'No Code Available'}
                     </p>
                     <p style={{ fontSize: '13px', color: '#64748b' }}>
                       {canGenerateConsolidated()
-                        ? 'Click "Generate Code" in the side panel to create your consolidated program.'
-                        : 'Approve all variables in the Pair Programming tab first.'}
+                        ? 'Click "Generate Code" to create your consolidated program from all variables with code.'
+                        : 'Generate code for variables in the Pair Programming tab first.'}
                     </p>
                   </div>
                 }

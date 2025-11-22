@@ -84,8 +84,11 @@ export const CodeValidatorTab: React.FC = () => {
   const [datasetRefreshTrigger, setDatasetRefreshTrigger] = useState(0);
 
   // Build snippet list from approved pair programming snippets
+  // Approved if: has code AND (not marked as 'modify' OR explicitly accepted)
   const availableSnippets: SnippetItem[] = Object.values(pairProgramming?.snippets || {})
-    .filter((snippet: any) => snippet.accepted === 'accept' && snippet.codeSnippet)
+    .filter((snippet: any) => {
+      return !!snippet.codeSnippet && !snippet.error && snippet.accepted !== 'modify';
+    })
     .map((snippet: any) => {
       const varInfo = categorizedVariables?.categories
         ?.flatMap(c => c.variables)

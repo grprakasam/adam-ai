@@ -123,6 +123,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               />
             </div>
           )}
+
+          {/* AI Configuration Status - in left section */}
+          <AIConfigStatus className="hide-mobile" />
         </div>
 
         <div className="app-header-right">

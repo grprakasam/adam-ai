@@ -31,8 +31,9 @@ _program_service: ProgramGeneratorService = None
 def get_program_service() -> ProgramGeneratorService:
     """Get or create program generator service singleton"""
     global _program_service
-    if _program_service is None:
-        _program_service = ProgramGeneratorService()
+    # Always create a new instance to ensure latest code is used
+    # (In production, you might want to cache this, but for development this ensures updates are picked up)
+    _program_service = ProgramGeneratorService()
     return _program_service
 
 
@@ -92,8 +93,14 @@ async def generate_complete_program(request: ProgramGenerationRequest) -> Dict[s
             "data": result
         }
         
+    except AttributeError as e:
+        logger.error(f"AttributeError in program generation: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Service method not found: {str(e)}. Please ensure the backend service is properly initialized."
+        )
     except Exception as e:
-        logger.error(f"Error generating program: {str(e)}")
+        logger.error(f"Error generating program: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -220,8 +227,14 @@ async def generate_program_with_notes(request: ProgramGenerationWithNotesRequest
         
     except HTTPException:
         raise
+    except AttributeError as e:
+        logger.error(f"AttributeError in program generation with notes: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Service method not found: {str(e)}. Please ensure the backend service is properly initialized."
+        )
     except Exception as e:
-        logger.error(f"Error generating program with notes: {str(e)}")
+        logger.error(f"Error generating program with notes: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
