@@ -2,59 +2,131 @@
   flex: 1;
   background: #f8f9fa;
   overflow-y: auto;
-  padding: 20px;
+  padding: 8px 16px 16px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+  /* Create proper stacking context for child components */
+  position: relative;
+  isolation: isolate;
 }
 
-/* Workspace utilities within the right panel */
-.right-panel .workspace-utilities {
+/* Unified Workspace Header Group - ALWAYS VISIBLE - Never Scrolls Behind Content */
+.right-panel .workspace-header-group {
+  position: sticky;
+  top: 0;
+  z-index: 200; /* High z-index to ensure it's always on top */
+  margin-bottom: 8px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 
+              0 4px 16px rgba(0, 0, 0, 0.06); /* Enhanced shadow for depth */
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  /* ALWAYS visible - no hiding animations */
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  display: flex;
+  flex-direction: column;
+  min-height: 68px; /* 36px utilities + 32px navigation */
+  max-height: 68px;
+  flex-shrink: 0; /* Never shrink */
+}
+
+/* Ensure header never gets hidden - override any hiding classes */
+.right-panel .workspace-header-group.header-hidden,
+.right-panel .workspace-header-group[class*="hidden"] {
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  margin-bottom: 8px !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  height: auto !important;
+  min-height: 68px !important;
+  max-height: 68px !important;
+  overflow: visible !important;
+}
+
+/* Workspace utilities within the grouped section - Ultra Compact */
+.right-panel .workspace-header-group .workspace-utilities {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  gap: 16px;
-  flex-wrap: wrap;
-  border: 1px solid #e5e7eb;
-  position: sticky;
-  top: 0;
-  z-index: 11;
-  margin-bottom: 8px;
+  padding: 4px 10px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 8px;
+  flex-wrap: nowrap;
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0;
+  /* Ultra compact single row - minimal height */
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  overflow: visible;
+  white-space: nowrap;
 }
 
-/* Workspace navigation section within the right panel */
-.right-panel .workspace-navigation-section {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
-  padding: 16px;
-  position: sticky;
-  top: 68px;
-  z-index: 10;
-  margin-bottom: 16px;
-  overflow: visible;
+/* Workspace navigation section within the grouped section - Ultra Compact */
+.right-panel .workspace-header-group .workspace-navigation-section {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+  padding: 3px 6px;
+  position: relative;
+  z-index: 1;
+  margin-bottom: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Ultra compact single row height */
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  display: flex;
+  align-items: center;
 }
+
+.right-panel .workspace-header-group .workspace-navigation-section::-webkit-scrollbar {
+  display: none;
+}
+
+/* Old navigation section styles removed - now part of grouped header */
 
 .right-panel .workspace-utilities-right {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  flex: 1;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
   justify-content: flex-end;
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
 }
 
-/* Workspace content area */
+/* Workspace content area - Scrolls independently, header stays on top */
 .right-panel .workspace-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: visible;
+  /* Ensure content is in its own stacking context but lower than sticky headers */
+  position: relative;
+  z-index: 1;
+  /* Content scrolls normally, header stays fixed on top */
+  margin-top: 0;
+  /* Ensure content doesn't overlap with sticky header */
+  padding-top: 0;
 }
 
 .right-panel.locked {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { message, Tooltip } from 'antd';
 import { Code2, Loader2, AlertCircle, RefreshCw, Info, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
@@ -336,9 +336,12 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     }
   };
 
+  // Content area ref - header is always visible, no hiding logic needed
+  const contentAreaRef = useRef<HTMLDivElement>(null);
+
   return (
     <div className="pair-programming-area">
-      {/* Sticky Header */}
+      {/* Pair Programming Header - Always Visible */}
       <div className="pair-programming-header">
         <div className="header-info">
           <Code2 size={20} />
@@ -350,7 +353,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
       </div>
 
       {/* Scrollable Content Area with Search & Filter */}
-      <div className="pair-programming-area-content">
+      <div ref={contentAreaRef} className="pair-programming-area-content">
         {/* Search & Filter Toolbar */}
         <div className="pair-programming-toolbar">
           <div className="search-box">

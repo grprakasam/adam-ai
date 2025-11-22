@@ -11,13 +11,16 @@
   box-sizing: border-box;
   overflow: hidden;
   padding: 0;
+  /* Content area - lower z-index ensures headers stay on top */
+  position: relative;
+  z-index: 1;
 }
 
-/* Header - Sticky and prominent */
+/* Header - Sticky and prominent but with lower z-index than parent workspace headers */
 .pair-programming-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 5;
   flex-shrink: 0;
 }
 
@@ -34,6 +37,10 @@
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
   overscroll-behavior: contain; /* Prevent scroll chaining */
+  /* Content scrolls normally - headers stay sticky on top */
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
 }
 
 /* Custom scrollbar for the content area */
@@ -422,18 +429,28 @@
   }
 }
 
-/* Header - Sticky with gradient */
+/* Header - Sticky with gradient - ALWAYS VISIBLE */
 .pair-programming-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-radius: 0;
   color: white;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: fit-content;
   width: 100%;
+  /* Sticky positioning - stays below workspace header group */
+  position: sticky;
+  top: 76px; /* Offset by workspace-header-group height (68px) + margin (8px) */
+  z-index: 150; /* Below workspace header (200) but above content (1) */
+  /* ALWAYS visible - no hiding */
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  transition: none; /* Remove transition to ensure instant visibility */
+  overflow: visible;
+  flex-shrink: 0;
 }
 
 .header-info {
@@ -2358,18 +2375,24 @@
   font-weight: 600;
 }
 
-/* Search and Filter Toolbar Styles */
+/* Search and Filter Toolbar Styles - Sticky below headers */
 .pair-programming-toolbar {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
-  padding: 16px;
+  padding: 12px 16px;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   border: 1px solid #e5e7eb;
   margin-bottom: 16px;
+  /* Keep toolbar sticky below pair programming header */
+  position: sticky;
+  top: 152px; /* workspace-header-group (68px) + pair-header (~76px) + margins */
+  z-index: 140; /* Below pair header (150) but above content (1) */
+  /* Always visible */
+  transition: none;
 }
 
 .search-box {

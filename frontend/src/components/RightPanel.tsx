@@ -16,7 +16,6 @@ import AutoSaveIndicator from './AutoSaveIndicator';
 import { HistoryControls } from './HistoryControls';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { WorkspaceControls } from './WorkspaceControls';
-import { WorkspaceLayoutControls } from './WorkspaceLayoutControls';
 import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
@@ -59,6 +58,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   const validationTimeoutRef = useRef<number | null>(null);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>('pair');
   const [activeGroup, setActiveGroup] = useState<WorkspaceGroup>('generation');
+  const workspaceContentRef = useRef<HTMLDivElement | null>(null);
+  const rightPanelRef = useRef<HTMLElement | null>(null);
+  
+  // Header is ALWAYS visible - no auto-hide functionality
+  // Removed scroll detection for auto-hiding to ensure persistent visibility
 
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
@@ -323,36 +327,53 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       );
 
       return (
-        <section className="right-panel" role="region" aria-label="Workspace tools">
-          <div className="workspace-utilities">
-            <WorkspaceControls onSwitchProject={onSwitchProject} />
-            <div className="workspace-utilities-right">
-              <Button
-                icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="7" height="18" rx="1" />
-                  <rect x="14" y="3" width="7" height="18" rx="1" />
-                </svg>}
-                onClick={() => {
-                  const event = new CustomEvent('adam-ai:toggle-left-panel');
-                  window.dispatchEvent(event);
-                }}
-                size="middle"
-                title="Toggle Configuration Panel"
-              >
-                Toggle Panel
-              </Button>
-              <WorkspaceLayoutControls />
-              <AutoSaveIndicator />
-              <HistoryControls />
+        <section 
+          ref={rightPanelRef}
+          className="right-panel" 
+          role="region" 
+          aria-label="Workspace tools"
+        >
+          {/* Unified Workspace Header Group - Combined Sections - ALWAYS VISIBLE */}
+          <div className="workspace-header-group">
+            <div className="workspace-utilities">
+              <WorkspaceControls onSwitchProject={onSwitchProject} />
+              <div className="workspace-utilities-right">
+                <Button
+                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="7" height="18" rx="1" />
+                    <rect x="14" y="3" width="7" height="18" rx="1" />
+                  </svg>}
+                  onClick={() => {
+                    const event = new CustomEvent('adam-ai:toggle-left-panel');
+                    window.dispatchEvent(event);
+                  }}
+                  size="small"
+                  title="Toggle Configuration Panel"
+                  style={{ 
+                    height: '26px', 
+                    fontSize: '11px', 
+                    padding: '0 8px',
+                    borderRadius: '5px',
+                    lineHeight: '1.2'
+                  }}
+                >
+                  Toggle Panel
+                </Button>
+                <AutoSaveIndicator />
+                <HistoryControls />
+              </div>
+            </div>
+            <div className="workspace-navigation-section">
+              <WorkspaceNavigation 
+                activeTab={activeWorkspaceTab}
+                onTabChange={(tab) => setActiveWorkspaceTab(tab as WorkspaceTabKey)}
+              />
             </div>
           </div>
-          <div className="workspace-navigation-section">
-            <WorkspaceNavigation 
-              activeTab={activeWorkspaceTab}
-              onTabChange={(tab) => setActiveWorkspaceTab(tab as WorkspaceTabKey)}
-            />
-          </div>
-          <div className="workspace-content">
+          <div 
+            ref={workspaceContentRef}
+            className="workspace-content"
+          >
             {itemsForGroup.find(item => item.key === activeWorkspaceTab)?.children}
           </div>
         </section>

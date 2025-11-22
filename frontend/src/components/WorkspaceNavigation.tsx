@@ -145,58 +145,68 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
   const currentSection = NAVIGATION_STRUCTURE[activeSection];
 
   return (
-    <div className="workspace-navigation">
-      {/* Main Section Selector - Segmented Control Style */}
-      <div className="nav-main-sections">
-        {(Object.keys(NAVIGATION_STRUCTURE) as MainSection[]).map((section) => {
+    <div className="workspace-navigation-single-row">
+      {/* Single Row Navigation - Sections + Active Section Items in one line */}
+      <div className="nav-single-row-container">
+        {(Object.keys(NAVIGATION_STRUCTURE) as MainSection[]).map((section, sectionIndex) => {
           const sectionData = NAVIGATION_STRUCTURE[section];
-          const isActive = activeSection === section;
+          const isActiveSection = activeSection === section;
           
           return (
-            <button
-              key={section}
-              className={`nav-section-btn ${isActive ? 'active' : ''}`}
-              onClick={() => handleSectionChange(section)}
-              style={{
-                '--section-color': sectionData.color,
-              } as React.CSSProperties}
-            >
-              <span className="nav-section-icon">{sectionData.icon}</span>
-              <span className="nav-section-label">{sectionData.title}</span>
-              {isActive && <div className="nav-section-indicator" />}
-            </button>
-          );
-        })}
-      </div>
+            <React.Fragment key={section}>
+              {/* Section Header Button */}
+              <Tooltip title={`${sectionData.title} section`} placement="bottom">
+                <button
+                  className={`nav-section-btn-inline ${isActiveSection ? 'active' : ''}`}
+                  onClick={() => handleSectionChange(section)}
+                  style={{
+                    '--section-color': sectionData.color,
+                  } as React.CSSProperties}
+                >
+                  <span className="nav-section-icon-inline">{sectionData.icon}</span>
+                  <span className="nav-section-label-inline">{sectionData.title}</span>
+                </button>
+              </Tooltip>
 
-      {/* Sub-navigation - Card-based Grid */}
-      <div className="nav-sub-sections">
-        {currentSection.items.map((item) => {
-          const isHovered = hoveredItem === item.key;
-          const isSelected = selectedPath === item.key;
-          
-          return (
-            <Tooltip key={item.key} title={item.description} placement="bottom">
-              <button
-                className={`nav-item-card ${isHovered ? 'hovered' : ''} ${isSelected ? 'selected' : ''}`}
-                onClick={() => handleItemClick(item.key)}
-                onMouseEnter={() => setHoveredItem(item.key)}
-                onMouseLeave={() => setHoveredItem(null)}
-                style={{
-                  '--item-color': currentSection.color,
-                } as React.CSSProperties}
-              >
-                <div className="nav-item-icon">{item.icon}</div>
-                <div className="nav-item-content">
-                  <div className="nav-item-label">{item.label}</div>
-                  <div className="nav-item-description">{item.description}</div>
-                </div>
-                {item.badge && (
-                  <Badge count={item.badge} className="nav-item-badge" />
-                )}
-                {isSelected && <div className="nav-item-selected-indicator" />}
-              </button>
-            </Tooltip>
+              {/* Section Items - Only show items from active section, inline */}
+              {isActiveSection && sectionData.items.map((item, itemIndex) => {
+                const isHovered = hoveredItem === item.key;
+                const isSelected = selectedPath === item.key;
+                
+                return (
+                  <React.Fragment key={item.key}>
+                    <Tooltip title={item.description} placement="bottom">
+                      <button
+                        className={`nav-item-pill ${isHovered ? 'hovered' : ''} ${isSelected ? 'selected' : ''}`}
+                        onClick={() => handleItemClick(item.key)}
+                        onMouseEnter={() => setHoveredItem(item.key)}
+                        onMouseLeave={() => setHoveredItem(null)}
+                        style={{
+                          '--item-color': sectionData.color,
+                        } as React.CSSProperties}
+                      >
+                        <span className="nav-item-icon-pill">{item.icon}</span>
+                        <span className="nav-item-label-pill">{item.label}</span>
+                        {item.badge && (
+                          <Badge count={item.badge} className="nav-item-badge-pill" />
+                        )}
+                        {isSelected && <div className="nav-item-active-dot" />}
+                      </button>
+                    </Tooltip>
+                    
+                    {/* Item divider (except for last item) */}
+                    {itemIndex < sectionData.items.length - 1 && (
+                      <div className="nav-item-divider" />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* Section divider (except for last section) */}
+              {sectionIndex < Object.keys(NAVIGATION_STRUCTURE).length - 1 && (
+                <div className="nav-divider" />
+              )}
+            </React.Fragment>
           );
         })}
       </div>

@@ -8,22 +8,30 @@
   background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
   overflow: hidden;
   padding: 0;
+  /* Content area - lower z-index ensures headers stay on top */
+  position: relative;
+  z-index: 1;
 }
 
-/* ===== HEADER ===== */
+/* ===== HEADER ===== - ALWAYS VISIBLE */
 .traceability-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 12px 20px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-radius: 0;
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
   flex-shrink: 0;
   position: sticky;
-  top: 0;
-  z-index: 100;
+  top: 76px; /* Offset by workspace-header-group height (68px) + margin (8px) */
+  z-index: 150; /* Below workspace header (200) but above content (1) */
+  /* ALWAYS visible - no hiding */
+  transform: translateY(0) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: none;
 }
 
 .traceability-header .header-info {
