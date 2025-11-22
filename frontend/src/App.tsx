@@ -123,11 +123,6 @@ function App() {
     setIsMobileMenuOpen(false);
   }, []);
 
-  // Determine if we should use mobile layout
-  const useMobileLayout = 
-    layoutMode === 'mobile' || 
-    (layoutMode === 'auto' && window.innerWidth <= 768);
-
   // Close mobile menu when switching to desktop layout
   useEffect(() => {
     if (layoutMode === 'desktop') {
@@ -140,7 +135,6 @@ function App() {
   }, []);
   const openHelpCenter = useCallback(() => setHelpCenterOpen(true), []);
   const closeHelpCenter = useCallback(() => setHelpCenterOpen(false), []);
-  const openPreferences = useCallback(() => setPreferencesOpen(true), []);
   const closePreferences = useCallback(() => setPreferencesOpen(false), []);
 
   useKeyboardShortcuts({
@@ -335,7 +329,6 @@ function App() {
                       }}
                       isCollapsed={isLeftPanelCollapsed}
                       onOpenHelpCenter={openHelpCenter}
-                      onCloseMobile={closeMobileMenu}
                     />
                     <button
                       type="button"

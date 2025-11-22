@@ -126,7 +126,7 @@
   --button-height-lg: 48px;
   --tab-height: 56px;
   --header-height: 64px;
-  --sidebar-width: 380px;
+  --sidebar-width: 560px;
   --workspace-gap: 24px;
   --sidebar-collapsed-width: 48px;
 
@@ -154,7 +154,7 @@
 
 /* === DENSITY === */
 :root[data-density="compact"] {
-  --sidebar-width: 320px;
+  --sidebar-width: 480px;
   --workspace-gap: 12px;
 }
 

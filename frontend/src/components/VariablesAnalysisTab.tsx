@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
-import { CheckCircleOutlined, CloseCircleOutlined, FileDoneOutlined, LinkOutlined, LoadingOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, FileDoneOutlined, LinkOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
@@ -11,7 +11,7 @@ import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGen
 import { ProgramDownloadModal } from './ProgramDownloadModal';
 import { showNavigationConfirmation } from './ConfirmationDialog';
 import { CodeGenerationProgressModal } from './CodeGenerationProgressModal';
-import { LAYOUT_PRESETS, type LayoutPresetKey } from './WorkspaceLayoutControls';
+import { LAYOUT_PRESETS } from './WorkspaceLayoutControls';
 import './VariablesAnalysisTab.css';
 import AnalyzingVariablesStatus from './AnalyzingVariablesStatus';
 
@@ -50,7 +50,7 @@ interface VariablesAnalysisTabProps {
   onNavigateToTraceability?: () => void;
 }
 
-export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSwitchProject, onNavigateToValidation, onNavigateToConsolidated, onNavigateToTraceability }) => {
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToValidation, onNavigateToConsolidated, onNavigateToTraceability }) => {
   const {
     specificationFile,
     projectConfig,
@@ -62,7 +62,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
     setBulkCodeSnippets,
     clearAllAIResults,
     programmingLanguage,
-    setProgrammingLanguage,
     sdtmVersion,
     adamIgVersion,
     medraVersion,
@@ -164,9 +163,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
     const snippets = state.pairProgramming.snippets;
     return Object.values(snippets).filter(snippet => snippet.accepted === 'accept').length;
   });
-
-  // Get traceability generation function
-  const generateTraceability = useProjectStore((state) => state.generateTraceability);
 
   const sortedCategories: DisplayCategory[] = useMemo(() => {
     if (!categorizedVariables?.categories) {
@@ -503,12 +499,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
         }
 
         const results = await adamApi.generateCodeBulkStream(requestPayload, (progress) => {
-          const { completed, total: totalVars, variable_name, message: progressMessage, batch_size, status, variables } = progress;
-          
+          const { completed, total: totalVars, variable_name, message: progressMessage, status } = progress;
+          const batch_size = (progress as any).batch_size;
+          const variables = (progress as any).variables;
+
           const displayMessage = status === 'batch_completed' && batch_size
             ? `Batch completed: ${batch_size} variables`
             : variable_name || progressMessage || 'Processing variables...';
-          
+
           updateProgressState(completed, displayMessage);
           
           const elapsedSeconds = (Date.now() - startTime) / 1000;
@@ -908,37 +906,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
             </Button>
           </Tooltip>
           <Button
-            onClick={onNavigateToValidation}
-            icon={<CheckCircleOutlined />}
-            className="action-button-compact"
-            size="small"
-            type="default"
-            title="View validation results and quality checks"
-          >
-            My Validation
-          </Button>
-          <Button
-            onClick={onNavigateToConsolidated}
-            disabled={!canGenerateConsolidated}
-            icon={<FileDoneOutlined />}
-            className="action-button-compact"
-            size="small"
-            type="default"
-            title="Generate consolidated ADAM program"
-          >
-            Consolidated Code
-          </Button>
-          <Button
-            onClick={onNavigateToTraceability}
-            icon={<LinkOutlined />}
-            className="action-button-compact"
-            size="small"
-            type="default"
-            title="View traceability matrix and lineage graph"
-          >
-            Traceability
-          </Button>
-          <Button
             onClick={handleCategorizeVariables}
             disabled={isCategorizingVariables}
             icon={isCategorizingVariables ? <LoadingOutlined /> : <RefreshCw size={14} />}
@@ -1006,9 +973,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onSw
                   <PairProgrammingArea
                     variables={activeCategoryData.variables}
                     categoryName={activeCategoryData.displayName || activeCategoryData.name}
-                    onOpenValidation={onNavigateToValidation}
-                    onOpenConsolidated={onNavigateToConsolidated}
-                    canOpenConsolidated={canGenerateConsolidated}
                   />
                 </div>
               )}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Button, Space, Modal, Form, Input, Select, message } from 'antd';
+import { Table, Button, Space, Modal, Form, Input, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, CopyOutlined } from '@ant-design/icons';
 
 interface Template {
@@ -12,7 +12,7 @@ interface Template {
 }
 
 export const TemplateManagement: React.FC = () => {
-  const [templates, setTemplates] = useState<Template[]>([
+  const [templates] = useState<Template[]>([
     {
       id: '1',
       name: 'ADSL Standard Template',

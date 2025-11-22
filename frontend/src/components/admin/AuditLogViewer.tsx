@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, DatePicker, Select, Space, Input, Button } from 'antd';
 import { SearchOutlined, DownloadOutlined } from '@ant-design/icons';
-import type { RangePickerProps } from 'antd/es/date-picker';
-import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 
@@ -21,13 +19,7 @@ interface AuditLog {
 
 export const AuditLogViewer: React.FC = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    action: undefined,
-    user_id: undefined,
-    date_from: undefined,
-    date_to: undefined
-  });
+  const [loading] = useState(false);
 
   // Mock data
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Select, Badge, Button, Tooltip, message } from 'antd';
+import { Select, Button, Tooltip, message } from 'antd';
 import {
   RobotOutlined,
   RocketOutlined,
@@ -28,13 +28,6 @@ const PROVIDERS = [
   { value: 'openrouter', label: 'OpenRouter', icon: <RocketOutlined /> },
 ];
 
-const STATUS_TEXT: Record<'untested' | 'testing' | 'connected' | 'failed', string> = {
-  untested: 'Awaiting test',
-  testing: 'Testing connection...',
-  connected: 'Ready for generation',
-  failed: 'Connection failed',
-};
-
 export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => {
   const {
     llmProvider,
@@ -49,7 +42,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
   } = useProjectStore();
 
   const [loadingModels, setLoadingModels] = useState(false);
-  const [modelError, setModelError] = useState<string | null>(null);
+  const [, setModelError] = useState<string | null>(null);
 
   useEffect(() => {
     if (llmProvider !== 'openrouter') {
@@ -152,28 +145,6 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
       });
     }
   };
-
-  const statusIcon = (() => {
-    if (llmConnectionStatus === 'connected') return <CheckCircleFilled className="status-icon" />;
-    if (llmConnectionStatus === 'failed') return <WarningOutlined className="status-icon" />;
-    if (llmConnectionStatus === 'testing') return <LoadingOutlined className="status-icon spinning" />;
-    return <ApiOutlined className="status-icon" />;
-  })();
-
-  const inlineMessage = modelError
-    ? { tone: 'error', text: modelError }
-    : llmConnectionStatus === 'connected' && llmConnectionMessage
-    ? { tone: 'success', text: llmConnectionMessage }
-    : null;
-
-  const connectionLabel =
-    llmConnectionStatus === 'connected'
-      ? 'Ready'
-      : llmConnectionStatus === 'failed'
-      ? 'Needs attention'
-      : llmConnectionStatus === 'testing'
-      ? 'Testing...'
-      : 'Not tested';
 
   return (
     <div className={`ai-config-status ${className || ''}`}>

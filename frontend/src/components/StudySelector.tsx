@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Select, Modal, Form, Input, Button, message, Spin, Empty } from 'antd';
-import { FolderOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { FolderOutlined, PlusOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import './StudySelector.css';
 

@@ -39,7 +39,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
   showStudySelector = true,
   embedded = false
 }) => {
-  const [activeMenu, setActiveMenu] = useState<string>('');
+  const [, setActiveMenu] = useState<string>('');
   const [activeSection, setActiveSection] = useState<string>('');
 
   // Update active section based on path

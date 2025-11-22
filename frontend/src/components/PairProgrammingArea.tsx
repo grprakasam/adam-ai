@@ -1,18 +1,14 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { message, Tooltip } from 'antd';
-import { Code2, Loader2, AlertCircle, RefreshCw, Info, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { message } from 'antd';
+import { Code2, Loader2, AlertCircle, RefreshCw, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
-import { showRegenerateConfirmation } from './ConfirmationDialog';
 import type { CodeSnippetRequest, VariableInfo } from '../types';
 import './PairProgrammingArea.css';
 
 interface PairProgrammingAreaProps {
   variables: VariableInfo[];
   categoryName: string;
-  onOpenValidation?: () => void;
-  onOpenConsolidated?: () => void;
-  canOpenConsolidated?: boolean;
 }
 
 interface GenerateSnippetOptions {
@@ -20,33 +16,6 @@ interface GenerateSnippetOptions {
   silent?: boolean;
 }
 
-// Define all available columns
-type ColumnId = 'variable' | 'label' | 'type' | 'length' | 'format' | 'origin' | 'derivation' | 'rationale' | 'code' | 'acceptance' | 'notes';
-
-interface ColumnDefinition {
-  id: ColumnId;
-  label: string;
-  alwaysVisible: boolean;
-  isAdvanced: boolean; // Only shown when snippets are generated
-}
-
-// Kept for reference only - not used in card-based layout
-const COLUMN_DEFINITIONS: ColumnDefinition[] = [
-  { id: 'variable', label: 'Variable', alwaysVisible: true, isAdvanced: false },
-  { id: 'label', label: 'Label', alwaysVisible: false, isAdvanced: false },
-  { id: 'type', label: 'Type', alwaysVisible: false, isAdvanced: false },
-  { id: 'length', label: 'Length', alwaysVisible: false, isAdvanced: false },
-  { id: 'format', label: 'Format', alwaysVisible: false, isAdvanced: false },
-  { id: 'origin', label: 'Origin', alwaysVisible: false, isAdvanced: false },
-  { id: 'derivation', label: 'Derivation Logic', alwaysVisible: false, isAdvanced: false },
-  { id: 'rationale', label: 'Coding Rationale', alwaysVisible: false, isAdvanced: true },
-  { id: 'code', label: 'Code Snippet', alwaysVisible: false, isAdvanced: true },
-  { id: 'acceptance', label: 'Acceptance', alwaysVisible: false, isAdvanced: true },
-  { id: 'notes', label: 'User Notes', alwaysVisible: false, isAdvanced: true },
-];
-
-// Note: STORAGE_KEY kept for backward compatibility with old localStorage
-const STORAGE_KEY = 'pairProgramming_visibleColumns_v1';
 
 // Simple syntax highlighting function for R and SAS
 const highlightCode = (code: string, language: string): string => {
@@ -109,9 +78,6 @@ const highlightCode = (code: string, language: string): string => {
 export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   variables,
   categoryName,
-  onOpenValidation,
-  onOpenConsolidated,
-  canOpenConsolidated,
 }) => {
   const {
     projectConfig,
@@ -252,36 +218,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     setPairProgrammingAcceptance(variable, accepted);
   };
 
-  const handleRegenerateWithConfirmation = async (variable: VariableInfo) => {
-    const snippet = pairProgramming.snippets[variable.name];
-
-    if (!snippet) {
-      await handleGenerateSnippet(variable);
-      return;
-    }
-
-    if (!snippet.codeSnippet) {
-      await handleGenerateSnippet(variable);
-      return;
-    }
-
-    if (snippet.accepted !== 'modify') {
-      message.info('Select "Modify" in the Acceptance column to request updated code.');
-      return;
-    }
-
-    const rawNote = snippet.userNotes || '';
-    const trimmedNote = rawNote.trim();
-    if (!trimmedNote) {
-      message.warning('Add user notes to describe the desired changes before refreshing.');
-      return;
-    }
-
-    await showRegenerateConfirmation(() =>
-      handleGenerateSnippet(variable, { userNote: rawNote })
-    );
-  };
-
   // Filter and search variables
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'generated' | 'pending'>('all');
@@ -352,10 +288,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Content Area with Search & Filter */}
-      <div ref={contentAreaRef} className="pair-programming-area-content">
-        {/* Search & Filter Toolbar */}
-        <div className="pair-programming-toolbar">
+      {/* Search & Filter Toolbar - Immediately below header, always visible */}
+      <div className="pair-programming-toolbar">
           <div className="search-box">
             <Search size={16} />
             <input
@@ -398,6 +332,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           </div>
         </div>
 
+      {/* Scrollable Content Area */}
+      <div ref={contentAreaRef} className="pair-programming-area-content">
         {/* Variables Grid */}
         {filteredVariables.length > 0 ? (
           <div className="pair-programming-variables-grid">

@@ -144,7 +144,7 @@ a:focus-visible {
 /* Tablet adjustments */
 @media (min-width: 768px) and (max-width: 1024px) {
   :root {
-    --sidebar-width: 320px;
+    --sidebar-width: 480px;
   }
 }
 

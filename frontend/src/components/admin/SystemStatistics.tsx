@@ -5,10 +5,8 @@ import {
   ProjectOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
-  RocketOutlined
+  ClockCircleOutlined
 } from '@ant-design/icons';
-import { api } from '../../services/api';
 
 interface SystemStats {
   total_users: number;

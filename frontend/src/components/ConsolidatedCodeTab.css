@@ -6,11 +6,12 @@
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to visible to allow sticky positioning */
   padding: 0;
   /* Content area - lower z-index ensures headers stay on top */
   position: relative;
   z-index: 1;
+  gap: 0; /* No gap between header and content */
 }
 
 /* ===== HEADER ===== - ALWAYS VISIBLE */
@@ -18,47 +19,64 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 20px;
+  padding: 10px 20px;
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   border-radius: 0;
   color: white;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
-  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  width: 100%;
+  /* Sticky positioning - stays at top of scrolling container */
+  position: -webkit-sticky; /* Safari support */
   position: sticky;
-  top: 76px; /* Offset by workspace-header-group height (68px) + margin (8px) */
-  z-index: 150; /* Below workspace header (200) but above content (1) */
+  top: 0; /* Stick to top of scrolling ancestor */
+  z-index: 200; /* High z-index to stay above all content */
   /* ALWAYS visible - no hiding */
   transform: translateY(0) !important;
   opacity: 1 !important;
   visibility: visible !important;
-  transition: none;
+  transition: none; /* Remove transition to ensure instant visibility */
+  overflow: visible;
+  flex-shrink: 0;
+  /* Fixed height for precise calculations */
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  /* Remove any margin that creates unwanted space */
+  margin: 0;
+  margin-bottom: 0;
 }
 
 .header-info {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   flex: 1;
   min-width: 0;
 }
 
 .header-info svg {
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+  width: 18px;
+  height: 18px;
 }
 
 .header-title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  color: white;
+  letter-spacing: -0.2px;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
 .header-subtitle {
-  font-size: 13px;
-  opacity: 0.9;
-  font-weight: 400;
-  margin-left: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-left: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .header-actions {
@@ -68,14 +86,14 @@
 }
 
 .header-actions .ant-btn-lg {
-  height: 40px;
-  padding: 0 24px;
-  font-size: 15px;
+  height: 36px;
+  padding: 0 20px;
+  font-size: 14px;
   font-weight: 600;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   border: none;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.2s ease;
 }
 
 .header-actions .ant-btn-primary {
@@ -104,8 +122,11 @@
   gap: 20px;
   padding: 20px;
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto; /* Enable scrolling for content */
+  overflow-x: hidden;
   min-height: 0;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
 }
 
 /* ===== CONTROLS PANEL ===== */
@@ -501,35 +522,47 @@
 
   /* Header Mobile */
   .consolidated-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 14px 16px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 14px;
     border-radius: 0;
+    height: auto;
+    min-height: 48px;
+    max-height: none;
   }
 
   .header-info {
-    flex-wrap: wrap;
+    width: 100%;
+    flex-direction: row;
     gap: 10px;
+    text-align: left;
+    align-items: center;
+  }
+
+  .header-info svg {
+    width: 18px;
+    height: 18px;
   }
 
   .header-title {
-    font-size: 16px;
+    font-size: 15px;
   }
 
   .header-subtitle {
-    font-size: 12px;
-    margin-left: 0;
-    width: 100%;
+    font-size: 11px;
+    margin-left: 8px;
   }
 
   .header-actions {
     width: 100%;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .header-actions .ant-btn-lg {
     width: 100%;
-    min-height: 48px;
+    min-height: 44px;
   }
 
   /* Layout Mobile - Stack Vertically */

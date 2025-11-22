@@ -1,7 +1,6 @@
 import React from 'react';
 import { Button, Space } from 'antd';
 import { HomeOutlined, MenuOutlined } from '@ant-design/icons';
-import { TopNavigation } from './TopNavigation';
 import { NotificationBell } from './NotificationBell';
 import { SearchButton } from './SearchButton';
 import { DarkModeToggle } from './DarkModeToggle';
@@ -30,7 +29,6 @@ interface AppHeaderProps {
   showStudySelector?: boolean;
   currentStudyId?: string;
   onStudyChange?: (studyId: string) => void;
-  onNavigate?: (path: string) => void;
   onToggleMobileMenu?: () => void;
 }
 
@@ -41,7 +39,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   showStudySelector = false,
   currentStudyId,
   onStudyChange,
-  onNavigate,
   onToggleMobileMenu
 }) => {
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
@@ -132,8 +129,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <Space size="middle">
             {/* AI Configuration Status - before search */}
             <AIConfigStatus className="hide-mobile" />
-            <SearchButton className="hide-mobile" />
-            <NotificationBell className="hide-mobile" />
+            <div className="hide-mobile"><SearchButton /></div>
+            <div className="hide-mobile"><NotificationBell /></div>
             <LayoutSwitcher />
             <DarkModeToggle />
             <UserMenu user={normalizedUser} onLogout={onLogout} />
