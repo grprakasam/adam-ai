@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
-import { CheckCircleOutlined, FileDoneOutlined, LinkOutlined, LoadingOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
@@ -50,7 +50,7 @@ interface VariablesAnalysisTabProps {
   onNavigateToTraceability?: () => void;
 }
 
-export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToValidation, onNavigateToConsolidated, onNavigateToTraceability }) => {
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToValidation: _onNavigateToValidation, onNavigateToConsolidated: _onNavigateToConsolidated, onNavigateToTraceability: _onNavigateToTraceability }) => {
   const {
     specificationFile,
     projectConfig,
@@ -73,7 +73,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
     getCompletionPercentage,
   } = useProjectStore();
 
-  const [activeCategory, setActiveCategory] = useState<string>('0');
+  const [activeCategory, setActiveCategory] = useState<string>('all'); // Default to "All Variables"
   const [error, setError] = useState<string | null>(null);
   const [bulkGenerationProgress, setBulkGenerationProgress] = useState<{
     isGenerating: boolean;
@@ -156,7 +156,8 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
 
   // Get approval progress
   const { percentage, isReadyForGeneration, totalVariables, approvedVariables } = useApprovalProgress();
-  const canGenerateConsolidated = useProjectStore((state) => state.canGenerateConsolidated());
+  // Commented out - not currently used but may be useful in future
+  // const canGenerateConsolidated = useProjectStore((state) => state.canGenerateConsolidated());
 
   // Use approved count from hook for consistency
   const approvedCount = approvedVariables;
@@ -176,13 +177,17 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
   }, [categorizedVariables]);
 
   useEffect(() => {
+    // Don't reset if "All Variables" is selected
+    if (activeCategory === 'all') {
+      return;
+    }
     if (sortedCategories.length === 0) {
-      setActiveCategory('0');
+      setActiveCategory('all'); // Default to "All Variables" if no categories
       return;
     }
     const index = parseInt(activeCategory, 10);
     if (Number.isNaN(index) || index >= sortedCategories.length) {
-      setActiveCategory('0');
+      setActiveCategory('all'); // Default to "All Variables" if invalid index
     }
   }, [sortedCategories.length, activeCategory]);
 
@@ -868,7 +873,19 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
 
   // Main content with categorized variables
   // Get active category for pair programming panel
-  const activeCategoryData = sortedCategories[parseInt(activeCategory, 10)] || null;
+  // Handle special 'all' case for showing all variables
+  const isAllVariablesSelected = activeCategory === 'all';
+  const activeCategoryData = isAllVariablesSelected 
+    ? null 
+    : sortedCategories[parseInt(activeCategory, 10)] || null;
+  
+  // Get all variables when "All Variables" is selected
+  const allVariablesForPairProgramming = useMemo(() => {
+    if (!categorizedVariables?.categories) return [];
+    return categorizedVariables.categories.flatMap(category => 
+      category.variables || []
+    );
+  }, [categorizedVariables]);
 
   return (
     <div className="variables-analysis-tab">
@@ -968,26 +985,40 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
                 tabPosition="left"
                 className="category-tabs category-tabs-vertical"
                 tabBarGutter={8}
-                items={sortedCategories.map((category, index) => ({
-                  key: index.toString(),
-                  label: (
-                    <div className="tab-label">
-                      <span className="tab-name">{category.displayName}</span>
-                      <span className="tab-count">{category.count}</span>
-                    </div>
-                  ),
-                  children: renderCategoryContent(category)
-                }))}
+                items={[
+                  // "All Variables" option at the top
+                  {
+                    key: 'all',
+                    label: (
+                      <div className="tab-label all-variables-tab">
+                        <span className="tab-name">All Variables</span>
+                        <span className="tab-count">{allVariablesForPairProgramming.length}</span>
+                      </div>
+                    ),
+                    children: null // No content for "All Variables" - handled in pair programming area
+                  },
+                  // Category tabs
+                  ...sortedCategories.map((category, index) => ({
+                    key: index.toString(),
+                    label: (
+                      <div className="tab-label">
+                        <span className="tab-name">{category.displayName}</span>
+                        <span className="tab-count">{category.count}</span>
+                      </div>
+                    ),
+                    children: renderCategoryContent(category)
+                  }))
+                ]}
               />
             </div>
 
             {/* Pair Programming Panel - 70% on the right */}
             <div className="pair-programming-container">
-              {activeCategoryData && (
+              {(activeCategoryData || isAllVariablesSelected) && (
                 <div className="pair-programming-panel" role="region" aria-label="Pair Programming Area">
                   <PairProgrammingArea
-                    variables={activeCategoryData.variables}
-                    categoryName={activeCategoryData.displayName || activeCategoryData.name}
+                    variables={isAllVariablesSelected ? allVariablesForPairProgramming : (activeCategoryData?.variables || [])}
+                    categoryName={isAllVariablesSelected ? 'All Variables' : (activeCategoryData?.displayName || activeCategoryData?.name || 'Unknown')}
                   />
                 </div>
               )}

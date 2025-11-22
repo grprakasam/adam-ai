@@ -1,12 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { message, Segmented, Dropdown, Checkbox } from 'antd';
-import { CheckCircleOutlined } from '@ant-design/icons';
-import { Code2, Loader2, AlertCircle, RefreshCw, Search, ChevronDown, ChevronUp, ZoomIn, ZoomOut, Maximize2, Eye, Layout } from 'lucide-react';
+import { message, Dropdown, Checkbox } from 'antd';
+import { Code2, Loader2, AlertCircle, Search, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
-import { adamApi } from '../services/api';
-import { showRegenerateConfirmation } from './ConfirmationDialog';
-import type { CodeSnippetRequest, VariableInfo } from '../types';
-import type { MenuProps } from 'antd';
+import type { VariableInfo } from '../types';
 import './PairProgrammingArea.css';
 
 interface PairProgrammingAreaProps {
@@ -14,10 +10,11 @@ interface PairProgrammingAreaProps {
   categoryName: string;
 }
 
-interface GenerateSnippetOptions {
-  userNote?: string;
-  silent?: boolean;
-}
+// Commented out - was used by handleGenerateSnippet which is currently disabled
+// interface GenerateSnippetOptions {
+//   userNote?: string;
+//   silent?: boolean;
+// }
 
 // Field visibility configuration
 type FieldId = 'type' | 'length' | 'format' | 'origin' | 'derivation' | 'rationale' | 'code';
@@ -109,15 +106,10 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   categoryName,
 }) => {
   const {
-    projectConfig,
     pairProgramming,
-    setPairProgrammingSnippet,
-    setGeneratingSnippet,
     setPairProgrammingNotes,
     setPairProgrammingAcceptance,
     programmingLanguage,
-    llmProvider,
-    selectedModel,
     categorizedVariables
   } = useProjectStore();
 
@@ -129,7 +121,27 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     );
   }, [categorizedVariables]);
 
+  // Commented out - not currently used but may be useful in future
+  // Create a map of variable name to category for quick lookup
+  // const variableCategoryMap = useMemo(() => {
+  //   const map = new Map<string, string>();
+  //   if (categorizedVariables?.categories) {
+  //     categorizedVariables.categories.forEach(category => {
+  //       if (category.variables) {
+  //         category.variables.forEach(variable => {
+  //           map.set(variable.name, category.name);
+  //         });
+  //       }
+  //     });
+  //   }
+  //   return map;
+  // }, [categorizedVariables]);
 
+  // Helper function to get category name for a variable
+  // Commented out - not currently used but may be useful in future
+  // const getVariableCategory = (variableName: string): string => {
+  //   return variableCategoryMap.get(variableName) || 'Unknown';
+  // };
 
   // Debug logging
   React.useEffect(() => {
@@ -146,6 +158,9 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     return variable.derivation || 'No derivation logic specified';
   };
 
+  // Commented out - not currently used but preserved for reference
+  // This function was part of an earlier implementation and may be needed again in future
+  /*
   const handleGenerateSnippet = async (
     variable: VariableInfo,
     options: GenerateSnippetOptions = {}
@@ -202,19 +217,16 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
       const response = await adamApi.generateCodeSnippet(payload);
 
       const nextUserNotes = options.userNote ?? existingSnippet?.userNotes ?? '';
-      // Auto-approve after code generation unless explicitly marked as 'modify'
-      // If user marked as 'modify', keep it as 'modify' (they want changes)
-      // Otherwise, auto-approve when code is successfully generated
-      const nextAcceptance = existingSnippet?.accepted === 'modify' 
-        ? 'modify' 
-        : 'accept'; // Auto-approve after generation
+      const nextAcceptance = existingSnippet?.accepted === 'modify'
+        ? 'modify'
+        : 'accept';
 
       setPairProgrammingSnippet(variable.name, {
         variable: variable.name,
         codeSnippet: response.code_snippet,
         rationale: response.coding_rationale,
         userNotes: nextUserNotes,
-        accepted: nextAcceptance, // Auto-approve after generation
+        accepted: nextAcceptance,
         generatedAt: new Date(),
         language: programmingLanguage,
         metadata: response.metadata,
@@ -233,7 +245,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
       message.error(errorMsg);
 
       if (!existingSnippet?.codeSnippet) {
-        // Store error only if there is no previous snippet to fall back on
         setPairProgrammingSnippet(variable.name, {
           variable: variable.name,
           codeSnippet: '',
@@ -246,12 +257,12 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         });
       }
     } finally {
-      // Always clean up loading state
       if (cleanupRequired) {
         setGeneratingSnippet(variable.name, false);
       }
     }
   };
+  */
 
   const handleNotesChange = (variable: string, notes: string) => {
     setPairProgrammingNotes(variable, notes);
@@ -267,42 +278,43 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     }
   };
 
-  const handleRegenerateWithConfirmation = async (variable: VariableInfo) => {
-    const snippet = pairProgramming.snippets[variable.name];
-
-    if (!snippet) {
-      await handleGenerateSnippet(variable);
-      return;
-    }
-
-    if (!snippet.codeSnippet) {
-      await handleGenerateSnippet(variable);
-      return;
-    }
-
-    // Check if user notes are required for regeneration
-    const trimmedNotes = snippet.userNotes?.trim() ?? '';
-    
-    if (snippet.accepted === 'modify' && !trimmedNotes) {
-      message.warning('Add user notes to describe the desired changes before regenerating.');
-      return;
-    }
-
-    // Show confirmation dialog before regenerating
-    await showRegenerateConfirmation(async () => {
-      await handleGenerateSnippet(variable, { 
-        userNote: snippet.userNotes || undefined 
-      });
-    });
-  };
+  // Commented out - not currently used but may be useful in future
+  // const handleRegenerateWithConfirmation = async (variable: VariableInfo) => {
+  //   const snippet = pairProgramming.snippets[variable.name];
+  //
+  //   if (!snippet) {
+  //     await handleGenerateSnippet(variable);
+  //     return;
+  //   }
+  //
+  //   if (!snippet.codeSnippet) {
+  //     await handleGenerateSnippet(variable);
+  //     return;
+  //   }
+  //
+  //   // Check if user notes are required for regeneration
+  //   const trimmedNotes = snippet.userNotes?.trim() ?? '';
+  //
+  //   if (snippet.accepted === 'modify' && !trimmedNotes) {
+  //     message.warning('Add user notes to describe the desired changes before regenerating.');
+  //     return;
+  //   }
+  //
+  //   // Show confirmation dialog before regenerating
+  //   await showRegenerateConfirmation(async () => {
+  //     await handleGenerateSnippet(variable, {
+  //       userNote: snippet.userNotes || undefined
+  //     });
+  //   });
+  // };
 
   // Filter and search variables
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'generated' | 'pending'>('all');
+  const [filterStatus, setFilterStatus] = useState<'generated' | 'pending'>('generated');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   // View density state (compact/comfortable/spacious) - Load from localStorage
-  const [viewDensity, setViewDensity] = useState<'compact' | 'comfortable' | 'spacious'>(() => {
+  const [viewDensity, _setViewDensity] = useState<'compact' | 'comfortable' | 'spacious'>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.viewDensity);
       if (saved && ['compact', 'comfortable', 'spacious'].includes(saved)) {
@@ -315,7 +327,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   });
 
   // Card size preset state (small/standard/large) - Load from localStorage
-  const [cardSizePreset, setCardSizePreset] = useState<'small' | 'standard' | 'large'>(() => {
+  const [cardSizePreset, _setCardSizePreset] = useState<'small' | 'standard' | 'large'>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.cardSizePreset);
       if (saved && ['small', 'standard', 'large'].includes(saved)) {
@@ -412,13 +424,13 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   };
 
   const filteredVariables = useMemo(() => {
+    // Always use variables from the selected sidebar category
+    // Filter buttons filter within the selected category
     return variables.filter(variable => {
       const matchesSearch = 
         variable.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (variable.label && variable.label.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      if (filterStatus === 'all') return matchesSearch;
-      
       const snippet = pairProgramming.snippets[variable.name];
       if (filterStatus === 'generated') {
         return matchesSearch && snippet?.codeSnippet;
@@ -447,18 +459,19 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     return `status-${status}`;
   };
 
-  const getStatusBadgeLabel = (status?: string) => {
-    switch (status) {
-      case 'accept':
-        return '✓ Approved';
-      case 'reject':
-        return '✗ Rejected';
-      case 'modify':
-        return 'Modify';
-      default:
-        return '';
-    }
-  };
+  // Commented out - not currently used but may be useful in future
+  // const getStatusBadgeLabel = (status?: string) => {
+  //   switch (status) {
+  //     case 'accept':
+  //       return '✓ Approved';
+  //     case 'reject':
+  //       return '✗ Rejected';
+  //     case 'modify':
+  //       return 'Modify';
+  //     default:
+  //       return '';
+  //   }
+  // };
 
   // Content area ref - header is always visible, no hiding logic needed
   const contentAreaRef = useRef<HTMLDivElement>(null);
@@ -471,17 +484,11 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
           <Code2 size={20} />
           <span className="header-title">Pair Programming Area</span>
           <span className="header-subtitle">
-            {categoryName}: {variables.length} variables • {variables.filter(v => pairProgramming.snippets[v.name]?.codeSnippet).length} generated
+            {categoryName}: {filteredVariables.length} {filterStatus === 'generated' ? 'generated' : 'pending'} variables
           </span>
           
           {/* Filter Buttons - Moved to header-info */}
           <div className="filter-buttons header-filters">
-            <button 
-              className={`filter-btn ${filterStatus === 'all' ? 'active' : ''}`}
-              onClick={() => setFilterStatus('all')}
-            >
-              All ({allVariables.length})
-            </button>
             <button 
               className={`filter-btn ${filterStatus === 'generated' ? 'active' : ''}`}
               onClick={() => setFilterStatus('generated')}

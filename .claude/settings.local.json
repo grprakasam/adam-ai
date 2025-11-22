@@ -4,7 +4,16 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(python -m uvicorn:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(test:*)",
+      "WebSearch",
+      "Bash(..prakenvScriptspython.exe -c \"import sys; sys.path.insert(0, ''.''); from app.config import settings; print(''Config loaded successfully'')\")",
+      "Bash(../prakenv/Scripts/python.exe -c \"import sys; sys.path.insert(0, ''.''); from app.config import settings; print(''Config loaded successfully'')\")",
+      "Bash(../prakenv/Scripts/python.exe -c \"import app.main\")",
+      "Bash(npm run build:*)",
+      "Bash(find:*)",
+      "Bash(../prakenv/Scripts/python.exe -c \"from app.api.v1 import api_router; print(''API router imported successfully'')\")",
+      "Bash(../prakenv/Scripts/python.exe:*)"
     ],
     "deny": [],
     "ask": []

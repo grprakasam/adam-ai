@@ -1055,6 +1055,20 @@
   transform: translateX(6px) scale(1.02);
 }
 
+/* "All Variables" tab styling */
+.category-tabs-vertical .all-variables-tab {
+  font-weight: 600;
+}
+
+.category-tabs-vertical .all-variables-tab .tab-name {
+  color: #10b981;
+}
+
+.category-tabs-vertical .ant-tabs-tab-active .all-variables-tab .tab-name {
+  color: white;
+  font-weight: 700;
+}
+
 .category-tabs-vertical .tab-label {
   display: flex;
   align-items: center;
