@@ -166,16 +166,23 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({ onBack }) => {
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      // Safely remove the element
+      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
+      try {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        } else if (typeof link.remove === 'function') {
+          link.remove();
+        }
+      } catch (e) {
+        // Element may have been auto-removed - ignore
+      }
+      // Revoke URL after a short delay
       setTimeout(() => {
         try {
-          if (link.parentNode === document.body) {
-            document.body.removeChild(link);
-          }
+          window.URL.revokeObjectURL(url);
         } catch (e) {
-          // Element may have already been removed, ignore
+          // Ignore
         }
-        window.URL.revokeObjectURL(url);
       }, 100);
 
       message.success(`Validation results exported as ${format.toUpperCase()}`);

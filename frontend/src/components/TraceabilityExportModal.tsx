@@ -90,16 +90,23 @@ export const TraceabilityExportModal: React.FC<TraceabilityExportModalProps> = (
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      // Safely remove the element
+      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
+      try {
+        if (a.parentNode) {
+          a.parentNode.removeChild(a);
+        } else if (typeof a.remove === 'function') {
+          a.remove();
+        }
+      } catch (e) {
+        // Element may have been auto-removed - ignore
+      }
+      // Revoke URL after a short delay
       setTimeout(() => {
         try {
-          if (a.parentNode === document.body) {
-            document.body.removeChild(a);
-          }
+          window.URL.revokeObjectURL(url);
         } catch (e) {
-          // Element may have already been removed, ignore
+          // Ignore
         }
-        window.URL.revokeObjectURL(url);
       }, 100);
 
       message.success(`Traceability matrix exported as ${selectedFormat.toUpperCase()}`);

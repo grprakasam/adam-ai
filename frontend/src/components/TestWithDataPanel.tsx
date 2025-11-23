@@ -124,6 +124,7 @@ interface TestWithDataPanelProps {
 }
 
 export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone: _standalone = false }) => {
+  const { projectConfig } = useProjectStore();
   const [form] = Form.useForm();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
@@ -181,6 +182,7 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
   const [validationResults, setValidationResults] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingDomains, setLoadingDomains] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   // Table controls state
   const [searchText, setSearchText] = useState('');
@@ -371,7 +373,13 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       setValidationResults(null); // Clear previous validation results
       message.loading({ content: 'Generating SDTM data...', key: 'generate', duration: 0 });
 
-      const response = await fetch('/api/v1/test-data/generate-sdtm', {
+      // Include study_id in the URL if available
+      const studyId = projectConfig?.studyId;
+      const url = studyId 
+        ? `/api/v1/test-data/generate-sdtm?study_id=${encodeURIComponent(studyId)}`
+        : '/api/v1/test-data/generate-sdtm';
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(parameters),
@@ -459,6 +467,13 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
   };
 
   const handleDownload = async (format: 'csv' | 'sas7bdat' | 'rds') => {
+    // Prevent multiple simultaneous downloads
+    if (isDownloading) {
+      message.warning({ content: 'Download already in progress...', key: 'download', duration: 2 });
+      return;
+    }
+    
+    setIsDownloading(true);
     try {
       message.loading({ content: `Preparing ${format.toUpperCase()} download...`, key: 'download', duration: 0 });
 
@@ -478,18 +493,54 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       a.href = url;
       a.download = `${parameters.domain}_${new Date().toISOString().split('T')[0]}.${format}`;
       a.style.display = 'none';
+      a.setAttribute('aria-hidden', 'true');
+      
+      // Append to body, click immediately, then remove synchronously
+      // This prevents React from interfering with the node removal
       document.body.appendChild(a);
-      a.click();
-      // Safely remove the element
-      setTimeout(() => {
+      
+      try {
+        // Click to trigger download
+        a.click();
+        
+        // Remove element IMMEDIATELY and SYNCHRONOUSLY after click
+        // This must happen before React's commit phase can interfere
+        // Use try-catch to handle any edge cases gracefully
         try {
-          if (a.parentNode === document.body) {
-            document.body.removeChild(a);
+          if (a.parentNode) {
+            // Remove synchronously - no async operations
+            a.parentNode.removeChild(a);
+          } else if (typeof a.remove === 'function') {
+            a.remove();
+          }
+        } catch (removeError) {
+          // Element may have been auto-removed by browser - this is fine
+          // Silently ignore - the download has already been triggered
+        }
+      } catch (clickError) {
+        // If click fails, try to clean up
+        try {
+          if (a.parentNode) {
+            a.parentNode.removeChild(a);
+          } else if (typeof a.remove === 'function') {
+            a.remove();
           }
         } catch (e) {
-          // Element may have already been removed, ignore
+          // Ignore cleanup errors
         }
         window.URL.revokeObjectURL(url);
+        setIsDownloading(false);
+        message.error('Failed to trigger download');
+        return;
+      }
+      
+      // Revoke URL after download has started (async is fine for this)
+      setTimeout(() => {
+        try {
+          window.URL.revokeObjectURL(url);
+        } catch (e) {
+          // Ignore URL revocation errors
+        }
       }, 100);
 
       message.success({ content: 'Download started', key: 'download', duration: 2 });
@@ -500,6 +551,8 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         duration: 5,
       });
       console.error('Download error:', error);
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -1606,3 +1659,4 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
 };
 
 export default TestWithDataPanel;
+

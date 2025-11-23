@@ -48,10 +48,14 @@ class InputValidator:
     def __init__(self, base_path: Optional[Path] = None):
         """Initialize validator with base path for SDTM datasets"""
         if base_path is None:
-            # Default to Content/Generated/SDTM
-            self.base_path = Path("Content/Generated/SDTM")
+            # Default to Content/Generated/SDTM - resolve relative to backend directory
+            # This ensures consistent path resolution regardless of where the code runs
+            backend_dir = Path(__file__).resolve().parents[3]  # Go up to backend/app/modules/adam_generation -> backend
+            self.base_path = (backend_dir / "Content" / "Generated" / "SDTM").resolve()
         else:
-            self.base_path = base_path
+            self.base_path = Path(base_path).resolve() if base_path else Path("Content/Generated/SDTM").resolve()
+        
+        logger.info(f"InputValidator initialized with base_path: {self.base_path}")
 
     async def validate_inputs(self, study_id: str, adam_dataset: str) -> ValidationResult:
         """Validate that required SDTM datasets are available"""
@@ -59,30 +63,59 @@ class InputValidator:
         optional = self.OPTIONAL_DOMAINS.get(adam_dataset, [])
 
         study_path = self.base_path / study_id
+        
+        logger.info(f"Checking SDTM datasets in: {study_path} (exists: {study_path.exists()})")
+        
         available = []
         missing = []
         metadata = {}
 
+        # First, scan the directory for ALL available SDTM files
+        # This ensures we find all datasets generated, not just required ones
+        all_available_domains = set()
+        if study_path.exists():
+            for csv_file in study_path.glob("*.csv"):
+                domain = csv_file.stem.upper()
+                # Skip metadata files and ensure it's a valid domain name
+                if domain not in ['METADATA'] and len(domain) >= 2:
+                    all_available_domains.add(domain)
+                    if domain not in available:
+                        available.append(domain)
+                        metadata[domain] = self._get_file_metadata(csv_file)
+                        logger.debug(f"Found SDTM dataset: {domain} at {csv_file}")
+        else:
+            logger.warning(f"SDTM directory does not exist: {study_path}")
+            logger.info(f"Base path: {self.base_path}, Study ID: {study_id}")
+        
+        logger.info(f"Found {len(all_available_domains)} SDTM datasets in {study_path}: {sorted(all_available_domains)}")
+
         # Check each required domain
         for domain in required:
-            domain_file = study_path / f"{domain}.csv"
-            if domain_file.exists():
-                available.append(domain)
-                metadata[domain] = self._get_file_metadata(domain_file)
-            else:
+            if domain not in all_available_domains:
                 missing.append(domain)
                 metadata[domain] = {"exists": False}
-
-        # Check optional domains
-        for domain in optional:
-            domain_file = study_path / f"{domain}.csv"
-            if domain_file.exists():
+            elif domain not in available:
+                # Domain is required and exists, ensure it's in available list
+                domain_file = study_path / f"{domain}.csv"
                 available.append(domain)
                 metadata[domain] = self._get_file_metadata(domain_file)
+
+        # Check optional domains (add to available if found)
+        for domain in optional:
+            if domain in all_available_domains and domain not in available:
+                domain_file = study_path / f"{domain}.csv"
+                available.append(domain)
+                metadata[domain] = self._get_file_metadata(domain_file)
+
+        # Remove duplicates and sort
+        available = sorted(list(set(available)))
+        missing = sorted(list(set(missing)))
 
         errors = []
         if missing:
             errors.append(f"Missing required SDTM domains: {', '.join(missing)}")
+
+        logger.info(f"Validation result for {study_id}/{adam_dataset}: {len(available)} available, {len(missing)} missing")
 
         return ValidationResult(
             is_valid=len(missing) == 0,
