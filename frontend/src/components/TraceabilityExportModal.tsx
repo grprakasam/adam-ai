@@ -18,6 +18,7 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons';
 import type { TraceabilityMatrix } from '../types/traceability';
+import { triggerDownload } from '../utils/downloadHelpers';
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -83,34 +84,20 @@ export const TraceabilityExportModal: React.FC<TraceabilityExportModalProps> = (
 
       // Download file
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
-      try {
-        if (a.parentNode) {
-          a.parentNode.removeChild(a);
-        } else if (typeof a.remove === 'function') {
-          a.remove();
-        }
-      } catch (e) {
-        // Element may have been auto-removed - ignore
-      }
-      // Revoke URL after a short delay
-      setTimeout(() => {
-        try {
-          window.URL.revokeObjectURL(url);
-        } catch (e) {
-          // Ignore
-        }
-      }, 100);
 
-      message.success(`Traceability matrix exported as ${selectedFormat.toUpperCase()}`);
-      onClose();
+      triggerDownload(
+        blob,
+        filename,
+        {
+          onSuccess: () => {
+            message.success(`Traceability matrix exported as ${selectedFormat.toUpperCase()}`);
+            onClose();
+          },
+          onError: (err) => {
+            message.error(err.message || 'Failed to export traceability matrix');
+          }
+        }
+      );
     } catch (error: any) {
       message.error(error.message || 'Failed to export traceability matrix');
     } finally {

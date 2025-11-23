@@ -199,10 +199,22 @@ async def submit_feedback(run_id: str, feedback: AdamFeedbackRequest):
 @router.post("/check-inputs", response_model=SDTMInputCheck)
 async def check_sdtm_inputs(
     study_id: str = Query(..., description="Study ID"),
-    adam_dataset: str = Query(..., description="ADAM dataset name")
+    adam_dataset: str = Query(..., description="ADAM dataset name"),
+    consolidated_code: Optional[str] = Query(None, description="Optional consolidated code to analyze for dataset requirements"),
+    language: str = Query('R', description="Programming language (R or SAS)")
 ):
-    """Pre-flight check for SDTM dataset availability"""
-    result = await validator.check_sdtm_availability(study_id, adam_dataset)
+    """
+    Pre-flight check for SDTM dataset availability.
+
+    If consolidated_code is provided, intelligently analyzes it to detect
+    required datasets. Otherwise, uses default ADAM dataset mapping.
+    """
+    result = await validator.check_sdtm_availability(
+        study_id,
+        adam_dataset,
+        consolidated_code=consolidated_code,
+        language=language
+    )
     return result
 
 

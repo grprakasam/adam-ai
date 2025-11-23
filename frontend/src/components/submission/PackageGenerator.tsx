@@ -42,6 +42,7 @@ import {
 } from '@ant-design/icons';
 import { useProjectStore } from '../../store/projectStore';
 import { adamApi } from '../../services/api';
+import { triggerDownload } from '../../utils/downloadHelpers';
 import './PackageGenerator.css';
 
 const { Text, Title } = Typography;
@@ -338,33 +339,18 @@ const PackageGenerator: React.FC<PackageGeneratorProps> = ({ onBack }) => {
 
     try {
       const response = await adamApi.downloadPackageArtifact(packageResult.package_path);
-      const blob = new Blob([response.data], { type: 'application/zip' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = packageResult.package_path;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
-      try {
-        if (link.parentNode) {
-          link.parentNode.removeChild(link);
-        } else if (typeof link.remove === 'function') {
-          link.remove();
+
+      triggerDownload(
+        new Blob([response.data], { type: 'application/zip' }),
+        packageResult.package_path,
+        {
+          onSuccess: () => message.success('Package downloaded successfully'),
+          onError: (err) => {
+            console.error('Download error:', err);
+            message.error('Failed to download package');
+          }
         }
-      } catch (e) {
-        // Element may have been auto-removed - ignore
-      }
-      // Revoke URL after a short delay
-      setTimeout(() => {
-        try {
-          window.URL.revokeObjectURL(url);
-        } catch (e) {
-          // Ignore
-        }
-      }, 100);
-      message.success('Package downloaded successfully');
+      );
     } catch (error) {
       console.error('Download error:', error);
       message.error('Failed to download package');

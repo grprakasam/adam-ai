@@ -909,6 +909,25 @@ export const adamApi = {
     return response.data;
   },
 
+  // Generate multiple SDTM datasets in batch
+  generateSdtmBatch: async (request: {
+    domains: string[];
+    study_id?: string;
+    num_subjects?: number;
+    [key: string]: any;
+  }) => {
+    try {
+      const response = await apiClient.post('/test-data/generate-sdtm-batch', request);
+      return response.data;
+    } catch (error: any) {
+      // Log the full error for debugging
+      console.error('Batch generation error:', error);
+      console.error('Request URL:', error.config?.url);
+      console.error('Request data:', request);
+      throw error;
+    }
+  },
+
   // Validate code (syntax check)
   validateGeneratedCode: async (request: {
     code: string;

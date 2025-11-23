@@ -44,11 +44,13 @@ import {
   FolderOpenOutlined,
   DatabaseOutlined,
   InfoCircleOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import Editor from '@monaco-editor/react';
 import { FileCode } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
+import { triggerDownload } from '../utils/downloadHelpers';
 import type {
   RVersionInfo,
   SDTMInputStatus,
@@ -213,6 +215,88 @@ summary_stats <- adam %>%
     }
   }, [projectConfig.studyId, projectConfig.adamDataset]);
 
+  const generateMissingDatasets = useCallback(async () => {
+    if (!projectConfig.studyId || !sdtmInputs || sdtmInputs.missing_domains.length === 0) {
+      return;
+    }
+
+    setLoadingSdtmInputs(true);
+    try {
+      message.loading({
+        content: `Generating ${sdtmInputs.missing_domains.length} missing SDTM dataset(s)...`,
+        key: 'generate-missing',
+        duration: 0,
+      });
+
+      // Get current parameters from project config or use defaults
+      const batchRequest = {
+        domains: sdtmInputs.missing_domains,
+        study_id: projectConfig.studyId,
+        num_subjects: 50, // Default, can be made configurable
+        sdtm_version: projectConfig.sdtmVersion || '3.4',
+        adam_ig_version: projectConfig.adamIgVersion || '1.3',
+        study_start_date: '2024-01-01',
+        study_end_date: '2024-12-31',
+        study_phase: 'Phase III',
+        therapeutic_area: 'Oncology',
+        sex_distribution: 'balanced' as const,
+        age_min: 18,
+        age_max: 75,
+        age_distribution: 'realistic' as const,
+        num_treatment_arms: 2,
+        treatment_arms: ['Placebo', 'Active'],
+        randomization_ratio: '1:1',
+        num_visits: 5,
+        visit_schedule_days: [1, 15, 30, 60, 90],
+        visit_window_days: 3,
+        records_per_subject: 5,
+        missingness_pct: 10,
+        protocol_deviations_pct: 5,
+        outlier_pct: 2,
+        distribution_type: 'realistic' as const,
+        template_source: 'pharmaverse' as const,
+        include_meddra: true,
+        include_ct: true,
+        serious_ae_pct: 5.0,
+        severe_ae_pct: 10.0,
+        related_ae_pct: 30.0,
+        lab_abnormality_pct: 15.0,
+      };
+
+      const result = await adamApi.generateSdtmBatch(batchRequest);
+
+      if (result.status === 'success' || result.status === 'partial') {
+        message.success({
+          content: `Successfully generated ${result.total_generated} of ${result.total_requested} dataset(s)`,
+          key: 'generate-missing',
+          duration: 4,
+        });
+
+        if (result.failed.length > 0) {
+          message.warning({
+            content: `Some datasets failed to generate: ${result.failed.map(f => f.domain).join(', ')}`,
+            duration: 6,
+          });
+        }
+
+        // Reload SDTM inputs to reflect new datasets
+        await checkSdtmInputs(true);
+      } else {
+        throw new Error(result.message || 'Failed to generate datasets');
+      }
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to generate missing datasets';
+      message.error({
+        content: `Failed to generate datasets: ${errorMessage}`,
+        key: 'generate-missing',
+        duration: 6,
+      });
+      console.error('Error generating missing datasets:', err);
+    } finally {
+      setLoadingSdtmInputs(false);
+    }
+  }, [projectConfig, sdtmInputs, checkSdtmInputs]);
+
   const loadSdtmData = useCallback(async () => {
     if (!projectConfig.studyId || !projectConfig.adamDataset) {
       message.warning('Please set Study ID and ADAM Dataset first.');
@@ -300,6 +384,24 @@ summary_stats <- adam %>%
     }
   }, [projectConfig.studyId, projectConfig.adamDataset]);
 
+  // Keyboard shortcut for Run (Ctrl+Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Enter or Cmd+Enter to run code
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (canExecute && !isExecuting && code.trim()) {
+          handleExecute();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [canExecute, isExecuting, code, handleExecute]);
+
   // Load initial data and pre-populate inputs
   useEffect(() => {
     loadRVersions();
@@ -380,7 +482,39 @@ summary_stats <- adam %>%
             body: JSON.stringify(dmGenerationParams),
           });
 
-          const data = await response.json();
+          if (!response.ok) {
+            let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+            try {
+              const errorText = await response.text();
+              if (errorText) {
+                try {
+                  const errorData = JSON.parse(errorText);
+                  errorMessage = errorData.detail || errorData.message || errorMessage;
+                } catch {
+                  if (errorText.length < 200) {
+                    errorMessage = errorText;
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('Failed to read error response:', e);
+            }
+            throw new Error(errorMessage);
+          }
+
+          // Check if response has content before parsing JSON
+          const responseText = await response.text();
+          if (!responseText || responseText.trim().length === 0) {
+            throw new Error('Server returned an empty response');
+          }
+
+          let data;
+          try {
+            data = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse JSON response:', parseError);
+            throw new Error('Server returned invalid JSON response');
+          }
 
           if (data.status === 'success') {
             message.success({
@@ -560,33 +694,14 @@ summary_stats <- adam %>%
   };
 
   const handleDownloadCode = () => {
-    const blob = new Blob([code], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${projectConfig.adamDataset || 'program'}.R`;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
-    try {
-      if (a.parentNode) {
-        a.parentNode.removeChild(a);
-      } else if (typeof a.remove === 'function') {
-        a.remove();
+    triggerDownload(
+      new Blob([code], { type: 'text/plain' }),
+      `${projectConfig.adamDataset || 'program'}.R`,
+      {
+        onSuccess: () => message.success('Code downloaded'),
+        onError: (err) => message.error(`Download failed: ${err.message}`)
       }
-    } catch (e) {
-      // Element may have been auto-removed - ignore
-    }
-    // Revoke URL after a short delay
-    setTimeout(() => {
-      try {
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        // Ignore
-      }
-    }, 100);
-    message.success('Code downloaded');
+    );
   };
 
   // Code statistics
@@ -795,26 +910,14 @@ summary_stats <- adam %>%
 
     try {
       const response = await adamApi.downloadAdamDataset(runId, format);
-      const blob = new Blob([response.data]);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${projectConfig.studyId}_${projectConfig.adamDataset}_${runId.substring(0, 8)}.${format}`;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      // Safely remove the element
-      setTimeout(() => {
-        try {
-          if (a.parentNode === document.body) {
-            document.body.removeChild(a);
-          }
-        } catch (e) {
-          // Element may have already been removed, ignore
+      triggerDownload(
+        new Blob([response.data]),
+        `${projectConfig.studyId}_${projectConfig.adamDataset}_${runId.substring(0, 8)}.${format}`,
+        {
+          onSuccess: () => message.success(`Downloaded ${format.toUpperCase()} file`),
+          onError: (err) => message.error(`Failed to download: ${err.message}`)
         }
-        window.URL.revokeObjectURL(url);
-      }, 100);
-      message.success(`Downloaded ${format.toUpperCase()} file`);
+      );
     } catch (err: any) {
       message.error('Failed to download: ' + (err.message || 'Unknown error'));
     }
@@ -1039,20 +1142,96 @@ summary_stats <- adam %>%
                       type="warning"
                       message={
                         <span style={{ fontWeight: 600 }}>
-                          Missing {sdtmInputs.missing_domains.length} Dataset{sdtmInputs.missing_domains.length !== 1 ? 's' : ''}
+                          Cannot Generate {projectConfig.adamDataset || 'ADAM'} - Missing Required SDTM Datasets
                         </span>
                       }
                       description={
                         <div>
-                          <div style={{ marginBottom: '8px' }}>
-                            Generate the following datasets in the SDTM Generator section:
+                          <div style={{ marginBottom: '12px', lineHeight: '1.6' }}>
+                            <div style={{ marginBottom: '8px' }}>
+                              <strong>Why this error?</strong> To generate <strong>{projectConfig.adamDataset || 'ADAM'}</strong>, 
+                              the system needs specific SDTM source datasets. Currently, you have{' '}
+                              <strong>{sdtmInputs.available_domains.length}</strong> dataset{sdtmInputs.available_domains.length !== 1 ? 's' : ''} available, 
+                              but <strong>{sdtmInputs.missing_domains.length}</strong> more {sdtmInputs.missing_domains.length === 1 ? 'is' : 'are'} required.
+                            </div>
+                            <div style={{ marginBottom: '8px' }}>
+                              <strong>Available:</strong>{' '}
+                              {sdtmInputs.available_domains.length > 0 ? (
+                                <span style={{ color: '#52c41a' }}>
+                                  {sdtmInputs.available_domains.map((d, i) => (
+                                    <span key={d}>
+                                      <strong>{d}</strong>
+                                      {i < sdtmInputs.available_domains.length - 1 ? ', ' : ''}
+                                    </span>
+                                  ))}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#999' }}>None</span>
+                              )}
+                            </div>
+                            <div>
+                              <strong>Missing:</strong>{' '}
+                              <span style={{ color: '#ff4d4f' }}>
+                                {sdtmInputs.missing_domains.map((d, i) => (
+                                  <span key={d}>
+                                    <strong>{d}</strong>
+                                    {i < sdtmInputs.missing_domains.length - 1 ? ', ' : ''}
+                                  </span>
+                                ))}
+                              </span>
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            flexWrap: 'wrap', 
+                            gap: '6px', 
+                            marginBottom: '12px',
+                            padding: '8px',
+                            background: '#fff7e6',
+                            borderRadius: '4px',
+                            border: '1px solid #ffe58f'
+                          }}>
                             {sdtmInputs.missing_domains.map(domain => (
-                              <Tag key={domain} color="warning" style={{ margin: 0 }}>
+                              <Tag key={domain} color="warning" style={{ margin: 0, fontSize: '13px', padding: '4px 10px' }}>
                                 {domain}
                               </Tag>
                             ))}
+                          </div>
+                          <div style={{ 
+                            marginTop: '12px',
+                            padding: '10px',
+                            background: '#f6f8fa',
+                            borderRadius: '4px',
+                            fontSize: '13px',
+                            lineHeight: '1.6'
+                          }}>
+                            <strong>What to do:</strong> Click the button below to automatically generate all missing datasets, 
+                            or navigate to the SDTM Generator section to generate them manually with custom parameters.
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                            <Button
+                              type="primary"
+                              size="small"
+                              icon={<ExperimentOutlined />}
+                              onClick={generateMissingDatasets}
+                              loading={loadingSdtmInputs}
+                              style={{ flex: 1 }}
+                            >
+                              Auto-Generate Missing Datasets
+                            </Button>
+                            <Button
+                              size="small"
+                              onClick={() => {
+                                // Navigate to SDTM Generator (if navigation is available)
+                                window.dispatchEvent(
+                                  new CustomEvent('adam-ai:navigate-workspace', {
+                                    detail: { path: '/test-with-data' },
+                                  })
+                                );
+                              }}
+                            >
+                              Go to SDTM Generator
+                            </Button>
                           </div>
                         </div>
                       }
@@ -1252,10 +1431,32 @@ summary_stats <- adam %>%
                     />
                   </Tooltip>
 
+                  <Divider type="vertical" style={{ margin: '0 4px' }} />
+
+                  {/* Run Button */}
+                  <Tooltip title="Execute R code (Ctrl+Enter)">
+                    <Button
+                      type="primary"
+                      size="small"
+                      icon={<PlayCircleOutlined />}
+                      onClick={handleExecute}
+                      disabled={!canExecute || isExecuting}
+                      loading={isExecuting}
+                      style={{ 
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: 'none',
+                        fontWeight: 600,
+                        boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)'
+                      }}
+                    >
+                      {isExecuting ? 'Running...' : 'Run'}
+                    </Button>
+                  </Tooltip>
+
                   {/* Download */}
                   <Tooltip title="Download code (Ctrl+S)">
                     <Button
-                      type="primary"
+                      type="default"
                       size="small"
                       icon={<DownloadOutlined />}
                       onClick={handleDownloadCode}
@@ -1555,8 +1756,22 @@ summary_stats <- adam %>%
                           <CloseCircleOutlined style={{ color: '#ff4d4f' }} />
                         )}
                         <span>
-                          SDTM datasets: {sdtmInputs?.available_domains.length || 0} available
-                          {sdtmInputs?.missing_domains.length ? `, ${sdtmInputs.missing_domains.length} missing` : ''}
+                          {sdtmInputs && sdtmInputs.missing_domains.length > 0 ? (
+                            <>
+                              <span style={{ fontWeight: 600, color: '#ff4d4f' }}>
+                                Missing {sdtmInputs.missing_domains.length} required dataset{sdtmInputs.missing_domains.length !== 1 ? 's' : ''}: {sdtmInputs.missing_domains.join(', ')}
+                              </span>
+                              <span style={{ color: '#666', marginLeft: '8px' }}>
+                                ({sdtmInputs.available_domains.length} available: {sdtmInputs.available_domains.join(', ')})
+                              </span>
+                            </>
+                          ) : sdtmInputs && sdtmInputs.available_domains.length > 0 ? (
+                            <>
+                              All required datasets available ({sdtmInputs.available_domains.length}): {sdtmInputs.available_domains.join(', ')}
+                            </>
+                          ) : (
+                            'No SDTM datasets loaded. Click "Load SDTM Data" to check availability.'
+                          )}
                         </span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

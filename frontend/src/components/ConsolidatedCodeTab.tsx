@@ -18,6 +18,7 @@ import { Code2 } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
+import { triggerDownload } from '../utils/downloadHelpers';
 import type { ConsolidatedCodeRequest, ConsolidatedCodeData, ConsolidatedVariable } from '../types';
 import './ConsolidatedCodeTab.css';
 
@@ -298,17 +299,17 @@ export const ConsolidatedCodeTab: React.FC = () => {
 
   const handleDownload = () => {
     if (!consolidatedCode?.consolidated_code) return;
-    const blob = new Blob([consolidatedCode.consolidated_code], {
-      type: 'text/plain;charset=utf-8',
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
+
     const extension = activeLanguage === 'R' ? 'R' : 'sas';
     const datasetName = projectConfig.adamDataset || 'ADAM';
-    link.download = `${datasetName}_consolidated.${extension}`;
-    link.click();
-    URL.revokeObjectURL(url);
+
+    triggerDownload(
+      new Blob([consolidatedCode.consolidated_code], { type: 'text/plain;charset=utf-8' }),
+      `${datasetName}_consolidated.${extension}`,
+      {
+        onError: (err) => message.error('Failed to download: ' + err.message)
+      }
+    );
   };
 
   const summarisedOptimizations = consolidatedCode?.summary.optimizations_applied || [];
