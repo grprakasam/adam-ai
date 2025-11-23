@@ -10,6 +10,7 @@ import {
   SafetyOutlined,
   ExperimentOutlined,
   DashboardOutlined,
+  RocketOutlined,
 } from '@ant-design/icons';
 import './WorkspaceNavigation.css';
 
@@ -38,6 +39,9 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
       { key: '/pair-programming', label: 'Pair Programming', icon: <TeamOutlined />, description: 'AI-assisted variable coding' },
       { key: '/consolidated-code', label: 'Consolidated Code', icon: <FileTextOutlined />, description: 'Complete program generation' },
       { key: '/traceability', label: 'Traceability', icon: <LinkOutlined />, description: 'SDTM to ADAM mapping' },
+      { key: '/adam-generator', label: 'ADAM Generator', icon: <RocketOutlined />, description: 'Execute R programs to generate ADAM datasets' },
+      { key: '/test-with-data', label: 'SDTM Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant SDTM test data' },
+      { key: '/submission-dashboard', label: 'Submission Dashboard', icon: <DashboardOutlined />, description: 'Submission readiness overview' },
     ],
   },
   validation: {
@@ -46,17 +50,13 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
     color: '#10b981',
     items: [
       { key: '/code-validator', label: 'Code Validator', icon: <SafetyOutlined />, description: 'Syntax and quality checks' },
-      { key: '/test-with-data', label: 'SDTM Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant SDTM test data' },
-      { key: '/my-validation', label: 'My Validation', icon: <CheckCircleOutlined />, description: 'Custom validation rules' },
     ],
   },
   submission: {
     title: 'Submission Readiness',
     icon: <FileProtectOutlined />,
     color: '#f59e0b',
-    items: [
-      { key: '/submission-dashboard', label: 'Submission Dashboard', icon: <DashboardOutlined />, description: 'Submission readiness overview' },
-    ],
+    items: [],
   },
 };
 
@@ -64,19 +64,19 @@ const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
   'pair': 'generation',
   'consolidated': 'generation',
   'traceability': 'generation',
+  'adam-generator': 'generation',
+  'testdata': 'generation',
+  'submission': 'generation',
   'validator': 'validation',
-  'testdata': 'validation',
-  'validation': 'validation',
-  'submission': 'submission',
 };
 
 const PATH_TO_TAB_MAP: Record<string, string> = {
   '/pair-programming': 'pair',
   '/consolidated-code': 'consolidated',
   '/traceability': 'traceability',
+  '/adam-generator': 'adam-generator',
   '/code-validator': 'validator',
   '/test-with-data': 'testdata',
-  '/my-validation': 'validation',
   '/submission-dashboard': 'submission',
 };
 
@@ -84,9 +84,9 @@ const TAB_TO_PATH_MAP: Record<string, string> = {
   'pair': '/pair-programming',
   'consolidated': '/consolidated-code',
   'traceability': '/traceability',
+  'adam-generator': '/adam-generator',
   'validator': '/code-validator',
   'testdata': '/test-with-data',
-  'validation': '/my-validation',
   'submission': '/submission-dashboard',
 };
 
@@ -115,9 +115,11 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
 
   const handleSectionChange = (section: MainSection) => {
     setActiveSection(section);
-    // Auto-select first item in the new section
+    // Auto-select first item in the new section (if available)
     const firstItem = NAVIGATION_STRUCTURE[section].items[0];
-    handleItemClick(firstItem.key);
+    if (firstItem) {
+      handleItemClick(firstItem.key);
+    }
   };
 
   const handleItemClick = (path: string) => {

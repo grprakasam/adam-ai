@@ -477,10 +477,20 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       const a = document.createElement('a');
       a.href = url;
       a.download = `${parameters.domain}_${new Date().toISOString().split('T')[0]}.${format}`;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Safely remove the element
+      setTimeout(() => {
+        try {
+          if (a.parentNode === document.body) {
+            document.body.removeChild(a);
+          }
+        } catch (e) {
+          // Element may have already been removed, ignore
+        }
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
       message.success({ content: 'Download started', key: 'download', duration: 2 });
     } catch (error: any) {

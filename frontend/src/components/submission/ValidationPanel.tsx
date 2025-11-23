@@ -163,10 +163,20 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({ onBack }) => {
       const link = document.createElement('a');
       link.href = url;
       link.download = `validation_results_${studyId}_${dataset}.${format}`;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Safely remove the element
+      setTimeout(() => {
+        try {
+          if (link.parentNode === document.body) {
+            document.body.removeChild(link);
+          }
+        } catch (e) {
+          // Element may have already been removed, ignore
+        }
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
       message.success(`Validation results exported as ${format.toUpperCase()}`);
     } catch (error) {

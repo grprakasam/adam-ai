@@ -343,10 +343,20 @@ const PackageGenerator: React.FC<PackageGeneratorProps> = ({ onBack }) => {
       const link = document.createElement('a');
       link.href = url;
       link.download = packageResult.package_path;
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Safely remove the element
+      setTimeout(() => {
+        try {
+          if (link.parentNode === document.body) {
+            document.body.removeChild(link);
+          }
+        } catch (e) {
+          // Element may have already been removed, ignore
+        }
+        window.URL.revokeObjectURL(url);
+      }, 100);
       message.success('Package downloaded successfully');
     } catch (error) {
       console.error('Download error:', error);

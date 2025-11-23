@@ -1,18 +1,4 @@
 
-
-instead of the code snippet, can i get a pseudo code or logic or algorithm 
-
-adam visualiser
-
-
-make the planner and reviewer as slash commads
-
-docker- r and sas
-
-
-
-
-
 Goal 
 
 Think in terms of an Domain expert, ADAM Programmer and an expert ui ux designer to architect a workable plan to implement the following features
@@ -20,61 +6,42 @@ Think in terms of an Domain expert, ADAM Programmer and an expert ui ux designer
 This features should make use of the best of the industry standards in terms of ui/ux and design principles. search the internet and research papers to architect the best possible approach to implement the following features.
 
 
+i want to extend the feature of this app with the following enhancements
 
-i want to redesign the application flow as below: currently the app has the follwing panels
+the user should be able to make ue of the sdtm datasets generated from the "SDTM Generator" section to be available in the new section to be created named as "ADAM Generator"
 
-Pair Programming 
-My Validation 
-Consolidated Code 
-Code Validator 
-Test With Data 
-Traceability 
-Submission Readiness 
+This section basically takes the sdtm datasets as input and generates the ADAM datasets as output based on the consolidated code generated in the "Code Generation" section using generative AI models.
 
-i want them to be organised in a better way as the follwing main menu structure
+this section should have the layout similar to pair programming section where the side panel shows the necessary configuratrion options and the main panel shows the code generation area where the user can see the generated ADAM datasets based on the sdtm datasets and the consolidated code   provided as input.
 
-it will have the following main menu items 
-1. Code Generation- will include Pair Programming, Consolidated Code,  Traceability, 
-2. Code Validation - will include Code Validator, Test With sdtm Data 
-3. Submission Readiness - will include Submission Readiness, My Validation
-Please include appropriate icons for each menu item based on the best possible design principles.
-please include any other sub menus if required to make the design better and more intuitive for the users.
-also based on the best possible design principles, please suggest the best possible layout for the application with wireframes if required.
+Currently this page has to invoke R as a programming language to generate the ADAM datasets .
 
-specially in this section above user the flow is cohesive and logical for the users to navigate through the application easily. if required add appropriate sub menus to make the flow better and more intuitive for the users.
+update the codebase to enable the r runtime to be invoked through docker containers to ensure better scalability and maintainability of the application.
+
+the main panel must show the "Generate ADAM Datasets" button which when clicked will invoke the r runtime in docker container to generate the ADAM datasets based on the sdtm datasets provided as input and the consolidated code generated in the "Code Generation" section.
+
+Ensure that appropriate loading indicators are shown while the ADAM datasets are being generated.
+
+ensure that appropriate error handling mechanisms are in place to handle any issues that may arise during the ADAM dataset generation process.
+
+ensure that once the ADAM datasets are generated successfully, they are displayed in a tabular format in the main panel with options to download the datasets in various formats like csv, xlsx, etc.
+
+ensure that appropriate logging mechanisms are in place to log the ADAM dataset generation process for audit purposes.
+
+ensure that the user can provide feedback on the generated ADAM datasets through a feedback form available in the main panel.
+
+ensure that the entire flow is cohesive and logical for the users to navigate through the application easily.
 
 
+the r editor should be present in the side panel to allow the user to make any modifications to the consolidated code before generating the ADAM datasets.
 
-Then
+this will ensure that the user has full control over the code used for generating the ADAM datasets.
 
-The app will also be enriched to have the following additional menu items / features
- Settings
-   Help
-   User Profile
-   Logout
+and allow the option to download the modified code as a separate file for future reference.
 
-In addition it will have the following features accessible  as per the best possible design principles
+the goal of all these is this app will provide the user the option to run r programs inside the app itself and check the output datasets without the need to switch between different applications.
 
-1.  Admin Panel (visible only to admin users)
-2.  Project Selection (visible on top bar for all users)
-3.  Notifications (bell icon on top bar for all users)
-4.  Search (search icon on top bar for all users)
-5.  Session Management (visible on top bar for all users)
-6.  Audit Logs (visible only to admin users)
-7.  Activity Feed (visible on dashboard for all users)
-8.  Recent Projects (visible on dashboard for all users)
-9.  Study Selector (visible on top bar for all users)
-10. Help Center (under Help menu)
-11. Feedback (under Help menu)
-12. Tutorials (under Help menu)
-13. Release Notes (under Help menu)
-14. User Settings (under User Profile menu)
-15. Change Password (under User Profile menu)
-16. Logout (under User Profile menu)
-17. Dark Mode Toggle (visible on top bar for all users)
-18. Language Selector (visible on top bar for all users)
-19. Theme Selector (under User Profile menu)
-
+if possible allow the users to choose the specific r version to run the code in the docker container to ensure compatibility with different r packages used in the consolidated code.
 
 
 

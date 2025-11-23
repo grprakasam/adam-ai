@@ -5,12 +5,12 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
 import { api } from '../services/api';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
-import { MyValidationTab } from './MyValidationTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
 import { TraceabilityTab } from './TraceabilityTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
+import { AdamGeneratorTab } from './AdamGeneratorTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { HistoryControls } from './HistoryControls';
@@ -35,14 +35,14 @@ type WorkspaceTabKey =
   | 'testdata'
   | 'traceability'
   | 'validator'
-  | 'submission';
+  | 'submission'
+  | 'adam-generator';
 
 type WorkspaceGroup = 'generation' | 'validation' | 'submission';
 
 // Tab tooltips for better discoverability
 const TAB_TOOLTIPS: Record<string, string> = {
   pair: 'Generate AI code snippets for individual variables with pair programming assistance',
-  validation: 'Validate generated code against best practices and CDISC standards',
   consolidated: 'Consolidate approved variables into a complete, optimized ADAM program',
   validator: 'Execute and validate your code against test datasets',
   testdata: 'Generate synthetic test data and run your code',
@@ -66,9 +66,9 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
-    generation: ['pair', 'consolidated', 'traceability'],
-    validation: ['validator', 'testdata'],
-    submission: ['submission', 'validation'],
+    generation: ['pair', 'consolidated', 'traceability', 'adam-generator', 'testdata', 'submission'],
+    validation: ['validator'],
+    submission: [],
   };
 
   // Keep active tab consistent with active group
@@ -100,23 +100,23 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           setActiveGroup('generation');
           setActiveWorkspaceTab('traceability');
           break;
+        case '/adam-generator':
+          setActiveGroup('generation');
+          setActiveWorkspaceTab('adam-generator');
+          break;
         case '/code-validator':
         case '/validation-reports':
           setActiveGroup('validation');
           setActiveWorkspaceTab('validator');
           break;
         case '/test-with-data':
-          setActiveGroup('validation');
+          setActiveGroup('generation');
           setActiveWorkspaceTab('testdata');
           break;
         case '/submission-dashboard':
         case '/submission-package':
-          setActiveGroup('submission');
+          setActiveGroup('generation');
           setActiveWorkspaceTab('submission');
-          break;
-        case '/my-validation':
-          setActiveGroup('submission');
-          setActiveWorkspaceTab('validation');
           break;
         default:
           break;
@@ -205,11 +205,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
     );
   }
   if (!generationResult) {
-    const navigateToMyValidation = () => {
-      setActiveGroup('submission');
-      setActiveWorkspaceTab('validation');
-    };
-
     const navigateToConsolidated = () => {
       setActiveGroup('generation');
       setActiveWorkspaceTab('consolidated');
@@ -236,24 +231,10 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           children: (
             <VariablesAnalysisTab
               onSwitchProject={onSwitchProject}
-              onNavigateToValidation={navigateToMyValidation}
               onNavigateToConsolidated={navigateToConsolidated}
               onNavigateToTraceability={navigateToTraceability}
             />
           ),
-        },
-        {
-          key: 'validation',
-          group: 'submission' as WorkspaceGroup,
-          label: (
-            <Tooltip title={TAB_TOOLTIPS.validation}>
-              <span>
-                My Validation{' '}
-                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
-              </span>
-            </Tooltip>
-          ),
-          children: <MyValidationTab />,
         },
         {
           key: 'consolidated',
@@ -283,7 +264,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         },
         {
           key: 'testdata',
-          group: 'validation' as WorkspaceGroup,
+          group: 'generation' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.testdata}>
               <span>
@@ -309,7 +290,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         },
         {
           key: 'submission',
-          group: 'submission' as WorkspaceGroup,
+          group: 'generation' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.submission}>
               <span>
@@ -319,6 +300,19 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             </Tooltip>
           ),
           children: <SubmissionReadinessTab />,
+        },
+        {
+          key: 'adam-generator',
+          group: 'generation' as WorkspaceGroup,
+          label: (
+            <Tooltip title="Execute consolidated R/SAS programs against SDTM datasets to generate ADAM datasets">
+              <span>
+                ADAM Generator{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <AdamGeneratorTab />,
         },
       ];
 
