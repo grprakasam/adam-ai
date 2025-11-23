@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * Test With Data Panel
+ * SDTM Generator Panel
  * 
  * Generates mock SDTM datasets for testing ADAM programs.
  * Allows users to specify parameters, preview data, and download in multiple formats.
@@ -102,6 +102,12 @@ interface SDTMGenerationParams {
   template_source: 'pharmaverse' | 'cdisc' | 'custom';
   include_meddra: boolean;
   include_ct: boolean;
+  
+  // Safety-Specific Configuration (CDISC SDTM 3.4)
+  serious_ae_pct: number;
+  severe_ae_pct: number;
+  related_ae_pct: number;
+  lab_abnormality_pct: number;
 }
 
 interface Domain {
@@ -110,6 +116,7 @@ interface Domain {
   description: string;
   variables_count: number;
   supports_multiple_records: boolean;
+  is_critical_for_adam?: boolean;
 }
 
 interface TestWithDataPanelProps {
@@ -158,6 +165,12 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
     template_source: 'pharmaverse',
     include_meddra: true,
     include_ct: true,
+    
+    // Safety-Specific Configuration (CDISC SDTM 3.4)
+    serious_ae_pct: 5.0,
+    severe_ae_pct: 10.0,
+    related_ae_pct: 30.0,
+    lab_abnormality_pct: 15.0,
   });
   
   // Control panel collapse state
@@ -209,9 +222,153 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
     }
   };
 
+  // Error definitions and tips mapping
+  const getErrorDefinition = (errorMessage: string): { definition: string; field?: string; tips: string[] } => {
+    const lowerError = errorMessage.toLowerCase();
+    
+    // Missing required variables
+    if (lowerError.includes('missing required variables')) {
+      const varsMatch = errorMessage.match(/missing required variables: (.+)/i);
+      return {
+        definition: 'One or more required CDISC variables are missing from the generated dataset. This violates SDTM standards and will prevent proper data analysis.',
+        tips: [
+          'Check the domain selection - some domains require specific variables',
+          'Ensure the domain template includes all required variables for your SDTM version',
+          'Try selecting a different template source (CDISC, Pharmaverse, or Custom)',
+          'Verify the domain supports the variables you need',
+        ],
+      };
+    }
+    
+    // Invalid USUBJID format
+    if (lowerError.includes('invalid usubjid')) {
+      return {
+        definition: 'Subject identifiers do not follow the CDISC standard format (STUDY-SITE-SUBJECT).',
+        field: 'num_subjects',
+        tips: [
+          'The system automatically generates USUBJID in the format: STUDYID-SITEID-SUBJID',
+          'Ensure you have entered a valid number of subjects (minimum 1)',
+          'Check that study ID and site IDs are properly configured',
+          'Try reducing the number of subjects and regenerate',
+        ],
+      };
+    }
+    
+    // Sequence variable issues
+    if (lowerError.includes('seq') && lowerError.includes('sequential')) {
+      return {
+        definition: 'Sequence variables (like AESEQ, LBSEQ) are not properly sequential, which can cause data integrity issues.',
+        field: 'records_per_subject',
+        tips: [
+          'Check the "Records per Subject" setting for this domain',
+          'For domains like AE, LB, VS, ensure records_per_subject is greater than 0',
+          'Verify visit schedule is configured correctly',
+          'Try adjusting the number of visits or records per subject',
+        ],
+      };
+    }
+    
+    // Date range issues
+    if (lowerError.includes('date') || lowerError.includes('rfdstdtc') || lowerError.includes('rfendtc')) {
+      return {
+        definition: 'Date variables or date ranges are invalid. CDISC requires dates in ISO 8601 format (YYYY-MM-DD).',
+        field: 'study_start_date',
+        tips: [
+          'Ensure study start date is before study end date',
+          'Check date format: YYYY-MM-DD (e.g., 2024-01-01)',
+          'Verify visit schedule days align with the study date range',
+          'For RFSTDTC: ensure it\'s set for all subjects in DM domain',
+        ],
+      };
+    }
+    
+    // Age validation issues
+    if (lowerError.includes('age')) {
+      return {
+        definition: 'Age values are outside acceptable ranges or not properly formatted.',
+        field: 'age_min',
+        tips: [
+          'Check minimum age is less than maximum age',
+          'Ensure age range is realistic (typically 18-100 for clinical trials)',
+          'Verify age distribution type matches your study design',
+          'For pediatric studies, adjust age range accordingly',
+        ],
+      };
+    }
+    
+    // Subject count issues
+    if (lowerError.includes('subject') || lowerError.includes('no data') || lowerError.includes('empty')) {
+      return {
+        definition: 'No data was generated, likely due to invalid subject count or configuration.',
+        field: 'num_subjects',
+        tips: [
+          'Ensure number of subjects is at least 1',
+          'Check that all required fields are filled in the configuration',
+          'Verify the domain selection is valid',
+          'Try resetting the form and starting with default values',
+        ],
+      };
+    }
+    
+    // Treatment/Randomization issues
+    if (lowerError.includes('treatment') || lowerError.includes('arm') || lowerError.includes('randomization')) {
+      return {
+        definition: 'Treatment assignment or randomization configuration is invalid.',
+        field: 'num_treatment_arms',
+        tips: [
+          'Ensure number of treatment arms matches the treatment arms list',
+          'Check randomization ratio format (e.g., "1:1" or "2:1:1")',
+          'Verify each treatment arm has a unique name',
+          'For single-arm studies, set num_treatment_arms to 1',
+        ],
+      };
+    }
+    
+    // Visit schedule issues
+    if (lowerError.includes('visit') || lowerError.includes('schedule')) {
+      return {
+        definition: 'Visit schedule configuration is invalid or missing required visit information.',
+        field: 'num_visits',
+        tips: [
+          'Ensure number of visits matches the visit schedule days array',
+          'Check visit schedule days are in ascending order',
+          'Verify visit window is reasonable (typically 1-7 days)',
+          'For baseline-only studies, use 1 visit with day 1',
+        ],
+      };
+    }
+    
+    // Domain-specific errors
+    if (lowerError.includes('domain') || lowerError.includes('not supported')) {
+      return {
+        definition: 'The selected domain is not supported or has invalid configuration.',
+        field: 'domain',
+        tips: [
+          'Select a supported domain (DM, AE, LB, VS, EX, etc.)',
+          'Check that the domain template source is compatible',
+          'Verify SDTM version supports this domain',
+          'Try selecting a different domain to test',
+        ],
+      };
+    }
+    
+    // Generic error fallback
+    return {
+      definition: 'An error occurred during data generation. This may be due to invalid configuration parameters.',
+      tips: [
+        'Review all configuration settings in the left panel',
+        'Check that numeric values are within valid ranges',
+        'Ensure dates are properly formatted (YYYY-MM-DD)',
+        'Try clicking "Reset" to restore default values',
+        'Verify all required fields are filled',
+      ],
+    };
+  };
+
   const handleGenerate = async () => {
     try {
       setIsGenerating(true);
+      setValidationResults(null); // Clear previous validation results
       message.loading({ content: 'Generating SDTM data...', key: 'generate', duration: 0 });
 
       const response = await fetch('/api/v1/test-data/generate-sdtm', {
@@ -226,20 +383,75 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         setGeneratedData(data.preview_data);
         setStatistics(data.data);
         setValidationResults(data.validation_results);
-        message.success({
-          content: `Successfully generated ${data.data.total_rows} rows`,
-          key: 'generate',
-          duration: 3,
-        });
+        
+        // Check if there are validation errors
+        if (data.validation_results && !data.validation_results.is_valid && data.validation_results.errors?.length > 0) {
+          message.warning({
+            content: (
+              <div>
+                <div style={{ fontWeight: 600 }}>Data generated with {data.validation_results.errors.length} validation error(s)</div>
+                <div style={{ fontSize: '12px', marginTop: 4 }}>Please review the detailed error information below</div>
+              </div>
+            ),
+            key: 'generate',
+            duration: 6,
+          });
+        } else {
+          message.success({
+            content: `Successfully generated ${data.data.total_rows} rows`,
+            key: 'generate',
+            duration: 3,
+          });
+        }
       } else {
+        // Handle API-level errors
+        const errorDef = getErrorDefinition(data.message || 'Failed to generate data');
+        // Create validation results structure for API errors
+        setValidationResults({
+          is_valid: false,
+          errors: [data.message || 'Failed to generate data'],
+          warnings: [],
+          error_definitions: [errorDef],
+        });
         throw new Error(data.message || 'Failed to generate data');
       }
     } catch (error: any) {
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to generate SDTM data';
+      const errorDef = getErrorDefinition(errorMessage);
+      
+      // Show detailed error message
       message.error({
-        content: error.message || 'Failed to generate SDTM data',
+        content: (
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>{errorMessage}</div>
+            <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.85)', marginTop: 4 }}>
+              {errorDef.definition}
+            </div>
+            {errorDef.tips.length > 0 && (
+              <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.75)', marginTop: 8, fontStyle: 'italic' }}>
+                💡 Tip: {errorDef.tips[0]}
+              </div>
+            )}
+          </div>
+        ),
         key: 'generate',
-        duration: 5,
+        duration: 8,
       });
+      
+      // Set error in validation results for display if not already set
+      if (!validationResults || !validationResults.errors?.includes(errorMessage)) {
+        setValidationResults({
+          is_valid: false,
+          errors: [errorMessage],
+          warnings: [],
+          error_definitions: [errorDef],
+        });
+      }
+      
+      // Clear generated data on error
+      setGeneratedData(null);
+      setStatistics(null);
+      
       console.error('Generation error:', error);
     } finally {
       setIsGenerating(false);
@@ -287,13 +499,49 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
     setValidationResults(null);
     form.resetFields();
     setParameters({
+      // Study Design
       domain: 'DM',
-      num_subjects: 50,
-      missingness_pct: 10,
-      distribution_type: 'realistic',
+      sdtm_version: '3.4',
+      adam_ig_version: '1.3',
       study_start_date: '2024-01-01',
       study_end_date: '2024-12-31',
+      study_phase: 'Phase III',
+      therapeutic_area: 'Oncology',
+      
+      // Subjects
+      num_subjects: 50,
+      sex_distribution: 'balanced',
+      age_min: 18,
+      age_max: 75,
+      age_distribution: 'realistic',
+      
+      // Treatment
+      num_treatment_arms: 2,
+      treatment_arms: ['Placebo', 'Active'],
+      randomization_ratio: '1:1',
+      
+      // Visits
+      num_visits: 5,
+      visit_schedule_days: [1, 15, 30, 60, 90],
+      visit_window_days: 3,
+      
+      // Data Quality
+      records_per_subject: 1,
+      missingness_pct: 10,
+      protocol_deviations_pct: 5,
+      outlier_pct: 2,
+      
+      // Data Generation
+      distribution_type: 'realistic',
       template_source: 'pharmaverse',
+      include_meddra: true,
+      include_ct: true,
+      
+      // Safety-Specific Configuration (CDISC SDTM 3.4)
+      serious_ae_pct: 5.0,
+      severe_ae_pct: 10.0,
+      related_ae_pct: 30.0,
+      lab_abnormality_pct: 15.0,
     });
   };
 
@@ -483,7 +731,7 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         <div className="header-info">
           <DatabaseOutlined style={{ fontSize: 18 }} />
           <div>
-            <span className="header-title">Test With Data</span>
+            <span className="header-title">SDTM Generator</span>
             <span className="header-subtitle">Generate CDISC-Compliant SDTM Test Data</span>
           </div>
         </div>
@@ -535,6 +783,27 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                 }
                 className="control-panel-section"
               >
+                {/* Helper message for ADAM-critical domains */}
+                {(selectedDomain?.code === 'EX' || selectedDomain?.code === 'DS') && (
+                  <Alert
+                    message={
+                      <Space>
+                        <InfoCircleOutlined style={{ color: '#1890ff' }} />
+                        <span>
+                          <strong>{selectedDomain.code} Domain</strong> - Critical for ADAM Analysis
+                        </span>
+                      </Space>
+                    }
+                    description={
+                      selectedDomain.code === 'EX' 
+                        ? "EX domain provides treatment exposure data needed for ADAM ADSL (TRTSDT, TRTEDT, TRTDURD) and ADEX datasets. When you generate DM domain, it will automatically include analysis flags if EX data is available."
+                        : "DS domain provides study completion status needed for ADAM analysis flags (ITTFL, SAFFL, EFFFL). When you generate DM domain, it will automatically include these flags if DS data is available."
+                    }
+                    type="info"
+                    showIcon={false}
+                    style={{ marginBottom: 16 }}
+                  />
+                )}
                 <Form
                   form={form}
                   layout="vertical"
@@ -546,15 +815,32 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                       <Form.Item
                         label="SDTM Domain"
                         name="domain"
-                        tooltip="CDISC SDTM domain to generate"
+                        tooltip="CDISC SDTM domain to generate. EX and DS are critical for ADAM analysis."
                         rules={[{ required: true }]}
                       >
                         <Select size="middle" onChange={handleDomainChange}>
-                          {domains.map(domain => (
-                            <Option key={domain.code} value={domain.code}>
-                              <Tag color="blue">{domain.code}</Tag> {domain.name}
-                            </Option>
-                          ))}
+                          {domains.map(domain => {
+                            const isAdamCritical = domain.code === 'EX' || domain.code === 'DS';
+                            const isAdamReady = domain.code === 'DM' && domain.is_critical_for_adam !== undefined;
+                            return (
+                              <Option key={domain.code} value={domain.code}>
+                                <Space>
+                                  <Tag color={isAdamCritical ? 'red' : 'blue'}>{domain.code}</Tag>
+                                  <span>{domain.name}</span>
+                                  {isAdamCritical && (
+                                    <Tag color="red" style={{ fontSize: '10px', marginLeft: 4 }}>
+                                      ADAM Critical
+                                    </Tag>
+                                  )}
+                                  {isAdamReady && (
+                                    <Tag color="green" style={{ fontSize: '10px', marginLeft: 4 }}>
+                                      ADAM Ready
+                                    </Tag>
+                                  )}
+                                </Space>
+                              </Option>
+                            );
+                          })}
                         </Select>
                       </Form.Item>
                     </Col>
@@ -863,12 +1149,106 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                 </Form>
               </Collapse.Panel>
 
+              {/* Safety Configuration Section - CDISC SDTM 3.4 */}
+              <Collapse.Panel 
+                key="safety" 
+                header={
+                  <span className="panel-header">
+                    <SafetyOutlined />
+                    <span>Safety Analysis Configuration</span>
+                    <Tag color="red" style={{ marginLeft: 8, fontSize: '11px' }}>CDISC</Tag>
+                  </span>
+                }
+              >
+                <Form form={form} layout="vertical" onValuesChange={(_, allValues) => setParameters(allValues)}>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label={`Serious AEs (AESER='Y'): ${parameters.serious_ae_pct}%`}
+                        name="serious_ae_pct"
+                        tooltip="CDISC: Percentage of serious adverse events (AESER). Critical for safety analysis."
+                      >
+                        <Slider
+                          min={0}
+                          max={50}
+                          marks={{ 0: '0%', 5: '5%', 10: '10%', 25: '25%', 50: '50%' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        label={`Severe AEs (AESEV='SEVERE'): ${parameters.severe_ae_pct}%`}
+                        name="severe_ae_pct"
+                        tooltip="CDISC: Percentage of severe adverse events (AESEV='SEVERE')"
+                      >
+                        <Slider
+                          min={0}
+                          max={50}
+                          marks={{ 0: '0%', 10: '10%', 20: '20%', 50: '50%' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label={`Treatment-Related AEs: ${parameters.related_ae_pct}%`}
+                        name="related_ae_pct"
+                        tooltip="CDISC: Percentage of AEs with AEREL indicating relationship (POSSIBLY/PROBABLY/DEFINITELY RELATED)"
+                      >
+                        <Slider
+                          min={0}
+                          max={100}
+                          marks={{ 0: '0%', 30: '30%', 50: '50%', 100: '100%' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        label={`Lab Abnormalities (LBNRIND): ${parameters.lab_abnormality_pct}%`}
+                        name="lab_abnormality_pct"
+                        tooltip="CDISC: Percentage of abnormal lab values (LBNRIND='HIGH' or 'LOW') for safety analysis"
+                      >
+                        <Slider
+                          min={0}
+                          max={50}
+                          marks={{ 0: '0%', 10: '10%', 20: '20%', 50: '50%' }}
+                        />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                  <Divider style={{ margin: '12px 0' }} />
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Form.Item
+                        label="MedDRA Coding"
+                        name="include_meddra"
+                        tooltip="CDISC: Include MedDRA coding (AEDECOD, AEBODSYS, AESOC) for AE domain"
+                        valuePropName="checked"
+                      >
+                        <Switch checkedChildren="Enabled" unCheckedChildren="Disabled" />
+                      </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                      <Form.Item
+                        label="Controlled Terminology"
+                        name="include_ct"
+                        tooltip="CDISC: Validate against controlled terminology standards"
+                        valuePropName="checked"
+                      >
+                        <Switch checkedChildren="Enabled" unCheckedChildren="Disabled" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+                </Form>
+              </Collapse.Panel>
+
               {/* Data Quality Section */}
               <Collapse.Panel 
                 key="quality" 
                 header={
                   <span className="panel-header">
-                    <SafetyOutlined />
+                    <WarningOutlined />
                     <span>Data Quality & Protocol Deviations</span>
                   </span>
                 }
@@ -938,10 +1318,10 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
           {!generatedData ? (
             <div className="empty-state-right">
               <ExperimentOutlined style={{ fontSize: 64, color: '#cbd5e1', marginBottom: 20 }} />
-              <Title level={3} style={{ color: '#475569', marginBottom: 8 }}>No Test Data Generated</Title>
+              <Title level={3} style={{ color: '#475569', marginBottom: 8 }}>No SDTM Data Generated</Title>
               <Paragraph style={{ color: '#94a3b8', textAlign: 'center', maxWidth: '500px', marginBottom: 24 }}>
                 Configure your SDTM data parameters on the left panel and click "Generate Test Data" to create 
-                realistic test datasets for validating your consolidated ADAM code.
+                realistic SDTM datasets for validating your consolidated ADAM code.
               </Paragraph>
               <Space direction="vertical" size="small" style={{ textAlign: 'left', maxWidth: '500px' }}>
                 <Text type="secondary" style={{ fontSize: '13px' }}>
@@ -986,11 +1366,23 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                       suffix="KB"
                       valueStyle={{ fontSize: '16px', fontWeight: 600, color: '#1e293b' }}
                     />
+                    {/* ADAM-Ready Indicator */}
+                    {generatedData && generatedData.length > 0 && parameters.domain === 'DM' && (
+                      generatedData[0].ITTFL || generatedData[0].SAFFL || generatedData[0].EFFFL ? (
+                        <Tag 
+                          color="green" 
+                          icon={<CheckCircleOutlined />}
+                          style={{ fontSize: '13px', padding: '4px 12px', fontWeight: 600 }}
+                        >
+                          ADAM-Ready
+                        </Tag>
+                      ) : null
+                    )}
                     {validationResults && (
                       <Tag 
                         color={validationResults.is_valid ? 'success' : 'error'} 
                         icon={validationResults.is_valid ? <CheckCircleOutlined /> : <WarningOutlined />}
-                        style={{ marginLeft: 'auto', fontSize: '13px', padding: '4px 12px' }}
+                        style={{ marginLeft: validationResults.is_valid ? 'auto' : 0, fontSize: '13px', padding: '4px 12px' }}
                       >
                         {validationResults.is_valid ? 'Validated' : 'Issues Found'}
                       </Tag>
@@ -999,38 +1391,122 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                 </div>
               )}
 
-              {/* Validation Alerts */}
+              {/* Enhanced Validation Alerts with Definitions and Tips */}
               {validationResults && (validationResults.errors?.length > 0 || validationResults.warnings?.length > 0) && (
                 <div style={{ marginBottom: 16 }}>
                   {validationResults.errors && validationResults.errors.length > 0 && (
-                    <Alert
-                      message="Validation Errors"
-                      description={
-                        <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
-                          {validationResults.errors.map((err: string, idx: number) => (
-                            <li key={idx}>{err}</li>
-                          ))}
-                        </ul>
-                      }
-                      type="error"
-                      showIcon
-                      closable
-                      style={{ marginBottom: 8 }}
-                    />
+                    <Card
+                      style={{
+                        marginBottom: 16,
+                        borderColor: '#ff4d4f',
+                        backgroundColor: '#fff2f0',
+                      }}
+                    >
+                      <div style={{ marginBottom: 12 }}>
+                        <Space>
+                          <WarningOutlined style={{ fontSize: 20, color: '#ff4d4f' }} />
+                          <Title level={5} style={{ margin: 0, color: '#cf1322' }}>
+                            Validation Errors ({validationResults.errors.length})
+                          </Title>
+                        </Space>
+                      </div>
+                      
+                      {validationResults.errors.map((err: string, idx: number) => {
+                        const errorDef = getErrorDefinition(err);
+                        return (
+                          <div
+                            key={idx}
+                            style={{
+                              marginBottom: idx < validationResults.errors.length - 1 ? 20 : 0,
+                              padding: '16px',
+                              backgroundColor: 'white',
+                              borderRadius: '8px',
+                              border: '1px solid #ffccc7',
+                            }}
+                          >
+                            {/* Error Message */}
+                            <div style={{ marginBottom: 12 }}>
+                              <Text strong style={{ fontSize: '14px', color: '#cf1322' }}>
+                                <WarningOutlined style={{ marginRight: 8 }} />
+                                {err}
+                              </Text>
+                            </div>
+                            
+                            {/* Error Definition */}
+                            <div style={{ marginBottom: 12, padding: '12px', backgroundColor: '#fafafa', borderRadius: '6px' }}>
+                              <Text style={{ fontSize: '13px', color: '#595959' }}>
+                                <InfoCircleOutlined style={{ marginRight: 6, color: '#1890ff' }} />
+                                <strong>What this means:</strong> {errorDef.definition}
+                              </Text>
+                            </div>
+                            
+                            {/* Actionable Tips */}
+                            <div>
+                              <Text strong style={{ fontSize: '12px', color: '#595959', display: 'block', marginBottom: 8 }}>
+                                💡 How to fix:
+                              </Text>
+                              <ul style={{ margin: 0, paddingLeft: 20, fontSize: '13px', color: '#595959' }}>
+                                {errorDef.tips.map((tip, tipIdx) => (
+                                  <li key={tipIdx} style={{ marginBottom: 6 }}>
+                                    {tip}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            {/* Quick Fix Button */}
+                            {errorDef.field && (
+                              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e8e8e8' }}>
+                                <Button
+                                  type="link"
+                                  size="small"
+                                  icon={<SettingOutlined />}
+                                  onClick={() => {
+                                    // Scroll to the relevant form field
+                                    const fieldElement = document.querySelector(`[name="${errorDef.field}"]`);
+                                    if (fieldElement) {
+                                      fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                      // Highlight the field briefly
+                                      (fieldElement as HTMLElement).style.transition = 'box-shadow 0.3s';
+                                      (fieldElement as HTMLElement).style.boxShadow = '0 0 0 3px rgba(255, 77, 79, 0.3)';
+                                      setTimeout(() => {
+                                        (fieldElement as HTMLElement).style.boxShadow = '';
+                                      }, 2000);
+                                    }
+                                  }}
+                                  style={{ padding: 0, fontSize: '12px' }}
+                                >
+                                  Go to {errorDef.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </Card>
                   )}
+                  
                   {validationResults.warnings && validationResults.warnings.length > 0 && (
                     <Alert
-                      message="Validation Warnings"
+                      message={
+                        <Space>
+                          <WarningOutlined />
+                          <span>Validation Warnings ({validationResults.warnings.length})</span>
+                        </Space>
+                      }
                       description={
-                        <ul style={{ marginBottom: 0, paddingLeft: 20 }}>
+                        <ul style={{ marginBottom: 0, paddingLeft: 20, marginTop: 8 }}>
                           {validationResults.warnings.map((warn: string, idx: number) => (
-                            <li key={idx}>{warn}</li>
+                            <li key={idx} style={{ marginBottom: 4 }}>
+                              {warn}
+                            </li>
                           ))}
                         </ul>
                       }
                       type="warning"
                       showIcon
                       closable
+                      style={{ marginBottom: 0 }}
                     />
                   )}
                 </div>
@@ -1085,29 +1561,30 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                   </div>
 
                   {/* Data Table */}
-                  {getPreviewColumns().length > 0 ? (
+                  {getPreviewColumns().length > 0 && (
                     <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                       <Table
                         dataSource={filteredData.map((row: any, idx: number) => ({ ...row, key: idx }))}
                         columns={getPreviewColumns()}
                         scroll={{ x: 'max-content', y: 'calc(100vh - 520px)' }}
-                      pagination={{
-                        current: tablePagination.current,
-                        pageSize: tablePagination.pageSize,
-                        total: filteredData.length,
-                        showSizeChanger: true,
-                        showQuickJumper: true,
-                        showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rows`,
-                        pageSizeOptions: ['10', '20', '50', '100', '200'],
-                        onChange: (page, pageSize) => {
-                          setTablePagination({ current: page, pageSize });
-                        },
-                      }}
-                      size={tableSize}
-                      bordered
-                      style={{ flex: 1, minHeight: 0 }}
-                    />
-                  </div>
+                        pagination={{
+                          current: tablePagination.current,
+                          pageSize: tablePagination.pageSize,
+                          total: filteredData.length,
+                          showSizeChanger: true,
+                          showQuickJumper: true,
+                          showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} rows`,
+                          pageSizeOptions: ['10', '20', '50', '100', '200'],
+                          onChange: (page, pageSize) => {
+                            setTablePagination({ current: page, pageSize });
+                          },
+                        }}
+                        size={tableSize}
+                        bordered
+                        style={{ flex: 1, minHeight: 0 }}
+                      />
+                    </div>
+                  )}
                 </Card>
               )}
             </div>

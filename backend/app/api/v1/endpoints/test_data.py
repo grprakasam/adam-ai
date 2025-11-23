@@ -207,5 +207,21 @@ async def get_supported_domains():
                 'variables_count': 13,
                 'supports_multiple_records': True
             },
+            {
+                'code': 'EX',
+                'name': 'Exposure',
+                'description': 'Treatment exposure data with dose and duration',
+                'variables_count': 14,
+                'supports_multiple_records': True,
+                'is_critical_for_adam': True
+            },
+            {
+                'code': 'DS',
+                'name': 'Disposition',
+                'description': 'Study completion status and dropout reasons',
+                'variables_count': 10,
+                'supports_multiple_records': True,
+                'is_critical_for_adam': True
+            },
         ]
     }

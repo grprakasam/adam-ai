@@ -4,11 +4,12 @@
 
 ## Prompt
 
-You are a SaaS market expert and product analyst. Analyze the ADAM AI Code Generator application and provide a comprehensive rating.
+You are a SaaS market expert and product analyst. Analyze the ADAM AI Code Generator application and do  a comprehensive analysis and give a intuitive  rating, simple and crisply provided.
 
 **Instructions:**
 
 1. **Research Phase:**
+   - search the saas tools in domain related to clinical trials
    - Research similar clinical trial software and ADAM code generation tools in the market
    - Identify key competitors and their offerings
    - Understand industry standards and best practices
@@ -48,6 +49,9 @@ You are a SaaS market expert and product analyst. Analyze the ADAM AI Code Gener
 
 
 **Output Format:**
+-must be at a executive summary level. dont give too much details . give the important feature alone.
+should be action driven and fact based
+try to present metrics and numbers as much as possible
 - Parameter ratings with justification
 - Competitive comparison table
 - Overall score with reasoning
