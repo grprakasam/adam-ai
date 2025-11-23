@@ -87,10 +87,20 @@ export const TraceabilityExportModal: React.FC<TraceabilityExportModalProps> = (
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Safely remove the element
+      setTimeout(() => {
+        try {
+          if (a.parentNode === document.body) {
+            document.body.removeChild(a);
+          }
+        } catch (e) {
+          // Element may have already been removed, ignore
+        }
+        window.URL.revokeObjectURL(url);
+      }, 100);
 
       message.success(`Traceability matrix exported as ${selectedFormat.toUpperCase()}`);
       onClose();

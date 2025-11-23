@@ -836,6 +836,79 @@ export const adamApi = {
     return response.data;
   },
 
+  // ============================================
+  // ADAM GENERATION
+  // ============================================
+
+  // Start ADAM dataset generation
+  startAdamGeneration: async (request: {
+    study_id: string;
+    adam_dataset: string;
+    language?: 'R' | 'SAS';
+    r_version?: string;
+    consolidated_code_id?: string;
+    consolidated_code_text?: string;
+    sdtm_domains?: string[];
+    use_latest_sdtm?: boolean;
+    output_formats?: ('csv' | 'xlsx' | 'rds' | 'zip')[];
+    timeout_seconds?: number;
+    memory_limit_mb?: number;
+    enable_verbose_logging?: boolean;
+  }) => {
+    const response = await apiClient.post('/adam-generation/run', request);
+    return response.data;
+  },
+
+  // Get run status
+  getAdamGenerationStatus: async (runId: string) => {
+    const response = await apiClient.get(`/adam-generation/run/${runId}`);
+    return response.data;
+  },
+
+  // Get run result
+  getAdamGenerationResult: async (runId: string) => {
+    const response = await apiClient.get(`/adam-generation/run/${runId}/result`);
+    return response.data;
+  },
+
+  // Download ADAM dataset
+  downloadAdamDataset: async (runId: string, format: 'csv' | 'xlsx' | 'rds' | 'zip' = 'csv') => {
+    const response = await apiClient.get(`/adam-generation/run/${runId}/download`, {
+      params: { format },
+      responseType: 'blob',
+    });
+    return response;
+  },
+
+  // Get available R versions
+  getRVersions: async () => {
+    const response = await apiClient.get('/adam-generation/r-versions');
+    return response.data;
+  },
+
+  // Submit feedback
+  submitAdamGenerationFeedback: async (runId: string, feedback: {
+    study_id: string;
+    adam_dataset: string;
+    rating?: number;
+    is_production_ready?: boolean;
+    comments?: string;
+  }) => {
+    const response = await apiClient.post(`/adam-generation/run/${runId}/feedback`, feedback);
+    return response.data;
+  },
+
+  // Check SDTM inputs
+  checkSdtmInputs: async (params: { study_id: string; adam_dataset: string }) => {
+    const response = await apiClient.post('/adam-generation/check-inputs', null, { 
+      params: {
+        study_id: params.study_id,
+        adam_dataset: params.adam_dataset
+      }
+    });
+    return response.data;
+  },
+
   // Validate code (syntax check)
   validateGeneratedCode: async (request: {
     code: string;
@@ -883,6 +956,92 @@ export const adamApi = {
   // Get test dataset details
   getTestDataset: async (datasetId: string) => {
     const response = await apiClient.get(`/code-execution/test-datasets/${datasetId}`);
+    return response.data;
+  },
+
+  // ============================================
+  // R EXECUTION (INTERACTIVE MODE)
+  // ============================================
+
+  // Execute R code
+  executeRCode: async (request: {
+    code: string;
+    r_version?: string;
+    mode?: 'interactive' | 'adam';
+    timeout_seconds?: number;
+    memory_limit_mb?: number;
+    capture_plots?: boolean;
+  }) => {
+    const response = await apiClient.post('/r-execution/run', {
+      code: request.code,
+      r_version: request.r_version || '4.3.2',
+      mode: request.mode || 'interactive',
+      timeout_seconds: request.timeout_seconds || 300,
+      memory_limit_mb: request.memory_limit_mb || 2048,
+      capture_plots: request.capture_plots !== false,
+    });
+    return response.data;
+  },
+
+  // Get R execution status
+  getRExecutionStatus: async (runId: string) => {
+    const response = await apiClient.get(`/r-execution/run/${runId}`);
+    return response.data;
+  },
+
+  // Get R execution result
+  getRExecutionResult: async (runId: string) => {
+    const response = await apiClient.get(`/r-execution/run/${runId}/result`);
+    return response.data;
+  },
+
+  // Get console output
+  getRConsoleOutput: async (runId: string) => {
+    const response = await apiClient.get(`/r-execution/run/${runId}/output/console`);
+    return response.data;
+  },
+
+  // Download plot
+  downloadRPlot: async (runId: string, plotIndex: number) => {
+    const response = await apiClient.get(
+      `/r-execution/run/${runId}/plots/${plotIndex}`,
+      { responseType: 'blob' }
+    );
+    return response;
+  },
+
+  // Download output file
+  downloadROutputFile: async (runId: string, filename: string) => {
+    const response = await apiClient.get(
+      `/r-execution/run/${runId}/download/${filename}`,
+      { responseType: 'blob' }
+    );
+    return response;
+  },
+
+  // Cancel R execution
+  cancelRExecution: async (runId: string) => {
+    const response = await apiClient.delete(`/r-execution/run/${runId}`);
+    return response.data;
+  },
+
+  // List R versions
+  listRVersions: async () => {
+    const response = await apiClient.get('/r-execution/versions');
+    return response.data;
+  },
+
+  // List recent R executions
+  listRExecutions: async (limit: number = 20) => {
+    const response = await apiClient.get('/r-execution/runs', {
+      params: { limit }
+    });
+    return response.data;
+  },
+
+  // Get R execution capabilities (Docker vs Local R)
+  getRExecutionCapabilities: async () => {
+    const response = await apiClient.get('/r-execution/capabilities');
     return response.data;
   },
 };

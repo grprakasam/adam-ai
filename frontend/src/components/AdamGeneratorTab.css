@@ -1,0 +1,115 @@
+.adam-generator-container {
+  padding: 16px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.adam-generator-left {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.adam-generator-right {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-card {
+  margin-top: 16px;
+}
+
+.adam-generator-container .ant-card {
+  margin-bottom: 16px;
+}
+
+.adam-generator-container .ant-descriptions-item-label {
+  font-weight: 600;
+}
+
+.adam-generator-container .ant-table {
+  font-size: 12px;
+}
+
+.adam-generator-container .ant-tag {
+  margin-bottom: 4px;
+}
+
+/* Enhanced Editor Styles */
+.enhanced-editor-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.enhanced-editor-card .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 12px 16px;
+  background: linear-gradient(to right, #fafafa, #ffffff);
+}
+
+.enhanced-editor-card .ant-card-head-title {
+  padding: 0;
+}
+
+.enhanced-editor-card .ant-card-extra {
+  padding: 0;
+}
+
+.editor-wrapper {
+  position: relative;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #ffffff;
+  min-height: 600px;
+  height: 100%;
+}
+
+.editor-footer {
+  padding: 8px 12px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.editor-footer kbd {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Consolas', monospace;
+  background: #ffffff;
+  border: 1px solid #d9d9d9;
+  border-radius: 3px;
+  padding: 2px 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* Dark theme adjustments */
+.enhanced-editor-card[data-theme="dark"] .editor-footer {
+  background: #1e1e1e;
+  border-top-color: #3c3c3c;
+  color: #cccccc;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .editor-footer {
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  
+  .enhanced-editor-card .ant-card-extra {
+    margin-top: 8px;
+  }
+}
+

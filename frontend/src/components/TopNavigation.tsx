@@ -44,12 +44,10 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
 
   // Update active section based on path
   const updateActiveSection = (path: string) => {
-    if (['/pair-programming', '/consolidated-code', '/traceability', '/generation-history'].includes(path)) {
+    if (['/pair-programming', '/consolidated-code', '/traceability', '/generation-history', '/test-with-data', '/adam-generator', '/submission-dashboard', '/submission-package'].includes(path)) {
       setActiveSection('code-generation');
-    } else if (['/code-validator', '/test-with-data', '/validation-reports'].includes(path)) {
+    } else if (['/code-validator', '/validation-reports'].includes(path)) {
       setActiveSection('code-validation');
-    } else if (['/submission-dashboard', '/my-validation', '/submission-package'].includes(path)) {
-      setActiveSection('submission-readiness');
     } else {
       setActiveSection('');
     }
@@ -119,6 +117,22 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
             <div className="mega-menu-item-desc">SDTM-to-ADAM lineage documentation</div>
           </div>
         </div>
+
+        <div className="mega-menu-item" onClick={() => handleNavigate('/test-with-data')}>
+          <ExperimentOutlined className="mega-menu-icon" />
+          <div className="mega-menu-item-content">
+            <div className="mega-menu-item-title">SDTM Generator</div>
+            <div className="mega-menu-item-desc">Generate CDISC-compliant SDTM test data</div>
+          </div>
+        </div>
+
+        <div className="mega-menu-item" onClick={() => handleNavigate('/submission-dashboard')}>
+          <DashboardOutlined className="mega-menu-icon" />
+          <div className="mega-menu-item-content">
+            <div className="mega-menu-item-title">Submission Dashboard</div>
+            <div className="mega-menu-item-desc">Submission readiness overview and package generation</div>
+          </div>
+        </div>
       </div>
       <div className="mega-menu-footer">
         <a onClick={() => handleNavigate('/generation-history')}>View Generation History →</a>
@@ -136,14 +150,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
           <div className="mega-menu-item-content">
             <div className="mega-menu-item-title">Code Validator</div>
             <div className="mega-menu-item-desc">Syntax and standards compliance checks</div>
-          </div>
-        </div>
-
-        <div className="mega-menu-item" onClick={() => handleNavigate('/test-with-data')}>
-          <ExperimentOutlined className="mega-menu-icon" />
-          <div className="mega-menu-item-content">
-            <div className="mega-menu-item-title">SDTM Generator</div>
-            <div className="mega-menu-item-desc">Generate CDISC-compliant SDTM test data</div>
           </div>
         </div>
       </div>
@@ -166,13 +172,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
           </div>
         </div>
 
-        <div className="mega-menu-item" onClick={() => handleNavigate('/my-validation')}>
-          <EditOutlined className="mega-menu-icon" />
-          <div className="mega-menu-item-content">
-            <div className="mega-menu-item-title">My Validation</div>
-            <div className="mega-menu-item-desc">Personal validation notes and tracking</div>
-          </div>
-        </div>
       </div>
       <div className="mega-menu-footer">
         <a onClick={() => handleNavigate('/submission-package')}>Generate Submission Package →</a>

@@ -45,12 +45,11 @@ type DisplayCategory = VariableCategory & { displayName: string; sortKey: number
 
 interface VariablesAnalysisTabProps {
   onSwitchProject?: () => void;
-  onNavigateToValidation?: () => void;
   onNavigateToConsolidated?: () => void;
   onNavigateToTraceability?: () => void;
 }
 
-export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToValidation: _onNavigateToValidation, onNavigateToConsolidated, onNavigateToTraceability: _onNavigateToTraceability }) => {
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToConsolidated, onNavigateToTraceability: _onNavigateToTraceability }) => {
   const {
     specificationFile,
     projectConfig,
@@ -857,7 +856,24 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
     );
   }
 
-  // No categorized variables yet
+  // Main content with categorized variables
+  // Get active category for pair programming panel
+  // Handle special 'all' case for showing all variables
+  const isAllVariablesSelected = activeCategory === 'all';
+  const activeCategoryData = isAllVariablesSelected 
+    ? null 
+    : sortedCategories[parseInt(activeCategory, 10)] || null;
+  
+  // Get all variables when "All Variables" is selected
+  // IMPORTANT: This hook must be called before any conditional returns
+  const allVariablesForPairProgramming = useMemo(() => {
+    if (!categorizedVariables?.categories) return [];
+    return categorizedVariables.categories.flatMap(category => 
+      category.variables || []
+    );
+  }, [categorizedVariables]);
+
+  // No categorized variables yet - check AFTER all hooks
   if (!categorizedVariables) {
     return (
       <div className="variables-empty-state">
@@ -870,22 +886,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       </div>
     );
   }
-
-  // Main content with categorized variables
-  // Get active category for pair programming panel
-  // Handle special 'all' case for showing all variables
-  const isAllVariablesSelected = activeCategory === 'all';
-  const activeCategoryData = isAllVariablesSelected 
-    ? null 
-    : sortedCategories[parseInt(activeCategory, 10)] || null;
-  
-  // Get all variables when "All Variables" is selected
-  const allVariablesForPairProgramming = useMemo(() => {
-    if (!categorizedVariables?.categories) return [];
-    return categorizedVariables.categories.flatMap(category => 
-      category.variables || []
-    );
-  }, [categorizedVariables]);
 
   return (
     <div className="variables-analysis-tab">

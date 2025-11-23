@@ -28,16 +28,20 @@ class GenerateSDTMResponse(BaseModel):
 
 
 @router.post("/generate-sdtm", response_model=GenerateSDTMResponse)
-async def generate_sdtm_data(request: SDTMGenerationRequest):
+async def generate_sdtm_data(
+    request: SDTMGenerationRequest,
+    study_id: Optional[str] = None
+):
     """
     Generate mock SDTM dataset for testing ADAM programs.
     
-    Supports domains: DM, AE, LB, VS
+    Supports domains: DM, AE, LB, VS, EX, DS
     Returns preview (first 10 rows) and validation results.
+    If study_id is provided, saves to study-scoped directory.
     Full dataset can be downloaded separately.
     """
     try:
-        logger.info(f"Generating SDTM data for domain: {request.domain}, subjects: {request.num_subjects}")
+        logger.info(f"Generating SDTM data for domain: {request.domain}, subjects: {request.num_subjects}, study_id: {study_id}")
         
         # Generate data
         generator = SDTMDataGenerator(seed=42)  # Fixed seed for consistency
@@ -48,6 +52,45 @@ async def generate_sdtm_data(request: SDTMGenerationRequest):
         
         # Validate data
         validation_results = generator.validate_data(df, request.domain.upper())
+        
+        # Save to study-scoped directory if study_id provided
+        sdtm_dir = None
+        if study_id:
+            from pathlib import Path
+            import json
+            sdtm_dir = Path("Content/Generated/SDTM") / study_id
+            sdtm_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Save CSV
+            csv_file = sdtm_dir / f"{request.domain.upper()}.csv"
+            df.to_csv(csv_file, index=False)
+            logger.info(f"Saved SDTM dataset to {csv_file}")
+            
+            # Save metadata
+            metadata = {
+                "study_id": study_id,
+                "domain": request.domain.upper(),
+                "generated_at": datetime.now().isoformat(),
+                "num_subjects": request.num_subjects,
+                "num_rows": len(df),
+                "num_columns": len(df.columns),
+                "columns": list(df.columns),
+                "generation_params": request.dict(),
+            }
+            metadata_file = sdtm_dir / "metadata.json"
+            if metadata_file.exists():
+                # Update existing metadata
+                with open(metadata_file, 'r') as f:
+                    existing = json.load(f)
+                if not isinstance(existing, dict):
+                    existing = {}
+                existing[request.domain.upper()] = metadata
+                with open(metadata_file, 'w') as f:
+                    json.dump(existing, f, indent=2)
+            else:
+                # Create new metadata
+                with open(metadata_file, 'w') as f:
+                    json.dump({request.domain.upper(): metadata}, f, indent=2)
         
         # Get preview (first 10 rows)
         preview_df = df.head(10)
@@ -61,13 +104,15 @@ async def generate_sdtm_data(request: SDTMGenerationRequest):
             'domain': request.domain.upper(),
             'generated_at': datetime.now().isoformat(),
             'memory_size_kb': df.memory_usage(deep=True).sum() / 1024,
+            'saved_to_study': study_id is not None,
+            'file_path': str(sdtm_dir / f"{request.domain.upper()}.csv") if study_id else None,
         }
         
         logger.info(f"Successfully generated {len(df)} rows for domain {request.domain}")
         
         return GenerateSDTMResponse(
             status='success',
-            message=f"Successfully generated {len(df)} rows for domain {request.domain.upper()}",
+            message=f"Successfully generated {len(df)} rows for domain {request.domain.upper()}" + (f" (saved to study {study_id})" if study_id else ""),
             data=stats,
             preview_data=preview_data,
             validation_results=validation_results
