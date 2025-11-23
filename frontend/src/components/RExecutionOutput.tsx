@@ -77,16 +77,23 @@ export const RExecutionOutputComponent: React.FC<RExecutionOutputProps> = ({
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      // Safely remove the element
+      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
+      try {
+        if (a.parentNode) {
+          a.parentNode.removeChild(a);
+        } else if (typeof a.remove === 'function') {
+          a.remove();
+        }
+      } catch (e) {
+        // Element may have been auto-removed - ignore
+      }
+      // Revoke URL after a short delay
       setTimeout(() => {
         try {
-          if (a.parentNode === document.body) {
-            document.body.removeChild(a);
-          }
+          URL.revokeObjectURL(url);
         } catch (e) {
-          // Element may have already been removed, ignore
+          // Ignore
         }
-        URL.revokeObjectURL(url);
       }, 100);
 
       message.success('Plot downloaded');
@@ -111,16 +118,23 @@ export const RExecutionOutputComponent: React.FC<RExecutionOutputProps> = ({
       a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      // Safely remove the element
+      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
+      try {
+        if (a.parentNode) {
+          a.parentNode.removeChild(a);
+        } else if (typeof a.remove === 'function') {
+          a.remove();
+        }
+      } catch (e) {
+        // Element may have been auto-removed - ignore
+      }
+      // Revoke URL after a short delay
       setTimeout(() => {
         try {
-          if (a.parentNode === document.body) {
-            document.body.removeChild(a);
-          }
+          URL.revokeObjectURL(url);
         } catch (e) {
-          // Element may have already been removed, ignore
+          // Ignore
         }
-        URL.revokeObjectURL(url);
       }, 100);
 
       message.success(`Downloaded ${filename}`);

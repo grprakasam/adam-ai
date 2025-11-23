@@ -188,6 +188,25 @@ export const P21ValidationPanel: React.FC<P21ValidationPanelProps> = ({
       link.setAttribute('download', `${studyId}_${dataset}_P21_Validation.xlsx`);
       document.body.appendChild(link);
       link.click();
+      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
+      try {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        } else if (typeof link.remove === 'function') {
+          link.remove();
+        }
+      } catch (e) {
+        // Element may have been auto-removed - ignore
+      }
+      // Revoke URL after a short delay
+      setTimeout(() => {
+        try {
+          window.URL.revokeObjectURL(url);
+        } catch (e) {
+          // Ignore
+        }
+      }, 100);
+      link.click();
       link.remove();
     } catch (error: any) {
       Modal.error({

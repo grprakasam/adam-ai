@@ -58,8 +58,11 @@ async def generate_sdtm_data(
         if study_id:
             from pathlib import Path
             import json
-            sdtm_dir = Path("Content/Generated/SDTM") / study_id
+            # Resolve path relative to backend directory for consistency
+            backend_dir = Path(__file__).resolve().parents[4]  # Go up to backend/app/api/v1/endpoints -> backend
+            sdtm_dir = (backend_dir / "Content" / "Generated" / "SDTM" / study_id).resolve()
             sdtm_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"Saving SDTM data to: {sdtm_dir}")
             
             # Save CSV
             csv_file = sdtm_dir / f"{request.domain.upper()}.csv"

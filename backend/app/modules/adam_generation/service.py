@@ -80,7 +80,9 @@ class AdamGenerationService:
         domains: list
     ) -> Dict[str, Path]:
         """Prepare SDTM datasets for execution (prefers XPT format)"""
-        sdtm_base = Path("Content/Generated/SDTM") / study_id
+        # Use absolute path for consistency
+        backend_dir = Path(__file__).resolve().parents[3]  # Go up to backend/app/modules/adam_generation -> backend
+        sdtm_base = (backend_dir / "Content" / "Generated" / "SDTM" / study_id).resolve()
         input_dir = work_dir / "input"
         input_dir.mkdir(parents=True, exist_ok=True)
         
