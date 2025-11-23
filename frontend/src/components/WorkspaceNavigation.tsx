@@ -46,7 +46,7 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
     color: '#10b981',
     items: [
       { key: '/code-validator', label: 'Code Validator', icon: <SafetyOutlined />, description: 'Syntax and quality checks' },
-      { key: '/test-with-data', label: 'Test with Data', icon: <ExperimentOutlined />, description: 'Execute with test datasets' },
+      { key: '/test-with-data', label: 'SDTM Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant SDTM test data' },
       { key: '/my-validation', label: 'My Validation', icon: <CheckCircleOutlined />, description: 'Custom validation rules' },
     ],
   },

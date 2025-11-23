@@ -6,7 +6,7 @@
  * Part of the Test Data Generation & Validation Framework
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   Card,
   Button,
@@ -67,19 +67,23 @@ interface ValidationResult {
 
 export const TestingTab: React.FC = () => {
   const {
-    selectedDataset,
     projectConfig,
     consolidatedCode,
+    setProjectConfig,
   } = useProjectStore();
+
+  // Use projectConfig.adamDataset as selectedDataset, default to 'ADSL' if not set
+  const selectedDataset = projectConfig.adamDataset || 'ADSL';
 
   // State
   const [activeTab, setActiveTab] = useState<string>('generate');
   const [testDataConfig, setTestDataConfig] = useState<TestDataConfig>({
-    numSubjects: 10,
+    numSubjects: 50,
     numHappyPath: 80,
     numEdgeCases: 15,
     numNegativeCases: 5,
     includeDomains: ['DM', 'AE', 'VS', 'LB', 'EX'],
+    seed: 12345,
   });
   const [generatedTestDataId, setGeneratedTestDataId] = useState<string | null>(null);
   const [isGeneratingTestData, setIsGeneratingTestData] = useState(false);
@@ -88,10 +92,19 @@ export const TestingTab: React.FC = () => {
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [testHistory, setTestHistory] = useState<TestExecution[]>([]);
 
+  // Set default dataset if none is selected
+  useEffect(() => {
+    if (!projectConfig.adamDataset) {
+      setProjectConfig({ adamDataset: 'ADSL' });
+    }
+  }, [projectConfig.adamDataset, setProjectConfig]);
+
   // ===== TEST DATA GENERATION =====
 
   const handleGenerateTestData = useCallback(async () => {
-    if (!selectedDataset) {
+    // Ensure dataset is set (should be set by useEffect, but double-check)
+    const datasetToUse = selectedDataset || 'ADSL';
+    if (!datasetToUse) {
       message.error('Please select a dataset type first');
       return;
     }
@@ -100,7 +113,7 @@ export const TestingTab: React.FC = () => {
 
     try {
       const response = await adamApi.generateTestData({
-        dataset_type: selectedDataset,
+        dataset_type: datasetToUse,
         specification_file: projectConfig.specificationFile || '',
         num_subjects: testDataConfig.numSubjects,
         num_happy_path: testDataConfig.numHappyPath,
@@ -258,6 +271,23 @@ export const TestingTab: React.FC = () => {
               />
 
               <Form layout="vertical">
+                <Form.Item
+                  label="ADAM Dataset Type"
+                  tooltip="Select the ADAM dataset type to generate test data for"
+                  required
+                >
+                  <Select
+                    value={selectedDataset}
+                    onChange={(value) => setProjectConfig({ adamDataset: value })}
+                    style={{ width: '100%' }}
+                    options={[
+                      { label: 'ADSL - Subject Level Analysis Dataset', value: 'ADSL' },
+                      { label: 'ADAE - Adverse Events Analysis Dataset', value: 'ADAE' },
+                      { label: 'ADLB - Laboratory Analysis Dataset', value: 'ADLB' },
+                    ]}
+                  />
+                </Form.Item>
+
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item label="Number of Test Subjects">
@@ -265,7 +295,7 @@ export const TestingTab: React.FC = () => {
                         min={1}
                         max={1000}
                         value={testDataConfig.numSubjects}
-                        onChange={(value) => setTestDataConfig(prev => ({ ...prev, numSubjects: value || 10 }))}
+                        onChange={(value) => setTestDataConfig(prev => ({ ...prev, numSubjects: value || 50 }))}
                         style={{ width: '100%' }}
                       />
                     </Form.Item>
