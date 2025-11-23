@@ -36,6 +36,7 @@ import {
 } from '@ant-design/icons';
 import type { RExecutionResult, RExecutionOutput } from '../types/rExecution';
 import { adamApi } from '../services/api';
+import { triggerDownload } from '../utils/downloadHelpers';
 
 const { Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -70,33 +71,15 @@ export const RExecutionOutputComponent: React.FC<RExecutionOutputProps> = ({
 
       // Create blob URL and download
       const blob = new Blob([response.data], { type: response.headers['content-type'] });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = plot.filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
-      try {
-        if (a.parentNode) {
-          a.parentNode.removeChild(a);
-        } else if (typeof a.remove === 'function') {
-          a.remove();
-        }
-      } catch (e) {
-        // Element may have been auto-removed - ignore
-      }
-      // Revoke URL after a short delay
-      setTimeout(() => {
-        try {
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          // Ignore
-        }
-      }, 100);
 
-      message.success('Plot downloaded');
+      triggerDownload(
+        blob,
+        plot.filename,
+        {
+          onSuccess: () => message.success('Plot downloaded'),
+          onError: (err) => message.error('Failed to download plot: ' + err.message)
+        }
+      );
     } catch (error: any) {
       message.error('Failed to download plot: ' + (error.message || 'Unknown error'));
     } finally {
@@ -111,33 +94,15 @@ export const RExecutionOutputComponent: React.FC<RExecutionOutputProps> = ({
 
       // Create blob URL and download
       const blob = new Blob([response.data], { type: response.headers['content-type'] });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
-      try {
-        if (a.parentNode) {
-          a.parentNode.removeChild(a);
-        } else if (typeof a.remove === 'function') {
-          a.remove();
-        }
-      } catch (e) {
-        // Element may have been auto-removed - ignore
-      }
-      // Revoke URL after a short delay
-      setTimeout(() => {
-        try {
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          // Ignore
-        }
-      }, 100);
 
-      message.success(`Downloaded ${filename}`);
+      triggerDownload(
+        blob,
+        filename,
+        {
+          onSuccess: () => message.success(`Downloaded ${filename}`),
+          onError: (err) => message.error('Failed to download file: ' + err.message)
+        }
+      );
     } catch (error: any) {
       message.error('Failed to download file: ' + (error.message || 'Unknown error'));
     }

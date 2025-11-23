@@ -44,6 +44,7 @@ import {
 } from '@ant-design/icons';
 import { useProjectStore } from '../../store/projectStore';
 import { adamApi } from '../../services/api';
+import { triggerDownload } from '../../utils/downloadHelpers';
 import './ValidationPanel.css';
 
 const { Text, Title } = Typography;
@@ -159,33 +160,18 @@ const ValidationPanel: React.FC<ValidationPanelProps> = ({ onBack }) => {
       const blob = new Blob([response.data], {
         type: response.headers['content-type'],
       });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `validation_results_${studyId}_${dataset}.${format}`;
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      // Remove element IMMEDIATELY and SYNCHRONOUSLY to prevent React conflicts
-      try {
-        if (link.parentNode) {
-          link.parentNode.removeChild(link);
-        } else if (typeof link.remove === 'function') {
-          link.remove();
-        }
-      } catch (e) {
-        // Element may have been auto-removed - ignore
-      }
-      // Revoke URL after a short delay
-      setTimeout(() => {
-        try {
-          window.URL.revokeObjectURL(url);
-        } catch (e) {
-          // Ignore
-        }
-      }, 100);
 
-      message.success(`Validation results exported as ${format.toUpperCase()}`);
+      triggerDownload(
+        blob,
+        `validation_results_${studyId}_${dataset}.${format}`,
+        {
+          onSuccess: () => message.success(`Validation results exported as ${format.toUpperCase()}`),
+          onError: (err) => {
+            console.error('Export error:', err);
+            message.error('Failed to export validation results');
+          }
+        }
+      );
     } catch (error) {
       console.error('Export error:', error);
       message.error('Failed to export validation results');

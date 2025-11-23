@@ -129,6 +129,12 @@ class SDTMInputCheck(BaseModel):
     missing_domains: List[str]
     dataset_metadata: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
 
+    # Code analysis metadata
+    detection_method: Optional[str] = Field(None, description="How datasets were detected: 'default', 'code_analysis', or 'hybrid'")
+    confidence_level: Optional[str] = Field(None, description="Confidence in detected datasets: 'high', 'medium', or 'low'")
+    code_analysis_warnings: Optional[List[str]] = Field(None, description="Warnings from code analysis")
+    dataset_operations: Optional[Dict[str, List[str]]] = Field(None, description="Operations detected for each dataset")
+
 
 class ExecutionResult(BaseModel):
     """Result from Docker R execution"""

@@ -1,7 +1,6 @@
-// @ts-nocheck
 /**
  * SDTM Generator Panel
- * 
+ *
  * Generates mock SDTM datasets for testing ADAM programs.
  * Allows users to specify parameters, preview data, and download in multiple formats.
  */
@@ -18,7 +17,6 @@ import {
   Alert,
   Space,
   Slider,
-  Radio,
   Tag,
   Statistic,
   Row,
@@ -34,7 +32,11 @@ import {
   Badge,
   Collapse,
   Switch,
+  Progress,
 } from 'antd';
+import { useProjectStore } from '../store/projectStore';
+import { adamApi } from '../services/api';
+import { triggerDownload } from '../utils/downloadHelpers';
 import {
   DownloadOutlined,
   ReloadOutlined,
@@ -45,9 +47,6 @@ import {
   SearchOutlined,
   SettingOutlined,
   EyeOutlined,
-  EyeInvisibleOutlined,
-  FilterOutlined,
-  FullscreenOutlined,
   ExportOutlined,
   UserOutlined,
   CalendarOutlined,
@@ -55,9 +54,8 @@ import {
   FileTextOutlined,
   DatabaseOutlined,
   SafetyOutlined,
-  ApartmentOutlined,
-  UpOutlined,
-  DownOutlined,
+  RocketOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import './TestWithDataPanel.css';
 
@@ -123,11 +121,23 @@ interface TestWithDataPanelProps {
   standalone?: boolean;
 }
 
+// Required SDTM domains per ADAM dataset (matching backend validators.py)
+const REQUIRED_DOMAINS: Record<string, string[]> = {
+  'ADSL': ['DM', 'EX', 'DS'],
+  'ADAE': ['DM', 'AE', 'EX'],
+  'ADLB': ['DM', 'LB', 'EX'],
+  'ADVS': ['DM', 'VS', 'EX'],
+  'ADTTE': ['DM', 'DS', 'AE'],
+};
+
 export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone: _standalone = false }) => {
   const { projectConfig } = useProjectStore();
   const [form] = Form.useForm();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
+  const [availableDatasets, setAvailableDatasets] = useState<string[]>([]);
+  const [isGeneratingBatch, setIsGeneratingBatch] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number; currentDomain: string } | null>(null);
   const [parameters, setParameters] = useState<SDTMGenerationParams>({
     // Study Design
     domain: 'DM',
@@ -176,7 +186,6 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
   
   // Control panel collapse state
   const [activePanels, setActivePanels] = useState<string[]>(['study', 'subjects', 'treatment']);
-  const [isControlsExpanded, setIsControlsExpanded] = useState(true);
   const [generatedData, setGeneratedData] = useState<any[] | null>(null);
   const [statistics, setStatistics] = useState<any>(null);
   const [validationResults, setValidationResults] = useState<any>(null);
@@ -190,18 +199,177 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
   const [tablePagination, setTablePagination] = useState({ pageSize: 20, current: 1 });
   const [tableSize, setTableSize] = useState<'small' | 'middle' | 'large'>('middle');
 
-  // Load supported domains on mount
+  // Load supported domains on mount and check available datasets
   useEffect(() => {
     loadDomains();
-  }, []);
+    if (projectConfig?.studyId) {
+      checkAvailableDatasets();
+    }
+  }, [projectConfig?.studyId]);
+
+  // Check which SDTM datasets are already available for the current study
+  const checkAvailableDatasets = async () => {
+    if (!projectConfig?.studyId) return;
+    
+    try {
+      // Check SDTM inputs to see what's available
+      const inputs = await adamApi.checkSdtmInputs({
+        study_id: projectConfig.studyId,
+        adam_dataset: projectConfig.adamDataset || 'ADSL'
+      });
+      setAvailableDatasets(inputs.available_domains || []);
+    } catch (error) {
+      // Silently fail - datasets might not exist yet
+      setAvailableDatasets([]);
+    }
+  };
+
+  // Get required domains for current ADAM dataset
+  const getRequiredDomains = useMemo(() => {
+    const adamDataset = projectConfig?.adamDataset || 'ADSL';
+    return REQUIRED_DOMAINS[adamDataset] || [];
+  }, [projectConfig?.adamDataset]);
+
+  // Get missing required domains
+  const getMissingRequiredDomains = useMemo(() => {
+    return getRequiredDomains.filter(domain => !availableDatasets.includes(domain));
+  }, [getRequiredDomains, availableDatasets]);
+
+  // Generate all required datasets for current ADAM dataset
+  const handleGenerateAllRequired = async () => {
+    if (!projectConfig?.studyId) {
+      message.error('Study ID is required. Please set it in the Setup tab.');
+      return;
+    }
+
+    const missingDomains = getMissingRequiredDomains;
+    if (missingDomains.length === 0) {
+      message.success('All required datasets are already available!');
+      return;
+    }
+
+    setIsGeneratingBatch(true);
+    setBatchProgress({ current: 0, total: missingDomains.length, currentDomain: '' });
+
+    try {
+      message.loading({
+        content: `Generating ${missingDomains.length} required dataset(s) for ${projectConfig.adamDataset || 'ADAM'}...`,
+        key: 'generate-batch',
+        duration: 0,
+      });
+
+      const batchRequest = {
+        domains: missingDomains,
+        study_id: projectConfig.studyId,
+        num_subjects: parameters.num_subjects,
+        sdtm_version: parameters.sdtm_version,
+        adam_ig_version: parameters.adam_ig_version,
+        study_start_date: parameters.study_start_date,
+        study_end_date: parameters.study_end_date,
+        study_phase: parameters.study_phase,
+        therapeutic_area: parameters.therapeutic_area,
+        sex_distribution: parameters.sex_distribution,
+        age_min: parameters.age_min,
+        age_max: parameters.age_max,
+        age_distribution: parameters.age_distribution,
+        num_treatment_arms: parameters.num_treatment_arms,
+        treatment_arms: parameters.treatment_arms,
+        randomization_ratio: parameters.randomization_ratio,
+        num_visits: parameters.num_visits,
+        visit_schedule_days: parameters.visit_schedule_days,
+        visit_window_days: parameters.visit_window_days,
+        records_per_subject: parameters.records_per_subject || 5,
+        missingness_pct: parameters.missingness_pct,
+        protocol_deviations_pct: parameters.protocol_deviations_pct,
+        outlier_pct: parameters.outlier_pct,
+        distribution_type: parameters.distribution_type,
+        template_source: parameters.template_source,
+        include_meddra: parameters.include_meddra,
+        include_ct: parameters.include_ct,
+        serious_ae_pct: parameters.serious_ae_pct,
+        severe_ae_pct: parameters.severe_ae_pct,
+        related_ae_pct: parameters.related_ae_pct,
+        lab_abnormality_pct: parameters.lab_abnormality_pct,
+      };
+
+      const result = await adamApi.generateSdtmBatch(batchRequest);
+
+      if (result.status === 'success' || result.status === 'partial') {
+        message.success({
+          content: `Successfully generated ${result.total_generated} of ${result.total_requested} required dataset(s)`,
+          key: 'generate-batch',
+          duration: 5,
+        });
+
+        if (result.failed && result.failed.length > 0) {
+          message.warning({
+            content: `Some datasets failed: ${result.failed.map((f: any) => f.domain).join(', ')}`,
+            duration: 6,
+          });
+        }
+
+        // Refresh available datasets
+        await checkAvailableDatasets();
+      } else {
+        throw new Error(result.message || 'Failed to generate datasets');
+      }
+    } catch (err: any) {
+      console.error('Error generating required datasets:', err);
+      console.error('Error response:', err.response);
+      console.error('Error status:', err.response?.status);
+      console.error('Error data:', err.response?.data);
+      
+      let errorMessage = 'Failed to generate required datasets';
+      if (err.response) {
+        if (err.response.status === 404) {
+          errorMessage = 'Batch generation endpoint not found. Please ensure the backend server is running and has the latest code.';
+        } else if (err.response.data?.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (err.response.data?.message) {
+          errorMessage = err.response.data.message;
+        } else {
+          errorMessage = `Server error (${err.response.status}): ${err.response.statusText}`;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      message.error({
+        content: `Failed to generate datasets: ${errorMessage}`,
+        key: 'generate-batch',
+        duration: 8,
+      });
+    } finally {
+      setIsGeneratingBatch(false);
+      setBatchProgress(null);
+    }
+  };
 
   const loadDomains = async () => {
     try {
       setLoadingDomains(true);
       const response = await fetch('/api/v1/test-data/domains');
-      const data = await response.json();
-      setDomains(data.domains);
-      if (data.domains.length > 0) {
+      
+      if (!response.ok) {
+        throw new Error(`Failed to load domains: ${response.status} ${response.statusText}`);
+      }
+
+      // Check if response has content before parsing JSON
+      const responseText = await response.text();
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('Server returned an empty response');
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse domains JSON:', parseError);
+        throw new Error('Server returned invalid JSON response');
+      }
+
+      setDomains(data.domains || []);
+      if (data.domains && data.domains.length > 0) {
         setSelectedDomain(data.domains[0]);
       }
     } catch (error) {
@@ -230,7 +398,6 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
     
     // Missing required variables
     if (lowerError.includes('missing required variables')) {
-      const varsMatch = errorMessage.match(/missing required variables: (.+)/i);
       return {
         definition: 'One or more required CDISC variables are missing from the generated dataset. This violates SDTM standards and will prevent proper data analysis.',
         tips: [
@@ -385,7 +552,42 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         body: JSON.stringify(parameters),
       });
 
-      const data = await response.json();
+      // Check if response is OK
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        try {
+          const errorText = await response.text();
+          if (errorText) {
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.detail || errorData.message || errorMessage;
+            } catch {
+              // If not JSON, use the text as error message
+              errorMessage = errorText || errorMessage;
+            }
+          }
+        } catch (e) {
+          // Response body might be empty or unreadable
+          console.error('Failed to read error response:', e);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Check if response has content before parsing JSON
+      const responseText = await response.text();
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('Server returned an empty response. Please try again.');
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        console.error('Response text:', responseText.substring(0, 200));
+        throw new Error('Server returned invalid JSON. Please check the server logs.');
+      }
 
       if (data.status === 'success') {
         setGeneratedData(data.preview_data);
@@ -410,6 +612,11 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
             key: 'generate',
             duration: 3,
           });
+        }
+
+        // Refresh available datasets after generation
+        if (projectConfig?.studyId) {
+          await checkAvailableDatasets();
         }
       } else {
         // Handle API-level errors
@@ -472,7 +679,7 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       message.warning({ content: 'Download already in progress...', key: 'download', duration: 2 });
       return;
     }
-    
+
     setIsDownloading(true);
     try {
       message.loading({ content: `Preparing ${format.toUpperCase()} download...`, key: 'download', duration: 0 });
@@ -488,62 +695,22 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${parameters.domain}_${new Date().toISOString().split('T')[0]}.${format}`;
-      a.style.display = 'none';
-      a.setAttribute('aria-hidden', 'true');
-      
-      // Append to body, click immediately, then remove synchronously
-      // This prevents React from interfering with the node removal
-      document.body.appendChild(a);
-      
-      try {
-        // Click to trigger download
-        a.click();
-        
-        // Remove element IMMEDIATELY and SYNCHRONOUSLY after click
-        // This must happen before React's commit phase can interfere
-        // Use try-catch to handle any edge cases gracefully
-        try {
-          if (a.parentNode) {
-            // Remove synchronously - no async operations
-            a.parentNode.removeChild(a);
-          } else if (typeof a.remove === 'function') {
-            a.remove();
-          }
-        } catch (removeError) {
-          // Element may have been auto-removed by browser - this is fine
-          // Silently ignore - the download has already been triggered
-        }
-      } catch (clickError) {
-        // If click fails, try to clean up
-        try {
-          if (a.parentNode) {
-            a.parentNode.removeChild(a);
-          } else if (typeof a.remove === 'function') {
-            a.remove();
-          }
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-        window.URL.revokeObjectURL(url);
-        setIsDownloading(false);
-        message.error('Failed to trigger download');
-        return;
-      }
-      
-      // Revoke URL after download has started (async is fine for this)
-      setTimeout(() => {
-        try {
-          window.URL.revokeObjectURL(url);
-        } catch (e) {
-          // Ignore URL revocation errors
-        }
-      }, 100);
 
-      message.success({ content: 'Download started', key: 'download', duration: 2 });
+      triggerDownload(
+        blob,
+        `${parameters.domain}_${new Date().toISOString().split('T')[0]}.${format}`,
+        {
+          onSuccess: () => message.success({ content: 'Download started', key: 'download', duration: 2 }),
+          onError: (err) => {
+            message.error({
+              content: err.message || 'Failed to download data',
+              key: 'download',
+              duration: 5,
+            });
+            console.error('Download error:', err);
+          }
+        }
+      );
     } catch (error: any) {
       message.error({
         content: error.message || 'Failed to download data',
@@ -799,10 +966,55 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
           </div>
         </div>
         <div className="header-actions">
+          {/* Show required datasets info if ADAM dataset is configured */}
+          {projectConfig?.adamDataset && projectConfig?.studyId && getRequiredDomains.length > 0 && (
+            <div style={{ 
+              marginRight: '16px', 
+              padding: '8px 16px', 
+              background: getMissingRequiredDomains.length > 0 ? '#fff7e6' : '#f6ffed',
+              border: `1px solid ${getMissingRequiredDomains.length > 0 ? '#ffe58f' : '#b7eb8f'}`,
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px'
+            }}>
+              <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                  Required for {projectConfig.adamDataset}:
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {getRequiredDomains.map(domain => {
+                    const isAvailable = availableDatasets.includes(domain);
+                    return (
+                      <Tag 
+                        key={domain} 
+                        color={isAvailable ? 'success' : 'warning'}
+                        style={{ margin: 0, fontSize: '11px' }}
+                      >
+                        {domain} {isAvailable ? '✓' : '✗'}
+                      </Tag>
+                    );
+                  })}
+                </div>
+              </div>
+              {getMissingRequiredDomains.length > 0 && (
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<ExperimentOutlined />}
+                  onClick={handleGenerateAllRequired}
+                  loading={isGeneratingBatch}
+                  style={{ whiteSpace: 'nowrap' }}
+                >
+                  Generate All Required ({getMissingRequiredDomains.length})
+                </Button>
+              )}
+            </div>
+          )}
           <Button
             icon={<ReloadOutlined />}
             onClick={handleReset}
-            disabled={isGenerating}
+            disabled={isGenerating || isGeneratingBatch}
             size="middle"
           >
             Reset
@@ -812,7 +1024,7 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
             icon={<ExperimentOutlined />}
             onClick={handleGenerate}
             loading={isGenerating}
-            disabled={isGenerating}
+            disabled={isGenerating || isGeneratingBatch}
             size="large"
           >
             {isGenerating ? 'Generating...' : 'Generate Test Data'}
@@ -835,6 +1047,85 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
               ghost
               className="adam-control-collapse"
             >
+              {/* ADAM Requirements Section - Show if ADAM dataset is configured */}
+              {projectConfig?.adamDataset && getRequiredDomains.length > 0 && (
+                <Collapse.Panel 
+                  key="adam-requirements" 
+                  header={
+                    <span className="panel-header">
+                      <RocketOutlined />
+                      <span>ADAM Requirements ({projectConfig.adamDataset})</span>
+                    </span>
+                  }
+                  className="control-panel-section"
+                >
+                  <Alert
+                    message={
+                      <Space>
+                        <InfoCircleOutlined style={{ color: '#1890ff' }} />
+                        <span>
+                          <strong>Required SDTM Datasets for {projectConfig.adamDataset}</strong>
+                        </span>
+                      </Space>
+                    }
+                    description={
+                      <div>
+                        <div style={{ marginBottom: '12px' }}>
+                          To generate <strong>{projectConfig.adamDataset}</strong>, the following SDTM datasets are required:
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                          {getRequiredDomains.map(domain => {
+                            const isAvailable = availableDatasets.includes(domain);
+                            return (
+                              <Tag 
+                                key={domain} 
+                                color={isAvailable ? 'success' : 'error'}
+                                style={{ margin: 0, fontSize: '13px', padding: '4px 10px' }}
+                              >
+                                {isAvailable ? <CheckCircleOutlined style={{ marginRight: '4px' }} /> : <CloseCircleOutlined style={{ marginRight: '4px' }} />}
+                                {domain}
+                              </Tag>
+                            );
+                          })}
+                        </div>
+                        {getMissingRequiredDomains.length > 0 ? (
+                          <div>
+                            <div style={{ marginBottom: '8px', color: '#ff4d4f', fontWeight: 600 }}>
+                              Missing: {getMissingRequiredDomains.join(', ')}
+                            </div>
+                            <Button
+                              type="primary"
+                              icon={<ExperimentOutlined />}
+                              onClick={handleGenerateAllRequired}
+                              loading={isGeneratingBatch}
+                              block
+                            >
+                              Generate All Missing Datasets ({getMissingRequiredDomains.length})
+                            </Button>
+                            {batchProgress && (
+                              <div style={{ marginTop: '12px' }}>
+                                <Progress 
+                                  percent={Math.round((batchProgress.current / batchProgress.total) * 100)} 
+                                  status="active"
+                                  format={() => `${batchProgress.current}/${batchProgress.total} - ${batchProgress.currentDomain || 'Starting...'}`}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ color: '#52c41a', fontWeight: 600 }}>
+                            ✓ All required datasets are available!
+                          </div>
+                        )}
+                      </div>
+                    }
+                    type={getMissingRequiredDomains.length > 0 ? 'warning' : 'success'}
+                    showIcon={false}
+                    style={{ marginBottom: 16 }}
+                  />
+                </Collapse.Panel>
+              )}
+
               {/* Study Design Section */}
               <Collapse.Panel 
                 key="study" 

@@ -36,7 +36,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       console.log('📥 Response OK:', response.ok);
 
       if (response.ok) {
-        const data = await response.json();
+        // Check if response has content before parsing JSON
+        const responseText = await response.text();
+        if (!responseText || responseText.trim().length === 0) {
+          throw new Error('Server returned an empty response');
+        }
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Failed to parse login response:', parseError);
+          throw new Error('Server returned invalid JSON response');
+        }
+        
         console.log('✅ Login successful:', data.user);
         
         // Store token and user data
@@ -46,9 +59,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         message.success(`Welcome, ${data.user.full_name}!`);
         onLoginSuccess(data);
       } else {
-        const error = await response.json();
-        console.error('❌ Login failed:', error);
-        message.error(error.detail || 'Invalid credentials');
+        // Try to get error message from response
+        let errorMessage = 'Invalid credentials';
+        try {
+          const errorText = await response.text();
+          if (errorText) {
+            try {
+              const errorData = JSON.parse(errorText);
+              errorMessage = errorData.detail || errorData.message || errorMessage;
+            } catch {
+              // If not JSON, use the text as error message if it's short
+              if (errorText.length < 200) {
+                errorMessage = errorText;
+              }
+            }
+          }
+        } catch (e) {
+          // Response body might be empty or unreadable
+          console.error('Failed to read error response:', e);
+        }
+        console.error('❌ Login failed:', errorMessage);
+        message.error(errorMessage);
       }
     } catch (error) {
       console.error('💥 Login error:', error);

@@ -6,42 +6,41 @@ Think in terms of an Domain expert, ADAM Programmer and an expert ui ux designer
 This features should make use of the best of the industry standards in terms of ui/ux and design principles. search the internet and research papers to architect the best possible approach to implement the following features.
 
 
-i want to extend the feature of this app with the following enhancements
+i want to slightly modify the pair programming page logic to generate an additional column that will generate a pseudo code snippet based on the derivation logic 
 
-the user should be able to make ue of the sdtm datasets generated from the "SDTM Generator" section to be available in the new section to be created named as "ADAM Generator"
+the reason for this column is to help the domain experts to understand the derivation logic in a better way
 
-This section basically takes the sdtm datasets as input and generates the ADAM datasets as output based on the consolidated code generated in the "Code Generation" section using generative AI models.
+also this will help the developers to understand the logic in a better way and will help in code reviews and testing as well.
 
-this section should have the layout similar to pair programming section where the side panel shows the necessary configuratrion options and the main panel shows the code generation area where the user can see the generated ADAM datasets based on the sdtm datasets and the consolidated code   provided as input.
+plesae make the necessary code changes to implement this feature in the best possible way.
 
-Currently this page has to invoke R as a programming language to generate the ADAM datasets .
+make the changes in the api calls accordingly to generate the pseudo code snippets based on the derivation logic
 
-update the codebase to enable the r runtime to be invoked through docker containers to ensure better scalability and maintainability of the application.
+the user interface should be designed in a way that the pseudo code snippet column is clearly visible and easy to read.
 
-the main panel must show the "Generate ADAM Datasets" button which when clicked will invoke the r runtime in docker container to generate the ADAM datasets based on the sdtm datasets provided as input and the consolidated code generated in the "Code Generation" section.
+i also need a create a new page called "Code Review and Finalization"
 
-Ensure that appropriate loading indicators are shown while the ADAM datasets are being generated.
+this will be the final step in the ADaM generation process
 
-ensure that appropriate error handling mechanisms are in place to handle any issues that may arise during the ADAM dataset generation process.
+this will be between the pair programming page and the consolidated code page
 
-ensure that once the ADAM datasets are generated successfully, they are displayed in a tabular format in the main panel with options to download the datasets in various formats like csv, xlsx, etc.
+this page will help the domain experts and developers to review the entire code base generated for the ADaM datasets and can be able to suggest any final changes or improvements before finalizing the code.
 
-ensure that appropriate logging mechanisms are in place to log the ADAM dataset generation process for audit purposes.
+this page should have the following features:
+- Display the entire code base generated for the ADaM datasets in a readable format
+- Allow users to add comments and suggestions on specific lines of code
+- Provide a summary of changes made during the pair programming session
+- Allow users to approve or request changes before finalizing the code
+- Provide an option to export the finalized code in various formats (e.g., PDF, DOCX, etc.)
+- Integrate with the existing workflow to ensure a seamless transition from pair programming to code finalization
 
-ensure that the user can provide feedback on the generated ADAM datasets through a feedback form available in the main panel.
+note that this page is the interemediate step before the consolidated code page
 
-ensure that the entire flow is cohesive and logical for the users to navigate through the application easily.
+if required create additional controls or ui elements to make this as a smooth experience for the users
 
 
-the r editor should be present in the side panel to allow the user to make any modifications to the consolidated code before generating the ADAM datasets.
 
-this will ensure that the user has full control over the code used for generating the ADAM datasets.
 
-and allow the option to download the modified code as a separate file for future reference.
-
-the goal of all these is this app will provide the user the option to run r programs inside the app itself and check the output datasets without the need to switch between different applications.
-
-if possible allow the users to choose the specific r version to run the code in the docker container to ensure compatibility with different r packages used in the consolidated code.
 
 
 

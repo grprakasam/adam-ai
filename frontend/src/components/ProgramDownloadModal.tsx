@@ -1,6 +1,7 @@
 import React from 'react';
 import { Modal, Button, Statistic, message } from 'antd';
 import { Copy, Download } from 'lucide-react';
+import { triggerDownload } from '../utils/downloadHelpers';
 import './ProgramDownloadModal.css';
 
 interface ProgramDownloadModalProps {
@@ -22,15 +23,14 @@ export const ProgramDownloadModal: React.FC<ProgramDownloadModalProps> = ({
     const extension = language === 'R' ? 'R' : 'sas';
     const filename = `${datasetName}.${extension}`;
 
-    const blob = new Blob([programCode], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-
-    message.success(`Program downloaded as ${filename}`);
+    triggerDownload(
+      new Blob([programCode], { type: 'text/plain' }),
+      filename,
+      {
+        onSuccess: () => message.success(`Program downloaded as ${filename}`),
+        onError: (err) => message.error('Failed to download: ' + err.message)
+      }
+    );
   };
 
   const copyToClipboard = () => {

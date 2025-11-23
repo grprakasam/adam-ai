@@ -4,6 +4,7 @@ import Editor from '@monaco-editor/react';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
 import { api } from '../services/api';
+import { triggerDownload } from '../utils/downloadHelpers';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
@@ -398,14 +399,15 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
   const handleSaveCode = () => {
     const codeToSave = isEditing ? editedCode : generationResult.code;
-    const blob = new Blob([codeToSave], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `generated_code.${language.toLowerCase()}`;
-    a.click();
-    URL.revokeObjectURL(url);
-    message.success('Code saved');
+
+    triggerDownload(
+      new Blob([codeToSave], { type: 'text/plain' }),
+      `generated_code.${language.toLowerCase()}`,
+      {
+        onSuccess: () => message.success('Code saved'),
+        onError: (err) => message.error('Failed to save code: ' + err.message)
+      }
+    );
   };
 
   const toggleEditMode = () => {

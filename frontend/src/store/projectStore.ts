@@ -767,7 +767,19 @@ export const useProjectStore = create<ProjectStore>()(
             throw new Error(composed || 'Traceability generation failed');
           }
 
-          const matrix: TraceabilityMatrix = await response.json();
+          // Check if response has content before parsing JSON
+          const responseText = await response.text();
+          if (!responseText || responseText.trim().length === 0) {
+            throw new Error('Server returned an empty response');
+          }
+
+          let matrix: TraceabilityMatrix;
+          try {
+            matrix = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse traceability JSON:', parseError);
+            throw new Error('Server returned invalid JSON response');
+          }
           set({
             traceabilityMatrix: matrix,
             traceabilityLastGenerated: new Date(),
