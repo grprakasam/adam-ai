@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
-import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw } from 'lucide-react';
+import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw, ArrowRight } from 'lucide-react';
 import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
@@ -50,7 +50,7 @@ interface VariablesAnalysisTabProps {
   onNavigateToTraceability?: () => void;
 }
 
-export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToValidation: _onNavigateToValidation, onNavigateToConsolidated: _onNavigateToConsolidated, onNavigateToTraceability: _onNavigateToTraceability }) => {
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToValidation: _onNavigateToValidation, onNavigateToConsolidated, onNavigateToTraceability: _onNavigateToTraceability }) => {
   const {
     specificationFile,
     projectConfig,
@@ -1055,31 +1055,35 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
               )}
             </div>
 
-            <Tooltip
-              title={
-                approvedCount > 0
-                  ? `Generate complete ADAM program from ${approvedCount} approved variable${approvedCount !== 1 ? 's' : ''}`
-                  : 'Approve variables in the pair programming area to include them in the consolidated code'
-              }
+            <a
+              className="consolidated-code-link"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigateToConsolidated?.();
+              }}
+              href="#"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                color: '#3b82f6',
+                textDecoration: 'none',
+                fontWeight: 500,
+                fontSize: '14px',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#2563eb';
+                e.currentTarget.style.textDecoration = 'underline';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#3b82f6';
+                e.currentTarget.style.textDecoration = 'none';
+              }}
             >
-              <button
-                className="generate-adam-code-button-bottom"
-                onClick={handleGenerateADAMCode}
-                disabled={isGeneratingFinalCode}
-              >
-                {isGeneratingFinalCode ? (
-                  <>
-                    <Loader2 size={22} className="spinning" />
-                    <span>Generating Program...</span>
-                  </>
-                ) : (
-                  <>
-                    <Download size={22} />
-                    <span>Generate Complete ADAM Program</span>
-                  </>
-                )}
-              </button>
-            </Tooltip>
+              <span>Consolidated Code</span>
+              <ArrowRight size={16} />
+            </a>
           </div>
         </>
       ) : (
