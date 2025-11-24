@@ -79,7 +79,7 @@ export const CodeReviewTab: React.FC = () => {
         language: programmingLanguage,
         snippet_id: executionId,
         test_dataset_ids: [],
-        timeout: 60,
+        timeout: 300, // 5 minutes timeout for Docker execution
         execution_env: 'docker'
       });
 

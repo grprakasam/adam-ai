@@ -11,6 +11,7 @@ import subprocess
 import asyncio
 import json
 import shutil
+import traceback
 from pathlib import Path
 from datetime import datetime
 import uuid
@@ -232,10 +233,14 @@ async def execute_code_snippet(request: CodeSnippetExecutionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Execution error: {str(e)}")
+        error_msg = str(e).strip() if str(e).strip() else f"{type(e).__name__}: {repr(e)}"
+        if not error_msg:
+            error_msg = f"Unknown error of type {type(e).__name__}"
+        error_traceback = traceback.format_exc()
+        logger.error(f"Execution error: {error_msg}\n{error_traceback}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Execution failed: {str(e)}"
+            detail=f"Execution failed: {error_msg}"
         )
 
 
@@ -248,6 +253,8 @@ async def execute_r_snippet(request: CodeSnippetExecutionRequest) -> CodeExecuti
     import tempfile
     import os
     
+    # Generate unique execution ID for traceability
+    execution_id = str(uuid.uuid4())
     start_time = time.time()
     
     try:
@@ -256,18 +263,23 @@ async def execute_r_snippet(request: CodeSnippetExecutionRequest) -> CodeExecuti
         if request.test_dataset_ids:
             dataset_id = request.test_dataset_ids[0]  # Use first dataset
             metadata = load_datasets_metadata()
-            dataset_info = next((d for d in metadata['datasets'] if d['id'] == dataset_id), None)
+            
+            # Metadata structure: {dataset_id: {info...}}
+            dataset_info = metadata.get(dataset_id) if metadata else None
             
             if dataset_info:
-                dataset_path = Path(DATASETS_DIR) / dataset_id
+                dataset_path = TEST_DATASETS_DIR / dataset_id
                 if not dataset_path.exists():
                     raise ValueError(f"Dataset directory not found: {dataset_id}")
-                logger.info(f"Mounting dataset: {dataset_info['name']} ({dataset_id})")
+                logger.info(f"Mounting dataset: {dataset_info.get('name', dataset_id)} ({dataset_id})")
             else:
                 logger.warning(f"Dataset not found in metadata: {dataset_id}")
         
         # Create temporary directory for execution context
-        with tempfile.TemporaryDirectory() as temp_dir:
+        # Use a more Windows-friendly approach for temp directory
+        temp_dir = None
+        try:
+            temp_dir = tempfile.mkdtemp()
             temp_path = Path(temp_dir)
             
             # Paths
@@ -327,17 +339,45 @@ sessionInfo()
             script_path.write_text(full_script)
             
             # Build Docker command
+            # Convert Windows paths to Docker-compatible format
+            import sys
+            def to_docker_path(path: Path) -> str:
+                """Convert Windows path to Docker-compatible path"""
+                # On Windows, avoid resolve() which can raise NotImplementedError
+                # Use absolute() instead, which is safer for temp directories
+                if sys.platform == 'win32':
+                    try:
+                        # Try absolute() first (safer than resolve() on Windows)
+                        abs_path = path.absolute()
+                    except (NotImplementedError, OSError, AttributeError):
+                        # Last resort: use the path as-is
+                        abs_path = path
+                    
+                    # Docker Desktop on Windows needs forward slashes and drive letter conversion
+                    # e.g., C:\Users\... becomes /c/Users/...
+                    path_str = str(abs_path).replace('\\', '/')
+                    if len(path_str) > 1 and path_str[1] == ':':
+                        # Convert C:/ to /c/
+                        path_str = '/' + path_str[0].lower() + path_str[2:]
+                    return path_str
+                else:
+                    # On Unix-like systems, resolve() is safe
+                    try:
+                        return str(path.resolve())
+                    except Exception:
+                        return str(path.absolute())
+            
             docker_cmd = [
                 "docker", "run",
                 "--rm",  # Remove container after execution
-                "-v", f"{script_path.absolute()}:/script.R:ro",  # Mount script (read-only)
-                "-v", f"{output_path.absolute()}:/output",  # Mount output directory (read-write)
+                "-v", f"{to_docker_path(script_path)}:/script.R:ro",  # Mount script (read-only)
+                "-v", f"{to_docker_path(output_path)}:/output",  # Mount output directory (read-write)
             ]
             
             # Mount dataset if provided
             if dataset_path:
                 docker_cmd.extend([
-                    "-v", f"{dataset_path.absolute()}:/data:ro",  # Mount dataset (read-only)
+                    "-v", f"{to_docker_path(dataset_path)}:/data:ro",  # Mount dataset (read-only)
                 ])
             
             # Add resource limits and security constraints
@@ -353,11 +393,32 @@ sessionInfo()
             
             # Execute Docker container with timeout
             try:
-                process = await asyncio.create_subprocess_exec(
-                    *docker_cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
+                import sys
+                # On Windows, use shell to avoid NotImplementedError issues
+                if sys.platform == 'win32':
+                    # Convert paths to Windows format and escape properly for shell
+                    cmd_str_parts = []
+                    for arg in docker_cmd:
+                        arg_str = str(arg)
+                        # Escape paths with spaces
+                        if ' ' in arg_str or '/' in arg_str or '\\' in arg_str:
+                            cmd_str_parts.append(f'"{arg_str}"')
+                        else:
+                            cmd_str_parts.append(arg_str)
+                    cmd_str = ' '.join(cmd_str_parts)
+                    logger.debug(f"Docker command (Windows shell): {cmd_str}")
+                    process = await asyncio.create_subprocess_shell(
+                        cmd_str,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                else:
+                    # On Unix-like systems, use exec
+                    process = await asyncio.create_subprocess_exec(
+                        *docker_cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
                 
                 stdout, stderr = await asyncio.wait_for(
                     process.communicate(),
@@ -383,6 +444,7 @@ sessionInfo()
                 
                 return CodeExecutionResult(
                     snippet_id=request.snippet_id,
+                    execution_id=execution_id,
                     status=status,
                     language=request.language,
                     console_output=console_output,
@@ -396,12 +458,13 @@ sessionInfo()
                     ),
                     executed_at=datetime.now(),
                 )
-                
+
             except asyncio.TimeoutError:
                 execution_time = time.time() - start_time
                 logger.error(f"Execution timeout after {request.timeout} seconds")
                 return CodeExecutionResult(
                     snippet_id=request.snippet_id,
+                    execution_id=execution_id,
                     status=TestStatus.ERROR,
                     language=request.language,
                     console_output=[],
@@ -413,23 +476,48 @@ sessionInfo()
                     ),
                     executed_at=datetime.now(),
                 )
-        
+        finally:
+            # Clean up temporary directory
+            if temp_dir and Path(temp_dir).exists():
+                try:
+                    shutil.rmtree(temp_dir)
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temp directory {temp_dir}: {cleanup_error}")
+
     except Exception as e:
-        execution_time = time.time() - start_time
-        logger.error(f"Execution error: {str(e)}")
-        return CodeExecutionResult(
-            snippet_id=request.snippet_id,
-            status=TestStatus.ERROR,
-            language=request.language,
-            console_output=[],
-            errors=[f"Execution error: {str(e)}"],
-            warnings=[],
-            dataset_previews=[],
-            performance=PerformanceMetrics(
-                execution_time_seconds=execution_time,
-            ),
-            executed_at=datetime.now(),
-        )
+        execution_time = time.time() - start_time if 'start_time' in locals() else 0.0
+        error_msg = str(e).strip() if str(e).strip() else f"{type(e).__name__}: {repr(e)}"
+        if not error_msg or error_msg == f"{type(e).__name__}: {repr(e)}":
+            error_msg = f"{type(e).__name__}: {repr(e)}"
+        error_traceback = traceback.format_exc()
+        logger.error(f"Execution error in execute_r_snippet: {error_msg}\n{error_traceback}", exc_info=True)
+
+        # Clean up temporary directory on error
+        if 'temp_dir' in locals() and temp_dir and Path(temp_dir).exists():
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as cleanup_error:
+                logger.warning(f"Failed to cleanup temp directory {temp_dir}: {cleanup_error}")
+
+        try:
+            return CodeExecutionResult(
+                snippet_id=request.snippet_id,
+                execution_id=execution_id if 'execution_id' in locals() else str(uuid.uuid4()),
+                status=TestStatus.ERROR,
+                language=request.language,
+                console_output=[],
+                errors=[f"Execution error: {error_msg}"],
+                warnings=[],
+                dataset_previews=[],
+                performance=PerformanceMetrics(
+                    execution_time_seconds=execution_time,
+                ),
+                executed_at=datetime.now(),
+            )
+        except Exception as create_error:
+            logger.error(f"Failed to create CodeExecutionResult: {create_error}\n{traceback.format_exc()}", exc_info=True)
+            # Re-raise with more context
+            raise RuntimeError(f"Execution failed: {error_msg}. Additionally, failed to create result object: {create_error}") from e
 
 
 # ============================================

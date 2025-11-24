@@ -175,7 +175,7 @@ export const RFrontendTab: React.FC = () => {
         language: 'R',
         snippet_id: executionId,
         test_dataset_ids: [],
-        timeout: 120, // 2 minutes timeout
+        timeout: 300, // 5 minutes timeout for Docker execution
         execution_env: 'docker'
       });
 

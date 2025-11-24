@@ -7,6 +7,7 @@ Provides sandboxed execution environment with timeout and resource limits.
 
 import asyncio
 import subprocess
+import sys
 import tempfile
 import shutil
 from pathlib import Path
@@ -73,13 +74,40 @@ class RExecutor:
             # Write script
             script_path.write_text(full_script)
 
+            # Convert Windows paths to Docker-compatible format
+            def to_docker_path(path: Path) -> str:
+                """Convert Windows path to Docker-compatible path"""
+                # On Windows, avoid resolve() which can raise NotImplementedError
+                # Use absolute() instead, which is safer for temp directories
+                if sys.platform == 'win32':
+                    try:
+                        # Try absolute() first (safer than resolve() on Windows)
+                        abs_path = path.absolute()
+                    except (NotImplementedError, OSError, AttributeError):
+                        # Last resort: use the path as-is
+                        abs_path = path
+                    
+                    # Docker Desktop on Windows needs forward slashes and drive letter conversion
+                    # e.g., C:\Users\... becomes /c/Users/...
+                    path_str = str(abs_path).replace('\\', '/')
+                    if len(path_str) > 1 and path_str[1] == ':':
+                        # Convert C:/ to /c/
+                        path_str = '/' + path_str[0].lower() + path_str[2:]
+                    return path_str
+                else:
+                    # On Unix-like systems, resolve() is safe
+                    try:
+                        return str(path.resolve())
+                    except Exception:
+                        return str(path.absolute())
+
             # Build Docker command
             docker_cmd = [
                 "docker", "run",
                 "--rm",  # Remove container after execution
-                "-v", f"{test_data_path.absolute()}:/data:ro",  # Mount test data (read-only)
-                "-v", f"{script_path.absolute()}:/script.R:ro",  # Mount script (read-only)
-                "-v", f"{output_path.absolute()}:/output",  # Mount output directory (read-write)
+                "-v", f"{to_docker_path(test_data_path)}:/data:ro",  # Mount test data (read-only)
+                "-v", f"{to_docker_path(script_path)}:/script.R:ro",  # Mount script (read-only)
+                "-v", f"{to_docker_path(output_path)}:/output",  # Mount output directory (read-write)
                 "--memory", "2g",  # Limit memory to 2GB
                 "--cpus", "2",     # Limit to 2 CPUs
                 "--network", "none",  # No network access (security)
@@ -93,11 +121,31 @@ class RExecutor:
 
             try:
                 # Execute Docker container with timeout
-                process = await asyncio.create_subprocess_exec(
-                    *docker_cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
+                # On Windows, use shell to avoid NotImplementedError issues
+                if sys.platform == 'win32':
+                    # Convert paths to Windows format and escape properly for shell
+                    cmd_str_parts = []
+                    for arg in docker_cmd:
+                        arg_str = str(arg)
+                        # Escape paths with spaces
+                        if ' ' in arg_str or '/' in arg_str or '\\' in arg_str:
+                            cmd_str_parts.append(f'"{arg_str}"')
+                        else:
+                            cmd_str_parts.append(arg_str)
+                    cmd_str = ' '.join(cmd_str_parts)
+                    logger.debug(f"Docker command (Windows shell): {cmd_str}")
+                    process = await asyncio.create_subprocess_shell(
+                        cmd_str,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                else:
+                    # On Unix-like systems, use exec
+                    process = await asyncio.create_subprocess_exec(
+                        *docker_cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
 
                 try:
                     stdout, stderr = await asyncio.wait_for(
@@ -203,11 +251,26 @@ class RExecutor:
 
             try:
                 # Execute R script
-                process = await asyncio.create_subprocess_exec(
-                    "Rscript", str(script_path),
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
+                # On Windows, use shell to avoid NotImplementedError issues
+                if sys.platform == 'win32':
+                    # Escape path properly for shell
+                    script_path_str = str(script_path)
+                    if ' ' in script_path_str:
+                        script_path_str = f'"{script_path_str}"'
+                    cmd_str = f'Rscript {script_path_str}'
+                    logger.debug(f"R command (Windows shell): {cmd_str}")
+                    process = await asyncio.create_subprocess_shell(
+                        cmd_str,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                else:
+                    # On Unix-like systems, use exec
+                    process = await asyncio.create_subprocess_exec(
+                        "Rscript", str(script_path),
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
 
                 try:
                     stdout, stderr = await asyncio.wait_for(

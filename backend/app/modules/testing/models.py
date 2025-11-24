@@ -42,7 +42,7 @@ class CodeSnippetExecutionRequest(BaseModel):
     language: LanguageType = Field(..., description="Programming language (R or SAS)")
     snippet_id: Optional[str] = Field(None, description="Optional snippet identifier")
     test_dataset_ids: List[str] = Field(default_factory=list, description="List of test dataset IDs to mount")
-    timeout: int = Field(60, description="Execution timeout in seconds (30s, 60s, 300s)")
+    timeout: int = Field(300, description="Execution timeout in seconds (default: 300s / 5 minutes)")
     execution_env: ExecutionEnvironment = Field(ExecutionEnvironment.DOCKER, description="Execution environment")
 
 
