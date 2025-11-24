@@ -46,7 +46,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 60000, // 60 seconds default timeout
+  timeout: 300000, // 5 minutes default timeout (300 seconds) - increased for Docker execution
 });
 
 // Request interceptor for adding common headers
@@ -832,7 +832,15 @@ export const adamApi = {
     timeout?: number;
     execution_env?: 'docker' | 'local';
   }) => {
-    const response = await apiClient.post('/code-execution/execute-snippet', request);
+    // Use longer timeout for Docker execution (5 minutes default)
+    const timeoutSeconds = request.timeout || 300; // Default to 300 seconds (5 minutes)
+    const timeoutMs = (timeoutSeconds + 30) * 1000; // Add 30 seconds buffer for network overhead and Docker startup
+    const response = await apiClient.post('/code-execution/execute-snippet', {
+      ...request,
+      timeout: timeoutSeconds,
+    }, {
+      timeout: timeoutMs, // Override axios timeout for this specific request
+    });
     return response.data;
   },
 

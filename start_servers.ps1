@@ -35,21 +35,21 @@ function Stop-ProcessOnPort {
             $line = $_.Line.Trim()
             $parts = $line -split '\s+'
             if ($parts.Length -ge 5) {
-                $pid = $parts[-1]
-                if ($pid -match '^\d+$') {
-                    $pid
+                $processId = $parts[-1]
+                if ($processId -match '^\d+$') {
+                    $processId
                 }
             }
         }
         
         $uniquePids = $connections | Sort-Object -Unique
         
-        foreach ($pid in $uniquePids) {
+        foreach ($processId in $uniquePids) {
             try {
-                $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+                $proc = Get-Process -Id $processId -ErrorAction SilentlyContinue
                 if ($proc) {
-                    Write-Host "  Stopping process: $($proc.ProcessName) (PID: $pid)" -ForegroundColor Yellow
-                    Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+                    Write-Host "  Stopping process: $($proc.ProcessName) (PID: $processId)" -ForegroundColor Yellow
+                    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
                     $found = $true
                     Start-Sleep -Milliseconds 500
                 }

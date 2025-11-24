@@ -76,7 +76,7 @@ export const CodeValidatorTab: React.FC = () => {
   const [currentSnippet, setCurrentSnippet] = useState<SnippetItem | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
-  const [timeout, setTimeout] = useState<number>(60);
+  const [timeout, setTimeout] = useState<number>(300); // Default to 5 minutes
   const [dockerStatus, setDockerStatus] = useState<any>(null);
   const [checkingDocker, setCheckingDocker] = useState(true);
   const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(null);

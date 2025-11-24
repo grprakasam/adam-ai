@@ -19,10 +19,32 @@ JWT_SECRET = settings.SECRET_KEY
 
 # Password hashing
 # Using pbkdf2_sha256 avoids Windows bcrypt backend issues on Python 3.13
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+# Explicitly disable bcrypt to prevent fallback issues
+try:
+    pwd_context = CryptContext(
+        schemes=["pbkdf2_sha256"],
+        deprecated="auto",
+        pbkdf2_sha256__default_rounds=29000,
+        # Explicitly disable bcrypt and other schemes
+        default="pbkdf2_sha256"
+    )
+    # Test that pbkdf2_sha256 is available
+    test_hash = pwd_context.hash("test")
+    if not test_hash.startswith("$pbkdf2-sha256$"):
+        raise ValueError("pbkdf2_sha256 not properly configured")
+except Exception as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"Failed to initialize password context: {e}")
+    # Fallback to basic configuration
+    pwd_context = CryptContext(
+        schemes=["pbkdf2_sha256"], 
+        deprecated="auto",
+        default="pbkdf2_sha256"
+    )
 
 # OAuth2 scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 # Models
@@ -50,12 +72,23 @@ class UserInDB(User):
 
 # Temporary in-memory user database
 # TODO: Replace with actual database in Phase 2
+# Generate fresh password hashes for all users using pbkdf2_sha256 explicitly
+from passlib.hash import pbkdf2_sha256 as pbkdf2
+_admin_hash = pbkdf2.hash("admin")
+_developer_hash = pbkdf2.hash("admin")  # Same password for developer
+_user_hash = pbkdf2.hash("admin")  # Same password for user
+
+# Verify hashes are in correct format
+assert _admin_hash.startswith("$pbkdf2-sha256$"), "Password hash must be pbkdf2_sha256 format"
+assert _developer_hash.startswith("$pbkdf2-sha256$"), "Password hash must be pbkdf2_sha256 format"
+assert _user_hash.startswith("$pbkdf2-sha256$"), "Password hash must be pbkdf2_sha256 format"
+
 USERS_DB = {
     "admin": {
         "username": "admin",
         "full_name": "Admin User",
         "email": "admin@adamai.com",
-        "hashed_password": "$pbkdf2-sha256$29000$3puzFiLEGANgzLmX8h4DoA$M7NJXUi/vr.bIVNFGIDsThNKnalkyumVWg0O1.aUKlM",
+        "hashed_password": _admin_hash,
         "disabled": False,
         "role": "admin",
     },
@@ -63,7 +96,7 @@ USERS_DB = {
         "username": "developer",
         "full_name": "Senior Developer",
         "email": "developer@adamai.com",
-        "hashed_password": "$pbkdf2-sha256$29000$3puzFiLEGANgzLmX8h4DoA$M7NJXUi/vr.bIVNFGIDsThNKnalkyumVWg0O1.aUKlM",
+        "hashed_password": _developer_hash,
         "disabled": False,
         "role": "senior_developer",
     },
@@ -71,7 +104,7 @@ USERS_DB = {
         "username": "user",
         "full_name": "Regular User",
         "email": "user@adamai.com",
-        "hashed_password": "$pbkdf2-sha256$29000$3puzFiLEGANgzLmX8h4DoA$M7NJXUi/vr.bIVNFGIDsThNKnalkyumVWg0O1.aUKlM",
+        "hashed_password": _user_hash,
         "disabled": False,
         "role": "user",
     },
@@ -80,7 +113,64 @@ USERS_DB = {
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        # Ensure password is a string
+        if not isinstance(plain_password, str):
+            plain_password = str(plain_password)
+        
+        # Ensure hashed_password is a string
+        if not isinstance(hashed_password, str):
+            hashed_password = str(hashed_password)
+        
+        # Verify the hash format is pbkdf2_sha256 (should start with $pbkdf2-sha256$)
+        # If it's not pbkdf2_sha256, we need to rehash it
+        if not hashed_password.startswith("$pbkdf2-sha256$"):
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Hash format mismatch: {hashed_password[:30]}... - regenerating with pbkdf2_sha256")
+            # If the hash is in a different format, we can't verify it directly
+            # This means the hash was created with a different algorithm
+            # For now, return False and let the system regenerate hashes on next restart
+            return False
+        
+        # pbkdf2_sha256 doesn't have the 72-byte limit, but add safety check anyway
+        password_bytes = plain_password.encode('utf-8')
+        if len(password_bytes) > 1000:  # Reasonable upper limit
+            return False
+        
+        # Use passlib to verify - explicitly specify scheme to avoid bcrypt fallback
+        # Use identify() to check the hash format first
+        from passlib.hash import pbkdf2_sha256
+        try:
+            # Try to identify the hash
+            if pbkdf2_sha256.identify(hashed_password):
+                return pbkdf2_sha256.verify(plain_password, hashed_password)
+            else:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Hash is not pbkdf2_sha256 format: {hashed_password[:30]}...")
+                return False
+        except Exception as verify_error:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"pbkdf2_sha256 verification error: {str(verify_error)}")
+            return False
+    except ValueError as e:
+        # Handle specific passlib errors
+        import logging
+        logger = logging.getLogger(__name__)
+        error_msg = str(e)
+        if "cannot be longer than 72 bytes" in error_msg:
+            logger.error("Password verification failed: bcrypt backend was used (should use pbkdf2_sha256)")
+            return False
+        logger.error(f"Password verification error: {error_msg}")
+        return False
+    except Exception as e:
+        # Log the error for debugging but don't expose it to user
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Password verification error: {str(e)}")
+        return False
 
 
 def get_password_hash(password: str) -> str:
@@ -98,11 +188,20 @@ def get_user(username: str) -> Optional[UserInDB]:
 
 def authenticate_user(username: str, password: str) -> Optional[UserInDB]:
     """Authenticate a user"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
     user = get_user(username)
     if not user:
+        logger.warning(f"User not found: {username}")
         return None
+    
+    logger.debug(f"Verifying password for user: {username}")
     if not verify_password(password, user.hashed_password):
+        logger.warning(f"Password verification failed for user: {username}")
         return None
+    
+    logger.info(f"Authentication successful for user: {username}")
     return user
 
 
@@ -180,4 +279,21 @@ def generate_password_hash(password: str) -> str:
 
 if __name__ == "__main__":
     # Generate password hash for testing
-    print("Password hash for 'admin':", generate_password_hash("admin"))
+    print("=" * 60)
+    print("Generating password hashes for default users...")
+    print("=" * 60)
+    
+    # Generate hash for "admin"
+    admin_hash = generate_password_hash("admin")
+    print(f"\nPassword: admin")
+    print(f"Hash: {admin_hash}")
+    print(f"Verification: {verify_password('admin', admin_hash)}")
+    
+    # Test with existing hash
+    existing_hash = "$pbkdf2-sha256$29000$gxBCqFXKWSvlHMPYW6vVWg$hwL2MZU7eygg.POl1tauSQp6XTunA3ZmQlxD62XX7zc"
+    print(f"\nTesting existing hash:")
+    print(f"Verification with 'admin': {verify_password('admin', existing_hash)}")
+    
+    print("\n" + "=" * 60)
+    print("Update USERS_DB with the new hash above if verification fails")
+    print("=" * 60)

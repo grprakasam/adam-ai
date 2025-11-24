@@ -31,7 +31,17 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     - developer/admin (Senior Developer role)
     - user/admin (Regular user role)
     """
-    user = authenticate_user(form_data.username, form_data.password)
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Ensure password is a string and handle encoding
+    password = str(form_data.password) if form_data.password else ""
+    username = str(form_data.username) if form_data.username else ""
+    
+    logger.info(f"Login attempt for username: {username}")
+    logger.debug(f"Password length: {len(password)}")
+    
+    user = authenticate_user(username, password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
