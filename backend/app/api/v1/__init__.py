@@ -24,6 +24,7 @@ from app.api.v1.endpoints import (
     testing,
     adam_generation,
     r_execution,
+    code_review_finalization,
 )
 from app.api import auth_routes, validation_routes, performance_routes, review_routes
 
@@ -57,6 +58,7 @@ api_router.include_router(code_execution.router, tags=["code-execution"])
 api_router.include_router(testing.router, tags=["testing"])
 api_router.include_router(adam_generation.router, tags=["adam-generation"])
 api_router.include_router(r_execution.router, tags=["r-execution"])
+api_router.include_router(code_review_finalization.router, prefix="/code-review", tags=["code-review-finalization"])
 
 
 @api_router.get("/status")

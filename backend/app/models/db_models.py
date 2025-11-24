@@ -26,7 +26,7 @@ from sqlalchemy import (
     UniqueConstraint
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
 from app.core.database import Base
@@ -61,7 +61,7 @@ class UserDB(Base):
 
     # Role and permissions
     role: Mapped[str] = mapped_column(String(50), default="statistician", nullable=False)
-    permissions: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    permissions: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
     # Audit fields
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
@@ -124,8 +124,8 @@ class AuditEntryDB(Base):
     resource_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
 
     # State tracking (before/after)
-    before_state: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    after_state: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    before_state: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    after_state: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Regulatory compliance
     regulatory_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -257,7 +257,7 @@ class CodeSnippetDB(Base):
 
     # Validation results
     validation_status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
-    validation_results: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    validation_results: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     cdisc_compliant: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 
     # CDISC rule validation
@@ -431,7 +431,7 @@ class DefineXMLDB(Base):
 
     # Validation
     validated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    validation_results: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    validation_results: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Audit fields
     generated_by: Mapped[str] = mapped_column(String(50), ForeignKey("users.id"), nullable=False)
@@ -443,4 +443,136 @@ class DefineXMLDB(Base):
     __table_args__ = (
         Index("idx_define_study", "study_id"),
         Index("idx_define_generated", "generated_at"),
+    )
+
+
+# ============================================================================
+# Code Review & Finalization Models
+# ============================================================================
+
+class CodeReviewSessionDB(Base):
+    """
+    Code review session for consolidated ADAM program
+
+    Tracks the review workflow for complete programs (not individual variables).
+    Each session is scoped to study_id + dataset + language + run_id.
+    """
+    __tablename__ = "code_review_sessions"
+
+    # Primary key
+    id: Mapped[str] = mapped_column(
+        String(50),
+        primary_key=True,
+        default=lambda: f"review-session-{uuid.uuid4().hex[:12]}"
+    )
+
+    # Study context (composite key for uniqueness)
+    study_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    dataset: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    language: Mapped[str] = mapped_column(String(10), nullable=False)
+    run_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+
+    # Review status
+    status: Mapped[str] = mapped_column(
+        String(50),
+        default="not_started",
+        nullable=False,
+        index=True
+    )  # not_started, in_review, changes_requested, approved
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+        index=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    # Relationships
+    comments = relationship(
+        "CodeReviewCommentDB",
+        back_populates="session",
+        cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "study_id", "dataset", "language", "run_id",
+            name="uq_review_session_context"
+        ),
+        Index("idx_review_session_study", "study_id"),
+        Index("idx_review_session_status", "status"),
+        Index("idx_review_session_created", "created_at"),
+    )
+
+
+class CodeReviewCommentDB(Base):
+    """
+    Comment on a code review session
+
+    Supports line-level commenting on consolidated programs.
+    Each comment belongs to a session and optionally references a line number.
+    """
+    __tablename__ = "code_review_comments"
+
+    # Primary key
+    id: Mapped[str] = mapped_column(
+        String(50),
+        primary_key=True,
+        default=lambda: f"review-comment-{uuid.uuid4().hex[:12]}"
+    )
+
+    # Foreign key to session
+    session_id: Mapped[str] = mapped_column(
+        String(50),
+        ForeignKey("code_review_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    # Comment location
+    line_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    variable_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+
+    # Comment content
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Author information
+    author: Mapped[str] = mapped_column(String(255), default="System", nullable=False)
+    role: Mapped[str] = mapped_column(String(50), default="reviewer", nullable=False)
+
+    # Comment status
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="open",
+        nullable=False
+    )  # open, resolved, dismissed
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+        index=True
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        onupdate=datetime.utcnow,
+        nullable=True
+    )
+
+    # Relationships
+    session = relationship("CodeReviewSessionDB", back_populates="comments")
+
+    __table_args__ = (
+        Index("idx_review_comment_session", "session_id"),
+        Index("idx_review_comment_line", "line_number"),
+        Index("idx_review_comment_status", "status"),
+        Index("idx_review_comment_created", "created_at"),
     )

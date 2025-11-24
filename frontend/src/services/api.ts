@@ -1063,6 +1063,114 @@ export const adamApi = {
     const response = await apiClient.get('/r-execution/capabilities');
     return response.data;
   },
+
+  // ============================================================================
+  // Code Execution API Methods (Interactive Code Executor)
+  // ============================================================================
+
+  // Execute code snippet (R or SAS)
+  executeCodeSnippet: async (request: {
+    code: string;
+    language: string;
+    snippet_id?: string;
+    test_dataset_ids?: string[];
+    timeout?: number;
+    execution_env?: string;
+  }) => {
+    const response = await apiClient.post('/code-execution/execute-snippet', request);
+    return response.data;
+  },
+
+  // Check code execution environment status
+  getExecutionEnvironmentStatus: async () => {
+    const response = await apiClient.get('/code-execution/environment-status');
+    return response.data;
+  },
+
+  // ============================================================================
+  // Code Review & Finalization API Methods
+  // ============================================================================
+
+  // Get or create code review session
+  getOrCreateReviewSession: async (request: {
+    study_id: string;
+    dataset: string;
+    language: string;
+    run_id?: string;
+  }) => {
+    const response = await apiClient.post('/code-review/session', request);
+    return response.data;
+  },
+
+  // Get code review session by ID
+  getReviewSession: async (sessionId: string) => {
+    const response = await apiClient.get(`/code-review/session/${sessionId}`);
+    return response.data;
+  },
+
+  // Update review session status
+  updateReviewSessionStatus: async (
+    sessionId: string,
+    status: import('../types').CodeReviewStatus
+  ) => {
+    const response = await apiClient.patch(`/code-review/session/${sessionId}/status`, {
+      status,
+    });
+    return response.data;
+  },
+
+  // List review comments
+  listReviewComments: async (sessionId: string, statusFilter?: string) => {
+    const response = await apiClient.get('/code-review/comments', {
+      params: { session_id: sessionId, status_filter: statusFilter },
+    });
+    return response.data;
+  },
+
+  // Create review comment
+  createReviewComment: async (request: import('../types').CreateCommentRequest) => {
+    const response = await apiClient.post('/code-review/comments', request);
+    return response.data;
+  },
+
+  // Update review comment
+  updateReviewComment: async (
+    commentId: string,
+    updates: import('../types').UpdateCommentRequest
+  ) => {
+    const response = await apiClient.patch(`/code-review/comments/${commentId}`, null, {
+      params: updates,
+    });
+    return response.data;
+  },
+
+  // Delete review comment (soft delete)
+  deleteReviewComment: async (commentId: string) => {
+    const response = await apiClient.delete(`/code-review/comments/${commentId}`);
+    return response.data;
+  },
+
+  // Export review documentation as PDF
+  exportReviewPDF: async (request: import('../types').ExportReviewRequest) => {
+    const response = await apiClient.post('/code-review/export', request, {
+      responseType: 'blob',
+    });
+
+    // Trigger download
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute(
+      'download',
+      `code_review_${request.study_id}_${request.dataset}_${request.language}.pdf`
+    );
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+
+    return response.data;
+  },
 };
 
 export default adamApi;

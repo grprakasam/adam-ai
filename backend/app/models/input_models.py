@@ -240,6 +240,8 @@ class CodeSnippetResponse(BaseModel):
             "variable": "AGE",
             "code_snippet": "# Derive AGE from DM domain\nADSL$AGE <- DM$AGE",
             "coding_rationale": "Age is directly mapped from the Demographics (DM) domain.",
+            "pseudo_code": "1. Extract AGE from Demographics domain\n2. Assign to ADSL dataset\n3. Retain numeric format",
+            "pseudo_summary": "Direct mapping from DM.AGE to ADSL.AGE",
             "language": "R",
             "warnings": [],
             "validated": True,
@@ -257,6 +259,8 @@ class CodeSnippetResponse(BaseModel):
     language: str = Field(..., description="Programming language used for generation")
     code_snippet: str = Field(..., description="Generated code snippet")
     coding_rationale: str = Field(..., description="Explanation of the coding logic")
+    pseudo_code: Optional[str] = Field(default=None, description="Human-readable pseudo-code explanation of derivation logic (language-independent)")
+    pseudo_summary: Optional[str] = Field(default=None, description="One-line summary of the pseudo-code logic")
     metadata: Optional[dict] = Field(default=None, description="Metadata about the generation (model, tokens, etc.)")
     warnings: Optional[List[str]] = Field(default_factory=list, description="Non-blocking warnings raised during generation")
     validated: bool = Field(default=False, description="Whether the snippet passed basic validation checks")
@@ -293,3 +297,100 @@ class BulkCodeGenerationRequest(BaseModel):
     standards: dict = Field(..., description="Standards versions (SDTM, ADaM IG, MedDRA)")
     llm_provider: Optional[str] = Field(default=None, description="LLM provider to use (groq, openai, anthropic, google, openrouter)")
     model: Optional[str] = Field(default=None, description="Specific model to use (required for openrouter)")
+
+
+# ============================================================================
+# Code Review & Finalization Models (for consolidated program review)
+# ============================================================================
+
+class CodeReviewStatus(str, Enum):
+    """Status of code review session"""
+    NOT_STARTED = "not_started"
+    IN_REVIEW = "in_review"
+    CHANGES_REQUESTED = "changes_requested"
+    APPROVED = "approved"
+
+
+class CodeReviewSessionRequest(BaseModel):
+    """Request to get or create a code review session"""
+    study_id: str = Field(..., description="Study identifier")
+    dataset: str = Field(..., description="ADAM dataset name (e.g., ADSL)")
+    language: str = Field(..., description="Programming language (R or SAS)")
+    run_id: Optional[str] = Field(default=None, description="Optional run ID for versioning")
+
+
+class CodeReviewSessionResponse(BaseModel):
+    """Response model for code review session"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "id": "session-123",
+            "study_id": "STUDY001",
+            "dataset": "ADSL",
+            "language": "R",
+            "run_id": "run-456",
+            "status": "in_review",
+            "created_at": "2024-01-15T10:30:00Z",
+            "updated_at": "2024-01-15T14:20:00Z"
+        }
+    })
+
+    id: str = Field(..., description="Session identifier")
+    study_id: str = Field(..., description="Study identifier")
+    dataset: str = Field(..., description="ADAM dataset name")
+    language: str = Field(..., description="Programming language")
+    run_id: Optional[str] = Field(default=None, description="Run ID if applicable")
+    status: CodeReviewStatus = Field(..., description="Review status")
+    created_at: str = Field(..., description="Session creation timestamp")
+    updated_at: str = Field(..., description="Last update timestamp")
+
+
+class CodeReviewCommentRequest(BaseModel):
+    """Request to add a comment to code review"""
+    session_id: str = Field(..., description="Review session identifier")
+    line_number: Optional[int] = Field(default=None, description="Line number in code (optional)")
+    variable_name: Optional[str] = Field(default=None, description="Variable name if comment is variable-specific")
+    text: str = Field(..., description="Comment text")
+    author: Optional[str] = Field(default="System", description="Comment author")
+    role: Optional[str] = Field(default="reviewer", description="Author role")
+
+
+class CodeReviewCommentResponse(BaseModel):
+    """Response model for code review comment"""
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "id": "comment-789",
+            "session_id": "session-123",
+            "line_number": 42,
+            "variable_name": "AGE",
+            "text": "Consider adding range validation for AGE variable",
+            "author": "John Doe",
+            "role": "senior_statistician",
+            "status": "open",
+            "created_at": "2024-01-15T11:00:00Z"
+        }
+    })
+
+    id: str = Field(..., description="Comment identifier")
+    session_id: str = Field(..., description="Review session identifier")
+    line_number: Optional[int] = Field(default=None, description="Line number in code")
+    variable_name: Optional[str] = Field(default=None, description="Variable name")
+    text: str = Field(..., description="Comment text")
+    author: str = Field(..., description="Comment author")
+    role: str = Field(..., description="Author role")
+    status: str = Field(default="open", description="Comment status (open/resolved)")
+    created_at: str = Field(..., description="Comment creation timestamp")
+
+
+class UpdateReviewStatusRequest(BaseModel):
+    """Request to update review session status"""
+    status: CodeReviewStatus = Field(..., description="New review status")
+
+
+class ExportReviewRequest(BaseModel):
+    """Request to export code review documentation"""
+    study_id: str = Field(..., description="Study identifier")
+    dataset: str = Field(..., description="ADAM dataset name")
+    language: str = Field(..., description="Programming language")
+    run_id: Optional[str] = Field(default=None, description="Run ID if applicable")
+    format: str = Field(default="pdf", description="Export format (pdf, docx, text)")
+    include_comments: bool = Field(default=True, description="Include comments in export")

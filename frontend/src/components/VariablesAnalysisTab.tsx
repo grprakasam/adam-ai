@@ -303,17 +303,21 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       const canUseServerPath = specificationFile.isDefault || specificationFile.path?.startsWith('Content/');
 
       if (canUseServerPath) {
+        console.log('Using server path categorization');
         result = await adamApi.categorizeSpecification(
           specificationFile.path,
           projectConfig.adamDataset,
           { signal: categorizeAbortRef.current.signal, timeoutMs: 180000 }
         );
+        console.log('Server path categorization completed');
       } else if (tempSpecFile) {
+        console.log('Using file upload categorization');
         result = await adamApi.categorizeSpecificationFile(
           tempSpecFile,
           projectConfig.adamDataset,
           { signal: categorizeAbortRef.current.signal, timeoutMs: 180000 }
         );
+        console.log('File upload categorization completed');
       } else {
         throw new Error('Specification file not accessible. Please upload the file again so we can process it.');
       }
@@ -325,6 +329,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       console.log('First variable sample:', result.categories[0]?.variables[0]);
 
       setCategorizedVariables(result);
+      console.log('Categorized variables set in state');
       message.success(
         `Categorized ${result.total_variables} variables into ${result.categories.length} categories using VariablesMapping.xlsx`
       );
@@ -354,6 +359,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       }
       console.error('Categorization error:', err);
     } finally {
+      console.log('Categorization finally block - setting isCategorizingVariables to false');
       setIsCategorizingVariables(false);
       categorizeAbortRef.current = null;
     }

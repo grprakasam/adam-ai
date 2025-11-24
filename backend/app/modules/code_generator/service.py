@@ -185,6 +185,79 @@ class CodeGeneratorService:
         if isinstance(response, dict):
             return response.get("model")
         return None
+
+    def _parse_json_response(
+        self,
+        raw_response: str,
+        language: str,
+        variable_name: str
+    ) -> tuple[str, Optional[str], Optional[str]]:
+        """
+        Parse JSON response from LLM to extract code, pseudo-code, and summary.
+
+        Args:
+            raw_response: Raw text response from LLM
+            language: Programming language (for fallback cleaning)
+            variable_name: Variable name (for logging)
+
+        Returns:
+            Tuple of (code_snippet, pseudo_code, pseudo_summary)
+        """
+        import json
+
+        # Try to parse as JSON
+        try:
+            # Remove markdown code blocks if present
+            cleaned = raw_response.strip()
+            if cleaned.startswith('```'):
+                # Extract JSON from code block
+                lines = cleaned.split('\n')
+                # Find start and end of JSON
+                start_idx = 0
+                for i, line in enumerate(lines):
+                    if line.strip().startswith('{'):
+                        start_idx = i
+                        break
+                end_idx = len(lines)
+                for i in range(len(lines) - 1, -1, -1):
+                    if lines[i].strip().endswith('}'):
+                        end_idx = i + 1
+                        break
+                cleaned = '\n'.join(lines[start_idx:end_idx])
+
+            # Parse JSON
+            data = json.loads(cleaned)
+
+            code_snippet = data.get('code_snippet', '')
+            pseudo_code = data.get('pseudo_code')
+            pseudo_summary = data.get('pseudo_summary')
+
+            # Clean the code snippet
+            if code_snippet:
+                code_snippet = clean_generated_code(code_snippet, language)
+
+            # Validate and truncate pseudo-code if too long (max ~15 lines)
+            if pseudo_code and len(pseudo_code.split('\n')) > 15:
+                lines = pseudo_code.split('\n')[:15]
+                pseudo_code = '\n'.join(lines) + '\n(truncated)'
+                logger.warning(f"Pseudo-code for {variable_name} truncated to 15 lines")
+
+            logger.debug(f"Successfully parsed JSON response for {variable_name}")
+            return code_snippet, pseudo_code, pseudo_summary
+
+        except json.JSONDecodeError as e:
+            logger.warning(
+                f"Failed to parse JSON response for {variable_name}: {str(e)}. "
+                f"Falling back to plain text extraction."
+            )
+            # Fallback: treat entire response as code
+            code_snippet = clean_generated_code(raw_response, language)
+            return code_snippet, None, None
+        except Exception as e:
+            logger.error(f"Unexpected error parsing response for {variable_name}: {str(e)}")
+            # Fallback: treat entire response as code
+            code_snippet = clean_generated_code(raw_response, language)
+            return code_snippet, None, None
     
     def _build_rationale_summary(
         self,
@@ -410,31 +483,34 @@ class CodeGeneratorService:
                 code_response = await self._call_llm(
                     prompt=code_prompt,
                     temperature=0.2,  # Lower temperature for faster, more deterministic responses
-                    max_tokens=300,  # OPTIMIZED: Reduced from 400 to 300 for faster responses
+                    max_tokens=500,  # INCREASED: from 300 to 500 to accommodate JSON structure + pseudo-code
                     provider=provider_to_use,
                     model=model
                 )
-                raw_code = self._extract_content(code_response)
-                
-                # Clean the generated code to remove unwanted sections
-                code_snippet = clean_generated_code(raw_code, language)
-                
+                raw_response = self._extract_content(code_response)
+
+                # Parse JSON response with pseudo-code
+                code_snippet, pseudo_code, pseudo_summary = self._parse_json_response(
+                    raw_response, language, variable_name
+                )
+
                 coding_rationale = self._build_rationale_summary(
                     variable_name=variable_name,
                     derivation_logic=derivation,
                     language=language,
                     context=context
                 )
-                
+
                 logger.info(f"✅ Successfully generated code for {variable_name}")
-                
+
                 # Build result matching old format
                 metadata = {
                     'provider': provider_to_use or settings.DEFAULT_LLM_PROVIDER,
                     'model': self._extract_model_name(code_response) or settings.DEFAULT_MODEL,
                     'language': language,
                     'variable_type': variable_type,
-                    'user_note_applied': bool(note_summary)
+                    'user_note_applied': bool(note_summary),
+                    'has_pseudo_code': bool(pseudo_code)
                 }
                 if note_summary:
                     metadata['user_note_summary'] = note_summary[:200]
@@ -444,6 +520,8 @@ class CodeGeneratorService:
                     'language': language,
                     'code_snippet': code_snippet,
                     'coding_rationale': coding_rationale,
+                    'pseudo_code': pseudo_code,
+                    'pseudo_summary': pseudo_summary,
                     'metadata': metadata,
                     'validated': True,  # Basic validation
                     'warnings': [],
@@ -465,6 +543,8 @@ class CodeGeneratorService:
                     'language': language,
                     'code_snippet': fallback_code,
                     'coding_rationale': fallback_rationale,
+                    'pseudo_code': None,  # No pseudo-code for fallback templates
+                    'pseudo_summary': None,
                     'error': f"Generation failed: {error_msg}. Using fallback template.",
                     'validated': False,
                     'warnings': ['This is a template - please review and customize'],
@@ -473,7 +553,8 @@ class CodeGeneratorService:
                         'model': 'fallback',
                         'language': language,
                         'variable_type': variable_type,
-                        'is_fallback': True
+                        'is_fallback': True,
+                        'has_pseudo_code': False
                     }
                 }
     
@@ -548,13 +629,16 @@ class CodeGeneratorService:
                     'language': language,
                     'code_snippet': quick_code,
                     'coding_rationale': f'Generated using template for {var_name}',
+                    'pseudo_code': None,  # Template generation doesn't produce pseudo-code
+                    'pseudo_summary': None,
                     'validated': True,
                     'warnings': [],
                     'error': None,
                     'metadata': {
                         'provider': 'template',
                         'generation_method': 'template_based',
-                        'variable_type': variable.get('type', 'Unknown')
+                        'variable_type': variable.get('type', 'Unknown'),
+                        'has_pseudo_code': False
                     }
                 })
                 # Cache the template result
@@ -707,6 +791,8 @@ class CodeGeneratorService:
                             'language': language,
                             'code_snippet': fallback_code,
                             'coding_rationale': fallback_rationale,
+                            'pseudo_code': None,  # No pseudo-code for fallback
+                            'pseudo_summary': None,
                             'error': f"Batch generation failed: {error_msg}",
                             'validated': False,
                             'warnings': ['Batch generation failed - using template'],
@@ -716,7 +802,8 @@ class CodeGeneratorService:
                                 'language': language,
                                 'variable_type': variable.get('type', 'Num'),
                                 'is_fallback': True,
-                                'batch_failed': True
+                                'batch_failed': True,
+                                'has_pseudo_code': False
                             }
                         })
 

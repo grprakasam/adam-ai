@@ -17,7 +17,7 @@ interface PairProgrammingAreaProps {
 // }
 
 // Field visibility configuration
-type FieldId = 'type' | 'length' | 'format' | 'origin' | 'derivation' | 'rationale' | 'code';
+type FieldId = 'type' | 'length' | 'format' | 'origin' | 'derivation' | 'rationale' | 'pseudo' | 'code';
 
 interface FieldDefinition {
   id: FieldId;
@@ -33,6 +33,7 @@ const FIELD_DEFINITIONS: FieldDefinition[] = [
   { id: 'origin', label: 'Origin', alwaysVisible: false, requiresSnippet: false },
   { id: 'derivation', label: 'Derivation Logic', alwaysVisible: false, requiresSnippet: false },
   { id: 'rationale', label: 'Coding Rationale', alwaysVisible: false, requiresSnippet: true },
+  { id: 'pseudo', label: 'Pseudo-Code', alwaysVisible: false, requiresSnippet: true },
   { id: 'code', label: 'Code Snippet', alwaysVisible: false, requiresSnippet: true },
 ];
 
@@ -690,6 +691,23 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                           <div className="detail-block-content">
                             {snippet.rationale}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Pseudo-Code */}
+                      {isFieldVisible('pseudo') && snippet?.pseudoCode && (
+                        <div className="detail-block">
+                          <div className="detail-block-title">
+                            🔍 Pseudo-Code
+                            {snippet.pseudoSummary && (
+                              <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#9ca3af', marginLeft: '8px' }}>
+                                — {snippet.pseudoSummary}
+                              </span>
+                            )}
+                          </div>
+                          <pre className="detail-code-block" style={{ background: '#f5f5f5', borderLeft: '4px solid #007acc' }}>
+                            {snippet.pseudoCode}
+                          </pre>
                         </div>
                       )}
 

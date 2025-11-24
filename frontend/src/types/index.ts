@@ -126,6 +126,8 @@ export interface CodeSnippetResponse {
   variable: string;  // Variable name - REQUIRED for bulk operations
   code_snippet: string;
   coding_rationale: string;
+  pseudo_code?: string;  // Human-readable pseudo-code (language-independent)
+  pseudo_summary?: string;  // One-line summary of pseudo-code logic
   metadata?: {
     provider?: string;
     model?: string;
@@ -135,6 +137,7 @@ export interface CodeSnippetResponse {
     confidence_score?: number;
     user_note_applied?: boolean;
     user_note_summary?: string;
+    has_pseudo_code?: boolean;
   };
   warnings?: string[];
   validated?: boolean;
@@ -249,4 +252,61 @@ export interface GenerationResponse {
     dataSources: string;
     implementationNotes: string;
   };
+}
+
+// ============================================================================
+// Code Review & Finalization Types
+// ============================================================================
+
+export enum CodeReviewStatus {
+  NOT_STARTED = 'not_started',
+  IN_REVIEW = 'in_review',
+  CHANGES_REQUESTED = 'changes_requested',
+  APPROVED = 'approved'
+}
+
+export interface CodeReviewSession {
+  id: string;
+  study_id: string;
+  dataset: string;
+  language: string;
+  run_id?: string;
+  status: CodeReviewStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CodeReviewComment {
+  id: string;
+  session_id: string;
+  line_number?: number;
+  variable_name?: string;
+  text: string;
+  author: string;
+  role: string;
+  status: 'open' | 'resolved' | 'dismissed';
+  created_at: string;
+}
+
+export interface CreateCommentRequest {
+  session_id: string;
+  line_number?: number;
+  variable_name?: string;
+  text: string;
+  author?: string;
+  role?: string;
+}
+
+export interface UpdateCommentRequest {
+  text?: string;
+  status?: 'open' | 'resolved' | 'dismissed';
+}
+
+export interface ExportReviewRequest {
+  study_id: string;
+  dataset: string;
+  language: string;
+  run_id?: string;
+  format: 'pdf' | 'docx' | 'text';
+  include_comments: boolean;
 }

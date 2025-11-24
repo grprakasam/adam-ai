@@ -33,6 +33,8 @@ export interface VariableSnippet {
   variable: string;
   codeSnippet: string;
   rationale: string;
+  pseudoCode?: string;  // Human-readable pseudo-code
+  pseudoSummary?: string;  // One-line summary
   userNotes: string;
   accepted: 'accept' | 'modify' | null;
   generatedAt: Date;
@@ -47,6 +49,7 @@ export interface VariableSnippet {
     confidence_score?: number;
     user_note_applied?: boolean;
     user_note_summary?: string;
+    has_pseudo_code?: boolean;
   };
 }
 
@@ -212,6 +215,24 @@ export interface ProjectStore {
   generateSDRG: () => Promise<void>;
   createECTDPackage: (options?: any) => Promise<void>;
   clearValidationResults: () => void;
+
+  // Code Review & Finalization
+  codeReviewSession: import('../types').CodeReviewSession | null;
+  codeReviewComments: import('../types').CodeReviewComment[];
+  codeReviewStatus: import('../types').CodeReviewStatus;
+  lastReviewedRunId: string | null;
+  isLoadingReview: boolean;
+  reviewError: string | null;
+  setCodeReviewSession: (session: import('../types').CodeReviewSession | null) => void;
+  setCodeReviewStatus: (status: import('../types').CodeReviewStatus) => void;
+  addCodeReviewComment: (comment: import('../types').CodeReviewComment) => void;
+  updateCodeReviewComment: (commentId: string, updates: Partial<import('../types').CodeReviewComment>) => void;
+  deleteCodeReviewComment: (commentId: string) => void;
+  loadCodeReviewSession: (studyId: string, dataset: string, language: string, runId?: string) => Promise<void>;
+  updateReviewStatus: (status: import('../types').CodeReviewStatus) => Promise<void>;
+  createComment: (text: string, lineNumber?: number, variableName?: string) => Promise<void>;
+  exportReviewPDF: () => Promise<void>;
+  clearCodeReview: () => void;
 }
 
 const initialState = {
@@ -273,6 +294,14 @@ const initialState = {
   traceabilityError: null as string | null,
   selectedTraceabilityVariable: null as string | null,
   traceabilityLastGenerated: null as Date | null,
+
+  // Code Review & Finalization
+  codeReviewSession: null,
+  codeReviewComments: [],
+  codeReviewStatus: 'not_started' as import('../types').CodeReviewStatus,
+  lastReviewedRunId: null as string | null,
+  isLoadingReview: false,
+  reviewError: null as string | null,
 };
 
 export const useProjectStore = create<ProjectStore>()(
@@ -431,6 +460,8 @@ export const useProjectStore = create<ProjectStore>()(
               variable: variable,
               codeSnippet: snippet.code_snippet || '',
               rationale: snippet.coding_rationale || '',
+              pseudoCode: snippet.pseudo_code,
+              pseudoSummary: snippet.pseudo_summary,
               userNotes: state.pairProgramming.snippets[variable]?.userNotes || '',
               accepted: autoApproved || (hasCode ? 'accept' : null), // Auto-approve if code exists
               generatedAt: new Date(),
@@ -1265,6 +1296,129 @@ export const useProjectStore = create<ProjectStore>()(
           defineXmlStatus: 'idle',
           adrgStatus: 'idle',
           sdrgStatus: 'idle',
+        }),
+
+      // Code Review & Finalization Actions
+      setCodeReviewSession: (session) =>
+        set({ codeReviewSession: session }),
+
+      setCodeReviewStatus: (status) =>
+        set({ codeReviewStatus: status }),
+
+      addCodeReviewComment: (comment) =>
+        set((state) => ({
+          codeReviewComments: [...state.codeReviewComments, comment],
+        })),
+
+      updateCodeReviewComment: (commentId, updates) =>
+        set((state) => ({
+          codeReviewComments: state.codeReviewComments.map((comment) =>
+            comment.id === commentId ? { ...comment, ...updates } : comment
+          ),
+        })),
+
+      deleteCodeReviewComment: (commentId) =>
+        set((state) => ({
+          codeReviewComments: state.codeReviewComments.filter((c) => c.id !== commentId),
+        })),
+
+      loadCodeReviewSession: async (studyId, dataset, language, runId) => {
+        set({ isLoadingReview: true, reviewError: null });
+        try {
+          const response = await adamApi.getOrCreateReviewSession({
+            study_id: studyId,
+            dataset,
+            language,
+            run_id: runId,
+          });
+
+          set({
+            codeReviewSession: response,
+            codeReviewStatus: response.status,
+            lastReviewedRunId: response.run_id || null,
+          });
+
+          // Load comments for this session
+          const comments = await adamApi.listReviewComments(response.id);
+          set({ codeReviewComments: comments });
+        } catch (error) {
+          console.error('Failed to load review session:', error);
+          set({
+            reviewError: error instanceof Error ? error.message : 'Failed to load review session',
+          });
+        } finally {
+          set({ isLoadingReview: false });
+        }
+      },
+
+      updateReviewStatus: async (status) => {
+        const { codeReviewSession } = get();
+        if (!codeReviewSession) return;
+
+        try {
+          await adamApi.updateReviewSessionStatus(codeReviewSession.id, status);
+          set({ codeReviewStatus: status });
+        } catch (error) {
+          console.error('Failed to update review status:', error);
+          set({
+            reviewError: error instanceof Error ? error.message : 'Failed to update status',
+          });
+        }
+      },
+
+      createComment: async (text, lineNumber, variableName) => {
+        const { codeReviewSession } = get();
+        if (!codeReviewSession) return;
+
+        try {
+          const newComment = await adamApi.createReviewComment({
+            session_id: codeReviewSession.id,
+            text,
+            line_number: lineNumber,
+            variable_name: variableName,
+            author: 'User', // TODO: Get from auth context
+            role: 'reviewer',
+          });
+
+          set((state) => ({
+            codeReviewComments: [...state.codeReviewComments, newComment],
+          }));
+        } catch (error) {
+          console.error('Failed to create comment:', error);
+          set({
+            reviewError: error instanceof Error ? error.message : 'Failed to create comment',
+          });
+        }
+      },
+
+      exportReviewPDF: async () => {
+        const { projectConfig, programmingLanguage, lastReviewedRunId } = get();
+        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+        try {
+          await adamApi.exportReviewPDF({
+            study_id: projectConfig.studyId,
+            dataset: projectConfig.adamDataset,
+            language: programmingLanguage,
+            run_id: lastReviewedRunId || undefined,
+            format: 'pdf',
+            include_comments: true,
+          });
+        } catch (error) {
+          console.error('Failed to export PDF:', error);
+          set({
+            reviewError: error instanceof Error ? error.message : 'Failed to export PDF',
+          });
+        }
+      },
+
+      clearCodeReview: () =>
+        set({
+          codeReviewSession: null,
+          codeReviewComments: [],
+          codeReviewStatus: 'not_started' as import('../types').CodeReviewStatus,
+          lastReviewedRunId: null,
+          reviewError: null,
         }),
     }),
       {
