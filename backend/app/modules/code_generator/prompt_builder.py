@@ -213,14 +213,20 @@ class PromptBuilder:
         # Build OPTIMIZED prompt - ultra-lightweight for bulk generation speed
         # Skip rules_context, template_hint, and verbose instructions for faster generation
         # This reduces prompt tokens by 60-70% compared to full prompt
-        prompt = f"""Generate {language} code for ADAM variable.
+        # NOW RETURNS JSON with code, pseudo-code, and summary
+        prompt = f"""Generate {language} code for ADAM variable. Return JSON only.
 
 Variable: {variable_name} ({variable_type})
 Derivation: {derivation_logic}
 Dataset: {adam_dataset}
 {user_note_section}
 
-Output executable {language} code only. No comments, no imports."""
+Return ONLY valid JSON (no markdown, no extra text):
+{{
+  "code_snippet": "executable {language} code",
+  "pseudo_code": "step-by-step logic (3-10 lines, language-independent)",
+  "pseudo_summary": "one-line summary"
+}}"""
 
         return prompt.strip()
     

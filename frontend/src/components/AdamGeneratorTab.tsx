@@ -60,7 +60,7 @@ import type {
 import type { ExecutionCapabilities } from '../types/rExecution';
 import './AdamGeneratorTab.css';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { Panel } = Collapse;
 const { TextArea } = Input;
 
@@ -90,8 +90,8 @@ export const AdamGeneratorTab: React.FC = () => {
   const [rOutput, setROutput] = useState<string>('');
 
   // R Execution capabilities (Docker vs Local R)
-  const [capabilities, setCapabilities] = useState<ExecutionCapabilities | null>(null);
-  const [executionMethod, setExecutionMethod] = useState<'docker' | 'local_r'>('docker');
+  const [_capabilities, _setCapabilities] = useState<ExecutionCapabilities | null>(null);
+  const [_executionMethod, _setExecutionMethod] = useState<'docker' | 'local_r'>('docker');
 
   // Editor UX enhancements
   const [editorTheme, setEditorTheme] = useState<'vs' | 'vs-dark' | 'hc-black'>('vs');
@@ -274,7 +274,7 @@ summary_stats <- adam %>%
 
         if (result.failed.length > 0) {
           message.warning({
-            content: `Some datasets failed to generate: ${result.failed.map(f => f.domain).join(', ')}`,
+            content: `Some datasets failed to generate: ${result.failed.map((f: any) => f.domain).join(', ')}`,
             duration: 6,
           });
         }
@@ -384,24 +384,6 @@ summary_stats <- adam %>%
     }
   }, [projectConfig.studyId, projectConfig.adamDataset]);
 
-  // Keyboard shortcut for Run (Ctrl+Enter)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+Enter or Cmd+Enter to run code
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        if (canExecute && !isExecuting && code.trim()) {
-          handleExecute();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [canExecute, isExecuting, code, handleExecute]);
-
   // Load initial data and pre-populate inputs
   useEffect(() => {
     loadRVersions();
@@ -434,7 +416,7 @@ summary_stats <- adam %>%
         // Check current SDTM inputs
         const inputs = await adamApi.checkSdtmInputs({
           study_id: projectConfig.studyId,
-          adam_dataset: projectConfig.adamDataset,
+          adam_dataset: projectConfig.adamDataset || '',
         });
 
         // If DM dataset is not available, generate it automatically
@@ -551,7 +533,7 @@ summary_stats <- adam %>%
     try {
       const versions = await adamApi.getRVersions();
       setAvailableVersions(versions);
-      const defaultVersion = versions.find(v => v.is_default) || versions[0];
+      const defaultVersion = versions.find((v: any) => v.is_default) || versions[0];
       if (defaultVersion) {
         setRVersion(defaultVersion.version);
       }
@@ -949,6 +931,24 @@ summary_stats <- adam %>%
       (!sdtmInputs || sdtmInputs.missing_domains.length === 0)
     );
   }, [code, projectConfig, sdtmInputs]);
+
+  // Keyboard shortcut for Run (Ctrl+Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Enter or Cmd+Enter to run code
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (canExecute && !isExecuting && code.trim()) {
+          handleExecute();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [canExecute, isExecuting, code, handleExecute]);
 
   return (
     <div className="adam-generator-container" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -1518,7 +1518,7 @@ summary_stats <- adam %>%
                     mouseWheelZoom: false,
                     multiCursorModifier: 'ctrlCmd',
                     selectionHighlight: true,
-                    occurrencesHighlight: true,
+                    occurrencesHighlight: 'singleFile',
                     renderWhitespace: 'selection',
                     folding: true,
                     foldingStrategy: 'auto',

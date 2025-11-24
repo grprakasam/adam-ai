@@ -7,11 +7,13 @@ import { api } from '../services/api';
 import { triggerDownload } from '../utils/downloadHelpers';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
+import CodeReviewTab from './CodeReviewTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
 import { TraceabilityTab } from './TraceabilityTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { AdamGeneratorTab } from './AdamGeneratorTab';
+import { RFrontendTab } from './RFrontendTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { HistoryControls } from './HistoryControls';
@@ -31,24 +33,28 @@ interface RightPanelProps {
 
 type WorkspaceTabKey =
   | 'pair'
+  | 'review'
   | 'validation'
   | 'consolidated'
   | 'testdata'
   | 'traceability'
   | 'validator'
   | 'submission'
-  | 'adam-generator';
+  | 'adam-generator'
+  | 'r-frontend';
 
 type WorkspaceGroup = 'generation' | 'validation' | 'submission';
 
 // Tab tooltips for better discoverability
 const TAB_TOOLTIPS: Record<string, string> = {
   pair: 'Generate AI code snippets for individual variables with pair programming assistance',
+  review: 'Review and approve consolidated code with line-level commenting and PDF export',
   consolidated: 'Consolidate approved variables into a complete, optimized ADAM program',
   validator: 'Execute and validate your code against test datasets',
   testdata: 'Generate synthetic test data and run your code',
   traceability: 'Track SDTM-to-ADAM lineage and create traceability documentation',
-  submission: 'Review readiness for regulatory submission with checklist and validation'
+  submission: 'Review readiness for regulatory submission with checklist and validation',
+  'r-frontend': 'Professional R code execution environment - write and run any R scripts'
 };
 
 const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock, onSwitchProject }: RightPanelProps) => {
@@ -67,7 +73,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
-    generation: ['pair', 'consolidated', 'traceability', 'adam-generator', 'testdata', 'submission'],
+    generation: ['pair', 'review', 'consolidated', 'traceability', 'adam-generator', 'r-frontend', 'testdata', 'submission'],
     validation: ['validator'],
     submission: [],
   };
@@ -92,6 +98,10 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           setActiveGroup('generation');
           setActiveWorkspaceTab('pair');
           break;
+        case '/code-review':
+          setActiveGroup('generation');
+          setActiveWorkspaceTab('review');
+          break;
         case '/consolidated-code':
         case '/generation-history':
           setActiveGroup('generation');
@@ -104,6 +114,10 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         case '/adam-generator':
           setActiveGroup('generation');
           setActiveWorkspaceTab('adam-generator');
+          break;
+        case '/r-frontend':
+          setActiveGroup('generation');
+          setActiveWorkspaceTab('r-frontend');
           break;
         case '/code-validator':
         case '/validation-reports':
@@ -238,6 +252,19 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           ),
         },
         {
+          key: 'review',
+          group: 'generation' as WorkspaceGroup,
+          label: (
+            <Tooltip title="Interactive code executor - write and run R/SAS code snippets">
+              <span>
+                Code Executor{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <CodeReviewTab />,
+        },
+        {
           key: 'consolidated',
           group: 'generation' as WorkspaceGroup,
           label: (
@@ -314,6 +341,19 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             </Tooltip>
           ),
           children: <AdamGeneratorTab />,
+        },
+        {
+          key: 'r-frontend',
+          group: 'generation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['r-frontend']}>
+              <span>
+                R Frontend{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <RFrontendTab />,
         },
       ];
 

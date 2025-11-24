@@ -11,6 +11,8 @@ import {
   ExperimentOutlined,
   DashboardOutlined,
   RocketOutlined,
+  CommentOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import './WorkspaceNavigation.css';
 
@@ -37,9 +39,11 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
     color: '#3b82f6',
     items: [
       { key: '/pair-programming', label: 'Pair Programming', icon: <TeamOutlined />, description: 'AI-assisted variable coding' },
+      { key: '/code-review', label: 'Code Review', icon: <CommentOutlined />, description: 'Review and approve code with comments' },
       { key: '/consolidated-code', label: 'Consolidated Code', icon: <FileTextOutlined />, description: 'Complete program generation' },
       { key: '/traceability', label: 'Traceability', icon: <LinkOutlined />, description: 'SDTM to ADAM mapping' },
       { key: '/adam-generator', label: 'ADAM Generator', icon: <RocketOutlined />, description: 'Execute R programs to generate ADAM datasets' },
+      { key: '/r-frontend', label: 'R Frontend', icon: <ThunderboltOutlined />, description: 'Professional R code execution environment' },
       { key: '/test-with-data', label: 'SDTM Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant SDTM test data' },
       { key: '/submission-dashboard', label: 'Submission Dashboard', icon: <DashboardOutlined />, description: 'Submission readiness overview' },
     ],
@@ -62,9 +66,11 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
 
 const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
   'pair': 'generation',
+  'review': 'generation',
   'consolidated': 'generation',
   'traceability': 'generation',
   'adam-generator': 'generation',
+  'r-frontend': 'generation',
   'testdata': 'generation',
   'submission': 'generation',
   'validator': 'validation',
@@ -72,9 +78,11 @@ const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
 
 const PATH_TO_TAB_MAP: Record<string, string> = {
   '/pair-programming': 'pair',
+  '/code-review': 'review',
   '/consolidated-code': 'consolidated',
   '/traceability': 'traceability',
   '/adam-generator': 'adam-generator',
+  '/r-frontend': 'r-frontend',
   '/code-validator': 'validator',
   '/test-with-data': 'testdata',
   '/submission-dashboard': 'submission',
@@ -82,9 +90,11 @@ const PATH_TO_TAB_MAP: Record<string, string> = {
 
 const TAB_TO_PATH_MAP: Record<string, string> = {
   'pair': '/pair-programming',
+  'review': '/code-review',
   'consolidated': '/consolidated-code',
   'traceability': '/traceability',
   'adam-generator': '/adam-generator',
+  'r-frontend': '/r-frontend',
   'validator': '/code-validator',
   'testdata': '/test-with-data',
   'submission': '/submission-dashboard',
