@@ -8,6 +8,7 @@ import { LayoutSwitcher } from './LayoutSwitcher';
 import { UserMenu } from './UserMenu';
 import { StudySelector } from './StudySelector';
 import { AIConfigStatus } from './AIConfigStatus';
+import { WorkspaceControls } from './WorkspaceControls';
 import { useProjectStore } from '../store/projectStore';
 import { usePreferencesStore } from '../store/preferencesStore';
 import { showNavigationConfirmation } from './ConfirmationDialog';
@@ -30,6 +31,7 @@ interface AppHeaderProps {
   currentStudyId?: string;
   onStudyChange?: (studyId: string) => void;
   onToggleMobileMenu?: () => void;
+  onSwitchProject?: () => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -39,7 +41,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   showStudySelector = false,
   currentStudyId,
   onStudyChange,
-  onToggleMobileMenu
+  onToggleMobileMenu,
+  onSwitchProject
 }) => {
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const resetWorkspace = useProjectStore((state) => state.resetWorkspace);
@@ -132,6 +135,29 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <Space size="middle">
             {/* AI Configuration Status - before search */}
             <AIConfigStatus className="hide-mobile" />
+            <WorkspaceControls onSwitchProject={onSwitchProject} />
+            <Button
+              icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="7" height="18" rx="1" />
+                <rect x="14" y="3" width="7" height="18" rx="1" />
+              </svg>}
+              onClick={() => {
+                const event = new CustomEvent('adam-ai:toggle-left-panel');
+                window.dispatchEvent(event);
+              }}
+              size="small"
+              title="Toggle Configuration Panel"
+              className="toggle-panel-btn hide-mobile"
+              style={{
+                height: '26px',
+                fontSize: '11px',
+                padding: '0 8px',
+                borderRadius: '5px',
+                lineHeight: '1.2'
+              }}
+            >
+              Toggle Panel
+            </Button>
             <div className="hide-mobile"><SearchButton /></div>
             <div className="hide-mobile"><NotificationBell /></div>
             <LayoutSwitcher />

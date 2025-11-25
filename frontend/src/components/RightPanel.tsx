@@ -443,27 +443,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             <div className="workspace-utilities">
               <WorkspaceControls onSwitchProject={onSwitchProject} />
               <div className="workspace-utilities-right">
-                <Button
-                  icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="7" height="18" rx="1" />
-                    <rect x="14" y="3" width="7" height="18" rx="1" />
-                  </svg>}
-                  onClick={() => {
-                    const event = new CustomEvent('adam-ai:toggle-left-panel');
-                    window.dispatchEvent(event);
-                  }}
-                  size="small"
-                  title="Toggle Configuration Panel"
-                  style={{ 
-                    height: '26px', 
-                    fontSize: '11px', 
-                    padding: '0 8px',
-                    borderRadius: '5px',
-                    lineHeight: '1.2'
-                  }}
-                >
-                  Toggle Panel
-                </Button>
                 <AutoSaveIndicator />
                 <HistoryControls />
               </div>
