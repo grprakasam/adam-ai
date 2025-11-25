@@ -9,6 +9,7 @@ import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
 import CodeReviewTab from './CodeReviewTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
+import CodeReviewTabNew from './CodeReviewTabNew';
 import { TraceabilityTab } from './TraceabilityTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { AdamGeneratorTab } from './AdamGeneratorTab';
@@ -18,6 +19,7 @@ import AutoSaveIndicator from './AutoSaveIndicator';
 import { HistoryControls } from './HistoryControls';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { WorkspaceControls } from './WorkspaceControls';
+import { WorkflowNavigation, WorkflowStep } from './WorkflowNavigation';
 import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
@@ -48,7 +50,7 @@ type WorkspaceGroup = 'adamCoding' | 'adamValidation' | 'utilities';
 // Tab tooltips for better discoverability
 const TAB_TOOLTIPS: Record<string, string> = {
   pair: 'Generate AI code snippets for individual variables with pair programming assistance',
-  review: 'Review and approve consolidated code with line-level commenting and PDF export',
+  review: 'Review and approve code variables with approval tracking and comments',
   consolidated: 'Consolidate approved variables into a complete, optimized ADAM program',
   'adam-generator': 'Execute and validate R programs to generate ADAM datasets',
   comparer: 'Compare ADAM datasets side-by-side and validate consistency',
@@ -240,6 +242,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       setActiveWorkspaceTab('traceability');
     };
 
+    const handleWorkflowNavigation = (step: WorkflowStep) => {
+      setActiveGroup('adamCoding');
+      setActiveWorkspaceTab(step);
+    };
+
     const PlaceholderContent = ({ title }: { title: string }) => (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
         <h3 style={{ marginBottom: '10px', color: '#1e293b' }}>{title}</h3>
@@ -272,14 +279,14 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           key: 'review',
           group: 'adamCoding' as WorkspaceGroup,
           label: (
-            <Tooltip title="Interactive code executor - write and run R/SAS code snippets">
+            <Tooltip title={TAB_TOOLTIPS.review}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>2.</span> Code Executor{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>2.</span> Code Review{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
           ),
-          children: <CodeReviewTab />,
+          children: <CodeReviewTabNew />,
         },
         {
           key: 'consolidated',
@@ -441,8 +448,16 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
                 <HistoryControls />
               </div>
             </div>
+            {activeGroup === 'adamCoding' && (activeWorkspaceTab === 'pair' || activeWorkspaceTab === 'review' || activeWorkspaceTab === 'consolidated') && (
+              <div className="workflow-navigation-section">
+                <WorkflowNavigation
+                  currentStep={activeWorkspaceTab as WorkflowStep}
+                  onNavigate={handleWorkflowNavigation}
+                />
+              </div>
+            )}
             <div className="workspace-navigation-section">
-              <WorkspaceNavigation 
+              <WorkspaceNavigation
                 activeTab={activeWorkspaceTab}
                 onTabChange={(tab) => setActiveWorkspaceTab(tab as WorkspaceTabKey)}
               />

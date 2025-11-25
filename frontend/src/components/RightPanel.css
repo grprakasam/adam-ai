@@ -540,3 +540,18 @@
 [data-theme="dark"] .right-panel {
   background: #111827;
 }
+
+/* Workflow Navigation Styles */
+.right-panel .workflow-navigation-section {
+  padding: 0 12px;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  align-items: center;
+}
+
+/* Dark Mode Support for Workflow Navigation */
+[data-theme="dark"] .right-panel .workflow-navigation-section {
+  background: transparent;
+}
