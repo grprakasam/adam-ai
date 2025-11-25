@@ -10,7 +10,6 @@ import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
 import CodeReviewTab from './CodeReviewTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
 import { TraceabilityTab } from './TraceabilityTab';
-import { CodeValidatorTab } from './CodeValidatorTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { AdamGeneratorTab } from './AdamGeneratorTab';
 import { RFrontendTab } from './RFrontendTab';
@@ -34,27 +33,31 @@ interface RightPanelProps {
 type WorkspaceTabKey =
   | 'pair'
   | 'review'
-  | 'validation'
   | 'consolidated'
+  | 'adam-generator'
+  | 'comparer'
+  | 'submission'
   | 'testdata'
   | 'traceability'
-  | 'validator'
-  | 'submission'
-  | 'adam-generator'
-  | 'r-frontend';
+  | 'r-frontend'
+  | 'analytics'
+  | 'chatbot';
 
-type WorkspaceGroup = 'generation' | 'validation' | 'submission';
+type WorkspaceGroup = 'adamCoding' | 'adamValidation' | 'utilities';
 
 // Tab tooltips for better discoverability
 const TAB_TOOLTIPS: Record<string, string> = {
   pair: 'Generate AI code snippets for individual variables with pair programming assistance',
   review: 'Review and approve consolidated code with line-level commenting and PDF export',
   consolidated: 'Consolidate approved variables into a complete, optimized ADAM program',
-  validator: 'Execute and validate your code against test datasets',
-  testdata: 'Generate synthetic test data and run your code',
-  traceability: 'Track SDTM-to-ADAM lineage and create traceability documentation',
+  'adam-generator': 'Execute and validate R programs to generate ADAM datasets',
+  comparer: 'Compare ADAM datasets side-by-side and validate consistency',
   submission: 'Review readiness for regulatory submission with checklist and validation',
-  'r-frontend': 'Professional R code execution environment - write and run any R scripts'
+  testdata: 'Generate CDISC-compliant SDTM test data (prerequisite for ADAM development)',
+  traceability: 'Track SDTM-to-ADAM lineage and create regulatory traceability documentation',
+  'r-frontend': 'Professional R code execution environment - write and run any R scripts',
+  analytics: 'Advanced analytics and insights for ADAM datasets with visualization tools',
+  chatbot: 'AI-powered study assistant for questions about specifications and standards'
 };
 
 const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock, onSwitchProject }: RightPanelProps) => {
@@ -64,7 +67,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   const [validationResults, setValidationResults] = useState<any>(null);
   const validationTimeoutRef = useRef<number | null>(null);
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>('pair');
-  const [activeGroup, setActiveGroup] = useState<WorkspaceGroup>('generation');
+  const [activeGroup, setActiveGroup] = useState<WorkspaceGroup>('adamCoding');
   const workspaceContentRef = useRef<HTMLDivElement | null>(null);
   const rightPanelRef = useRef<HTMLElement | null>(null);
   
@@ -73,9 +76,9 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
-    generation: ['pair', 'review', 'consolidated', 'traceability', 'adam-generator', 'r-frontend', 'testdata', 'submission'],
-    validation: ['validator'],
-    submission: [],
+    adamCoding: ['pair', 'review', 'consolidated', 'adam-generator'],
+    adamValidation: ['comparer', 'submission'],
+    utilities: ['testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability'],
   };
 
   // Keep active tab consistent with active group
@@ -95,43 +98,50 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
       switch (path) {
         case '/pair-programming':
-          setActiveGroup('generation');
+          setActiveGroup('adamCoding');
           setActiveWorkspaceTab('pair');
           break;
         case '/code-review':
-          setActiveGroup('generation');
+          setActiveGroup('adamCoding');
           setActiveWorkspaceTab('review');
           break;
         case '/consolidated-code':
         case '/generation-history':
-          setActiveGroup('generation');
+          setActiveGroup('adamCoding');
           setActiveWorkspaceTab('consolidated');
           break;
-        case '/traceability':
-          setActiveGroup('generation');
-          setActiveWorkspaceTab('traceability');
-          break;
         case '/adam-generator':
-          setActiveGroup('generation');
+          setActiveGroup('adamCoding');
           setActiveWorkspaceTab('adam-generator');
           break;
-        case '/r-frontend':
-          setActiveGroup('generation');
-          setActiveWorkspaceTab('r-frontend');
-          break;
-        case '/code-validator':
-        case '/validation-reports':
-          setActiveGroup('validation');
-          setActiveWorkspaceTab('validator');
-          break;
-        case '/test-with-data':
-          setActiveGroup('generation');
-          setActiveWorkspaceTab('testdata');
+        case '/adam-dataset-comparer':
+          setActiveGroup('adamValidation');
+          setActiveWorkspaceTab('comparer');
           break;
         case '/submission-dashboard':
         case '/submission-package':
-          setActiveGroup('generation');
+          setActiveGroup('adamValidation');
           setActiveWorkspaceTab('submission');
+          break;
+        case '/test-with-data':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('testdata');
+          break;
+        case '/traceability':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('traceability');
+          break;
+        case '/r-frontend':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('r-frontend');
+          break;
+        case '/adam-data-analytics':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('analytics');
+          break;
+        case '/study-chatbot':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('chatbot');
           break;
         default:
           break;
@@ -221,24 +231,31 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   }
   if (!generationResult) {
     const navigateToConsolidated = () => {
-      setActiveGroup('generation');
+      setActiveGroup('adamCoding');
       setActiveWorkspaceTab('consolidated');
     };
 
     const navigateToTraceability = () => {
-      setActiveGroup('generation');
+      setActiveGroup('utilities');
       setActiveWorkspaceTab('traceability');
     };
+
+    const PlaceholderContent = ({ title }: { title: string }) => (
+      <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
+        <h3 style={{ marginBottom: '10px', color: '#1e293b' }}>{title}</h3>
+        <p>This feature is under development. Check back soon for updates!</p>
+      </div>
+    );
 
     try {
       const allItems = [
         {
           key: 'pair',
-          group: 'generation' as WorkspaceGroup,
+          group: 'adamCoding' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.pair}>
               <span>
-                Pair Programming{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>1.</span> Pair Programming{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -253,11 +270,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         },
         {
           key: 'review',
-          group: 'generation' as WorkspaceGroup,
+          group: 'adamCoding' as WorkspaceGroup,
           label: (
             <Tooltip title="Interactive code executor - write and run R/SAS code snippets">
               <span>
-                Code Executor{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>2.</span> Code Executor{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -266,11 +283,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         },
         {
           key: 'consolidated',
-          group: 'generation' as WorkspaceGroup,
+          group: 'adamCoding' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.consolidated}>
               <span>
-                Consolidated Code{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>3.</span> Consolidated Code{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -278,21 +295,47 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           children: <ConsolidatedCodeTab />,
         },
         {
-          key: 'validator',
-          group: 'validation' as WorkspaceGroup,
+          key: 'adam-generator',
+          group: 'adamCoding' as WorkspaceGroup,
           label: (
-            <Tooltip title={TAB_TOOLTIPS.validator}>
+            <Tooltip title={TAB_TOOLTIPS['adam-generator']}>
               <span>
-                Code Validator{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>4.</span> ADAM Generator{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
           ),
-          children: <CodeValidatorTab />,
+          children: <AdamGeneratorTab />,
+        },
+        {
+          key: 'comparer',
+          group: 'adamValidation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.comparer}>
+              <span>
+                <span style={{ fontWeight: 700, color: 'inherit' }}>5.</span> Dataset Comparer{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <PlaceholderContent title="ADAM Dataset Comparer" />,
+        },
+        {
+          key: 'submission',
+          group: 'adamValidation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.submission}>
+              <span>
+                <span style={{ fontWeight: 700, color: 'inherit' }}>6.</span> Submission{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <SubmissionReadinessTab />,
         },
         {
           key: 'testdata',
-          group: 'generation' as WorkspaceGroup,
+          group: 'utilities' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.testdata}>
               <span>
@@ -305,7 +348,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         },
         {
           key: 'traceability',
-          group: 'generation' as WorkspaceGroup,
+          group: 'utilities' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.traceability}>
               <span>
@@ -317,34 +360,8 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           children: <TraceabilityTab />,
         },
         {
-          key: 'submission',
-          group: 'generation' as WorkspaceGroup,
-          label: (
-            <Tooltip title={TAB_TOOLTIPS.submission}>
-              <span>
-                Submission Readiness{' '}
-                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
-              </span>
-            </Tooltip>
-          ),
-          children: <SubmissionReadinessTab />,
-        },
-        {
-          key: 'adam-generator',
-          group: 'generation' as WorkspaceGroup,
-          label: (
-            <Tooltip title="Execute consolidated R/SAS programs against SDTM datasets to generate ADAM datasets">
-              <span>
-                ADAM Generator{' '}
-                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
-              </span>
-            </Tooltip>
-          ),
-          children: <AdamGeneratorTab />,
-        },
-        {
           key: 'r-frontend',
-          group: 'generation' as WorkspaceGroup,
+          group: 'utilities' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS['r-frontend']}>
               <span>
@@ -354,6 +371,32 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             </Tooltip>
           ),
           children: <RFrontendTab />,
+        },
+        {
+          key: 'analytics',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.analytics}>
+              <span>
+                ADAM Data Analytics{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <PlaceholderContent title="ADAM Data Analytics" />,
+        },
+        {
+          key: 'chatbot',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS.chatbot}>
+              <span>
+                Study ChatBot{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <PlaceholderContent title="Study ChatBot" />,
         },
       ];
 

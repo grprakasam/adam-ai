@@ -14,9 +14,9 @@ Review the feature requirements in `Context/0_MyRequirement_planner.md` and crea
 
 **MUST DO before planning:**
 
-1. Thoroughly understand all `.md` files across the ADAM_AI project folders
-2. Analyze the required feature detailed in `Context/0_MyRequirement_planner.md`
-3. Strictly adhere to instructions in all `.md` files under `Context/ProjectArchitecture/`
+
+1. Analyze the required feature detailed in `Context/0_MyRequirement_planner.md`
+2. Strictly adhere to instructions in all `.md` files under `Context/ProjectArchitecture/`
 
 ## Planning Guidelines
 
@@ -35,7 +35,7 @@ Review the feature requirements in `Context/0_MyRequirement_planner.md` and crea
 
 Provide the complete plan in `Context/My_Initial_Plan.md` with:
 - Clear sections and subsections
-- Step-by-step implementation details
-- Risk assessment and mitigation strategies
-- Testing requirements
-- Any identified gaps or missing information
+- High level implementation details
+- Critical information to follow during development
+  
+

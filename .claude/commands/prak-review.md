@@ -14,14 +14,13 @@ Think deeply and critically to ensure plans are comprehensive, aligned with requ
 
 **MUST DO before reviewing:**
 
-1. Thoroughly understand all `.md` files across the ADAM_AI project folders
-2. Analyze the proposed plan in `Context/My_Initial_Plan.md`
-3. Review the desired requirements in `Context/0_MyRequirement_planner.md`
+1. Analyze the proposed plan in `Context/My_Initial_Plan.md`
+2. Review the desired requirements in `Context/0_MyRequirement_planner.md`
 
 ## Validation Checklist
 
 Ensure the initial plan:
-- Aligns with rules and content defined in all `.md` files
+
 - Satisfies all requirements in `Context/0_MyRequirement_planner.md`
 - Follows architectural guidelines in `Context/ProjectArchitecture/`
 - Addresses all edge cases and potential issues
@@ -40,7 +39,7 @@ Ensure the initial plan:
 
 Provide the revised plan in `Context/My_Revised_Plan.md` with:
 - All gaps from the initial plan addressed
-- Enhanced implementation details
+- High level  implementation details
 - Best practices incorporated
 - Clear, structured, and logical flow for easy execution
 - Risk mitigation strategies

@@ -18,30 +18,25 @@ make the changes in the api calls accordingly to generate the pseudo code snippe
 
 the user interface should be designed in a way that the pseudo code snippet column is clearly visible and easy to read.
 
-i also need a create a new page called "Code Review and Finalization"
+After that, In the  page called "CodeReview",
 
-this will be the final step in the ADaM generation process
 
 this will be between the pair programming page and the consolidated code page
 
 this page will help the domain experts and developers to review the entire code base generated for the ADaM datasets and can be able to suggest any final changes or improvements before finalizing the code.
 
 this page should have the following features:
-- Display the entire code base generated for the ADaM datasets in a readable format
-- Allow users to add comments and suggestions on specific lines of code
-- Provide a summary of changes made during the pair programming session
+- Display the variables along with the derivation logic and pseudo code snippets in a tabular format along withthe user notes from the pair programming page
+
+- Allow users to give the chance to further refine the code logic, before creating the consolidated code
+
 - Allow users to approve or request changes before finalizing the code
-- Provide an option to export the finalized code in various formats (e.g., PDF, DOCX, etc.)
+
 - Integrate with the existing workflow to ensure a seamless transition from pair programming to code finalization
 
 note that this page is the interemediate step before the consolidated code page
 
 if required create additional controls or ui elements to make this as a smooth experience for the users
-
-
-
-
-
 
 
 the way i visualise this app is that it will be used by different projects . the design should be ensured to select the particular study name based on which the session information  like the uploaded specifications, datasets  will be stored and the entire flow should be based on that study name selected.

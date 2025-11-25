@@ -2,12 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Badge, Tooltip } from 'antd';
 import {
   CodeOutlined,
-  CheckCircleOutlined,
-  FileProtectOutlined,
   TeamOutlined,
   FileTextOutlined,
-  LinkOutlined,
-  SafetyOutlined,
   ExperimentOutlined,
   DashboardOutlined,
   RocketOutlined,
@@ -22,7 +18,7 @@ interface WorkspaceNavigationProps {
   onNavigate?: (path: string) => void;
 }
 
-type MainSection = 'generation' | 'validation' | 'submission';
+type MainSection = 'adamCoding' | 'adamValidation' | 'utilities';
 
 interface NavigationItem {
   key: string;
@@ -33,71 +29,80 @@ interface NavigationItem {
 }
 
 const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.ReactNode; color: string; items: NavigationItem[] }> = {
-  generation: {
-    title: 'Code Generation',
+  adamCoding: {
+    title: 'ADAM Coding',
     icon: <CodeOutlined />,
     color: '#3b82f6',
     items: [
-      { key: '/pair-programming', label: 'Pair Programming', icon: <TeamOutlined />, description: 'AI-assisted variable coding' },
-      { key: '/code-review', label: 'Code Review', icon: <CommentOutlined />, description: 'Review and approve code with comments' },
-      { key: '/consolidated-code', label: 'Consolidated Code', icon: <FileTextOutlined />, description: 'Complete program generation' },
-      { key: '/traceability', label: 'Traceability', icon: <LinkOutlined />, description: 'SDTM to ADAM mapping' },
-      { key: '/adam-generator', label: 'ADAM Generator', icon: <RocketOutlined />, description: 'Execute R programs to generate ADAM datasets' },
-      { key: '/r-frontend', label: 'R Frontend', icon: <ThunderboltOutlined />, description: 'Professional R code execution environment' },
-      { key: '/test-with-data', label: 'SDTM Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant SDTM test data' },
-      { key: '/submission-dashboard', label: 'Submission Dashboard', icon: <DashboardOutlined />, description: 'Submission readiness overview' },
+      { key: '/pair-programming', label: '1. Pair Programming', icon: <TeamOutlined />, description: 'AI-assisted variable coding' },
+      { key: '/code-review', label: '2. Code Review', icon: <CommentOutlined />, description: 'Review and approve code with comments' },
+      { key: '/consolidated-code', label: '3. Consolidated Code', icon: <FileTextOutlined />, description: 'Complete program generation' },
+      { key: '/adam-generator', label: '4. ADAM Generator', icon: <RocketOutlined />, description: 'Execute & validate R programs' },
     ],
   },
-  validation: {
-    title: 'Code Validation',
-    icon: <CheckCircleOutlined />,
+  adamValidation: {
+    title: 'ADAM Validation',
+    icon: <FileTextOutlined />,
     color: '#10b981',
     items: [
-      { key: '/code-validator', label: 'Code Validator', icon: <SafetyOutlined />, description: 'Syntax and quality checks' },
+      { key: '/adam-dataset-comparer', label: '5. Dataset Comparer', icon: <FileTextOutlined />, description: 'Compare and validate ADAM datasets' },
+      { key: '/submission-dashboard', label: '6. Submission', icon: <DashboardOutlined />, description: 'Regulatory submission package' },
     ],
   },
-  submission: {
-    title: 'Submission Readiness',
-    icon: <FileProtectOutlined />,
-    color: '#f59e0b',
-    items: [],
+  utilities: {
+    title: 'Utilities',
+    icon: <ExperimentOutlined />,
+    color: '#8b5cf6',
+    items: [
+      { key: '/test-with-data', label: 'SDTM Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant test data' },
+      { key: '/r-frontend', label: 'R Frontend', icon: <ThunderboltOutlined />, description: 'Professional R code execution environment' },
+      { key: '/adam-data-analytics', label: 'ADAM Data Analytics', icon: <DashboardOutlined />, description: 'Analytics and insights for ADAM data' },
+      { key: '/study-chatbot', label: 'Study ChatBot', icon: <CommentOutlined />, description: 'AI-powered study assistant and Q&A' },
+      { key: '/traceability', label: 'Traceability', icon: <ExperimentOutlined />, description: 'SDTM→ADAM lineage documentation' },
+    ],
   },
 };
 
 const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
-  'pair': 'generation',
-  'review': 'generation',
-  'consolidated': 'generation',
-  'traceability': 'generation',
-  'adam-generator': 'generation',
-  'r-frontend': 'generation',
-  'testdata': 'generation',
-  'submission': 'generation',
-  'validator': 'validation',
+  'pair': 'adamCoding',
+  'review': 'adamCoding',
+  'consolidated': 'adamCoding',
+  'adam-generator': 'adamCoding',
+  'comparer': 'adamValidation',
+  'submission': 'adamValidation',
+  'testdata': 'utilities',
+  'r-frontend': 'utilities',
+  'analytics': 'utilities',
+  'chatbot': 'utilities',
+  'traceability': 'utilities',
 };
 
 const PATH_TO_TAB_MAP: Record<string, string> = {
   '/pair-programming': 'pair',
   '/code-review': 'review',
   '/consolidated-code': 'consolidated',
-  '/traceability': 'traceability',
   '/adam-generator': 'adam-generator',
-  '/r-frontend': 'r-frontend',
-  '/code-validator': 'validator',
-  '/test-with-data': 'testdata',
+  '/adam-dataset-comparer': 'comparer',
   '/submission-dashboard': 'submission',
+  '/test-with-data': 'testdata',
+  '/traceability': 'traceability',
+  '/r-frontend': 'r-frontend',
+  '/adam-data-analytics': 'analytics',
+  '/study-chatbot': 'chatbot',
 };
 
 const TAB_TO_PATH_MAP: Record<string, string> = {
   'pair': '/pair-programming',
   'review': '/code-review',
   'consolidated': '/consolidated-code',
-  'traceability': '/traceability',
   'adam-generator': '/adam-generator',
-  'r-frontend': '/r-frontend',
-  'validator': '/code-validator',
-  'testdata': '/test-with-data',
+  'comparer': '/adam-dataset-comparer',
   'submission': '/submission-dashboard',
+  'testdata': '/test-with-data',
+  'traceability': '/traceability',
+  'r-frontend': '/r-frontend',
+  'analytics': '/adam-data-analytics',
+  'chatbot': '/study-chatbot',
 };
 
 export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({ 
@@ -106,7 +111,7 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
   onNavigate 
 }) => {
   const [activeSection, setActiveSection] = useState<MainSection>(
-    TAB_TO_SECTION_MAP[activeTab] || 'generation'
+    TAB_TO_SECTION_MAP[activeTab] || 'adamCoding'
   );
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string>(TAB_TO_PATH_MAP[activeTab] || '/pair-programming');
