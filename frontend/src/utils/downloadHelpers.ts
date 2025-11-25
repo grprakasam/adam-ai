@@ -146,8 +146,7 @@ export function downloadBlob(
  */
 export function downloadFromResponse(
   response: { data: any },
-  filename: string,
-  format: string
+  filename: string
 ): void {
   const blob = new Blob([response.data]);
   triggerDownload(blob, filename);

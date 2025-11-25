@@ -467,6 +467,13 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     });
   }, [variables, pairProgramming.snippets, searchQuery, filterStatus]);
 
+  // If user is viewing generated code but none exist yet, fall back to pending to show the variables.
+  useEffect(() => {
+    if (filterStatus === 'generated' && variables.length > 0 && filteredVariables.length === 0) {
+      setFilterStatus('pending');
+    }
+  }, [filterStatus, variables.length, filteredVariables.length]);
+
   const toggleCardExpansion = (variableName: string) => {
     setExpandedCards(prev => {
       const newSet = new Set(prev);
@@ -611,6 +618,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
               const isExpanded = expandedCards.has(variable.name);
               const trimmedNotes = snippet?.userNotes?.trim() ?? '';
               const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
+              const pseudoContent = snippet?.pseudoCode || variable.derivation || snippet?.rationale;
 
               return (
                 <div 
@@ -719,18 +727,18 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       )}
 
                       {/* Pseudo-Code */}
-                      {isFieldVisible('pseudo') && snippet?.pseudoCode && (
+                      {isFieldVisible('pseudo') && pseudoContent && (
                         <div className="detail-block">
                           <div className="detail-block-title">
-                            🔍 Pseudo-Code (Domain Expert View)
+                            Pseudo-Code (Domain Expert View)
                             {snippet.pseudoSummary && (
                               <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#9ca3af', marginLeft: '8px' }}>
-                                — {snippet.pseudoSummary}
+                                - {snippet.pseudoSummary}
                               </span>
                             )}
                           </div>
                           <pre className="detail-code-block pseudo-code-block">
-                            <code dangerouslySetInnerHTML={{ __html: highlightPseudoCode(snippet.pseudoCode) }} />
+                            <code dangerouslySetInnerHTML={{ __html: highlightPseudoCode(pseudoContent) }} />
                           </pre>
                         </div>
                       )}
@@ -836,7 +844,9 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
             <div className="pair-programming-empty-subtitle">
               {searchQuery 
                 ? 'Try adjusting your search filters' 
-                : 'Load a dataset to see variables here'}
+                : filterStatus === 'generated'
+                  ? 'No generated code yet. Switch to Pending to see variables awaiting code.'
+                  : 'Load a dataset to see variables here'}
             </div>
           </div>
         )}

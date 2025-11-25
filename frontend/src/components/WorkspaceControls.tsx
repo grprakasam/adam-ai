@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Modal } from 'antd';
 import { SwapOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
+import { CodeReviewStatus } from '../types';
 import './WorkspaceControls.css';
 
 interface WorkspaceControlsProps {
@@ -14,7 +15,11 @@ export const WorkspaceControls: React.FC<WorkspaceControlsProps> = ({ onSwitchPr
 
   const handleSwitchProjectClick = () => {
     // Check if there's an active code review session
-    if (codeReviewSession && (codeReviewSession.status === 'IN_REVIEW' || codeReviewSession.status === 'CHANGES_REQUESTED')) {
+    if (
+      codeReviewSession &&
+      (codeReviewSession.status === CodeReviewStatus.IN_REVIEW ||
+        codeReviewSession.status === CodeReviewStatus.CHANGES_REQUESTED)
+    ) {
       setShowConfirmDialog(true);
     } else {
       // No active review, proceed with switch

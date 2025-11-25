@@ -1,334 +1,416 @@
-/**
- * Interactive Code Executor Tab
- *
- * REPL-style code editor for executing R/SAS code snippets:
- * - Monaco editor for writing code
- * - Execute button to run code
- * - Real-time output display
- * - Execution history
- * - Support for multi-line code blocks
- */
-
-import React, { useState, useRef } from 'react';
-import Editor from '@monaco-editor/react';
-import { message } from 'antd';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Button,
+  Empty,
+  Input,
+  Modal,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+  message,
+} from 'antd';
+import { CheckCircleOutlined, CommentOutlined, FilePdfOutlined, ReloadOutlined, WarningOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import { useProjectStore } from '../store/projectStore';
-import { api } from '../services/api';
+import { CodeReviewStatus, type VariableInfo } from '../types';
 import './CodeReviewTab.css';
 
-interface ExecutionResult {
-  id: string;
-  code: string;
-  output: string;
-  error: string | null;
-  timestamp: Date;
-  status: 'success' | 'error' | 'running';
-  executionTime?: number;
+type VariableReviewState = 'pending' | 'approved' | 'changes_requested';
+
+interface ReviewRow {
+  key: string;
+  name: string;
+  label?: string;
+  category?: string;
+  derivation?: string;
+  pseudoCode?: string;
+  pseudoSummary?: string;
+  codeSnippet?: string;
+  userNotes?: string;
+  reviewState: VariableReviewState;
+  commentCount: number;
 }
 
-export const CodeReviewTab: React.FC = () => {
-  const { programmingLanguage, projectConfig } = useProjectStore();
+const statusTag = (status: string) => {
+  switch (status) {
+    case 'approved':
+      return <Tag color="green">Approved</Tag>;
+    case 'changes_requested':
+      return <Tag color="orange">Changes Requested</Tag>;
+    case 'in_review':
+      return <Tag color="blue">In Review</Tag>;
+    case 'not_started':
+    default:
+      return <Tag>Not Started</Tag>;
+  }
+};
 
-  const [code, setCode] = useState<string>('# Write your R code here\nprint("Hello, ADAM!")\n');
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [executionHistory, setExecutionHistory] = useState<ExecutionResult[]>([]);
-  const [selectedHistoryIndex, setSelectedHistoryIndex] = useState<number | null>(null);
-  const editorRef = useRef<any>(null);
-  const outputRef = useRef<HTMLDivElement>(null);
+const variableStateTag = (state: VariableReviewState) => {
+  switch (state) {
+    case 'approved':
+      return <Tag color="green">Approved</Tag>;
+    case 'changes_requested':
+      return <Tag color="orange">Changes Requested</Tag>;
+    default:
+      return <Tag>Pending</Tag>;
+  }
+};
 
-  const handleEditorMount = (editor: any) => {
-    editorRef.current = editor;
+const truncate = (text?: string, max = 120) => {
+  if (!text) return '';
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}…`;
+};
 
-    // Add Ctrl+Enter to execute code
-    editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter, () => {
-      handleExecuteCode();
-    });
+const CodeReviewTab: React.FC = () => {
+  const {
+    projectConfig,
+    programmingLanguage,
+    categorizedVariables,
+    pairProgramming,
+    codeReviewSession,
+    codeReviewStatus,
+    codeReviewComments,
+    isLoadingReview,
+    reviewError,
+    loadCodeReviewSession,
+    updateReviewStatus,
+    createComment,
+    exportReviewPDF,
+    setPairProgrammingAcceptance,
+  } = useProjectStore();
+
+  const [commentModal, setCommentModal] = useState<{ open: boolean; variable?: string; text: string }>({
+    open: false,
+    text: '',
+  });
+
+  // Load or create the review session when study/dataset are available.
+  useEffect(() => {
+    if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+    // Avoid unnecessary reload if session already matches current study/dataset/language.
+    if (
+      codeReviewSession &&
+      codeReviewSession.study_id === projectConfig.studyId &&
+      codeReviewSession.dataset === projectConfig.adamDataset &&
+      codeReviewSession.language === programmingLanguage
+    ) {
+      return;
+    }
+
+    loadCodeReviewSession(projectConfig.studyId, projectConfig.adamDataset, programmingLanguage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectConfig.studyId, projectConfig.adamDataset, programmingLanguage]);
+
+  const deriveState = (snippet?: { accepted?: 'accept' | 'modify' | null; codeSnippet?: string }): VariableReviewState => {
+    if (!snippet) return 'pending';
+    if (snippet.accepted === 'modify') return 'changes_requested';
+    if (snippet.accepted === 'accept') return 'approved';
+    return snippet.codeSnippet ? 'pending' : 'pending';
   };
 
-  const handleExecuteCode = async () => {
-    if (!code.trim()) {
-      message.warning('Please enter some code to execute');
-      return;
-    }
-
-    if (isExecuting) {
-      message.warning('Code is already executing. Please wait...');
-      return;
-    }
-
-    const executionId = `exec-${Date.now()}`;
-    const startTime = Date.now();
-
-    // Add to history as "running"
-    const newExecution: ExecutionResult = {
-      id: executionId,
-      code: code,
-      output: '',
-      error: null,
-      timestamp: new Date(),
-      status: 'running',
+  const rows: ReviewRow[] = useMemo(() => {
+    const summarize = (text?: string) => {
+      if (!text) return undefined;
+      const trimmed = text.trim();
+      if (trimmed.length <= 140) return trimmed;
+      return `${trimmed.slice(0, 140)}…`;
     };
 
-    setExecutionHistory(prev => [newExecution, ...prev]);
-    setIsExecuting(true);
-
-    try {
-      // Call the backend API to execute the code using the proper API method
-      const result = await api.executeCodeSnippet({
-        code: code,
-        language: programmingLanguage,
-        snippet_id: executionId,
-        test_dataset_ids: [],
-        timeout: 300, // 5 minutes timeout for Docker execution
-        execution_env: 'docker'
-      });
-
-      const executionTime = Date.now() - startTime;
-
-      // Parse the response according to CodeExecutionResult model
-      const outputText = result.console_output?.join('\n') || '';
-      const errorText = result.errors?.join('\n') || '';
-      const warningText = result.warnings?.join('\n') || '';
-
-      // Combine output with warnings if present
-      const fullOutput = warningText 
-        ? `${outputText}\n\nWarnings:\n${warningText}`
-        : outputText;
-
-      // Update history with results
-      setExecutionHistory(prev =>
-        prev.map(item =>
-          item.id === executionId
-            ? {
-                ...item,
-                output: fullOutput || (result.status === 'success' ? 'Executed successfully (no output)' : ''),
-                error: errorText || null,
-                status: result.status === 'success' ? 'success' : 'error',
-                executionTime: executionTime,
-              }
-            : item
-        )
-      );
-
-      if (result.status === 'success') {
-        message.success(`Code executed successfully in ${(executionTime / 1000).toFixed(2)}s`);
-      } else {
-        message.error('Code execution failed. Check output for details.');
+    const data: Map<string, ReviewRow> = new Map();
+    const commentsByVar = codeReviewComments.reduce<Record<string, number>>((acc, comment) => {
+      if (comment.variable_name) {
+        acc[comment.variable_name] = (acc[comment.variable_name] || 0) + 1;
       }
+      return acc;
+    }, {});
 
-      // Scroll output to view
-      setTimeout(() => {
-        outputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 100);
-    } catch (err: any) {
-      const executionTime = Date.now() - startTime;
-      const errorMessage = err.response?.data?.detail || err.message || 'Execution failed';
+    const addRow = (variable: string, meta?: Partial<VariableInfo>) => {
+      const snippet = pairProgramming.snippets[variable];
+      const pseudoContent = snippet?.pseudoCode || meta?.derivation || snippet?.rationale;
+      data.set(variable, {
+        key: variable,
+        name: variable,
+        label: meta?.label,
+        category: meta?.category,
+        derivation: meta?.derivation,
+        pseudoCode: pseudoContent,
+        pseudoSummary: snippet?.pseudoSummary || summarize(pseudoContent),
+        codeSnippet: snippet?.codeSnippet,
+        userNotes: snippet?.userNotes,
+        reviewState: deriveState(snippet),
+        commentCount: commentsByVar[variable] || 0,
+      });
+    };
 
-      setExecutionHistory(prev =>
-        prev.map(item =>
-          item.id === executionId
-            ? {
-                ...item,
-                output: '',
-                error: errorMessage,
-                status: 'error',
-                executionTime: executionTime,
-              }
-            : item
-        )
-      );
+    // Primary source: categorized variables (provides labels/derivation).
+    categorizedVariables?.categories?.forEach((category) => {
+      category.variables?.forEach((variable) => {
+        addRow(variable.name, { ...variable, category: category.name });
+      });
+    });
 
-      message.error(errorMessage);
-    } finally {
-      setIsExecuting(false);
+    // Include any snippets not present in the categorized list.
+    Object.keys(pairProgramming.snippets).forEach((variable) => {
+      if (!data.has(variable)) {
+        addRow(variable);
+      }
+    });
+
+    return Array.from(data.values());
+  }, [categorizedVariables, pairProgramming.snippets, codeReviewComments]);
+
+  const stats = useMemo(() => {
+    return rows.reduce(
+      (acc, row) => {
+        acc.total += 1;
+        if (row.reviewState === 'approved') acc.approved += 1;
+        else if (row.reviewState === 'changes_requested') acc.changes += 1;
+        else acc.pending += 1;
+        return acc;
+      },
+      { total: 0, approved: 0, changes: 0, pending: 0 }
+    );
+  }, [rows]);
+
+  const handleApprove = (variable: string) => {
+    setPairProgrammingAcceptance(variable, 'accept');
+    if (codeReviewStatus === CodeReviewStatus.NOT_STARTED) {
+      updateReviewStatus(CodeReviewStatus.IN_REVIEW);
     }
+    message.success(`Approved ${variable}`);
   };
 
-  const handleClearHistory = () => {
-    setExecutionHistory([]);
-    setSelectedHistoryIndex(null);
-    message.success('Execution history cleared');
+  const handleRequestChanges = (variable: string) => {
+    setPairProgrammingAcceptance(variable, 'modify');
+    updateReviewStatus(CodeReviewStatus.CHANGES_REQUESTED);
+    message.warning(`Requested changes for ${variable}`);
   };
 
-  const handleLoadFromHistory = (index: number) => {
-    const execution = executionHistory[index];
-    if (execution) {
-      setCode(execution.code);
-      setSelectedHistoryIndex(index);
-      message.success('Code loaded from history');
+  const handleOpenComment = (variable: string) => {
+    setCommentModal({ open: true, variable, text: '' });
+  };
+
+  const handleSubmitComment = async () => {
+    if (!commentModal.variable) return;
+    const text = commentModal.text.trim();
+    if (!text) {
+      message.warning('Add a short comment before submitting.');
+      return;
     }
+    await createComment(text, undefined, commentModal.variable);
+    setCommentModal({ open: false, text: '', variable: undefined });
+    message.success('Comment added');
   };
 
-  const handleClearCode = () => {
-    setCode('');
-    message.success('Editor cleared');
+  const handleRefresh = () => {
+    if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+    loadCodeReviewSession(projectConfig.studyId, projectConfig.adamDataset, programmingLanguage, codeReviewSession?.run_id);
   };
 
+  const handleApproveSession = () => {
+    if (rows.length === 0) {
+      message.warning('No variables to review yet.');
+      return;
+    }
+    updateReviewStatus(CodeReviewStatus.APPROVED);
+    message.success('Review status set to Approved (warning will remain on Consolidated until code is regenerated).');
+  };
+
+  const columns: ColumnsType<ReviewRow> = [
+    {
+      title: 'Variable',
+      dataIndex: 'name',
+      key: 'name',
+      render: (_value, row) => (
+        <div className="variable-cell">
+          <div className="variable-name">{row.name}</div>
+          {row.label && <div className="variable-label">{row.label}</div>}
+          {row.category && <Tag color="blue">{row.category}</Tag>}
+        </div>
+      ),
+    },
+    {
+      title: 'Derivation Logic',
+      dataIndex: 'derivation',
+      key: 'derivation',
+      width: 220,
+      render: (value?: string) => {
+        if (!value) return <span className="muted">No derivation provided</span>;
+        return (
+          <Tooltip title={value}>
+            <div className="truncate">{truncate(value)}</div>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: 'Pseudo-Code',
+      dataIndex: 'pseudoCode',
+      key: 'pseudoCode',
+      width: 240,
+      render: (_value, row) => {
+        if (!row.pseudoCode) return <span className="muted">Not generated</span>;
+        return (
+          <div className="pseudo-preview">
+            {row.pseudoSummary && <div className="muted">{row.pseudoSummary}</div>}
+            <pre className="pseudo-snippet">{truncate(row.pseudoCode, 180)}</pre>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'Generated Code',
+      dataIndex: 'codeSnippet',
+      key: 'codeSnippet',
+      width: 240,
+      render: (value?: string) => {
+        if (!value) return <span className="muted">No code yet</span>;
+        return <pre className="code-snippet">{truncate(value, 180)}</pre>;
+      },
+    },
+    {
+      title: 'User Notes',
+      dataIndex: 'userNotes',
+      key: 'userNotes',
+      width: 180,
+      render: (value?: string) => (value ? <div className="truncate">{truncate(value, 140)}</div> : <span className="muted">None</span>),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'reviewState',
+      key: 'reviewState',
+      width: 150,
+      render: (state: VariableReviewState, row) => (
+        <Space size="small">
+          {variableStateTag(state)}
+          {row.commentCount > 0 && <Tag color="purple">{row.commentCount} comment{row.commentCount > 1 ? 's' : ''}</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 220,
+      render: (_value, row) => (
+        <Space size="small">
+          <Button size="small" type="primary" ghost icon={<CheckCircleOutlined />} onClick={() => handleApprove(row.name)}>
+            Approve
+          </Button>
+          <Button size="small" danger icon={<WarningOutlined />} onClick={() => handleRequestChanges(row.name)}>
+            Request Changes
+          </Button>
+          <Button size="small" icon={<CommentOutlined />} onClick={() => handleOpenComment(row.name)}>
+            Comment
+          </Button>
+        </Space>
+      ),
+    },
+  ];
+
+  const reviewStatus = codeReviewStatus || CodeReviewStatus.NOT_STARTED;
+  const showWarning = reviewStatus !== CodeReviewStatus.APPROVED;
+
+  if (!projectConfig.studyId || !projectConfig.adamDataset) {
+    return (
+      <div className="code-review-tab empty">
+        <Empty description="Select a study and dataset to start code review." />
+      </div>
+    );
+  }
 
   return (
-    <div className="code-review-tab code-executor">
-      {/* Header */}
+    <div className="code-review-tab">
       <div className="review-header">
         <div className="review-info">
-          <h2>🖥️ Interactive Code Executor</h2>
-          <span className="language-badge">{programmingLanguage}</span>
-        </div>
-
-        <div className="review-actions">
-          <button
-            onClick={handleExecuteCode}
-            disabled={isExecuting || !code.trim()}
-            className="btn btn-primary"
-            title="Execute code (Ctrl+Enter)"
-          >
-            {isExecuting ? (
-              <>
-                <span className="spinner-small"></span> Executing...
-              </>
-            ) : (
-              <>▶️ Run Code</>
-            )}
-          </button>
-          <button
-            onClick={handleClearCode}
-            disabled={isExecuting}
-            className="btn btn-secondary"
-            title="Clear editor"
-          >
-            🗑️ Clear
-          </button>
-          <button
-            onClick={handleClearHistory}
-            disabled={executionHistory.length === 0}
-            className="btn btn-secondary"
-            title="Clear execution history"
-          >
-            📋 Clear History
-          </button>
-        </div>
-      </div>
-
-      {/* Info Banner */}
-      <div className="info-banner">
-        💡 Write {programmingLanguage} code and press <kbd>Ctrl+Enter</kbd> or click <strong>Run Code</strong> to execute. Results will appear below.
-      </div>
-
-      {/* Main Content: Editor + Output */}
-      <div className="review-content executor-layout">
-        {/* Code Editor */}
-        <div className="editor-panel">
-          <div className="editor-header">
-            <span>Code Editor</span>
-            <span className="editor-hint">Press Ctrl+Enter to execute</span>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            Code Review (Variable-Level)
+          </Typography.Title>
+          <div className="muted">
+            Study: {projectConfig.studyId} | Dataset: {projectConfig.adamDataset} | Language: {programmingLanguage}
           </div>
-          <Editor
-            height="400px"
-            language={programmingLanguage.toLowerCase() === 'r' ? 'r' : 'sas'}
-            value={code}
-            onChange={(value) => setCode(value || '')}
-            theme="vs-dark"
-            options={{
-              fontSize: 14,
-              lineNumbers: 'on',
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              wordWrap: 'on',
-              automaticLayout: true,
-            }}
-            onMount={handleEditorMount}
+          {statusTag(reviewStatus)}
+        </div>
+        <Space wrap>
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} disabled={isLoadingReview}>
+            Refresh
+          </Button>
+          <Button icon={<FilePdfOutlined />} onClick={exportReviewPDF} disabled={!rows.length}>
+            Export PDF
+          </Button>
+          <Button type="primary" icon={<CheckCircleOutlined />} onClick={handleApproveSession} disabled={!rows.length}>
+            Mark Review Approved
+          </Button>
+        </Space>
+      </div>
+
+      {showWarning && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ margin: '16px 16px 0 16px' }}
+          message="Review not approved yet"
+          description="Consolidated code can be generated but will be treated as draft until you approve the review."
+        />
+      )}
+
+      {reviewError && (
+        <Alert
+          type="error"
+          showIcon
+          style={{ margin: '16px 16px 0 16px' }}
+          message="Review error"
+          description={reviewError}
+        />
+      )}
+
+      <div className="review-summary">
+        <Space size="large">
+          <span>Total: {stats.total}</span>
+          <span>Approved: {stats.approved}</span>
+          <span>Changes requested: {stats.changes}</span>
+          <span>Pending: {stats.pending}</span>
+        </Space>
+        <span className="muted">Scope: variable-level review only</span>
+      </div>
+
+      <div className="review-table">
+        {isLoadingReview ? (
+          <div className="loading-state">
+            <Spin />
+          </div>
+        ) : rows.length === 0 ? (
+          <Empty description="No variables available yet. Generate code snippets in Pair Programming first." />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={rows}
+            pagination={{ pageSize: 8 }}
+            rowKey="key"
+            size="small"
           />
-        </div>
-
-        {/* Output Panel */}
-        <div className="output-panel" ref={outputRef}>
-          <div className="output-header">
-            <span>Output & Results</span>
-            {executionHistory.length > 0 && (
-              <span className="execution-count">
-                {executionHistory.length} execution{executionHistory.length !== 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
-
-          <div className="output-content">
-            {executionHistory.length === 0 ? (
-              <div className="no-output">
-                <p>No executions yet. Write some code and click Run to see results.</p>
-                <div className="example-code">
-                  <strong>Example:</strong>
-                  <pre>{programmingLanguage === 'R' 
-                    ? '# Simple calculation\nx <- 1:10\nmean(x)\n\n# Print output\nprint("Hello from R!")'
-                    : '/* SAS example */\ndata test;\n  x = 1;\n  y = 2;\nrun;'
-                  }</pre>
-                </div>
-              </div>
-            ) : (
-              <div className="execution-results">
-                {executionHistory.map((execution, index) => (
-                  <div
-                    key={execution.id}
-                    className={`execution-item ${execution.status} ${
-                      selectedHistoryIndex === index ? 'selected' : ''
-                    }`}
-                  >
-                    <div className="execution-header-item">
-                      <div className="execution-info">
-                        <span className={`status-dot ${execution.status}`}></span>
-                        <span className="execution-time">
-                          {execution.timestamp.toLocaleTimeString()}
-                        </span>
-                        {execution.executionTime && (
-                          <span className="execution-duration">
-                            ({(execution.executionTime / 1000).toFixed(2)}s)
-                          </span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleLoadFromHistory(index)}
-                        className="btn-link"
-                        title="Load this code into editor"
-                      >
-                        📝 Load
-                      </button>
-                    </div>
-
-                    <div className="execution-code">
-                      <strong>Code:</strong>
-                      <pre>{execution.code}</pre>
-                    </div>
-
-                    {execution.status === 'running' && (
-                      <div className="execution-output running">
-                        <span className="spinner-small"></span> Executing...
-                      </div>
-                    )}
-
-                    {execution.status === 'success' && execution.output && (
-                      <div className="execution-output success">
-                        <strong>✅ Output:</strong>
-                        <pre>{execution.output}</pre>
-                      </div>
-                    )}
-
-                    {execution.status === 'error' && execution.error && (
-                      <div className="execution-output error">
-                        <strong>❌ Error:</strong>
-                        <pre>{execution.error}</pre>
-                      </div>
-                    )}
-
-                    {execution.status === 'success' && !execution.output && (
-                      <div className="execution-output success">
-                        <em>✅ Executed successfully (no output)</em>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
+
+      <Modal
+        title={`Add comment for ${commentModal.variable || ''}`}
+        open={commentModal.open}
+        okText="Add Comment"
+        onOk={handleSubmitComment}
+        onCancel={() => setCommentModal({ open: false, text: '', variable: undefined })}
+      >
+        <Input.TextArea
+          rows={4}
+          value={commentModal.text}
+          onChange={(e) => setCommentModal((prev) => ({ ...prev, text: e.target.value }))}
+          placeholder="Add your review note or requested change"
+        />
+      </Modal>
     </div>
   );
 };

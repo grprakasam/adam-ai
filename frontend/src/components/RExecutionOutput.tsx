@@ -9,21 +9,7 @@
  */
 
 import React, { useState } from 'react';
-import {
-  Tabs,
-  Card,
-  Typography,
-  Space,
-  Button,
-  Image,
-  Table,
-  Alert,
-  Empty,
-  Tag,
-  Tooltip,
-  message,
-  Carousel,
-} from 'antd';
+import { Tabs, Card, Typography, Space, Button, Image, Table, Alert, Empty, Tag, message } from 'antd';
 import {
   DownloadOutlined,
   FileTextOutlined,
@@ -38,7 +24,7 @@ import type { RExecutionResult, RExecutionOutput } from '../types/rExecution';
 import { adamApi } from '../services/api';
 import { triggerDownload } from '../utils/downloadHelpers';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 const { TabPane } = Tabs;
 
 interface RExecutionOutputProps {
@@ -258,7 +244,7 @@ export const RExecutionOutputComponent: React.FC<RExecutionOutputProps> = ({
                 size="small"
                 pagination={{ pageSize: 5 }}
                 scroll={{ x: true }}
-                rowKey={(record, index) => `row-${index}`}
+                rowKey={(_record, index) => `row-${index}`}
               />
               {df.rows > df.preview_rows.length && (
                 <Alert

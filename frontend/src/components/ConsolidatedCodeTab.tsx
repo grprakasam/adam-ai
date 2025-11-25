@@ -33,7 +33,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
     consolidatedCode,
     isGeneratingConsolidated,
     consolidatedProgress,
-    codeReviewSession,
+    codeReviewStatus,
     consolidatedStatus,
     setCommentVerbosity,
     setConsolidatedCode,
@@ -316,6 +316,8 @@ export const ConsolidatedCodeTab: React.FC = () => {
   const summarisedOptimizations = consolidatedCode?.summary.optimizations_applied || [];
   const variablesWithCode = buildApprovedVariables().length;
   const hasCodeSnippets = variablesWithCode > 0;
+  const reviewStatus = codeReviewStatus || 'not_started';
+  const showReviewWarning = reviewStatus !== 'approved';
 
   return (
     <div className="consolidated-tab">
@@ -342,16 +344,13 @@ export const ConsolidatedCodeTab: React.FC = () => {
         </div>
       </div>
 
-
-
-      {/* Code Review Status Banner */}
-      {codeReviewSession && (codeReviewSession.status === 'IN_REVIEW' || codeReviewSession.status === 'CHANGES_REQUESTED') && (
+      {/* Code Review Status Banner (warning only, generation still allowed) */}
+      {showReviewWarning && (
         <Alert
           type="warning"
           showIcon
-          message="Code Review In Progress"
-          description={codeReviewSession.status === 'IN_REVIEW' ? 'Review in progress - Complete the review before generating final code.' : 'Changes requested - Address the changes before generating final code.'}
-          closable
+          message="Code review not approved"
+          description="You can generate consolidated code, but it will be treated as draft until the Code Review tab is approved."
           style={{ marginBottom: 16 }}
         />
       )}

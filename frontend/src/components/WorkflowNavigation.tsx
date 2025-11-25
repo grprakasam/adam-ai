@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Space, Tooltip } from 'antd';
+import { Button, Tooltip } from 'antd';
 import { ArrowLeftOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import './WorkflowNavigation.css';
 
@@ -16,12 +16,6 @@ const STEP_LABELS: Record<WorkflowStep, string> = {
   pair: 'Pair Programming',
   review: 'Code Review',
   consolidated: 'Consolidated Code',
-};
-
-const STEP_DESCRIPTIONS: Record<WorkflowStep, string> = {
-  pair: 'Generate AI code snippets with pair programming assistance',
-  review: 'Review and approve code with approval tracking',
-  consolidated: 'Generate final consolidated ADAM program',
 };
 
 export const WorkflowNavigation: React.FC<WorkflowNavigationProps> = ({ currentStep, onNavigate }) => {

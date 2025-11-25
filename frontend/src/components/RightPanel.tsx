@@ -9,7 +9,6 @@ import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
 import CodeReviewTab from './CodeReviewTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
-import CodeReviewTabNew from './CodeReviewTabNew';
 import { TraceabilityTab } from './TraceabilityTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { AdamGeneratorTab } from './AdamGeneratorTab';
@@ -286,7 +285,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               </span>
             </Tooltip>
           ),
-          children: <CodeReviewTabNew />,
+          children: <CodeReviewTab />,
         },
         {
           key: 'consolidated',
