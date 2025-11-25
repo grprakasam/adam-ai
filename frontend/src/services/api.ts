@@ -1179,6 +1179,105 @@ export const adamApi = {
 
     return response.data;
   },
+
+  // ============================================================================
+  // Code Review Session API Methods (New)
+  // ============================================================================
+
+  // Create a new code review session
+  createCodeReviewSession: async (
+    studyId: string,
+    adamDataset: string,
+    programmingLanguage: string
+  ) => {
+    const response = await apiClient.post('/code-review/session', {
+      study_id: studyId,
+      adam_dataset: adamDataset,
+      programming_language: programmingLanguage,
+    });
+    return response.data;
+  },
+
+  // Load variable snapshots from Pair Programming into Code Review
+  loadVariableSnapshotsForReview: async (
+    sessionId: string,
+    snippetsData: Record<string, any>
+  ) => {
+    const response = await apiClient.post(`/code-review/session/${sessionId}/load-snapshots`, {
+      session_id: sessionId,
+      variables_data: snippetsData,
+    });
+    return response.data;
+  },
+
+  // Get variable snapshots for a code review session
+  getVariableSnapshotsForReview: async (
+    sessionId: string,
+    statusFilter?: string
+  ) => {
+    const response = await apiClient.get(`/code-review/session/${sessionId}/variables`, {
+      params: statusFilter ? { status: statusFilter } : {},
+    });
+    return response.data;
+  },
+
+  // Set variable approval status
+  setVariableApprovalStatus: async (
+    sessionId: string,
+    variableName: string,
+    status: 'PENDING' | 'APPROVED' | 'CHANGES_REQUESTED',
+    comments?: string
+  ) => {
+    const response = await apiClient.post(
+      `/code-review/session/${sessionId}/variables/${variableName}/status`,
+      {
+        status,
+        comments,
+      }
+    );
+    return response.data;
+  },
+
+  // Add a comment to a variable in code review
+  addCodeReviewComment: async (
+    sessionId: string,
+    variableName: string,
+    text: string
+  ) => {
+    const response = await apiClient.post(`/code-review/session/${sessionId}/comments`, {
+      variable_name: variableName,
+      text,
+    });
+    return response.data;
+  },
+
+  // Get all comments for a code review session
+  getCodeReviewComments: async (
+    sessionId: string,
+    variableName?: string
+  ) => {
+    const response = await apiClient.get(`/code-review/session/${sessionId}/comments`, {
+      params: variableName ? { variable_name: variableName } : {},
+    });
+    return response.data;
+  },
+
+  // Get complete code review session with all variables and comments
+  getCodeReviewSessionWithVariables: async (sessionId: string) => {
+    const response = await apiClient.get(`/code-review/session/${sessionId}/full`);
+    return response.data;
+  },
+
+  // Update overall code review session status
+  updateCodeReviewSessionStatus: async (
+    sessionId: string,
+    status: 'NOT_STARTED' | 'IN_REVIEW' | 'CHANGES_REQUESTED' | 'APPROVED'
+  ) => {
+    const response = await apiClient.put(`/code-review/session/${sessionId}/status`, {
+      status,
+    });
+    return response.data;
+  },
 };
 
 export default adamApi;

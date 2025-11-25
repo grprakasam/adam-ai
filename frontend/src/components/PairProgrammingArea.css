@@ -2674,3 +2674,27 @@
   }
 }
 
+/* Pseudo-Code Highlighting Styles */
+.pseudo-code-block {
+  background: linear-gradient(135deg, #f8fafb 0%, #f3f5f7 100%);
+  border-left: 4px solid #8b5cf6;
+  font-size: 12px;
+}
+
+.pseudo-keyword {
+  color: #7c3aed;
+  font-weight: 600;
+}
+
+.sdtm-domain {
+  color: #dc2626;
+  font-weight: 500;
+  background: rgba(220, 38, 38, 0.08);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.pseudo-number {
+  color: #059669;
+  font-weight: 500;
+}

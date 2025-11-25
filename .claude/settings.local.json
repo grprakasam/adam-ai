@@ -14,7 +14,20 @@
       "Bash(find:*)",
       "Bash(../prakenv/Scripts/python.exe -c \"from app.api.v1 import api_router; print(''API router imported successfully'')\")",
       "Bash(../prakenv/Scripts/python.exe:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(cd:*)",
+      "Bash(./prakenv/Scripts/python.exe -m pytest backend/tests/test_code_generator/test_pseudo_code_generation.py::TestJSONResponseParsing::test_parse_valid_json_response -v)",
+      "Bash(./prakenv/Scripts/python.exe -m pytest backend/tests/test_code_generator/test_pseudo_code_generation.py -v --tb=line)",
+      "Bash(./prakenv/Scripts/python.exe -m pytest backend/tests/test_code_generator/test_pseudo_code_generation.py -v)",
+      "Bash(./prakenv/Scripts/python.exe -m pytest backend/tests/test_code_generator/test_pseudo_code_generation.py -v --tb=short)",
+      "Bash(npm run lint)",
+      "Bash(./prakenv/Scripts/python.exe -m pytest backend/tests/test_code_review/test_service.py -v --tb=short)",
+      "Bash(python -m pytest:*)",
+      "Bash(cat:*)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass /tmp/add_banner.ps1)",
+      "Bash(./prakenv/Scripts/python.exe -m pytest backend/tests/test_code_review/test_service.py -q)",
+      "Bash(./prakenv/Scripts/python.exe -m pytest backend/tests/test_code_review/test_service.py -v)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

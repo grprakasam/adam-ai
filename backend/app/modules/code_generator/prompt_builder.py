@@ -214,18 +214,26 @@ class PromptBuilder:
         # Skip rules_context, template_hint, and verbose instructions for faster generation
         # This reduces prompt tokens by 60-70% compared to full prompt
         # NOW RETURNS JSON with code, pseudo-code, and summary
-        prompt = f"""Generate {language} code for ADAM variable. Return JSON only.
+        # ENHANCED: Better pseudo-code guidance for domain expert clarity
+        prompt = f"""Generate {language} code and pseudo-code for ADAM variable. Return JSON only.
 
 Variable: {variable_name} ({variable_type})
 Derivation: {derivation_logic}
 Dataset: {adam_dataset}
 {user_note_section}
 
+IMPORTANT PSEUDO-CODE REQUIREMENTS:
+- Use plain English with IF/THEN/ELSE/FOR/WHILE keywords
+- Include indentation (2 spaces per logic level)
+- Reference SDTM domains by name (e.g., "DM", "AE", "LB")
+- Make it understandable to clinical domain experts (not programmers)
+- Keep to 5-15 lines for clarity
+
 Return ONLY valid JSON (no markdown, no extra text):
 {{
   "code_snippet": "executable {language} code",
-  "pseudo_code": "step-by-step logic (3-10 lines, language-independent)",
-  "pseudo_summary": "one-line summary"
+  "pseudo_code": "step-by-step derivation logic using plain English",
+  "pseudo_summary": "one-sentence summary of variable purpose"
 }}"""
 
         return prompt.strip()

@@ -44,6 +44,30 @@ const STORAGE_KEYS = {
 };
 
 
+// Highlight pseudo-code keywords for domain expert clarity
+const highlightPseudoCode = (pseudoCode: string): string => {
+  let highlighted = pseudoCode;
+
+  // Escape HTML
+  highlighted = highlighted
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Pseudo-code keywords (domain expert friendly)
+  const keywords = /\b(IF|THEN|ELSE|FOR|WHILE|AND|OR|NOT|FOREACH|CALL|RETURN|SET|TO|IN|END)\b/g;
+  highlighted = highlighted.replace(keywords, '<span class="pseudo-keyword">$&</span>');
+
+  // Data domain references (SDTM domains)
+  const domains = /\b(DM|AE|CM|LB|VS|EX|MH|SV|PE|DS|DA|DV|PC|PP|QS|SE|SS|TA|TF|TI|TV|EG|ET|FA|FB|FC|FD|FE|FF|FS|FX|IE|IG|IP|IS|IW|LF|LV|MB|MD|MG|MM|MS|MU|MW|MY|OB|OE|OM|OS|OT|PA|PD|PG|PK|RM|RS|RX|SA|SG|SI|SM|SN|SO|SP|SR|ST|SU|SW|SX|TM|TP|TR|TT|TX|UC|UE|VS|XP|ZG|ZU)\b/g;
+  highlighted = highlighted.replace(domains, '<span class="sdtm-domain">$&</span>');
+
+  // Numbers
+  highlighted = highlighted.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="pseudo-number">$&</span>');
+
+  return highlighted;
+};
+
 // Simple syntax highlighting function for R and SAS
 const highlightCode = (code: string, language: string): string => {
   let highlighted = code;
@@ -698,15 +722,15 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       {isFieldVisible('pseudo') && snippet?.pseudoCode && (
                         <div className="detail-block">
                           <div className="detail-block-title">
-                            🔍 Pseudo-Code
+                            🔍 Pseudo-Code (Domain Expert View)
                             {snippet.pseudoSummary && (
                               <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#9ca3af', marginLeft: '8px' }}>
                                 — {snippet.pseudoSummary}
                               </span>
                             )}
                           </div>
-                          <pre className="detail-code-block" style={{ background: '#f5f5f5', borderLeft: '4px solid #007acc' }}>
-                            {snippet.pseudoCode}
+                          <pre className="detail-code-block pseudo-code-block">
+                            <code dangerouslySetInnerHTML={{ __html: highlightPseudoCode(snippet.pseudoCode) }} />
                           </pre>
                         </div>
                       )}

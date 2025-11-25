@@ -1,0 +1,82 @@
+.workflow-navigation {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
+  border-radius: 6px;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.nav-button {
+  height: 28px;
+  font-size: 12px;
+}
+
+.nav-button-back {
+  min-width: 70px;
+}
+
+.nav-button-forward {
+  min-width: 80px;
+}
+
+.nav-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.workflow-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.workflow-progress {
+  display: flex;
+  gap: 6px;
+}
+
+.workflow-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #e5e7eb;
+  transition: all 0.3s ease;
+}
+
+.workflow-dot.completed {
+  background-color: #10b981;
+}
+
+.workflow-dot.active {
+  background-color: #3b82f6;
+  box-shadow: 0 0 4px rgba(59, 130, 246, 0.5);
+  width: 10px;
+  height: 10px;
+}
+
+.workflow-text {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .workflow-navigation {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 6px 8px;
+  }
+
+  .nav-button {
+    font-size: 11px;
+    height: 26px;
+  }
+
+  .workflow-text {
+    font-size: 11px;
+  }
+}

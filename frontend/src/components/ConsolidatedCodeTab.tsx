@@ -33,6 +33,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
     consolidatedCode,
     isGeneratingConsolidated,
     consolidatedProgress,
+    codeReviewSession,
     consolidatedStatus,
     setCommentVerbosity,
     setConsolidatedCode,
@@ -340,6 +341,20 @@ export const ConsolidatedCodeTab: React.FC = () => {
           </Button>
         </div>
       </div>
+
+
+
+      {/* Code Review Status Banner */}
+      {codeReviewSession && (codeReviewSession.status === 'IN_REVIEW' || codeReviewSession.status === 'CHANGES_REQUESTED') && (
+        <Alert
+          type="warning"
+          showIcon
+          message="Code Review In Progress"
+          description={codeReviewSession.status === 'IN_REVIEW' ? 'Review in progress - Complete the review before generating final code.' : 'Changes requested - Address the changes before generating final code.'}
+          closable
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
       {/* Split layout: Controls Panel + Main Content */}
       <div className="consolidated-layout">
