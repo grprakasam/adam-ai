@@ -13,6 +13,7 @@ import { TraceabilityTab } from './TraceabilityTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { AdamGeneratorTab } from './AdamGeneratorTab';
 import { RFrontendTab } from './RFrontendTab';
+import { CodeValidatorTab } from './CodeValidatorTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import AutoSaveIndicator from './AutoSaveIndicator';
 import { HistoryControls } from './HistoryControls';
@@ -38,6 +39,7 @@ type WorkspaceTabKey =
   | 'adam-generator'
   | 'comparer'
   | 'submission'
+  | 'code-validator'
   | 'testdata'
   | 'traceability'
   | 'r-frontend'
@@ -54,6 +56,7 @@ const TAB_TOOLTIPS: Record<string, string> = {
   'adam-generator': 'Execute and validate R programs to generate ADAM datasets',
   comparer: 'Compare ADAM datasets side-by-side and validate consistency',
   submission: 'Review readiness for regulatory submission with checklist and validation',
+  'code-validator': 'Validate and execute code snippets with syntax checks and Docker environment',
   testdata: 'Generate CDISC-compliant SDTM test data (prerequisite for ADAM development)',
   traceability: 'Track SDTM-to-ADAM lineage and create regulatory traceability documentation',
   'r-frontend': 'Professional R code execution environment - write and run any R scripts',
@@ -78,7 +81,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
     adamCoding: ['pair', 'review', 'consolidated', 'adam-generator'],
-    adamValidation: ['comparer', 'submission'],
+    adamValidation: ['comparer', 'submission', 'code-validator'],
     utilities: ['testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability'],
   };
 
@@ -123,6 +126,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         case '/submission-package':
           setActiveGroup('adamValidation');
           setActiveWorkspaceTab('submission');
+          break;
+        case '/code-validator':
+        case '/validation-reports':
+          setActiveGroup('adamValidation');
+          setActiveWorkspaceTab('code-validator');
           break;
         case '/test-with-data':
           setActiveGroup('utilities');
@@ -338,6 +346,19 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             </Tooltip>
           ),
           children: <SubmissionReadinessTab />,
+        },
+        {
+          key: 'code-validator',
+          group: 'adamValidation' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['code-validator']}>
+              <span>
+                <span style={{ fontWeight: 700, color: 'inherit' }}>7.</span> Code Validator{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <CodeValidatorTab />,
         },
         {
           key: 'testdata',

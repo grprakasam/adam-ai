@@ -31,8 +31,8 @@
   visibility: visible !important;
   display: flex;
   flex-direction: column;
-  min-height: 68px; /* 36px utilities + 32px navigation */
-  max-height: 68px;
+  min-height: 120px; /* 36px utilities + 80px+ navigation */
+  max-height: none; /* Allow to expand for navigation */
   flex-shrink: 0; /* Never shrink */
 }
 
@@ -45,8 +45,8 @@
   pointer-events: auto !important;
   visibility: visible !important;
   height: auto !important;
-  min-height: 68px !important;
-  max-height: 68px !important;
+  min-height: 120px !important;
+  max-height: none !important;
   overflow: visible !important;
 }
 
@@ -74,7 +74,7 @@
   white-space: nowrap;
 }
 
-/* Workspace navigation section within the grouped section - Ultra Compact */
+/* Workspace navigation section within the grouped section - Expanded for visibility */
 .right-panel .workspace-header-group .workspace-navigation-section {
   background: transparent;
   border-radius: 0;
@@ -85,14 +85,14 @@
   z-index: 1;
   margin-bottom: 0;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible; /* Changed from hidden to visible */
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  /* Ultra compact single row height */
-  height: 32px;
-  min-height: 32px;
-  max-height: 32px;
+  /* Expanded height to show section buttons */
+  height: auto;
+  min-height: 80px;
+  max-height: none; /* Remove height restriction */
   display: flex;
   align-items: center;
 }
