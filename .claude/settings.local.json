@@ -13,7 +13,8 @@
       "Bash(npm run build:*)",
       "Bash(find:*)",
       "Bash(../prakenv/Scripts/python.exe -c \"from app.api.v1 import api_router; print(''API router imported successfully'')\")",
-      "Bash(../prakenv/Scripts/python.exe:*)"
+      "Bash(../prakenv/Scripts/python.exe:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

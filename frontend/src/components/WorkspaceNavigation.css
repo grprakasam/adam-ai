@@ -40,58 +40,86 @@
 .nav-single-row-container {
   display: flex;
   align-items: center;
-  gap: 3px;
+  justify-content: flex-start;
+  gap: 12px;
   width: 100%;
   min-width: fit-content;
-  padding: 2px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border-radius: 6px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  padding: 14px 16px;
+  background: linear-gradient(135deg, #f0f4f8 0%, #e9f0f7 100%);
+  border-radius: 10px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.08);
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE/Edge */
-  height: 100%;
+  height: auto;
+  min-height: 60px;
+  transition: all 0.3s ease;
 }
 
 .nav-single-row-container::-webkit-scrollbar {
   display: none; /* Chrome/Safari */
 }
 
-/* Section Button - Inline Style - Ultra Compact */
+/* Section Button - Inline Style - Prominent Group Headers */
 .nav-section-btn-inline {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: transparent;
-  border: none;
-  border-radius: 5px;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.3) 100%);
+  border: 1.5px solid rgba(148, 163, 184, 0.15);
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  font-weight: 600;
-  font-size: 11px;
-  color: #64748b;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 700;
+  font-size: 12px;
+  color: #475569;
   white-space: nowrap;
   position: relative;
-  height: 26px;
+  height: 40px;
   line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  min-width: 150px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .nav-section-btn-inline:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.5) 100%);
   color: var(--section-color);
+  border-color: var(--section-color);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
 }
 
 .nav-section-btn-inline.active {
-  background: white;
-  color: var(--section-color);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, var(--section-color) 0%, var(--section-color) 100%);
+  color: white;
+  border-color: var(--section-color);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateY(-3px);
+  font-weight: 800;
+}
+
+.nav-section-btn-inline.active::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 75%;
+  height: 4px;
+  background: var(--section-color);
+  border-radius: 2px 2px 0 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .nav-section-icon-inline {
-  font-size: 12px;
+  font-size: 16px;
   display: flex;
   align-items: center;
   line-height: 1;
@@ -100,42 +128,49 @@
 
 .nav-section-label-inline {
   white-space: nowrap;
+  font-size: 12px;
 }
 
-/* Navigation Item Pills - Ultra Compact Horizontal */
+/* Navigation Item Pills - Enhanced Spacing */
 .nav-item-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 12px;
   background: white;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 5px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 12px;
   color: #1e293b;
   white-space: nowrap;
   position: relative;
-  height: 26px;
+  height: 36px;
   line-height: 1;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 /* Remove inactive section styling - items are only shown for active section */
 
 .nav-item-pill:hover {
   border-color: var(--item-color);
-  background: rgba(255, 255, 255, 0.95);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  color: var(--item-color);
 }
 
 .nav-item-pill.selected {
-  background: var(--item-color);
+  background: linear-gradient(135deg, var(--item-color) 0%, var(--item-color) 100%);
   border-color: var(--item-color);
   color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-weight: 700;
+  transform: translateY(-2px);
 }
 
 .nav-item-pill.selected .nav-item-icon-pill {
@@ -172,13 +207,14 @@
   box-shadow: 0 0 0 2px white;
 }
 
-/* Dividers - Ultra Compact */
+/* Dividers - Prominent Section Separator */
 .nav-divider {
-  width: 1px;
-  height: 18px;
-  background: #cbd5e1;
-  margin: 0 2px;
+  width: 2px;
+  height: 28px;
+  background: linear-gradient(to bottom, transparent 0%, #cbd5e1 30%, #cbd5e1 70%, transparent 100%);
+  margin: 0 8px;
   flex-shrink: 0;
+  border-left: 1px solid rgba(203, 213, 225, 0.3);
 }
 
 .nav-item-divider {
@@ -521,6 +557,31 @@
 /* ========================================
    Dark Mode Support
    ======================================== */
+
+[data-theme="dark"] .nav-single-row-container {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .nav-section-btn-inline {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+[data-theme="dark"] .nav-section-btn-inline:hover {
+  background: linear-gradient(135deg, rgba(51, 65, 85, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+  color: var(--section-color);
+  border-color: var(--section-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .nav-section-btn-inline.active {
+  background: linear-gradient(135deg, var(--section-color) 0%, var(--section-color) 100%);
+  color: white;
+  border-color: var(--section-color);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
 
 [data-theme="dark"] .nav-main-sections {
   background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
