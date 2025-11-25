@@ -47,6 +47,7 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
     items: [
       { key: '/adam-dataset-comparer', label: '5. Dataset Comparer', icon: <FileTextOutlined />, description: 'Compare and validate ADAM datasets' },
       { key: '/submission-dashboard', label: '6. Submission', icon: <DashboardOutlined />, description: 'Regulatory submission package' },
+      { key: '/code-validator', label: '7. Code Validator', icon: <CodeOutlined />, description: 'Validate and execute code snippets' },
     ],
   },
   utilities: {
@@ -70,6 +71,7 @@ const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
   'adam-generator': 'adamCoding',
   'comparer': 'adamValidation',
   'submission': 'adamValidation',
+  'code-validator': 'adamValidation',
   'testdata': 'utilities',
   'r-frontend': 'utilities',
   'analytics': 'utilities',
@@ -84,6 +86,8 @@ const PATH_TO_TAB_MAP: Record<string, string> = {
   '/adam-generator': 'adam-generator',
   '/adam-dataset-comparer': 'comparer',
   '/submission-dashboard': 'submission',
+  '/code-validator': 'code-validator',
+  '/validation-reports': 'code-validator',
   '/test-with-data': 'testdata',
   '/traceability': 'traceability',
   '/r-frontend': 'r-frontend',
@@ -98,6 +102,7 @@ const TAB_TO_PATH_MAP: Record<string, string> = {
   'adam-generator': '/adam-generator',
   'comparer': '/adam-dataset-comparer',
   'submission': '/submission-dashboard',
+  'code-validator': '/code-validator',
   'testdata': '/test-with-data',
   'traceability': '/traceability',
   'r-frontend': '/r-frontend',
@@ -105,16 +110,22 @@ const TAB_TO_PATH_MAP: Record<string, string> = {
   'chatbot': '/study-chatbot',
 };
 
-export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({ 
+export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
   activeTab = 'pair',
   onTabChange,
-  onNavigate 
+  onNavigate
 }) => {
   const [activeSection, setActiveSection] = useState<MainSection>(
     TAB_TO_SECTION_MAP[activeTab] || 'adamCoding'
   );
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [selectedPath, setSelectedPath] = useState<string>(TAB_TO_PATH_MAP[activeTab] || '/pair-programming');
+
+  // Debug log to verify component is rendering
+  useEffect(() => {
+    console.log('🎯 WorkspaceNavigation rendered - Active Section:', activeSection);
+    console.log('📍 Available sections:', Object.keys(NAVIGATION_STRUCTURE));
+  }, [activeSection]);
 
   // Update section when active tab changes
   useEffect(() => {
@@ -160,6 +171,21 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
 
   return (
     <div className="workspace-navigation-single-row">
+      {/* Visual Header Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        padding: '6px 16px',
+        borderRadius: '8px 8px 0 0',
+        fontSize: '11px',
+        fontWeight: 600,
+        letterSpacing: '0.5px',
+        textAlign: 'center',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        marginBottom: '-6px'
+      }}>
+        ↓ CLICK SECTION BUTTONS BELOW TO SWITCH BETWEEN ADAM CODING, VALIDATION & UTILITIES ↓
+      </div>
       {/* Single Row Navigation - Sections + Active Section Items in one line */}
       <div className="nav-single-row-container">
         {(Object.keys(NAVIGATION_STRUCTURE) as MainSection[]).map((section, sectionIndex) => {
@@ -169,7 +195,7 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
           return (
             <React.Fragment key={section}>
               {/* Section Header Button */}
-              <Tooltip title={`${sectionData.title} section`} placement="bottom">
+              <Tooltip title={`${sectionData.title} section - ${sectionData.items.length} tabs`} placement="bottom">
                 <button
                   className={`nav-section-btn-inline ${isActiveSection ? 'active' : ''}`}
                   onClick={() => handleSectionChange(section)}
@@ -179,6 +205,29 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
                 >
                   <span className="nav-section-icon-inline">{sectionData.icon}</span>
                   <span className="nav-section-label-inline">{sectionData.title}</span>
+                  <Badge
+                    count={sectionData.items.length}
+                    style={{
+                      backgroundColor: isActiveSection ? 'white' : sectionData.color,
+                      color: isActiveSection ? sectionData.color : 'white',
+                      fontSize: '10px',
+                      height: '18px',
+                      lineHeight: '18px',
+                      minWidth: '18px',
+                      padding: '0 6px',
+                      marginLeft: '4px'
+                    }}
+                  />
+                  {!isActiveSection && (
+                    <span style={{
+                      fontSize: '10px',
+                      marginLeft: '4px',
+                      opacity: 0.7,
+                      fontWeight: 400
+                    }}>
+                      ▼
+                    </span>
+                  )}
                 </button>
               </Tooltip>
 
