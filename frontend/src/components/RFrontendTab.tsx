@@ -135,17 +135,20 @@ export const RFrontendTab: React.FC = () => {
     editorRef.current = editor;
 
     // Ctrl+Enter to execute
-    editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter, () => {
-      handleExecute();
-    });
+    const monaco = (window as any).monaco;
+    if (monaco) {
+      editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+        handleExecute();
+      });
 
-    // Ctrl+Shift+C to clear
-    editor.addCommand(
-      window.monaco.KeyMod.CtrlCmd | window.monaco.KeyMod.Shift | window.monaco.KeyCode.KeyC,
-      () => {
-        handleClear();
-      }
-    );
+      // Ctrl+Shift+C to clear
+      editor.addCommand(
+        monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyC,
+        () => {
+          handleClear();
+        }
+      );
+    }
   };
 
   const handleExecute = useCallback(async () => {

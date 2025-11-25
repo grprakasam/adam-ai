@@ -10,7 +10,6 @@ import {
   SafetyOutlined,
   ExperimentOutlined,
   DashboardOutlined,
-  EditOutlined,
   DownOutlined
 } from '@ant-design/icons';
 import { StudySelector } from './StudySelector';

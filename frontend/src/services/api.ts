@@ -1073,29 +1073,6 @@ export const adamApi = {
   },
 
   // ============================================================================
-  // Code Execution API Methods (Interactive Code Executor)
-  // ============================================================================
-
-  // Execute code snippet (R or SAS)
-  executeCodeSnippet: async (request: {
-    code: string;
-    language: string;
-    snippet_id?: string;
-    test_dataset_ids?: string[];
-    timeout?: number;
-    execution_env?: string;
-  }) => {
-    const response = await apiClient.post('/code-execution/execute-snippet', request);
-    return response.data;
-  },
-
-  // Check code execution environment status
-  getExecutionEnvironmentStatus: async () => {
-    const response = await apiClient.get('/code-execution/environment-status');
-    return response.data;
-  },
-
-  // ============================================================================
   // Code Review & Finalization API Methods
   // ============================================================================
 

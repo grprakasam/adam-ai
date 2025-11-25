@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
-import { FileSearch, AlertCircle, Loader2, Info, Zap, Download, RefreshCw, ArrowRight } from 'lucide-react';
+import { FileSearch, AlertCircle, Loader2, Info, Zap, RefreshCw, ArrowRight } from 'lucide-react';
 import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
@@ -103,7 +103,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
 
   // Final code generation state
   const [showFinalGenerationDialog, setShowFinalGenerationDialog] = useState(false);
-  const [isGeneratingFinalCode, setIsGeneratingFinalCode] = useState(false);
+  const [, setIsGeneratingFinalCode] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [finalProgramCode, setFinalProgramCode] = useState('');
   
@@ -696,11 +696,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
         void startBulkGeneration();
       },
     });
-  };
-
-  // Handle final ADAM code generation
-  const handleGenerateADAMCode = () => {
-    setShowFinalGenerationDialog(true);
   };
 
   const handleConfirmGeneration = async (preferences: GenerationPreferences) => {
