@@ -11,7 +11,10 @@ import subprocess
 import asyncio
 import json
 import shutil
+import tempfile
 import traceback
+import sys
+import os
 from pathlib import Path
 from datetime import datetime
 import uuid
@@ -70,7 +73,7 @@ async def check_environment_status():
         if not docker_available:
             return DockerEnvironmentStatus(
                 docker_available=False,
-                error_message="Docker is not running. Please start Docker Desktop."
+                error_message="Docker is not running. Please start Docker Desktop from your Start menu or system tray, then wait for it to fully start (usually 30-60 seconds)."
             )
         
         # Check R image
@@ -250,7 +253,6 @@ async def execute_r_snippet(request: CodeSnippetExecutionRequest) -> CodeExecuti
     """
     import time
     from datetime import datetime
-    import tempfile
     import os
     
     # Generate unique execution ID for traceability
@@ -276,16 +278,30 @@ async def execute_r_snippet(request: CodeSnippetExecutionRequest) -> CodeExecuti
                 logger.warning(f"Dataset not found in metadata: {dataset_id}")
         
         # Create temporary directory for execution context
-        # Use a more Windows-friendly approach for temp directory
+        # Use project-specific temp directory for better Windows/Docker compatibility
         temp_dir = None
         try:
-            temp_dir = tempfile.mkdtemp()
+            # Use project-specific temp directory instead of system temp.
+            # Avoid Path.resolve() / Path.absolute() which can raise NotImplementedError
+            # in some Windows environments.
+            # __file__ is at: backend/app/api/v1/endpoints/code_execution.py
+            # parents[4] is the backend directory.
+            try:
+                backend_dir = Path(__file__).parents[4]
+            except IndexError:
+                # Fallback: assume current working directory contains backend/
+                backend_dir = Path.cwd() / "backend"
+
+            project_temp_dir = backend_dir / "temp_executions"
+            project_temp_dir.mkdir(parents=True, exist_ok=True)
+
+            temp_dir = tempfile.mkdtemp(dir=str(project_temp_dir))
             temp_path = Path(temp_dir)
             
-            # Paths
+            # Paths - create subdirectories inside temp_path
             script_path = temp_path / "test_script.R"
             output_path = temp_path / "output"
-            output_path.mkdir(exist_ok=True)
+            output_path.mkdir(exist_ok=True, mode=0o755)  # Ensure directory exists and is accessible
             
             # Prepare R script
             # If dataset is provided, add code to list and load available datasets
@@ -335,44 +351,59 @@ cat("\\n===== R Session Info =====\\n")
 sessionInfo()
 """
             
-            # Write script
-            script_path.write_text(full_script)
-            
-            # Build Docker command
-            # Convert Windows paths to Docker-compatible format
-            import sys
-            def to_docker_path(path: Path) -> str:
-                """Convert Windows path to Docker-compatible path"""
-                # On Windows, avoid resolve() which can raise NotImplementedError
-                # Use absolute() instead, which is safer for temp directories
+            # Write script with explicit permissions for Windows/Docker compatibility
+            try:
+                script_path.write_text(full_script, encoding='utf-8')
+                # Ensure the script file is readable by Docker Desktop on Windows
                 if sys.platform == 'win32':
                     try:
-                        # Try absolute() first (safer than resolve() on Windows)
-                        abs_path = path.absolute()
-                    except (NotImplementedError, OSError, AttributeError):
-                        # Last resort: use the path as-is
-                        abs_path = path
-                    
+                        os.chmod(script_path, 0o666)  # Read/write for all
+                    except Exception:
+                        pass  # Continue if chmod fails
+            except PermissionError as perm_error:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Cannot write script file: {perm_error}. Please ensure Docker Desktop has access to the temp directory."
+                )
+            
+            # Build Docker command
+            # Convert host paths to Docker-compatible mount paths
+            def to_docker_path(path: Path) -> str:
+                """Convert host path to Docker-compatible path without using resolve()/absolute()."""
+                if sys.platform == 'win32':
+                    # Use os.path.abspath on the string form; this is more robust on Windows.
+                    path_str = str(path)
+                    try:
+                        path_str = os.path.abspath(path_str)
+                    except Exception:
+                        # Fall back to the raw string if abspath fails
+                        pass
+
                     # Docker Desktop on Windows needs forward slashes and drive letter conversion
                     # e.g., C:\Users\... becomes /c/Users/...
-                    path_str = str(abs_path).replace('\\', '/')
+                    path_str = path_str.replace('\\', '/')
                     if len(path_str) > 1 and path_str[1] == ':':
                         # Convert C:/ to /c/
                         path_str = '/' + path_str[0].lower() + path_str[2:]
                     return path_str
                 else:
-                    # On Unix-like systems, resolve() is safe
+                    # On Unix-like systems, normal absolute paths with forward slashes work fine.
                     try:
                         return str(path.resolve())
                     except Exception:
-                        return str(path.absolute())
+                        return str(path)
             
+            # On Windows, mount the entire temp directory instead of individual files
+            # This avoids file access permission issues with Docker Desktop
+            # Ensure the drive (C:) is shared in Docker Desktop settings
             docker_cmd = [
                 "docker", "run",
                 "--rm",  # Remove container after execution
-                "-v", f"{to_docker_path(script_path)}:/script.R:ro",  # Mount script (read-only)
-                "-v", f"{to_docker_path(output_path)}:/output",  # Mount output directory (read-write)
+                "-v", f"{to_docker_path(temp_path)}:/workspace:rw",  # Mount entire temp directory (read-write)
             ]
+            
+            # Log the mounted path for debugging
+            logger.info(f"Mounting temp directory: {temp_path} -> /workspace (Docker path: {to_docker_path(temp_path)})")
             
             # Mount dataset if provided
             if dataset_path:
@@ -386,14 +417,13 @@ sessionInfo()
                 "--cpus", "2",     # Limit to 2 CPUs
                 "--network", "none",  # No network access (security)
                 "rocker/tidyverse:latest",
-                "Rscript", "/script.R"
+                "Rscript", "/workspace/test_script.R"  # Use path inside mounted workspace
             ])
             
             logger.info(f"Executing Docker command: {' '.join(docker_cmd)}")
             
             # Execute Docker container with timeout
             try:
-                import sys
                 # On Windows, use shell to avoid NotImplementedError issues
                 if sys.platform == 'win32':
                     # Convert paths to Windows format and escape properly for shell
