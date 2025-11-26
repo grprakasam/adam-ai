@@ -134,6 +134,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     pairProgramming,
     setPairProgrammingNotes,
     setPairProgrammingAcceptance,
+    setPairProgrammingSnippet,
     programmingLanguage,
     categorizedVariables
   } = useProjectStore();
@@ -337,6 +338,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'generated' | 'pending'>('generated');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [selectedVariable, setSelectedVariable] = useState<string | null>(null);
+  const [isAiPanelOpen, setIsAiPanelOpen] = useState<boolean>(false);
 
   // View density state (compact/comfortable/spacious) - Load from localStorage
   const [viewDensity, _setViewDensity] = useState<'compact' | 'comfortable' | 'spacious'>(() => {
@@ -486,6 +489,19 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     });
   };
 
+  const handleCardSelect = (variableName: string) => {
+    setSelectedVariable(prev => {
+      const newSelection = prev === variableName ? null : variableName;
+      setIsAiPanelOpen(newSelection !== null);
+      return newSelection;
+    });
+  };
+
+  const handleCloseAiPanel = () => {
+    setSelectedVariable(null);
+    setIsAiPanelOpen(false);
+  };
+
   const getStatusBadgeClass = (status?: string) => {
     if (!status) return '';
     return `status-${status}`;
@@ -604,27 +620,27 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         </div>
       </div>
 
-      {/* Scrollable Content Area */}
-      <div 
-        ref={contentAreaRef} 
-        className={`pair-programming-area-content density-${viewDensity} size-${cardSizePreset}`}
-      >
-        {/* Variables Grid */}
-        {filteredVariables.length > 0 ? (
-          <div className={`pair-programming-variables-grid density-${viewDensity} size-${cardSizePreset}`}>
-            {filteredVariables.map((variable) => {
-              const snippet = pairProgramming.snippets[variable.name];
-              const isGenerating = pairProgramming.isGenerating[variable.name];
-              const isExpanded = expandedCards.has(variable.name);
-              const trimmedNotes = snippet?.userNotes?.trim() ?? '';
-              const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
-              const pseudoContent = snippet?.pseudoCode || variable.derivation || snippet?.rationale;
+      {/* Two-Column Layout: Specification Cards (Left) + AI Results Panel (Right) */}
+      <div className={`pair-programming-two-column-layout ${isAiPanelOpen ? 'ai-panel-open' : 'ai-panel-closed'}`}>
+        {/* Left Column: Variable Cards (Specification Data Only) */}
+        <div 
+          ref={contentAreaRef} 
+          className={`pair-programming-cards-column density-${viewDensity} size-${cardSizePreset}`}
+        >
+          {/* Variables Grid */}
+          {filteredVariables.length > 0 ? (
+            <div className={`pair-programming-variables-grid density-${viewDensity} size-${cardSizePreset}`}>
+              {filteredVariables.map((variable) => {
+                const snippet = pairProgramming.snippets[variable.name];
+                const isGenerating = pairProgramming.isGenerating[variable.name];
+                const isExpanded = expandedCards.has(variable.name);
+                const isSelected = selectedVariable === variable.name;
 
               return (
                 <div 
                   key={variable.name}
-                  className={`variable-card ${isExpanded ? 'expanded' : ''}`}
-                  onClick={() => toggleCardExpansion(variable.name)}
+                  className={`variable-card ${isExpanded ? 'expanded' : ''} ${isSelected ? 'selected' : ''}`}
+                  onClick={() => handleCardSelect(variable.name)}
                 >
                   {/* Card Header */}
                   <div className="variable-card-header">
@@ -714,10 +730,10 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                     )}
                   </div>
 
-                  {/* Expandable Details */}
+                  {/* Expandable Details - Only Specification Data (Derivation Logic) */}
                   {isExpanded && (
                     <div className="variable-card-details">
-                      {/* Derivation */}
+                      {/* Derivation Logic - Only specification data shown in cards */}
                       {isFieldVisible('derivation') && variable.derivation && (
                         <div className="detail-block">
                           <div className="detail-block-title">Derivation Logic</div>
@@ -726,123 +742,32 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                           </div>
                         </div>
                       )}
-
-                      {/* Rationale */}
-                      {isFieldVisible('rationale') && snippet?.rationale && (
-                        <div className="detail-block">
-                          <div className="detail-block-title">Coding Rationale</div>
-                          <div className="detail-block-content">
-                            {snippet.rationale}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Pseudo-Code */}
-                      {isFieldVisible('pseudo') && pseudoContent && (
-                        <div className="detail-block">
-                          <div className="detail-block-title">
-                            Pseudo-Code (Domain Expert View)
-                            {snippet.pseudoSummary && (
-                              <span style={{ fontSize: '13px', fontWeight: 'normal', color: '#9ca3af', marginLeft: '8px' }}>
-                                - {snippet.pseudoSummary}
-                              </span>
-                            )}
-                          </div>
-                          <pre className="detail-code-block pseudo-code-block">
-                            <code dangerouslySetInnerHTML={{ __html: highlightPseudoCode(pseudoContent) }} />
-                          </pre>
-                        </div>
-                      )}
-
-                      {/* Code Snippet */}
-                      {isFieldVisible('code') && (
-                        <>
-                          {isGenerating ? (
-                            <div className="detail-block">
-                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                              <div className="code-loading-expanded">
-                                <Loader2 size={20} className="spinning" />
-                                <span>Generating code...</span>
-                              </div>
-                            </div>
-                          ) : snippet?.error ? (
-                            <div className="detail-block">
-                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                              <div className="code-error-expanded">
-                                <AlertCircle size={16} />
-                                <span>{snippet.error}</span>
-                              </div>
-                            </div>
-                          ) : snippet?.codeSnippet ? (
-                            <div className="detail-block">
-                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                              <pre className="detail-code-block">
-                                <code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} />
-                              </pre>
-                              {snippet?.metadata?.user_note_applied && (
-                                <div className="code-badge-expanded note-applied">
-                                  ✓ Generated using user notes
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="detail-block">
-                              <div className="detail-block-title">Code Snippet ({programmingLanguage})</div>
-                              <div className="detail-block-content" style={{ color: '#9ca3af' }}>
-                                Not generated yet. Use "Get AI Inputs" button to generate code for all variables.
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {/* User Notes - Show when marked as modify or when approved (for future modifications) */}
-                      {snippet?.accepted === 'modify' && (
-                        <div className="detail-block">
-                          <div className="detail-block-title">User Notes</div>
-                          <textarea
-                            className={`detail-textarea ${needsNotes ? 'required' : ''}`}
-                            placeholder="Describe the change you expect in this snippet..."
-                            value={snippet?.userNotes || ''}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              handleNotesChange(variable.name, e.target.value);
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            rows={3}
-                          />
-                          {needsNotes && (
-                            <div className="notes-hint warning" style={{ marginTop: '6px', fontSize: '11px', color: '#f59e0b' }}>
-                              ⚠ User notes are required to regenerate code with modifications
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                     </div>
                   )}
 
-                  {/* Card Footer - Show More/Less Only */}
-                  <div className="variable-card-footer" onClick={(e) => e.stopPropagation()}>
-                    <button 
-                      className="secondary"
-                      onClick={() => toggleCardExpansion(variable.name)}
-                      title={isExpanded ? 'Show less' : 'Show more details'}
-                      style={{ width: '100%' }}
-                    >
-                      {isExpanded ? (
-                        <>
-                          <ChevronUp size={14} />
-                          Show Less
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown size={14} />
-                          Show More
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  {/* Card Footer - Show More/Less for Derivation Logic Only */}
+                  {variable.derivation && (
+                    <div className="variable-card-footer" onClick={(e) => e.stopPropagation()}>
+                      <button 
+                        className="secondary"
+                        onClick={() => toggleCardExpansion(variable.name)}
+                        title={isExpanded ? 'Show less' : 'Show derivation logic'}
+                        style={{ width: '100%' }}
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp size={14} />
+                            Hide Derivation
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown size={14} />
+                            Show Derivation
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -860,6 +785,243 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                   : 'Load a dataset to see variables here'}
             </div>
           </div>
+        )}
+        </div>
+
+        {/* Right Column: AI Results Panel */}
+        {isAiPanelOpen && (
+        <div className="pair-programming-ai-panel">
+          {selectedVariable ? (() => {
+            const selectedVar = filteredVariables.find(v => v.name === selectedVariable);
+            if (!selectedVar) return null;
+            const snippet = pairProgramming.snippets[selectedVar.name];
+            const isGenerating = pairProgramming.isGenerating[selectedVar.name];
+            const trimmedNotes = snippet?.userNotes?.trim() ?? '';
+            const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
+            const pseudoContent = snippet?.pseudoCode || selectedVar.derivation || snippet?.rationale;
+
+            return (
+              <div className="ai-results-panel">
+                <div className="ai-panel-header">
+                  <div className="ai-panel-title">
+                    <Code2 size={18} />
+                    <span>AI Results: {selectedVar.name}</span>
+                  </div>
+                  <button 
+                    className="ai-panel-close"
+                    onClick={handleCloseAiPanel}
+                    title="Close panel"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="ai-panel-content">
+                  {/* Coding Rationale */}
+                  {isFieldVisible('rationale') && (
+                    <div className="ai-result-section">
+                      <div className="ai-section-header">
+                        <span className="ai-section-title">Coding Rationale</span>
+                        {snippet?.rationale && (
+                          <button
+                            className="ai-section-edit"
+                            onClick={() => {
+                              // Make rationale editable
+                              const textarea = document.querySelector(`.ai-rationale-editor`) as HTMLTextAreaElement;
+                              if (textarea) {
+                                textarea.focus();
+                              }
+                            }}
+                          >
+                            ✎ Edit
+                          </button>
+                        )}
+                      </div>
+                      {snippet?.rationale ? (
+                        <textarea
+                          className="ai-rationale-editor ai-editable-field"
+                          value={snippet.rationale}
+                          onChange={(e) => {
+                            // Update rationale in store
+                            setPairProgrammingSnippet(selectedVar.name, {
+                              ...snippet,
+                              rationale: e.target.value
+                            });
+                          }}
+                          placeholder="AI-generated coding rationale will appear here..."
+                          rows={6}
+                        />
+                      ) : (
+                        <div className="ai-empty-state">
+                          <span>No rationale generated yet. Generate AI inputs to see rationale.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Pseudo-Code */}
+                  {isFieldVisible('pseudo') && (
+                    <div className="ai-result-section">
+                      <div className="ai-section-header">
+                        <span className="ai-section-title">Pseudo-Code (Domain Expert View)</span>
+                        {snippet?.pseudoSummary && (
+                          <span className="ai-section-subtitle">{snippet.pseudoSummary}</span>
+                        )}
+                        {pseudoContent && (
+                          <button
+                            className="ai-section-edit"
+                            onClick={() => {
+                              const textarea = document.querySelector(`.ai-pseudo-editor`) as HTMLTextAreaElement;
+                              if (textarea) {
+                                textarea.focus();
+                              }
+                            }}
+                          >
+                            ✎ Edit
+                          </button>
+                        )}
+                      </div>
+                      {pseudoContent ? (
+                        <textarea
+                          className="ai-pseudo-editor ai-editable-field code-editor"
+                          value={pseudoContent}
+                          onChange={(e) => {
+                            // Update pseudo code in store
+                            setPairProgrammingSnippet(selectedVar.name, {
+                              ...snippet,
+                              pseudoCode: e.target.value
+                            });
+                          }}
+                          placeholder="AI-generated pseudo-code will appear here..."
+                          rows={10}
+                          spellCheck={false}
+                        />
+                      ) : (
+                        <div className="ai-empty-state">
+                          <span>No pseudo-code generated yet. Generate AI inputs to see pseudo-code.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Code Snippet */}
+                  {isFieldVisible('code') && (
+                    <div className="ai-result-section">
+                      <div className="ai-section-header">
+                        <span className="ai-section-title">Code Snippet ({programmingLanguage})</span>
+                        {snippet?.codeSnippet && (
+                          <button
+                            className="ai-section-edit"
+                            onClick={() => {
+                              const textarea = document.querySelector(`.ai-code-editor`) as HTMLTextAreaElement;
+                              if (textarea) {
+                                textarea.focus();
+                              }
+                            }}
+                          >
+                            ✎ Edit
+                          </button>
+                        )}
+                      </div>
+                      {isGenerating ? (
+                        <div className="ai-loading-state">
+                          <Loader2 size={20} className="spinning" />
+                          <span>Generating code...</span>
+                        </div>
+                      ) : snippet?.error ? (
+                        <div className="ai-error-state">
+                          <AlertCircle size={16} />
+                          <span>{snippet.error}</span>
+                        </div>
+                      ) : snippet?.codeSnippet ? (
+                        <>
+                          <textarea
+                            className="ai-code-editor ai-editable-field code-editor"
+                            value={snippet.codeSnippet}
+                            onChange={(e) => {
+                              setPairProgrammingSnippet(selectedVar.name, {
+                                ...snippet,
+                                codeSnippet: e.target.value
+                              });
+                            }}
+                            placeholder="AI-generated code will appear here..."
+                            rows={15}
+                            spellCheck={false}
+                          />
+                          {snippet?.metadata?.user_note_applied && (
+                            <div className="ai-code-badge">
+                              ✓ Generated using user notes
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="ai-empty-state">
+                          <span>Not generated yet. Use "Get AI Inputs" button to generate code.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* User Notes */}
+                  <div className="ai-result-section">
+                    <div className="ai-section-header">
+                      <span className="ai-section-title">User Notes</span>
+                      {snippet?.accepted === 'modify' && needsNotes && (
+                        <span className="ai-section-warning">⚠ Required</span>
+                      )}
+                    </div>
+                    <textarea
+                      className="ai-notes-editor ai-editable-field"
+                      placeholder={snippet?.accepted === 'modify' 
+                        ? "Describe the change you expect in this snippet..." 
+                        : "Add notes for modifications or clarifications..."}
+                      value={snippet?.userNotes || ''}
+                      onChange={(e) => handleNotesChange(selectedVar.name, e.target.value)}
+                      rows={4}
+                    />
+                    {needsNotes && (
+                      <div className="ai-notes-hint">
+                        ⚠ User notes are required to regenerate code with modifications
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="ai-panel-actions">
+                    {snippet?.codeSnippet && !snippet?.error && (
+                      <>
+                        {snippet.accepted !== 'modify' && (
+                          <button
+                            className="ai-action-btn modify-btn"
+                            onClick={() => handleAcceptanceChange(selectedVar.name, 'modify')}
+                          >
+                            ✎ Mark for Modification
+                          </button>
+                        )}
+                        {snippet.accepted !== 'accept' && (
+                          <button
+                            className="ai-action-btn approve-btn"
+                            onClick={() => handleAcceptanceChange(selectedVar.name, 'accept')}
+                          >
+                            ✓ Approve
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })() : (
+            <div className="ai-panel-empty">
+              <Code2 size={48} className="ai-panel-empty-icon" />
+              <div className="ai-panel-empty-title">Select a Variable</div>
+              <div className="ai-panel-empty-subtitle">
+                Click on a variable card to view and edit AI-generated results
+              </div>
+            </div>
+          )}
+        </div>
         )}
       </div>
     </div>

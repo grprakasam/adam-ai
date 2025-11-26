@@ -21,7 +21,428 @@
   flex-shrink: 0;
 }
 
-/* Main content wrapper - Scrollable grid */
+/* Two-Column Layout Container */
+.pair-programming-two-column-layout {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Left Column: Variable Cards (Specification Data) */
+.pair-programming-cards-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  padding: 24px;
+  gap: 20px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  border-right: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When AI panel is closed, cards column takes full width */
+.pair-programming-two-column-layout.ai-panel-closed .pair-programming-cards-column {
+  border-right: none;
+}
+
+/* Custom scrollbar for cards column */
+.pair-programming-cards-column::-webkit-scrollbar {
+  width: 10px;
+}
+
+.pair-programming-cards-column::-webkit-scrollbar-track {
+  background: #f3f4f6;
+  border-radius: 5px;
+}
+
+.pair-programming-cards-column::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 5px;
+  border: 2px solid #f3f4f6;
+}
+
+.pair-programming-cards-column::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.pair-programming-cards-column {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #f3f4f6;
+}
+
+/* Right Column: AI Results Panel */
+.pair-programming-ai-panel {
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  min-width: 500px;
+  max-width: 700px;
+  background: white;
+  border-left: 1px solid #e5e7eb;
+  overflow: hidden;
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* AI Panel Empty State */
+.ai-panel-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 48px 24px;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.ai-panel-empty-icon {
+  color: #d1d5db;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.ai-panel-empty-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.ai-panel-empty-subtitle {
+  font-size: 14px;
+  color: #9ca3af;
+  max-width: 300px;
+}
+
+/* AI Results Panel Content */
+.ai-results-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ai-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 2px solid #e5e7eb;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+  flex-shrink: 0;
+}
+
+.ai-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.ai-panel-title svg {
+  color: #10b981;
+}
+
+.ai-panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.ai-panel-close:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.ai-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  gap: 24px;
+  display: flex;
+  flex-direction: column;
+  scroll-behavior: smooth;
+}
+
+.ai-panel-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.ai-panel-content::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+.ai-panel-content::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 5px;
+}
+
+.ai-panel-content::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* AI Result Section */
+.ai-result-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.ai-result-section:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ai-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ai-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f2937;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ai-section-subtitle {
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.ai-section-warning {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.ai-section-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  background: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-section-edit:hover {
+  border-color: #10b981;
+  color: #10b981;
+  background: #f0fdf4;
+}
+
+/* Editable Fields */
+.ai-editable-field {
+  width: 100%;
+  padding: 14px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'SF Mono', 'Consolas', 'Monaco', monospace;
+  line-height: 1.6;
+  background: white;
+  color: #1f2937;
+  resize: vertical;
+  transition: all 0.2s ease;
+}
+
+.ai-editable-field:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.ai-editable-field.code-editor {
+  font-size: 12px;
+  line-height: 1.8;
+  tab-size: 2;
+}
+
+/* Empty States */
+.ai-empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+  background: #f9fafb;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+}
+
+/* Loading and Error States */
+.ai-loading-state,
+.ai-error-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.ai-loading-state {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.ai-loading-state .spinning {
+  animation: spin 1s linear infinite;
+}
+
+.ai-error-state {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* Code Badge */
+.ai-code-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 8px;
+  width: fit-content;
+}
+
+/* Notes Hint */
+.ai-notes-hint {
+  font-size: 12px;
+  color: #f59e0b;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* AI Panel Actions */
+.ai-panel-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.ai-action-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: 2px solid;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-action-btn.modify-btn {
+  background: white;
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.ai-action-btn.modify-btn:hover {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #d97706;
+}
+
+.ai-action-btn.approve-btn {
+  background: #10b981;
+  border-color: #10b981;
+  color: white;
+}
+
+.ai-action-btn.approve-btn:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+/* Selected Card Styling */
+.variable-card.selected {
+  border-color: #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #f5fdf9 100%);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+  transform: translateY(-2px);
+}
+
+/* Responsive: Stack columns on smaller screens */
+@media (max-width: 1200px) {
+  .pair-programming-two-column-layout {
+    flex-direction: column;
+  }
+
+  .pair-programming-cards-column {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+    max-height: 50vh;
+  }
+
+  .pair-programming-ai-panel {
+    width: 100%;
+    min-width: unset;
+    max-width: unset;
+    border-left: none;
+    border-top: 1px solid #e5e7eb;
+  }
+}
+
+/* Main content wrapper - Scrollable grid (Legacy - kept for backward compatibility) */
 .pair-programming-area-content {
   display: flex;
   flex-direction: column;
@@ -68,6 +489,13 @@
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
   width: 100%;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When AI panel is closed, show more cards per row with smaller minimum width */
+.pair-programming-two-column-layout.ai-panel-closed .pair-programming-variables-grid {
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 /* Individual variable card */
