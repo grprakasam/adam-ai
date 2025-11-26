@@ -15,11 +15,7 @@ import { AdamGeneratorTab } from './AdamGeneratorTab';
 import { RFrontendTab } from './RFrontendTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
-import AutoSaveIndicator from './AutoSaveIndicator';
-import { HistoryControls } from './HistoryControls';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
-import { WorkspaceControls } from './WorkspaceControls';
-import { WorkflowNavigation, WorkflowStep } from './WorkflowNavigation';
 import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
@@ -249,10 +245,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       setActiveWorkspaceTab('traceability');
     };
 
-    const handleWorkflowNavigation = (step: WorkflowStep) => {
-      setActiveGroup('adamCoding');
-      setActiveWorkspaceTab(step);
-    };
 
     const PlaceholderContent = ({ title }: { title: string }) => (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
@@ -440,21 +432,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         >
           {/* Unified Workspace Header Group - Combined Sections - ALWAYS VISIBLE */}
           <div className="workspace-header-group">
-            <div className="workspace-utilities">
-              <WorkspaceControls onSwitchProject={onSwitchProject} />
-              <div className="workspace-utilities-right">
-                <AutoSaveIndicator />
-                <HistoryControls />
-              </div>
-            </div>
-            {activeGroup === 'adamCoding' && (activeWorkspaceTab === 'pair' || activeWorkspaceTab === 'review' || activeWorkspaceTab === 'consolidated') && (
-              <div className="workflow-navigation-section">
-                <WorkflowNavigation
-                  currentStep={activeWorkspaceTab as WorkflowStep}
-                  onNavigate={handleWorkflowNavigation}
-                />
-              </div>
-            )}
             <div className="workspace-navigation-section">
               <WorkspaceNavigation
                 activeTab={activeWorkspaceTab}

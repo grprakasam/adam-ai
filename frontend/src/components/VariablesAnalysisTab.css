@@ -57,10 +57,42 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 6px 12px;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  padding: 8px 16px;
+  /* Solid vibrant gradient background with better contrast */
+  background: linear-gradient(135deg, 
+    #e0e7ff 0%, 
+    #ddd6fe 25%, 
+    #fce7f3 50%, 
+    #dbeafe 75%, 
+    #cffafe 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+  border-radius: 10px;
+  border: 2px solid #a78bfa;
+  /* Enhanced shadow with color tint */
+  box-shadow: 
+    0 4px 12px rgba(167, 139, 250, 0.25),
+    0 2px 6px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Force black text color by default */
+  color: #000000 !important;
+}
+
+/* Hover effect for interactivity */
+.header-stats-compact:hover {
+  border-color: #8b5cf6;
+  box-shadow: 
+    0 6px 16px rgba(167, 139, 250, 0.35),
+    0 3px 8px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, 
+    #c7d2fe 0%, 
+    #c4b5fd 25%, 
+    #fbcfe8 50%, 
+    #bfdbfe 75%, 
+    #a5f3fc 100%);
 }
 
 .stat-item {
@@ -72,22 +104,62 @@
 .stat-value {
   font-size: 16px;
   font-weight: 700;
-  color: #1e293b;
+  /* Black color for maximum readability - using !important to override any other styles */
+  color: #000000 !important;
   line-height: 1;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  transition: color 0.3s ease;
+}
+
+.header-stats-compact:hover .stat-value {
+  color: #000000 !important;
+}
+
+.header-stats-compact .stat-value {
+  color: #000000 !important;
 }
 
 .stat-label {
   font-size: 11px;
-  font-weight: 500;
-  color: #64748b;
+  font-weight: 600;
+  /* Black color for maximum readability - using !important to override any other styles */
+  color: #000000 !important;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  transition: color 0.3s ease;
+}
+
+.header-stats-compact:hover .stat-label {
+  color: #000000 !important;
+}
+
+.header-stats-compact .stat-label {
+  color: #000000 !important;
 }
 
 .stat-divider {
-  width: 1px;
-  height: 16px;
-  background: #cbd5e1;
+  width: 2px;
+  height: 20px;
+  /* Solid purple divider for visibility */
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #8b5cf6 20%,
+    #8b5cf6 80%,
+    transparent 100%
+  );
+  border-radius: 1px;
+  transition: all 0.3s ease;
+}
+
+.header-stats-compact:hover .stat-divider {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #7c3aed 20%,
+    #7c3aed 80%,
+    transparent 100%
+  );
 }
 
 .stat-item-dataset {
@@ -100,8 +172,18 @@
 .stat-dataset {
   font-size: 13px;
   font-weight: 600;
-  color: #3b82f6;
+  /* Black color for maximum readability - using !important to override any other styles */
+  color: #000000 !important;
   font-family: 'Monaco', 'Menlo', monospace;
+  transition: color 0.3s ease;
+}
+
+.header-stats-compact:hover .stat-dataset {
+  color: #000000 !important;
+}
+
+.header-stats-compact .stat-dataset {
+  color: #000000 !important;
 }
 
 .header-actions-compact {
@@ -204,13 +286,93 @@
   color: #e2e8f0;
 }
 
+/* Gradient animation for header-stats-compact */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 [data-theme="dark"] .header-stats-compact {
-  background: #0f172a;
-  border-color: #1e293b;
+  /* Dark mode - solid gradient with good contrast */
+  background: linear-gradient(135deg, 
+    #312e81 0%, 
+    #4c1d95 25%, 
+    #581c87 50%, 
+    #3730a3 75%, 
+    #1e40af 100%);
+  background-size: 200% 200%;
+  border-color: #7c3aed;
+  box-shadow: 
+    0 4px 12px rgba(124, 58, 237, 0.4),
+    0 2px 6px rgba(139, 92, 246, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .header-stats-compact:hover {
+  border-color: #8b5cf6;
+  box-shadow: 
+    0 6px 16px rgba(124, 58, 237, 0.5),
+    0 3px 8px rgba(139, 92, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, 
+    #4338ca 0%, 
+    #5b21b6 25%, 
+    #6b21a8 50%, 
+    #4f46e5 75%, 
+    #2563eb 100%);
 }
 
 [data-theme="dark"] .stat-value {
-  color: #f1f5f9;
+  color: #e9d5ff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .header-stats-compact:hover .stat-value {
+  color: #f3e8ff;
+}
+
+[data-theme="dark"] .stat-label {
+  color: #ddd6fe;
+}
+
+[data-theme="dark"] .header-stats-compact:hover .stat-label {
+  color: #e9d5ff;
+}
+
+[data-theme="dark"] .stat-dataset {
+  color: #e9d5ff;
+}
+
+[data-theme="dark"] .header-stats-compact:hover .stat-dataset {
+  color: #f3e8ff;
+}
+
+[data-theme="dark"] .stat-divider {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #a78bfa 20%,
+    #a78bfa 80%,
+    transparent 100%
+  );
+}
+
+[data-theme="dark"] .header-stats-compact:hover .stat-divider {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #c4b5fd 20%,
+    #c4b5fd 80%,
+    transparent 100%
+  );
+}
 }
 
 [data-theme="dark"] .stat-label {
@@ -663,6 +825,7 @@
   gap: 2px;
 }
 
+/* These stat styles are for other components, not header-stats-compact */
 .stat-value {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
@@ -675,6 +838,13 @@
   color: rgba(255, 255, 255, 0.9);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Override for header-stats-compact - ensure black text */
+.header-stats-compact .stat-value,
+.header-stats-compact .stat-label,
+.header-stats-compact .stat-dataset {
+  color: #000000 !important;
 }
 
 .stat-divider {

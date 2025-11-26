@@ -1149,10 +1149,48 @@ export const adamApi = {
       'download',
       `code_review_${request.study_id}_${request.dataset}_${request.language}.pdf`
     );
+    link.style.display = 'none';
+    link.setAttribute('aria-hidden', 'true');
+    
+    // Try clicking without appending first (works in modern browsers)
+    try {
+      link.click();
+      // Cleanup URL after download starts
+      setTimeout(() => {
+        try {
+          window.URL.revokeObjectURL(url);
+        } catch (e) {
+          console.debug('URL already revoked:', e);
+        }
+      }, 1000);
+      return response.data;
+    } catch (clickError) {
+      // Fallback: append to body
+    }
+    
+    // Fallback: append to body, click, then safely remove
     document.body.appendChild(link);
     link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
+    
+    // Safely remove after a delay
+    setTimeout(() => {
+      try {
+        if (link.parentNode === document.body) {
+          document.body.removeChild(link);
+        } else {
+          link.remove();
+        }
+        window.URL.revokeObjectURL(url);
+      } catch (cleanupError) {
+        console.debug('Cleanup completed or element already removed:', cleanupError);
+        // Try alternative removal method
+        try {
+          link.remove();
+        } catch (e) {
+          console.debug('Alternative removal also failed:', e);
+        }
+      }
+    }, 100);
 
     return response.data;
   },

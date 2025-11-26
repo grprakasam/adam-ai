@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, RefreshCw, ArrowRight } from 'lucide-react';
 import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
@@ -120,38 +120,108 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
     let timer: any;
     let initialKick: any;
     let timeoutTimer: any;
+    let safetyCheckTimer: any;
+    let isMounted = true;
+    let rafId: any;
+    
     if (isCategorizingVariables) {
-      if (!categorizeStartedAt) setCategorizeStartedAt(Date.now());
-      setLoadingStep(1);
+      // Use requestAnimationFrame to ensure DOM is ready before state updates
+      rafId = requestAnimationFrame(() => {
+        if (!isMounted) return;
+        if (!categorizeStartedAt) setCategorizeStartedAt(Date.now());
+        setLoadingStep(1);
+      });
+      
       // Quick initial bump to avoid perceived stall
-      initialKick = setTimeout(() => setLoadingStep((s) => Math.max(s, 2)), 800);
+      initialKick = setTimeout(() => {
+        if (isMounted) {
+          setLoadingStep((s) => Math.max(s, 2));
+        }
+      }, 800);
+      
       // Advance visible step every ~3s up to 6, purely for user feedback
       timer = setInterval(() => {
-        setLoadingStep((s) => (s < 6 ? s + 1 : s));
-      }, 3000);
-      // Add a hard timeout of 3 minutes (180 seconds)
-      timeoutTimer = setTimeout(() => {
-        console.error('Categorization timeout - forcing cleanup');
-        setIsCategorizingVariables(false);
-        setError('Categorization timed out after 3 minutes. Please try again or use a smaller file.');
-        message.error('Categorization timed out. Please try again.');
-        if (categorizeAbortRef.current) {
-          try { categorizeAbortRef.current.abort(); } catch {}
+        if (isMounted) {
+          setLoadingStep((s) => (s < 6 ? s + 1 : s));
         }
-      }, 180000);
+      }, 3000);
+      // Add a hard timeout of 2 minutes (120 seconds) - reduced from 3 minutes
+      timeoutTimer = setTimeout(() => {
+        if (!isMounted) return;
+        console.error('Categorization timeout - forcing cleanup');
+        if (categorizeAbortRef.current) {
+          try { 
+            categorizeAbortRef.current.abort(); 
+            console.log('Abort signal sent');
+          } catch (e) {
+            console.error('Error aborting request:', e);
+          }
+        }
+        // Use startTransition with requestAnimationFrame to ensure React has finished current render
+        requestAnimationFrame(() => {
+          if (!isMounted) return;
+          try {
+            startTransition(() => {
+              setIsCategorizingVariables(false);
+              setError('Categorization timed out after 2 minutes. The request may have failed. Please try again or check the backend server.');
+              // Force clear any pending state
+              setLoadingStep(1);
+            });
+            message.error('Categorization timed out. Please try again or check if the backend is running.');
+            categorizeAbortRef.current = null;
+          } catch (error) {
+            console.error('Error in timeout handler:', error);
+            categorizeAbortRef.current = null;
+          }
+        });
+      }, 120000); // 2 minutes instead of 3
+      
+      // Safety check: Monitor if stuck at step 6 for too long (30 seconds)
+      safetyCheckTimer = setInterval(() => {
+        if (!isMounted) return;
+        if (loadingStep >= 6 && categorizeStartedAt) {
+          const elapsed = Date.now() - categorizeStartedAt;
+          // If stuck at step 6 for more than 30 seconds, something is wrong
+          if (elapsed > 150000) { // 2.5 minutes total
+            console.warn('Detected stuck state at step 6 - forcing reset');
+            if (categorizeAbortRef.current) {
+              try { categorizeAbortRef.current.abort(); } catch {}
+            }
+            // Use startTransition with requestAnimationFrame to ensure React has finished current render
+            requestAnimationFrame(() => {
+              if (!isMounted) return;
+              try {
+                startTransition(() => {
+                  setIsCategorizingVariables(false);
+                  setError('The categorization appears to be stuck. Please try again or check the backend server.');
+                  setLoadingStep(1);
+                });
+                message.warning('Categorization appears stuck. Please try again.');
+                categorizeAbortRef.current = null;
+              } catch (error) {
+                console.error('Error in safety check handler:', error);
+                categorizeAbortRef.current = null;
+              }
+            });
+          }
+        }
+      }, 5000); // Check every 5 seconds
     } else {
       if (categorizeStartedAt) {
         setCategorizeStartedAt(null);
       }
-      setLoadingStep(6);
+      setLoadingStep(1); // Reset to step 1 when not categorizing
     }
     return () => {
-      timer && clearInterval(timer);
-      initialKick && clearTimeout(initialKick);
-      timeoutTimer && clearTimeout(timeoutTimer);
+      isMounted = false;
+      if (rafId) cancelAnimationFrame(rafId);
+      if (timer) clearInterval(timer);
+      if (initialKick) clearTimeout(initialKick);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+      if (safetyCheckTimer) clearInterval(safetyCheckTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCategorizingVariables]);
+  }, [isCategorizingVariables, loadingStep]);
 
   // Get approval progress
   const { percentage, isReadyForGeneration, totalVariables, approvedVariables } = useApprovalProgress();
@@ -286,14 +356,66 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       return;
     }
 
-    setIsCategorizingVariables(true);
-    setError(null);
-    // Prepare abort controller
-    if (categorizeAbortRef.current) {
-      try { categorizeAbortRef.current.abort(); } catch {}
+    // Prevent multiple simultaneous categorizations
+    if (isCategorizingVariables) {
+      console.log('Categorization already in progress');
+      return;
     }
-    categorizeAbortRef.current = new AbortController();
 
+    // Clear any existing error first
+    setError(null);
+    
+    // Clean up any existing abort controller before starting new one
+    if (categorizeAbortRef.current) {
+      try { 
+        categorizeAbortRef.current.abort(); 
+      } catch (e) {
+        console.debug('Error aborting previous request:', e);
+      }
+      categorizeAbortRef.current = null;
+    }
+    
+    // Reset loading step and start time
+    setLoadingStep(1);
+    setCategorizeStartedAt(Date.now());
+    
+    // Create abort controller first
+    categorizeAbortRef.current = new AbortController();
+    const currentAbortController = categorizeAbortRef.current;
+    
+    // Use startTransition to mark this as a non-urgent update
+    // Combined with requestAnimationFrame to ensure DOM is completely ready
+    // This prevents React from trying to remove nodes during render
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Double-check we still have the abort controller (user might have cancelled)
+        if (categorizeAbortRef.current === currentAbortController) {
+          try {
+            startTransition(() => {
+              setIsCategorizingVariables(true);
+            });
+          } catch (error) {
+            console.error('Error setting categorization state:', error);
+            // If state update fails, clean up
+            categorizeAbortRef.current = null;
+          }
+        }
+      });
+    });
+
+    // Wait for state to update and DOM to stabilize
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        setTimeout(resolve, 0);
+      });
+    });
+    
+    // Verify we still have the abort controller
+    if (categorizeAbortRef.current !== currentAbortController) {
+      console.log('Categorization cancelled before starting - abort controller changed');
+      return;
+    }
+    
     try {
       console.log('Starting categorization...');
       console.log('Spec file path:', specificationFile.path);
@@ -307,7 +429,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
         result = await adamApi.categorizeSpecification(
           specificationFile.path,
           projectConfig.adamDataset,
-          { signal: categorizeAbortRef.current.signal, timeoutMs: 180000 }
+          { signal: currentAbortController.signal, timeoutMs: 120000 }
         );
         console.log('Server path categorization completed');
       } else if (tempSpecFile) {
@@ -315,7 +437,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
         result = await adamApi.categorizeSpecificationFile(
           tempSpecFile,
           projectConfig.adamDataset,
-          { signal: categorizeAbortRef.current.signal, timeoutMs: 180000 }
+          { signal: currentAbortController.signal, timeoutMs: 120000 }
         );
         console.log('File upload categorization completed');
       } else {
@@ -328,11 +450,20 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       console.log('Spec columns:', result.spec_columns);
       console.log('First variable sample:', result.categories[0]?.variables[0]);
 
-      setCategorizedVariables(result);
-      console.log('Categorized variables set in state');
-      message.success(
-        `Categorized ${result.total_variables} variables into ${result.categories.length} categories using VariablesMapping.xlsx`
-      );
+      // Use startTransition with requestAnimationFrame to ensure DOM is stable before state update
+      requestAnimationFrame(() => {
+        try {
+          startTransition(() => {
+            setCategorizedVariables(result);
+          });
+          console.log('Categorized variables set in state');
+          message.success(
+            `Categorized ${result.total_variables} variables into ${result.categories.length} categories using VariablesMapping.xlsx`
+          );
+        } catch (error) {
+          console.error('Error setting categorized variables:', error);
+        }
+      });
     } catch (err: any) {
       console.error('=== CATEGORIZATION ERROR ===');
       console.error('Error object:', err);
@@ -360,29 +491,77 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
       console.error('Categorization error:', err);
     } finally {
       console.log('Categorization finally block - setting isCategorizingVariables to false');
-      setIsCategorizingVariables(false);
-      categorizeAbortRef.current = null;
+      // Use startTransition with double requestAnimationFrame to ensure React has completely finished render cycle
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            startTransition(() => {
+              setIsCategorizingVariables(false);
+            });
+            // Only clear abort controller if it's still the same one
+            if (categorizeAbortRef.current === currentAbortController) {
+              categorizeAbortRef.current = null;
+            }
+          } catch (error) {
+            console.error('Error in finally block state update:', error);
+            // Force cleanup even if state update fails
+            categorizeAbortRef.current = null;
+          }
+        });
+      });
     }
   };
 
   const handleCancelCategorization = () => {
     try {
-      categorizeAbortRef.current?.abort();
-    } catch {}
-    setIsCategorizingVariables(false);
-    setError(null);
-    message.info('Categorization cancelled. You can retry when ready.');
+      if (categorizeAbortRef.current) {
+        categorizeAbortRef.current.abort();
+      }
+    } catch (e) {
+      console.debug('Error aborting during cancel:', e);
+    }
+    // Use startTransition with requestAnimationFrame to ensure React has finished current render
+    requestAnimationFrame(() => {
+      try {
+        startTransition(() => {
+          setIsCategorizingVariables(false);
+          setError(null);
+        });
+        message.info('Categorization cancelled. You can retry when ready.');
+      } catch (error) {
+        console.error('Error cancelling categorization:', error);
+      }
+    });
   };
 
   const handleForceReset = () => {
+    console.log('Force reset triggered - clearing all categorization state');
     try {
-      categorizeAbortRef.current?.abort();
-    } catch {}
-    setIsCategorizingVariables(false);
-    setError(null);
-    setCategorizedVariables(null);
-    setLoadingStep(1);
-    message.success('State reset successfully. You can now retry categorization.');
+      if (categorizeAbortRef.current) {
+        categorizeAbortRef.current.abort();
+        console.log('Abort signal sent during force reset');
+      }
+    } catch (e) {
+      console.error('Error aborting during force reset:', e);
+    }
+    // Use startTransition with requestAnimationFrame to ensure React has finished current render
+    requestAnimationFrame(() => {
+      try {
+        startTransition(() => {
+          // Force clear all state
+          setIsCategorizingVariables(false);
+          setError(null);
+          setCategorizedVariables(null);
+          setLoadingStep(1);
+          setCategorizeStartedAt(null);
+        });
+        categorizeAbortRef.current = null;
+        message.warning('Force reset completed. You can try categorizing again.');
+      } catch (error) {
+        console.error('Error in force reset:', error);
+        categorizeAbortRef.current = null;
+      }
+    });
   };
 
   const handleCancelBulkGeneration = () => {
@@ -810,53 +989,6 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
     );
   };
 
-  // No spec file uploaded
-  if (!specificationFile) {
-    return (
-      <div className="variables-empty-state">
-        <AlertCircle size={64} className="empty-icon" />
-        <h3>No Specification File Uploaded</h3>
-        <p>Please upload an ADAM specification file in the Specification tab to analyze variables.</p>
-      </div>
-    );
-  }
-
-  // Categorizing in progress
-  if (isCategorizingVariables) {
-    return (
-      <div className="variables-loading-state">
-        <AnalyzingVariablesStatus
-          fileName={specificationFile?.name}
-          totalVars={undefined}
-          parsedVars={undefined}
-          categoryCount={undefined}
-          currentStep={loadingStep}
-          totalSteps={6}
-          adamVersion={adamIgVersion}
-          meddraVersion={medraVersion}
-          startTime={categorizeStartedAt ?? undefined}
-          cancellable
-          onCancel={handleCancelCategorization}
-          onForceReset={handleForceReset}
-        />
-      </div>
-    );
-  }
-
-  // Error state
-  if (error && !categorizedVariables) {
-    return (
-      <div className="variables-error-state">
-        <AlertCircle size={64} className="error-icon" />
-        <h3>Categorization Failed</h3>
-        <p>{error}</p>
-        <button className="retry-button" onClick={handleCategorizeVariables}>
-          Retry Categorization
-        </button>
-      </div>
-    );
-  }
-
   // Main content with categorized variables
   // Get active category for pair programming panel
   // Handle special 'all' case for showing all variables
@@ -874,22 +1006,71 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
     );
   }, [categorizedVariables]);
 
-  // No categorized variables yet - check AFTER all hooks
-  if (!categorizedVariables) {
-    return (
-      <div className="variables-empty-state">
-        <FileSearch size={64} className="empty-icon" />
-        <h3>Variables Not Categorized</h3>
-        <p>Click the button below to categorize variables from the specification.</p>
-        <button className="categorize-button" onClick={handleCategorizeVariables}>
-          Categorize Variables
-        </button>
-      </div>
-    );
-  }
-
+  // Use a stable container to prevent React from completely unmounting the component tree
+  // This prevents the removeChild error by maintaining a consistent DOM structure
   return (
-    <div className="variables-analysis-tab">
+    <div className="variables-analysis-tab" key="variables-analysis-root">
+      {/* No spec file uploaded */}
+      {!specificationFile && (
+        <div className="variables-empty-state" key="no-spec">
+          <AlertCircle size={64} className="empty-icon" />
+          <h3>No Specification File Uploaded</h3>
+          <p>Please upload an ADAM specification file in the Specification tab to analyze variables.</p>
+        </div>
+      )}
+
+      {/* Categorizing in progress - use a stable wrapper to prevent unmount issues */}
+      {specificationFile && isCategorizingVariables && (
+        <div 
+          className="variables-loading-state" 
+          key={`loading-${categorizeStartedAt || 'default'}`}
+          data-loading-state="true"
+        >
+          <AnalyzingVariablesStatus
+            key={`analyzing-${categorizeStartedAt || Date.now()}`}
+            fileName={specificationFile?.name}
+            totalVars={undefined}
+            parsedVars={undefined}
+            categoryCount={undefined}
+            currentStep={loadingStep}
+            totalSteps={6}
+            adamVersion={adamIgVersion}
+            meddraVersion={medraVersion}
+            startTime={categorizeStartedAt ?? undefined}
+            cancellable
+            onCancel={handleCancelCategorization}
+            onForceReset={handleForceReset}
+          />
+        </div>
+      )}
+
+      {/* Error state */}
+      {specificationFile && error && !categorizedVariables && !isCategorizingVariables && (
+        <div className="variables-error-state" key="error-state">
+          <AlertCircle size={64} className="error-icon" />
+          <h3>Categorization Failed</h3>
+          <p>{error}</p>
+          <button className="retry-button" onClick={handleCategorizeVariables}>
+            Retry Categorization
+          </button>
+        </div>
+      )}
+
+      {/* No categorized variables yet */}
+      {specificationFile && !categorizedVariables && !isCategorizingVariables && !error && (
+        <div className="variables-empty-state" key="no-categories">
+          <FileSearch size={64} className="empty-icon" />
+          <h3>Variables Not Categorized</h3>
+          <p>Click the button below to categorize variables from the specification.</p>
+          <button className="categorize-button" onClick={handleCategorizeVariables}>
+            Categorize Variables
+          </button>
+        </div>
+      )}
+
+      {/* Main content with categorized variables */}
+      {specificationFile && categorizedVariables && !isCategorizingVariables && (
+        <div className="variables-content" key="variables-content">
       <div className="variables-header-compact">
         <div className="header-info-group">
           <h2 className="header-title">
@@ -1128,6 +1309,8 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
         language={programmingLanguage}
         dataset={projectConfig.adamDataset || 'ADSL'}
       />
+        </div>
+      )}
     </div>
   );
 };

@@ -8,7 +8,6 @@ import { LayoutSwitcher } from './LayoutSwitcher';
 import { UserMenu } from './UserMenu';
 import { StudySelector } from './StudySelector';
 import { AIConfigStatus } from './AIConfigStatus';
-import { WorkspaceControls } from './WorkspaceControls';
 import { useProjectStore } from '../store/projectStore';
 import { usePreferencesStore } from '../store/preferencesStore';
 import { showNavigationConfirmation } from './ConfirmationDialog';
@@ -133,9 +132,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
         <div className="app-header-right">
           <Space size="middle">
-            {/* AI Configuration Status - before search */}
-            <AIConfigStatus className="hide-mobile" />
-            <WorkspaceControls onSwitchProject={onSwitchProject} />
             <Button
               icon={<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="7" height="18" rx="1" />

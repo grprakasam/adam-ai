@@ -16,8 +16,8 @@ type Props = {
   onForceReset?: () => void;
 };
 
-const LONG_WAIT_MS = 60_000;
-const VERY_LONG_WAIT_MS = 120_000;
+const LONG_WAIT_MS = 45_000; // Show warning after 45 seconds
+const VERY_LONG_WAIT_MS = 90_000; // Show force reset after 90 seconds
 
 const STEP_LABELS = [
   'Loading file…',
@@ -96,16 +96,29 @@ export default function AnalyzingVariablesStatus({
           </Typography.Text>
         )}
         {veryLong && (
-          <Typography.Text>
-            You can continue elsewhere; we’ll notify when ready. {eta ? `~${eta}s remaining.` : ''}
+          <Typography.Text type="warning" style={{ color: '#faad14', fontWeight: 500 }}>
+            This is taking longer than expected. The request may have stalled. {eta ? `~${eta}s remaining.` : ''}
           </Typography.Text>
         )}
 
         {cancellable && (
           <div style={{ marginTop: 8 }}>
-            <a role="button" onClick={onCancel} style={{ marginRight: 16 }}>Cancel and retry</a>
-            {veryLong && onForceReset && (
-              <a role="button" onClick={onForceReset} style={{ color: '#ff4d4f' }}>Force Reset</a>
+            <a role="button" onClick={onCancel} style={{ marginRight: 16, cursor: 'pointer', color: '#1890ff' }}>
+              Cancel and retry
+            </a>
+            {(veryLong || elapsed >= 60000) && onForceReset && (
+              <a 
+                role="button" 
+                onClick={onForceReset} 
+                style={{ 
+                  color: '#ff4d4f', 
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  textDecoration: 'underline'
+                }}
+              >
+                Force Reset (Stuck?)
+              </a>
             )}
           </div>
         )}
