@@ -6,45 +6,38 @@ Think in terms of an Domain expert, ADAM Programmer and an expert ui ux designer
 This features should make use of the best of the industry standards in terms of ui/ux and design principles. search the internet and research papers to architect the best possible approach to implement the following features.
 
 
-i want to slightly modify the pair programming page logic to generate an additional column that will generate a pseudo code snippet based on the derivation logic 
+i want to  modify the "CodeReview",tab as a logical extion to the pair programming page
 
-the reason for this column is to help the domain experts to understand the derivation logic in a better way
-
-also this will help the developers to understand the logic in a better way and will help in code reviews and testing as well.
-
-plesae make the necessary code changes to implement this feature in the best possible way.
-
-make the changes in the api calls accordingly to generate the pseudo code snippets based on the derivation logic
-
-the user interface should be designed in a way that the pseudo code snippet column is clearly visible and easy to read.
-
-After that, In the  page called "CodeReview",
+redesign  this page layout very similar to the pair programming page with varibales displayed as cards and must focus on getting the user inputs for the variables that needs modification would be worked on here.
 
 
-this will be between the pair programming page and the consolidated code page
 
-this page will help the domain experts and developers to review the entire code base generated for the ADaM datasets and can be able to suggest any final changes or improvements before finalizing the code.
+this page would necessarily serve as an intermediate step between pair programming and consolidated code generation
 
-this page should have the following features:
-- Display the variables along with the derivation logic and pseudo code snippets in a tabular format along withthe user notes from the pair programming page
+the purpose of this page is to review and refine the code generated during the pair programming process,marked to modify the variables and further get a refined logic
 
-- Allow users to give the chance to further refine the code logic, before creating the consolidated code
 
-- Allow users to approve or request changes before finalizing the code
 
-- Integrate with the existing workflow to ensure a seamless transition from pair programming to code finalization
+whatever varaibles the user has defined in the pair programming session for Modification would be worked on here.
+
+this entire page has to be reddesigned very intuitively to take care of the user requirements and ensuring a smooth transition between the pair programming and consolidated code generation phases
+
+
+
+
+And there would be a bulk consolidation of the varibales and the user notes that will be passed to the AI to get the updated code for all the varibales that are marked for modification
+
+
+
 
 note that this page is the interemediate step before the consolidated code page
 
 if required create additional controls or ui elements to make this as a smooth experience for the users
 
+th eultimate expectation is this page would primarily focus on variables marked for for modification and make an API call to get the updated code until the user is satisfied with the updated code.
 
-the way i visualise this app is that it will be used by different projects . the design should be ensured to select the particular study name based on which the session information  like the uploaded specifications, datasets  will be stored and the entire flow should be based on that study name selected.
+The app will be in such a way that the ui allows the user to send back and forth api calls through the btoon cliks for all the varibales until they get the stage of user acceptance to mark that as approved logic
 
-
-Strictly ensure that the requirements listed below are architected in the best possible way. to create a cohesive and logical flow for the users that will be well aligned with the existing code base
-
-Plan and make the necessary code changes to make this a great product for generating ADAM datasets from SDTM datasets using generative AI.
 
 
 

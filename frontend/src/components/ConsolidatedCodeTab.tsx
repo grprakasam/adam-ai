@@ -319,6 +319,9 @@ export const ConsolidatedCodeTab: React.FC = () => {
   const reviewStatus = codeReviewStatus || 'not_started';
   const showReviewWarning = reviewStatus !== 'approved';
 
+  const totalWarnings = consolidatedCode?.validation_results.warnings.length ?? 0;
+  const totalErrors = consolidatedCode?.validation_results.errors.length ?? 0;
+
   return (
     <div className="consolidated-tab">
       {/* Header with gradient - matching Pair Programming style */}
@@ -497,7 +500,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
 
               <div className="code-viewer">
                 <Editor
-                  height="500px"
+                  height="calc(100vh - 220px)"
                   language={activeLanguage === 'R' ? 'r' : 'sas'}
                   value={consolidatedCode.consolidated_code}
                   options={{
@@ -513,18 +516,16 @@ export const ConsolidatedCodeTab: React.FC = () => {
 
               <div className="info-sections">
                 <div className="info-section">
-                  <div className="info-header">Summary</div>
+                  <div className="info-header">Program Summary</div>
                   <div className="info-content">
                     <Space wrap size="small">
                       <Tag color="blue">{consolidatedCode.summary.total_variables} variables</Tag>
                       <Tag color="purple">{consolidatedCode.summary.categories_included} categories</Tag>
-                      {consolidatedCode.summary.confidence_score && (
-                        <Tag color="gold">Confidence {consolidatedCode.summary.confidence_score}%</Tag>
-                      )}
+                      <Tag color="geekblue">{consolidatedCode.summary.lines_of_code} lines of code</Tag>
                     </Space>
                     {summarisedOptimizations.length > 0 && (
                       <div className="optimizations-list">
-                        <strong>Optimizations Applied:</strong>
+                        <strong>Optimizations applied to this run:</strong>
                         <ul>
                           {summarisedOptimizations.map((opt, idx) => (
                             <li key={idx}>{opt}</li>
@@ -536,18 +537,27 @@ export const ConsolidatedCodeTab: React.FC = () => {
                 </div>
 
                 <div className="info-section">
-                  <div className="info-header">Validation</div>
+                  <div className="info-header">Validation Snapshot</div>
                   <div className="info-content">
                     <Space direction="vertical" size="small">
-                      <Tag color={consolidatedCode.validation_results.syntax_valid ? 'green' : 'red'}>
-                        {consolidatedCode.validation_results.syntax_valid ? '✓ Syntax Valid' : '✗ Syntax Issues'}
-                      </Tag>
-                      <Tag color={consolidatedCode.validation_results.cdisc_compliant ? 'green' : 'red'}>
-                        {consolidatedCode.validation_results.cdisc_compliant ? '✓ CDISC Compliant' : '✗ CDISC Issues'}
-                      </Tag>
+                      <Space wrap size="small">
+                        <Tag color={consolidatedCode.validation_results.syntax_valid ? 'green' : 'red'}>
+                          {consolidatedCode.validation_results.syntax_valid ? '✓ Syntax valid' : '✗ Syntax issues'}
+                        </Tag>
+                        <Tag color={consolidatedCode.validation_results.cdisc_compliant ? 'green' : 'red'}>
+                          {consolidatedCode.validation_results.cdisc_compliant ? '✓ CDISC compliant' : '✗ CDISC issues'}
+                        </Tag>
+                        <Tag color={totalWarnings > 0 ? 'gold' : 'default'}>
+                          {totalWarnings} warning{totalWarnings === 1 ? '' : 's'}
+                        </Tag>
+                        <Tag color={totalErrors > 0 ? 'red' : 'default'}>
+                          {totalErrors} error{totalErrors === 1 ? '' : 's'}
+                        </Tag>
+                      </Space>
+
                       {consolidatedCode.validation_results.warnings.length > 0 && (
                         <div className="validation-messages">
-                          <strong>Warnings:</strong>
+                          <strong>Key warnings to review in code:</strong>
                           <ul>
                             {consolidatedCode.validation_results.warnings.map((warning, idx) => (
                               <li key={idx}>{warning}</li>
@@ -557,7 +567,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
                       )}
                       {consolidatedCode.validation_results.errors.length > 0 && (
                         <div className="validation-messages">
-                          <strong>Errors:</strong>
+                          <strong>Blocking issues:</strong>
                           <ul>
                             {consolidatedCode.validation_results.errors.map((err, idx) => (
                               <li key={idx}>{err}</li>
@@ -570,23 +580,33 @@ export const ConsolidatedCodeTab: React.FC = () => {
                 </div>
 
                 <div className="info-section">
-                  <div className="info-header">Metadata</div>
+                  <div className="info-header">Run Context</div>
                   <div className="info-content">
                     <div className="metadata-item">
-                      <span className="meta-label">Provider:</span>
-                      <span className="meta-value">{consolidatedCode.metadata.llm_provider}</span>
+                      <span className="meta-label">Study / Dataset:</span>
+                      <span className="meta-value">
+                        {projectConfig.studyId || 'N/A'} • {projectConfig.adamDataset || 'ADSL'}
+                      </span>
                     </div>
                     <div className="metadata-item">
-                      <span className="meta-label">Model:</span>
-                      <span className="meta-value">{consolidatedCode.metadata.model_used}</span>
+                      <span className="meta-label">Language:</span>
+                      <span className="meta-value">{activeLanguage}</span>
                     </div>
                     <div className="metadata-item">
-                      <span className="meta-label">Mode:</span>
+                      <span className="meta-label">LLM provider / model:</span>
+                      <span className="meta-value">
+                        {consolidatedCode.metadata.llm_provider} • {consolidatedCode.metadata.model_used}
+                      </span>
+                    </div>
+                    <div className="metadata-item">
+                      <span className="meta-label">Execution mode:</span>
                       <span className="meta-value">{consolidatedCode.metadata.execution_mode}</span>
                     </div>
                     <div className="metadata-item">
-                      <span className="meta-label">Generated:</span>
-                      <span className="meta-value">{new Date(consolidatedCode.metadata.generated_at).toLocaleString()}</span>
+                      <span className="meta-label">Generated at:</span>
+                      <span className="meta-value">
+                        {new Date(consolidatedCode.metadata.generated_at).toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </div>

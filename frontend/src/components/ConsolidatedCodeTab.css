@@ -316,10 +316,9 @@
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  overflow-y: auto;
-  height: 100%;
-  scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
+  /* Let outer layout handle scrolling so the code viewer can use full height */
+  overflow-y: visible;
+  height: auto;
 }
 
 /* Custom Scrollbar for Main Content */
@@ -380,6 +379,7 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  min-height: 320px;
 }
 
 /* Info Sections Grid */

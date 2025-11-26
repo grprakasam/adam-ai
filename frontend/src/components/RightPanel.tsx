@@ -645,7 +645,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         className="code-card"
       >
         <Editor
-          height="400px"
+          height="70vh"
           language={language.toLowerCase()}
           value={isEditing ? editedCode : generationResult.code}
           onChange={handleCodeChange}
