@@ -211,10 +211,11 @@ Write-Host "  URL: http://localhost:3000" -ForegroundColor Gray
 $frontendScriptPath = Join-Path $scriptDir "start_frontend.ps1"
 $frontendDir = Join-Path $scriptDir "frontend"
 
+# Use node to run Vite directly to avoid PowerShell execution policy blocking npm.ps1
 $frontendScript = @"
 `$ErrorActionPreference = 'Continue'
 cd `"$frontendDir`"
-npm run dev
+node node_modules/vite/bin/vite.js --host 0.0.0.0 --port 3000
 "@
 
 $frontendScript | Out-File -FilePath $frontendScriptPath -Encoding UTF8 -Force

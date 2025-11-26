@@ -8,6 +8,7 @@ Provides sandboxed execution environment with timeout and resource limits.
 import asyncio
 import subprocess
 import sys
+import os
 import tempfile
 import shutil
 from pathlib import Path
@@ -54,9 +55,28 @@ class RExecutor:
         logger.info(f"Executing R code in Docker for test: {test_id}")
 
         # Create temporary execution directory
-        with tempfile.TemporaryDirectory() as temp_dir:
+        # Use project-specific temp directory for Windows/Docker Desktop compatibility
+        if sys.platform == 'win32':
+            # On Windows, avoid Path.resolve()/absolute() which can raise NotImplementedError.
+            # __file__ is at: backend/app/modules/testing/test_execution/r_executor.py
+            # parents[5] should be the project root, parents[4] the backend directory.
+            try:
+                backend_dir = Path(__file__).parents[5] / "backend"
+            except IndexError:
+                # Fallback: assume current working directory contains backend/
+                backend_dir = Path.cwd() / "backend"
+
+            project_temp_dir = backend_dir / "temp_executions"
+            project_temp_dir.mkdir(parents=True, exist_ok=True)
+
+            temp_dir = tempfile.mkdtemp(dir=str(project_temp_dir))
+            temp_path = Path(temp_dir)
+        else:
+            # On Unix systems, use system temp
+            temp_dir = tempfile.mkdtemp()
             temp_path = Path(temp_dir)
 
+        try:
             # Paths
             test_data_path = Path("backend/test_data") / test_data_id
             script_path = temp_path / "test_script.R"
@@ -74,46 +94,54 @@ class RExecutor:
             # Write script
             script_path.write_text(full_script)
 
-            # Convert Windows paths to Docker-compatible format
+            # Convert host paths to Docker-compatible mount paths
             def to_docker_path(path: Path) -> str:
-                """Convert Windows path to Docker-compatible path"""
-                # On Windows, avoid resolve() which can raise NotImplementedError
-                # Use absolute() instead, which is safer for temp directories
+                """Convert host path to Docker-compatible path without using resolve()/absolute()."""
                 if sys.platform == 'win32':
+                    import os
+
+                    path_str = str(path)
                     try:
-                        # Try absolute() first (safer than resolve() on Windows)
-                        abs_path = path.absolute()
-                    except (NotImplementedError, OSError, AttributeError):
-                        # Last resort: use the path as-is
-                        abs_path = path
-                    
+                        path_str = os.path.abspath(path_str)
+                    except Exception:
+                        # Fall back to the raw string if abspath fails
+                        pass
+
                     # Docker Desktop on Windows needs forward slashes and drive letter conversion
                     # e.g., C:\Users\... becomes /c/Users/...
-                    path_str = str(abs_path).replace('\\', '/')
+                    path_str = path_str.replace('\\', '/')
                     if len(path_str) > 1 and path_str[1] == ':':
                         # Convert C:/ to /c/
                         path_str = '/' + path_str[0].lower() + path_str[2:]
                     return path_str
                 else:
-                    # On Unix-like systems, resolve() is safe
+                    # On Unix-like systems, normal absolute paths with forward slashes work fine.
                     try:
                         return str(path.resolve())
                     except Exception:
-                        return str(path.absolute())
+                        return str(path)
 
             # Build Docker command
+            # On Windows, mount entire temp directory to avoid file access permission issues
             docker_cmd = [
                 "docker", "run",
                 "--rm",  # Remove container after execution
-                "-v", f"{to_docker_path(test_data_path)}:/data:ro",  # Mount test data (read-only)
-                "-v", f"{to_docker_path(script_path)}:/script.R:ro",  # Mount script (read-only)
-                "-v", f"{to_docker_path(output_path)}:/output",  # Mount output directory (read-write)
+                "-v", f"{to_docker_path(temp_path)}:/workspace:rw",  # Mount entire temp directory (read-write)
+            ]
+            
+            # Mount test data if it exists
+            if test_data_path.exists():
+                docker_cmd.extend([
+                    "-v", f"{to_docker_path(test_data_path)}:/data:ro",  # Mount test data (read-only)
+                ])
+            
+            docker_cmd.extend([
                 "--memory", "2g",  # Limit memory to 2GB
                 "--cpus", "2",     # Limit to 2 CPUs
                 "--network", "none",  # No network access (security)
                 self.docker_image,
-                "Rscript", "/script.R"
-            ]
+                "Rscript", "/workspace/test_script.R"  # Use path inside mounted workspace
+            ])
 
             logs = []
             errors = []
@@ -187,7 +215,7 @@ class RExecutor:
                 if status == TestStatus.PASSED:
                     output_dataset_path = await self._capture_output(output_path, test_id)
 
-                return TestExecutionResult(
+                result = TestExecutionResult(
                     test_id=test_id,
                     status=status,
                     execution_duration_seconds=0,  # Will be set by service
@@ -199,7 +227,7 @@ class RExecutor:
 
             except Exception as e:
                 logger.error(f"Docker execution error: {test_id} - {str(e)}")
-                return TestExecutionResult(
+                result = TestExecutionResult(
                     test_id=test_id,
                     status=TestStatus.ERROR,
                     execution_duration_seconds=0,
@@ -207,6 +235,17 @@ class RExecutor:
                     errors=[str(e)] + errors,
                     warnings=warnings_list,
                 )
+            
+            return result
+            
+        finally:
+            # Clean up temporary directory
+            if temp_dir and Path(temp_dir).exists():
+                try:
+                    shutil.rmtree(temp_dir)
+                    logger.debug(f"Cleaned up temp directory: {temp_dir}")
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temp directory {temp_dir}: {cleanup_error}")
 
     async def execute_locally(
         self,

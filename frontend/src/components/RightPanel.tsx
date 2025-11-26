@@ -40,7 +40,8 @@ type WorkspaceTabKey =
   | 'traceability'
   | 'r-frontend'
   | 'analytics'
-  | 'chatbot';
+  | 'chatbot'
+  | 'code-comparer';
 
 type WorkspaceGroup = 'adamCoding' | 'adamValidation' | 'utilities';
 
@@ -57,7 +58,8 @@ const TAB_TOOLTIPS: Record<string, string> = {
   traceability: 'Track SDTM-to-ADAM lineage and create regulatory traceability documentation',
   'r-frontend': 'Professional R code execution environment - write and run any R scripts',
   analytics: 'Advanced analytics and insights for ADAM datasets with visualization tools',
-  chatbot: 'AI-powered study assistant for questions about specifications and standards'
+  chatbot: 'AI-powered study assistant for questions about specifications and standards',
+  'code-comparer': 'Compare different versions of ADAM code to identify differences and validate changes'
 };
 
 const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock, onSwitchProject }: RightPanelProps) => {
@@ -76,15 +78,30 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
-    adamCoding: ['pair', 'review', 'consolidated', 'adam-generator'],
-    adamValidation: ['comparer', 'submission', 'code-validator'],
-    utilities: ['testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability'],
+    adamCoding: ['pair', 'review', 'consolidated'],
+    adamValidation: ['submission', 'code-validator'],
+    utilities: ['comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability'],
   };
 
   // Keep active tab consistent with active group
   useEffect(() => {
+    // First, determine which group this tab belongs to
+    let tabGroup: WorkspaceGroup | null = null;
+    for (const [group, tabs] of Object.entries(GROUP_TABS)) {
+      if (tabs.includes(activeWorkspaceTab)) {
+        tabGroup = group as WorkspaceGroup;
+        break;
+      }
+    }
+    
+    // If tab belongs to a different group, switch to that group
+    if (tabGroup && tabGroup !== activeGroup) {
+      setActiveGroup(tabGroup);
+    }
+    
+    // Ensure tab is in allowed list for active group
     const allowed = GROUP_TABS[activeGroup];
-    if (!allowed.includes(activeWorkspaceTab)) {
+    if (!allowed.includes(activeWorkspaceTab) && tabGroup) {
       setActiveWorkspaceTab(allowed[0]);
     }
   }, [activeGroup, activeWorkspaceTab]);
@@ -111,11 +128,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           setActiveWorkspaceTab('consolidated');
           break;
         case '/adam-generator':
-          setActiveGroup('adamCoding');
+          setActiveGroup('utilities');
           setActiveWorkspaceTab('adam-generator');
           break;
         case '/adam-dataset-comparer':
-          setActiveGroup('adamValidation');
+          setActiveGroup('utilities');
           setActiveWorkspaceTab('comparer');
           break;
         case '/submission-dashboard':
@@ -147,6 +164,10 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         case '/study-chatbot':
           setActiveGroup('utilities');
           setActiveWorkspaceTab('chatbot');
+          break;
+        case '/code-comparer':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('code-comparer');
           break;
         default:
           break;
@@ -253,6 +274,77 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       </div>
     );
 
+    const CodeComparerPlaceholder = () => (
+      <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+          <h2 style={{ color: '#1e293b', marginBottom: '10px', fontSize: '28px' }}>Code Comparer</h2>
+          <p style={{ color: '#64748b', fontSize: '16px' }}>
+            Compare different versions of ADAM code to identify differences and validate changes
+          </p>
+        </div>
+
+        <div style={{ 
+          background: '#f8f9fa', 
+          borderRadius: '8px', 
+          padding: '30px',
+          marginBottom: '30px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ color: '#1e293b', marginBottom: '15px', fontSize: '20px' }}>Features</h3>
+          <ul style={{ listStyle: 'none', padding: 0, color: '#475569' }}>
+            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 0 }}>•</span>
+              Side-by-side comparison of code versions
+            </li>
+            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 0 }}>•</span>
+              Highlight differences between code versions
+            </li>
+            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 0 }}>•</span>
+              Line-by-line diff visualization
+            </li>
+            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 0 }}>•</span>
+              Syntax highlighting for R/SAS code
+            </li>
+            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 0 }}>•</span>
+              Export comparison results
+            </li>
+          </ul>
+        </div>
+
+        <div style={{ 
+          background: '#fff', 
+          borderRadius: '8px', 
+          padding: '30px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ color: '#1e293b', marginBottom: '15px', fontSize: '20px' }}>How to Use</h3>
+          <ol style={{ color: '#475569', paddingLeft: '20px' }}>
+            <li style={{ marginBottom: '10px' }}>Upload or paste the first version of your code</li>
+            <li style={{ marginBottom: '10px' }}>Upload or paste the second version to compare</li>
+            <li style={{ marginBottom: '10px' }}>Select comparison options (ignore whitespace, case sensitivity, etc.)</li>
+            <li style={{ marginBottom: '10px' }}>Review the highlighted differences</li>
+            <li style={{ marginBottom: '10px' }}>Export or save the comparison report</li>
+          </ol>
+        </div>
+
+        <div style={{ 
+          marginTop: '30px',
+          padding: '20px',
+          background: '#fef3c7',
+          borderRadius: '8px',
+          border: '1px solid #fbbf24'
+        }}>
+          <p style={{ color: '#92400e', margin: 0, fontSize: '14px' }}>
+            <strong>Note:</strong> This feature is currently under development. Full functionality will be available in a future update.
+          </p>
+        </div>
+      </div>
+    );
+
     try {
       const allItems = [
         {
@@ -302,11 +394,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         },
         {
           key: 'adam-generator',
-          group: 'adamCoding' as WorkspaceGroup,
+          group: 'utilities' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS['adam-generator']}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>4.</span> ADAM Generator{' '}
+                ADAM Generator{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -315,11 +407,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         },
         {
           key: 'comparer',
-          group: 'adamValidation' as WorkspaceGroup,
+          group: 'utilities' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.comparer}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>5.</span> Dataset Comparer{' '}
+                Dataset Comparer{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -332,7 +424,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           label: (
             <Tooltip title={TAB_TOOLTIPS.submission}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>6.</span> Submission{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>5.</span> Submission{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -345,7 +437,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           label: (
             <Tooltip title={TAB_TOOLTIPS['code-validator']}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>7.</span> Code Validator{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>6.</span> Code Validator{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -417,6 +509,19 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           ),
           children: <PlaceholderContent title="Study ChatBot" />,
         },
+        {
+          key: 'code-comparer',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['code-comparer']}>
+              <span>
+                Code Comparer{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <CodeComparerPlaceholder />,
+        },
       ];
 
       const itemsForGroup = allItems.filter((item) =>
@@ -435,7 +540,16 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             <div className="workspace-navigation-section">
               <WorkspaceNavigation
                 activeTab={activeWorkspaceTab}
-                onTabChange={(tab) => setActiveWorkspaceTab(tab as WorkspaceTabKey)}
+                onTabChange={(tab) => {
+                  // Find which group this tab belongs to and set active group
+                  for (const [group, tabs] of Object.entries(GROUP_TABS)) {
+                    if (tabs.includes(tab as WorkspaceTabKey)) {
+                      setActiveGroup(group as WorkspaceGroup);
+                      break;
+                    }
+                  }
+                  setActiveWorkspaceTab(tab as WorkspaceTabKey);
+                }}
               />
             </div>
           </div>

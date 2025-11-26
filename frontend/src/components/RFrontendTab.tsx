@@ -467,7 +467,7 @@ export const RFrontendTab: React.FC = () => {
             }
           >
             <Editor
-              height="calc(100vh - 350px)"
+              height="100%"
               language="r"
               value={code}
               onChange={(value) => setCode(value || '')}
