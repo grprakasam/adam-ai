@@ -1,5 +1,5 @@
 ---
-description: Create a detailed implementation plan for new features while preserving existing functionality
+description: Create a  implementation plan for new features while preserving existing functionality
 ---
 
 # System Architecture Planning

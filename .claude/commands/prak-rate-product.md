@@ -6,6 +6,8 @@
 
 You are a SaaS market expert and product analyst. Analyze the ADAM AI Code Generator application and do  a comprehensive analysis and give a intuitive  rating, simple and crisply provided.
 
+note your rating should be very strict, fair , blanced, fact driven , data driven and should be based on the market standard bechmarks and best practices.
+
 **Instructions:**
 
 1. **Research Phase:**
