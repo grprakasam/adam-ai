@@ -1,7 +1,10 @@
 .right-panel {
   flex: 1;
   background: #f8f9fa;
+  /* Keep overflow-y: auto so the panel itself is scrollable */
+  /* The sticky header will stick to the top of this scrollable container */
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px 16px 16px 16px;
   padding-bottom: 70px; /* Add padding for bottom action area */
   display: flex;
@@ -10,19 +13,42 @@
   /* Create proper stacking context for child components */
   position: relative;
   isolation: isolate;
+  /* Ensure proper height for sticky positioning */
+  min-height: 0;
+  height: 100%;
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Unified Workspace Header Group - ALWAYS VISIBLE - Never Scrolls Behind Content */
+/* Modern, Colorful Professional Design */
 .right-panel .workspace-header-group {
   position: sticky;
   top: 0;
-  z-index: 200; /* High z-index to ensure it's always on top */
-  margin-bottom: 8px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 
-              0 4px 16px rgba(0, 0, 0, 0.06); /* Enhanced shadow for depth */
-  border: 1px solid #e5e7eb;
+  /* Very high z-index to ensure it stays above all content when scrolling */
+  z-index: 999; /* Just below app-header (1000) but above all content */
+  margin-bottom: 12px;
+  /* Ensure it stays at the top of the scrollable container */
+  align-self: flex-start;
+  width: 100%;
+  /* Vibrant gradient background - modern and professional */
+  background: linear-gradient(135deg, 
+    #667eea 0%, 
+    #764ba2 25%, 
+    #f093fb 50%, 
+    #4facfe 75%, 
+    #00f2fe 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 8s ease infinite;
+  border-radius: 16px;
+  /* Enhanced shadow with color tint */
+  box-shadow: 
+    0 8px 32px rgba(102, 126, 234, 0.25),
+    0 4px 16px rgba(118, 75, 162, 0.2),
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   overflow: hidden;
   /* ALWAYS visible - no hiding animations */
   transform: translateY(0) !important;
@@ -34,6 +60,35 @@
   min-height: 120px; /* 36px utilities + 80px+ navigation */
   max-height: none; /* Allow to expand for navigation */
   flex-shrink: 0; /* Never shrink */
+  /* Smooth transitions for all interactions */
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Add subtle backdrop blur for modern glass effect */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Animated gradient background */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Hover effect for interactivity */
+.right-panel .workspace-header-group:hover {
+  box-shadow: 
+    0 12px 40px rgba(102, 126, 234, 0.35),
+    0 6px 20px rgba(118, 75, 162, 0.25),
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px) !important;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* Ensure header never gets hidden - override any hiding classes */
@@ -55,39 +110,51 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 10px;
-  background: transparent;
+  padding: 8px 16px;
+  /* Semi-transparent overlay for better contrast */
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   gap: 8px;
   flex-wrap: nowrap;
   border: none;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   z-index: 1;
   margin-bottom: 0;
   /* Ultra compact single row - minimal height */
-  height: 36px;
-  min-height: 36px;
-  max-height: 36px;
+  height: 44px;
+  min-height: 44px;
+  max-height: 44px;
   overflow: visible;
   white-space: nowrap;
+  transition: all 0.3s ease;
 }
 
 /* Workspace navigation section within the grouped section - Expanded for visibility */
 .right-panel .workspace-header-group .workspace-navigation-section {
-  background: transparent;
+  /* Semi-transparent overlay with subtle gradient */
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   border: none;
-  padding: 3px 6px;
+  padding: 8px 12px;
   position: relative;
   z-index: 1;
   margin-bottom: 0;
   overflow-x: auto;
   overflow-y: visible; /* Changed from hidden to visible */
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
   -ms-overflow-style: none;
   /* Expanded height to show section buttons */
   height: auto;
@@ -95,11 +162,29 @@
   max-height: none; /* Remove height restriction */
   display: flex;
   align-items: center;
+  transition: all 0.3s ease;
 }
 
+/* Custom scrollbar for navigation section */
 .right-panel .workspace-header-group .workspace-navigation-section::-webkit-scrollbar {
-  display: none;
+  height: 6px;
 }
+
+.right-panel .workspace-header-group .workspace-navigation-section::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.right-panel .workspace-header-group .workspace-navigation-section::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.right-panel .workspace-header-group .workspace-navigation-section::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.6);
+}
+
 
 /* Old navigation section styles removed - now part of grouped header */
 
@@ -115,7 +200,7 @@
   overflow: hidden;
 }
 
-/* Workspace content area - Scrolls independently, header stays on top */
+/* Workspace content area - Scrolls with the panel, header stays sticky on top */
 .right-panel .workspace-content {
   flex: 1;
   display: flex;
@@ -124,10 +209,13 @@
   /* Ensure content is in its own stacking context but lower than sticky headers */
   position: relative;
   z-index: 1;
-  /* Content scrolls normally, header stays fixed on top */
+  /* Content scrolls with the right-panel container, header stays fixed on top */
   margin-top: 0;
   /* Ensure content doesn't overlap with sticky header */
   padding-top: 0;
+  /* Ensure proper flex behavior */
+  min-height: 0;
+  width: 100%;
 }
 
 .right-panel.locked {
@@ -524,17 +612,42 @@
   }
 }
 
-/* Dark Mode Support for Workspace Utilities and Navigation */
-[data-theme="dark"] .right-panel .workspace-utilities {
-  background: #1f2937;
-  border-color: #374151;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+/* Dark Mode Support for Workspace Header Group */
+[data-theme="dark"] .right-panel .workspace-header-group {
+  background: linear-gradient(135deg, 
+    #4c1d95 0%, 
+    #6b21a8 25%, 
+    #7c3aed 50%, 
+    #6366f1 75%, 
+    #3b82f6 100%);
+  background-size: 200% 200%;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 8px 32px rgba(79, 70, 229, 0.4),
+    0 4px 16px rgba(99, 102, 241, 0.3),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-[data-theme="dark"] .right-panel .workspace-navigation-section {
-  background: #0f172a;
-  border-color: #1e293b;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+[data-theme="dark"] .right-panel .workspace-header-group:hover {
+  box-shadow: 
+    0 12px 40px rgba(79, 70, 229, 0.5),
+    0 6px 20px rgba(99, 102, 241, 0.4),
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="dark"] .right-panel .workspace-header-group .workspace-utilities {
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .right-panel .workspace-header-group .workspace-navigation-section {
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
 }
 
 [data-theme="dark"] .right-panel {

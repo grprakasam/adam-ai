@@ -69,9 +69,12 @@ export function triggerDownload(
     // Clean up after a delay to ensure download starts
     setTimeout(() => {
       try {
-        // Check if element still has a parent before removing
-        if (anchor.parentNode) {
-          anchor.parentNode.removeChild(anchor);
+        // Check if element still has a parent and is actually a child before removing
+        if (anchor.parentNode === document.body) {
+          document.body.removeChild(anchor);
+        } else if (anchor.parentNode) {
+          // If parent exists but isn't body, use remove() method
+          anchor.remove();
         }
 
         // Revoke object URL if we created one
@@ -81,6 +84,14 @@ export function triggerDownload(
       } catch (cleanupError) {
         // Silently ignore cleanup errors - download has already started
         console.debug('Cleanup completed or element already removed:', cleanupError);
+        // Try alternative removal method as fallback
+        try {
+          if (anchor.parentNode) {
+            anchor.remove();
+          }
+        } catch (e) {
+          console.debug('Alternative removal also failed:', e);
+        }
       }
     }, 100);
 

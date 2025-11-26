@@ -670,19 +670,39 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
                   {/* Quick Info */}
                   <div className="variable-card-content">
-                    {isFieldVisible('type') && (
-                      <div className="variable-info-row">
-                        <div className="variable-info-label">Type:</div>
-                        <div className="variable-info-value">
-                          {variable.type || '—'}
-                        </div>
-                      </div>
-                    )}
-
-                    {isFieldVisible('length') && variable.length && (
-                      <div className="variable-info-row">
-                        <div className="variable-info-label">Length:</div>
-                        <div className="variable-info-value">{variable.length}</div>
+                    {/* Compact single-line row for Type, Length, and Origin */}
+                    {(isFieldVisible('type') || (isFieldVisible('length') && variable.length) || isFieldVisible('origin')) && (
+                      <div className="variable-info-row variable-info-row-compact">
+                        {isFieldVisible('type') && (
+                          <>
+                            <div className="variable-info-item">
+                              <span className="variable-info-label">Type:</span>
+                              <span className="variable-info-value">{variable.type || '—'}</span>
+                            </div>
+                            {(isFieldVisible('length') && variable.length) || isFieldVisible('origin') ? (
+                              <span className="variable-info-separator">•</span>
+                            ) : null}
+                          </>
+                        )}
+                        {isFieldVisible('length') && variable.length && (
+                          <>
+                            <div className="variable-info-item">
+                              <span className="variable-info-label">Length:</span>
+                              <span className="variable-info-value">{variable.length}</span>
+                            </div>
+                            {isFieldVisible('origin') ? (
+                              <span className="variable-info-separator">•</span>
+                            ) : null}
+                          </>
+                        )}
+                        {isFieldVisible('origin') && (
+                          <div className="variable-info-item">
+                            <span className="variable-info-label">Origin:</span>
+                            <span className="variable-info-value">
+                              {variable.origin || variable.extra?.Origin || variable.extra?.origin || '—'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -690,15 +710,6 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                       <div className="variable-info-row">
                         <div className="variable-info-label">Format:</div>
                         <div className="variable-info-value">{variable.format}</div>
-                      </div>
-                    )}
-
-                    {isFieldVisible('origin') && (
-                      <div className="variable-info-row">
-                        <div className="variable-info-label">Origin:</div>
-                        <div className="variable-info-value">
-                          {variable.origin || variable.extra?.Origin || variable.extra?.origin || '—'}
-                        </div>
                       </div>
                     )}
                   </div>

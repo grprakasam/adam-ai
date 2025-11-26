@@ -190,17 +190,51 @@
   font-size: 12px;
 }
 
+/* Compact single-line row for Type, Length, Origin */
+.variable-info-row-compact {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.variable-info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.variable-info-separator {
+  color: #d1d5db;
+  font-weight: 300;
+  font-size: 14px;
+  user-select: none;
+}
+
 .variable-info-label {
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  font-size: 11px;
+}
+
+.variable-info-row-compact .variable-info-label {
+  font-size: 11px;
+  text-transform: uppercase;
 }
 
 .variable-info-value {
   color: #1f2937;
   word-break: break-word;
   font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.variable-info-row-compact .variable-info-value {
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* Card footer with actions */

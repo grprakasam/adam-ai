@@ -286,10 +286,48 @@ export const RFrontendTab: React.FC = () => {
     const a = document.createElement('a');
     a.href = url;
     a.download = `r_script_${Date.now()}.R`;
+    a.style.display = 'none';
+    a.setAttribute('aria-hidden', 'true');
+    
+    // Try clicking without appending first (works in modern browsers)
+    try {
+      a.click();
+      // Cleanup URL after download starts
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.debug('URL already revoked:', e);
+        }
+      }, 1000);
+      message.success('Code downloaded');
+      return;
+    } catch (clickError) {
+      // Fallback: append to body
+    }
+    
+    // Fallback: append to body, click, then safely remove
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    
+    // Safely remove after a delay
+    setTimeout(() => {
+      try {
+        if (a.parentNode === document.body) {
+          document.body.removeChild(a);
+        }
+        URL.revokeObjectURL(url);
+      } catch (cleanupError) {
+        console.debug('Cleanup completed or element already removed:', cleanupError);
+        // Try alternative removal method
+        try {
+          a.remove();
+        } catch (e) {
+          console.debug('Alternative removal also failed:', e);
+        }
+      }
+    }, 100);
+    
     message.success('Code downloaded');
   };
 

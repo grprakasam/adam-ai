@@ -171,21 +171,6 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
 
   return (
     <div className="workspace-navigation-single-row">
-      {/* Visual Header Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        padding: '6px 16px',
-        borderRadius: '8px 8px 0 0',
-        fontSize: '11px',
-        fontWeight: 600,
-        letterSpacing: '0.5px',
-        textAlign: 'center',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        marginBottom: '-6px'
-      }}>
-        ↓ CLICK SECTION BUTTONS BELOW TO SWITCH BETWEEN ADAM CODING, VALIDATION & UTILITIES ↓
-      </div>
       {/* Single Row Navigation - Sections + Active Section Items in one line */}
       <div className="nav-single-row-container">
         {(Object.keys(NAVIGATION_STRUCTURE) as MainSection[]).map((section, sectionIndex) => {
