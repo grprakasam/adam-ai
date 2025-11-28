@@ -320,7 +320,7 @@ summary_stats <- adam %>%
       // Ensure inputs object exists
       if (!inputs) {
         message.warning({
-          content: 'No SDTM data found. Please generate SDTM datasets in the SDTM Generator section first, then try loading again.',
+          content: 'No SDTM data found. Please generate SDTM datasets in the SDTM Test Data Generator section first, then try loading again.',
           duration: 6,
         });
         // Set empty state to show the UI
@@ -353,7 +353,7 @@ summary_stats <- adam %>%
       // Check if any SDTM data exists
       if (availableDomains.length === 0) {
         message.warning({
-          content: 'No SDTM data found. Please generate SDTM datasets in the SDTM Generator section first, then try loading again.',
+          content: 'No SDTM data found. Please generate SDTM datasets in the SDTM Test Data Generator section first, then try loading again.',
           duration: 6,
         });
         return;
@@ -952,6 +952,66 @@ summary_stats <- adam %>%
 
   return (
     <div className="adam-generator-container" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* ADAM Requirements Header Section */}
+      {projectConfig?.adamDataset && projectConfig?.studyId && sdtmInputs && sdtmInputs.required_domains.length > 0 && (
+        <div style={{ 
+          marginBottom: '16px', 
+          padding: '12px 20px', 
+          background: sdtmInputs.missing_domains.length > 0 ? '#fff7e6' : '#f6ffed',
+          border: `2px solid ${sdtmInputs.missing_domains.length > 0 ? '#ffe58f' : '#b7eb8f'}`,
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+        }}>
+          <div style={{ fontSize: '13px', lineHeight: '1.6', flex: 1 }}>
+            <div style={{ fontWeight: 700, marginBottom: '8px', color: '#1e293b', fontSize: '14px' }}>
+              Required for {projectConfig.adamDataset}:
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {sdtmInputs.required_domains.map(domain => {
+                const isAvailable = sdtmInputs.available_domains.includes(domain);
+                return (
+                  <Tag 
+                    key={domain} 
+                    color={isAvailable ? 'success' : 'warning'}
+                    style={{ 
+                      margin: 0, 
+                      fontSize: '12px', 
+                      padding: '4px 12px',
+                      fontWeight: 600,
+                      borderRadius: '6px'
+                    }}
+                  >
+                    {domain} {isAvailable ? '✓' : '✗'}
+                  </Tag>
+                );
+              })}
+            </div>
+          </div>
+          {sdtmInputs.missing_domains.length > 0 && (
+            <Button
+              type="primary"
+              size="middle"
+              icon={<ExperimentOutlined />}
+              onClick={generateMissingDatasets}
+              loading={loadingSdtmInputs}
+              style={{ 
+                whiteSpace: 'nowrap',
+                height: '36px',
+                borderRadius: '6px',
+                fontWeight: 600,
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              Generate All Required ({sdtmInputs.missing_domains.length})
+            </Button>
+          )}
+        </div>
+      )}
+      
       <Row gutter={16} style={{ flex: 1, minHeight: 0 }}>
         {/* Left Panel - Inputs & Code Editor */}
         <Col span={12} className="adam-generator-left" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -978,13 +1038,84 @@ summary_stats <- adam %>%
               </Descriptions>
             </Card>
 
+            {/* ADAM Requirements Section */}
+            {projectConfig?.adamDataset && sdtmInputs && sdtmInputs.required_domains.length > 0 && (
+              <Card
+                title={
+                  <Space>
+                    <RocketOutlined style={{ color: '#3b82f6' }} />
+                    <span>ADAM Requirements ({projectConfig.adamDataset})</span>
+                  </Space>
+                }
+                size="small"
+                style={{ marginBottom: 16 }}
+              >
+                <Alert
+                  message={
+                    <Space>
+                      <InfoCircleOutlined style={{ color: '#1890ff' }} />
+                      <span>
+                        <strong>Required SDTM Datasets for {projectConfig.adamDataset}</strong>
+                      </span>
+                    </Space>
+                  }
+                  description={
+                    <div>
+                      <div style={{ marginBottom: '12px' }}>
+                        To generate <strong>{projectConfig.adamDataset}</strong>, the following SDTM datasets are required:
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+                        {sdtmInputs.required_domains.map(domain => {
+                          const isAvailable = sdtmInputs.available_domains.includes(domain);
+                          return (
+                            <Tag 
+                              key={domain} 
+                              color={isAvailable ? 'success' : 'error'}
+                              style={{ margin: 0, fontSize: '13px', padding: '4px 10px' }}
+                            >
+                              {isAvailable ? <CheckCircleOutlined style={{ marginRight: '4px' }} /> : <CloseCircleOutlined style={{ marginRight: '4px' }} />}
+                              {domain}
+                            </Tag>
+                          );
+                        })}
+                      </div>
+                      {sdtmInputs.missing_domains.length > 0 ? (
+                        <div>
+                          <div style={{ marginBottom: '8px', color: '#ff4d4f', fontWeight: 600 }}>
+                            Missing: {sdtmInputs.missing_domains.join(', ')}
+                          </div>
+                          <Button
+                            type="primary"
+                            icon={<ExperimentOutlined />}
+                            onClick={generateMissingDatasets}
+                            loading={loadingSdtmInputs}
+                            block
+                            size="middle"
+                          >
+                            Generate All Missing Datasets ({sdtmInputs.missing_domains.length})
+                          </Button>
+                        </div>
+                      ) : (
+                        <div style={{ color: '#52c41a', fontWeight: 600 }}>
+                          ✓ All required datasets are available!
+                        </div>
+                      )}
+                    </div>
+                  }
+                  type={sdtmInputs.missing_domains.length > 0 ? 'warning' : 'success'}
+                  showIcon={false}
+                  style={{ marginBottom: 0 }}
+                />
+              </Card>
+            )}
+
             {/* SDTM Inputs */}
             <Card
               title="SDTM Input Datasets"
               size="small"
               extra={
                 <Space>
-                  <Tooltip title="Load SDTM data from SDTM Generator">
+                  <Tooltip title="Load SDTM data from SDTM Test Data Generator">
                     <Button
                       type="default"
                       size="small"
@@ -1206,7 +1337,7 @@ summary_stats <- adam %>%
                             lineHeight: '1.6'
                           }}>
                             <strong>What to do:</strong> Click the button below to automatically generate all missing datasets, 
-                            or navigate to the SDTM Generator section to generate them manually with custom parameters.
+                            or navigate to the SDTM Test Data Generator section to generate them manually with custom parameters.
                           </div>
                           <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                             <Button
@@ -1222,7 +1353,7 @@ summary_stats <- adam %>%
                             <Button
                               size="small"
                               onClick={() => {
-                                // Navigate to SDTM Generator (if navigation is available)
+                                // Navigate to SDTM Test Data Generator (if navigation is available)
                                 window.dispatchEvent(
                                   new CustomEvent('adam-ai:navigate-workspace', {
                                     detail: { path: '/test-with-data' },
@@ -1230,7 +1361,7 @@ summary_stats <- adam %>%
                                 );
                               }}
                             >
-                              Go to SDTM Generator
+                              Go to SDTM Test Data Generator
                             </Button>
                           </div>
                         </div>
@@ -1259,7 +1390,7 @@ summary_stats <- adam %>%
                     <Alert
                       type="info"
                       message="No SDTM Data Loaded"
-                      description="Click 'Load SDTM Data' to check for available datasets from the SDTM Generator section."
+                      description="Click 'Load SDTM Data' to check for available datasets from the SDTM Test Data Generator section."
                       showIcon
                       style={{ marginTop: '8px' }}
                     />
@@ -1278,7 +1409,7 @@ summary_stats <- adam %>%
                     No SDTM data loaded
                   </div>
                   <Text type="secondary" style={{ fontSize: '12px' }}>
-                    Click "Load SDTM Data" to load datasets from SDTM Generator
+                    Click "Load SDTM Data" to load datasets from SDTM Test Data Generator
                   </Text>
                 </div>
               )}

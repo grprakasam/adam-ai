@@ -1,5 +1,5 @@
 /**
- * SDTM Generator Panel
+ * SDTM Test Data Generator Panel
  *
  * Generates mock SDTM datasets for testing ADAM programs.
  * Allows users to specify parameters, preview data, and download in multiple formats.
@@ -130,6 +130,141 @@ const REQUIRED_DOMAINS: Record<string, string[]> = {
   'ADTTE': ['DM', 'DS', 'AE'],
 };
 
+// Domain-Specific Configuration Schema (Expert ADAM Programmer Design)
+// Defines which panels and controls are relevant for each SDTM domain
+interface DomainConfig {
+  domain: string;
+  name: string;
+  requiredPanels: string[];  // Panels that MUST be shown
+  optionalPanels: string[];  // Panels that CAN be shown
+  hiddenPanels: string[];     // Panels that should be HIDDEN
+  domainSpecificConfig?: {
+    // Domain-specific configuration options
+    requiresVisitSchedule: boolean;
+    requiresTreatment: boolean;
+    requiresRecordsPerSubject: boolean;
+    requiresSafetyConfig: boolean;
+    defaultRecordsPerSubject?: number;
+    additionalFields?: string[]; // Additional domain-specific fields
+  };
+}
+
+const DOMAIN_CONFIGURATIONS: Record<string, DomainConfig> = {
+  'DM': {
+    domain: 'DM',
+    name: 'Demographics',
+    requiredPanels: ['study-config', 'subjects'],
+    optionalPanels: ['treatment'], // For randomization flags
+    hiddenPanels: ['visits', 'safety', 'quality'], // DM is subject-level only
+    domainSpecificConfig: {
+      requiresVisitSchedule: false, // DM has RFSTDTC/RFENDTC but no visit schedule
+      requiresTreatment: false, // Treatment info optional for randomization
+      requiresRecordsPerSubject: false, // DM is always 1 record per subject
+      requiresSafetyConfig: false,
+      defaultRecordsPerSubject: 1,
+      additionalFields: ['race', 'ethnicity', 'country', 'site_id']
+    }
+  },
+  'AE': {
+    domain: 'AE',
+    name: 'Adverse Events',
+    requiredPanels: ['study-config', 'subjects', 'visits', 'safety'],
+    optionalPanels: ['treatment'], // For AEREL (relationship to treatment)
+    hiddenPanels: [],
+    domainSpecificConfig: {
+      requiresVisitSchedule: true, // AESTDTC, AEENDTC need visit schedule
+      requiresTreatment: true, // AEREL requires treatment info
+      requiresRecordsPerSubject: true, // Multiple AEs per subject
+      requiresSafetyConfig: true, // Serious, severe, related AEs
+      defaultRecordsPerSubject: 3, // Average 2-5 AEs per subject
+      additionalFields: ['ae_duration_days', 'ae_severity_dist', 'ae_outcome']
+    }
+  },
+  'LB': {
+    domain: 'LB',
+    name: 'Laboratory',
+    requiredPanels: ['study-config', 'subjects', 'visits', 'safety'],
+    optionalPanels: ['treatment'], // For treatment-related labs
+    hiddenPanels: [],
+    domainSpecificConfig: {
+      requiresVisitSchedule: true, // LBDTC needs visit schedule
+      requiresTreatment: false, // Usually not treatment-specific
+      requiresRecordsPerSubject: true, // Multiple lab results per subject
+      requiresSafetyConfig: true, // Lab abnormalities
+      defaultRecordsPerSubject: 20, // Average 10-50 lab results per subject
+      additionalFields: ['lab_test_panels', 'lab_units', 'reference_ranges']
+    }
+  },
+  'VS': {
+    domain: 'VS',
+    name: 'Vital Signs',
+    requiredPanels: ['study-config', 'subjects', 'visits'],
+    optionalPanels: ['quality'],
+    hiddenPanels: ['safety', 'treatment'], // VS doesn't need safety or treatment config
+    domainSpecificConfig: {
+      requiresVisitSchedule: true, // VSDTC needs visit schedule
+      requiresTreatment: false,
+      requiresRecordsPerSubject: true, // Multiple vital signs per subject
+      requiresSafetyConfig: false,
+      defaultRecordsPerSubject: 8, // Average 5-10 vital signs per subject
+      additionalFields: ['vital_sign_types', 'position', 'body_position']
+    }
+  },
+  'EX': {
+    domain: 'EX',
+    name: 'Exposure',
+    requiredPanels: ['study-config', 'subjects', 'treatment', 'visits'],
+    optionalPanels: ['quality'],
+    hiddenPanels: ['safety'], // EX doesn't need safety config
+    domainSpecificConfig: {
+      requiresVisitSchedule: true, // EXSTDTC, EXENDTC need visit schedule
+      requiresTreatment: true, // CRITICAL: EXTRT, EXDOSE require treatment
+      requiresRecordsPerSubject: true, // Multiple exposures per subject
+      requiresSafetyConfig: false,
+      defaultRecordsPerSubject: 2, // Average 1-3 exposures per subject
+      additionalFields: ['dose_amount', 'dose_unit', 'route', 'frequency']
+    }
+  },
+  'DS': {
+    domain: 'DS',
+    name: 'Disposition',
+    requiredPanels: ['study-config', 'subjects', 'visits'],
+    optionalPanels: ['quality'],
+    hiddenPanels: ['safety', 'treatment'], // DS doesn't need safety or treatment
+    domainSpecificConfig: {
+      requiresVisitSchedule: true, // DSDTC needs visit schedule
+      requiresTreatment: false,
+      requiresRecordsPerSubject: false, // Usually 1 record per subject
+      requiresSafetyConfig: false,
+      defaultRecordsPerSubject: 1,
+      additionalFields: ['disposition_events', 'completion_status', 'early_termination_reasons']
+    }
+  }
+};
+
+// Helper function to get domain configuration
+const getDomainConfig = (domainCode: string): DomainConfig | null => {
+  return DOMAIN_CONFIGURATIONS[domainCode] || null;
+};
+
+// Helper function to check if panel should be visible
+const shouldShowPanel = (panelKey: string, domainCode: string): boolean => {
+  const config = getDomainConfig(domainCode);
+  if (!config) return true; // Show all if domain not configured
+  
+  // Always show required panels
+  if (config.requiredPanels.includes(panelKey)) return true;
+  
+  // Never show hidden panels
+  if (config.hiddenPanels.includes(panelKey)) return false;
+  
+  // Show optional panels (they can be toggled by user)
+  if (config.optionalPanels.includes(panelKey)) return true;
+  
+  // Default: show if not explicitly hidden
+  return !config.hiddenPanels.includes(panelKey);
+};
+
 export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone: _standalone = false }) => {
   const { projectConfig } = useProjectStore();
   const [form] = Form.useForm();
@@ -185,7 +320,7 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
   });
   
   // Control panel collapse state
-  const [activePanels, setActivePanels] = useState<string[]>(['study', 'subjects', 'treatment']);
+  const [activePanels, setActivePanels] = useState<string[]>(['study-config', 'subjects', 'treatment']);
   const [generatedData, setGeneratedData] = useState<any[] | null>(null);
   const [statistics, setStatistics] = useState<any>(null);
   const [validationResults, setValidationResults] = useState<any>(null);
@@ -383,12 +518,44 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
   const handleDomainChange = (domainCode: string) => {
     const domain = domains.find(d => d.code === domainCode);
     setSelectedDomain(domain || null);
-    setParameters({ ...parameters, domain: domainCode });
     
-    // Reset records_per_subject based on domain
-    if (domain?.supports_multiple_records && !parameters.records_per_subject) {
-      setParameters({ ...parameters, domain: domainCode, records_per_subject: 5 });
-      form.setFieldValue('records_per_subject', 5);
+    // Get domain-specific configuration
+    const domainConfig = getDomainConfig(domainCode);
+    
+    // Update parameters with domain-specific defaults
+    const updatedParams = { ...parameters, domain: domainCode };
+    
+    if (domainConfig?.domainSpecificConfig) {
+      const config = domainConfig.domainSpecificConfig;
+      
+      // Set default records per subject if domain requires it
+      if (config.requiresRecordsPerSubject && config.defaultRecordsPerSubject) {
+        updatedParams.records_per_subject = config.defaultRecordsPerSubject;
+        form.setFieldValue('records_per_subject', config.defaultRecordsPerSubject);
+      } else if (!config.requiresRecordsPerSubject) {
+        updatedParams.records_per_subject = 1;
+        form.setFieldValue('records_per_subject', 1);
+      }
+      
+      // Auto-enable MedDRA for AE domain
+      if (domainCode === 'AE' && !updatedParams.include_meddra) {
+        updatedParams.include_meddra = true;
+        form.setFieldValue('include_meddra', true);
+      }
+    }
+    
+    setParameters(updatedParams);
+    
+    // Update active panels based on domain requirements
+    if (domainConfig) {
+      const newActivePanels = [...domainConfig.requiredPanels];
+      // Keep optional panels that are already open if they're in optionalPanels
+      activePanels.forEach(panel => {
+        if (domainConfig.optionalPanels.includes(panel) && !newActivePanels.includes(panel)) {
+          newActivePanels.push(panel);
+        }
+      });
+      setActivePanels(newActivePanels);
     }
   };
 
@@ -673,7 +840,7 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
     }
   };
 
-  const handleDownload = async (format: 'csv' | 'sas7bdat' | 'rds') => {
+  const handleDownload = async (format: 'csv' | 'sas7bdat' | 'rds' | 'xlsx' | 'xpt') => {
     // Prevent multiple simultaneous downloads
     if (isDownloading) {
       message.warning({ content: 'Download already in progress...', key: 'download', duration: 2 });
@@ -682,7 +849,8 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
 
     setIsDownloading(true);
     try {
-      message.loading({ content: `Preparing ${format.toUpperCase()} download...`, key: 'download', duration: 0 });
+      const formatLabel = format === 'xlsx' ? 'Excel' : format === 'xpt' ? 'XPT' : format.toUpperCase();
+      message.loading({ content: `Preparing ${formatLabel} download...`, key: 'download', duration: 0 });
 
       const response = await fetch(`/api/v1/test-data/download-sdtm?format=${format}`, {
         method: 'POST',
@@ -691,16 +859,27 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       });
 
       if (!response.ok) {
-        throw new Error('Download failed');
+        const errorText = await response.text();
+        throw new Error(errorText || 'Download failed');
       }
 
       const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header or use default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${parameters.domain}_${new Date().toISOString().split('T')[0]}.${format}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
 
       triggerDownload(
         blob,
-        `${parameters.domain}_${new Date().toISOString().split('T')[0]}.${format}`,
+        filename,
         {
-          onSuccess: () => message.success({ content: 'Download started', key: 'download', duration: 2 }),
+          onSuccess: () => message.success({ content: `${formatLabel} download started`, key: 'download', duration: 2 }),
           onError: (err) => {
             message.error({
               content: err.message || 'Failed to download data',
@@ -715,6 +894,72 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       message.error({
         content: error.message || 'Failed to download data',
         key: 'download',
+        duration: 5,
+      });
+      console.error('Download error:', error);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadAll = async () => {
+    if (!projectConfig?.studyId) {
+      message.warning('Please set a Study ID in project settings to download all datasets');
+      return;
+    }
+
+    if (isDownloading) {
+      message.warning({ content: 'Download already in progress...', key: 'download-all', duration: 2 });
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      message.loading({ content: 'Preparing all SDTM datasets for download...', key: 'download-all', duration: 0 });
+
+      const response = await fetch(`/api/v1/test-data/download-all-sdtm?study_id=${projectConfig.studyId}&format=zip`, {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('No datasets found. Please generate some SDTM datasets first.');
+        }
+        const errorText = await response.text();
+        throw new Error(errorText || 'Download failed');
+      }
+
+      const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `SDTM_Datasets_${projectConfig.studyId}_${new Date().toISOString().split('T')[0]}.zip`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+
+      triggerDownload(
+        blob,
+        filename,
+        {
+          onSuccess: () => message.success({ content: 'All SDTM datasets downloaded successfully', key: 'download-all', duration: 3 }),
+          onError: (err) => {
+            message.error({
+              content: err.message || 'Failed to download all datasets',
+              key: 'download-all',
+              duration: 5,
+            });
+            console.error('Download error:', err);
+          }
+        }
+      );
+    } catch (error: any) {
+      message.error({
+        content: error.message || 'Failed to download all datasets',
+        key: 'download-all',
         duration: 5,
       });
       console.error('Download error:', error);
@@ -803,15 +1048,44 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
       ? allCols.filter(key => visibleColumns.has(key))
       : allCols;
     
+    // Calculate column width based on number of columns
+    const numColumns = colsToShow.length || allCols.length;
+    const baseWidth = 120;
+    const minWidth = 100;
+    const maxWidth = 180;
+    
+    // Adjust width based on column count - fewer columns can be wider
+    let columnWidth = baseWidth;
+    if (numColumns <= 5) {
+      columnWidth = 150;
+    } else if (numColumns <= 10) {
+      columnWidth = 120;
+    } else {
+      columnWidth = 100;
+    }
+    
     // Ensure we always have columns to show
     if (colsToShow.length === 0) {
       return allCols.map(key => ({
         title: key,
         dataIndex: key,
         key: key,
-        width: 140,
-        ellipsis: true,
-        render: (text: any) => String(text || '—'),
+        width: Math.max(minWidth, Math.min(columnWidth, maxWidth)),
+        ellipsis: {
+          showTitle: false,
+        },
+        render: (text: any) => (
+          <Tooltip title={String(text || '—')} placement="topLeft">
+            <span style={{ 
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {text !== null && text !== undefined ? String(text) : <Text type="secondary">—</Text>}
+            </span>
+          </Tooltip>
+        ),
       }));
     }
     
@@ -819,8 +1093,10 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         title: key,
         dataIndex: key,
         key: key,
-        width: 140,
-        ellipsis: true,
+        width: Math.max(minWidth, Math.min(columnWidth, maxWidth)),
+        ellipsis: {
+          showTitle: false,
+        },
         sorter: (a: any, b: any) => {
           const aVal = a[key];
           const bVal = b[key];
@@ -830,8 +1106,12 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
           return String(aVal || '').localeCompare(String(bVal || ''));
         },
         render: (text: any) => (
-          <Tooltip title={text}>
+          <Tooltip title={String(text || '—')} placement="topLeft">
             <span style={{ 
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
               fontWeight: typeof text === 'number' ? 500 : 'normal',
               fontFamily: typeof text === 'number' ? 'monospace' : 'inherit'
             }}>
@@ -931,8 +1211,20 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         onClick: () => handleDownload('csv'),
       },
       {
+        key: 'xlsx',
+        label: 'Download Excel (.xlsx)',
+        icon: <DownloadOutlined />,
+        onClick: () => handleDownload('xlsx'),
+      },
+      {
+        key: 'xpt',
+        label: 'Download XPT (SAS Transport)',
+        icon: <DownloadOutlined />,
+        onClick: () => handleDownload('xpt'),
+      },
+      {
         key: 'sas',
-        label: 'Download SAS',
+        label: 'Download SAS (.sas7bdat)',
         icon: <DownloadOutlined />,
         onClick: () => handleDownload('sas7bdat'),
       },
@@ -941,6 +1233,16 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         label: 'Download RDS',
         icon: <DownloadOutlined />,
         onClick: () => handleDownload('rds'),
+      },
+      {
+        type: 'divider',
+      },
+      {
+        key: 'download-all',
+        label: 'Download All SDTM Tables (ZIP)',
+        icon: <ExportOutlined />,
+        onClick: handleDownloadAll,
+        disabled: !projectConfig?.studyId,
       },
     ],
   };
@@ -961,56 +1263,11 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
         <div className="header-info">
           <DatabaseOutlined style={{ fontSize: 18 }} />
           <div>
-            <span className="header-title">SDTM Generator</span>
+            <span className="header-title">SDTM Test Data Generator</span>
             <span className="header-subtitle">Generate CDISC-Compliant SDTM Test Data</span>
           </div>
         </div>
         <div className="header-actions">
-          {/* Show required datasets info if ADAM dataset is configured */}
-          {projectConfig?.adamDataset && projectConfig?.studyId && getRequiredDomains.length > 0 && (
-            <div style={{ 
-              marginRight: '16px', 
-              padding: '8px 16px', 
-              background: getMissingRequiredDomains.length > 0 ? '#fff7e6' : '#f6ffed',
-              border: `1px solid ${getMissingRequiredDomains.length > 0 ? '#ffe58f' : '#b7eb8f'}`,
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
-                <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                  Required for {projectConfig.adamDataset}:
-                </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {getRequiredDomains.map(domain => {
-                    const isAvailable = availableDatasets.includes(domain);
-                    return (
-                      <Tag 
-                        key={domain} 
-                        color={isAvailable ? 'success' : 'warning'}
-                        style={{ margin: 0, fontSize: '11px' }}
-                      >
-                        {domain} {isAvailable ? '✓' : '✗'}
-                      </Tag>
-                    );
-                  })}
-                </div>
-              </div>
-              {getMissingRequiredDomains.length > 0 && (
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<ExperimentOutlined />}
-                  onClick={handleGenerateAllRequired}
-                  loading={isGeneratingBatch}
-                  style={{ whiteSpace: 'nowrap' }}
-                >
-                  Generate All Required ({getMissingRequiredDomains.length})
-                </Button>
-              )}
-            </div>
-          )}
           <Button
             icon={<ReloadOutlined />}
             onClick={handleReset}
@@ -1047,177 +1304,58 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
               ghost
               className="adam-control-collapse"
             >
-              {/* ADAM Requirements Section - Show if ADAM dataset is configured */}
-              {projectConfig?.adamDataset && getRequiredDomains.length > 0 && (
-                <Collapse.Panel 
-                  key="adam-requirements" 
-                  header={
-                    <span className="panel-header">
-                      <RocketOutlined />
-                      <span>ADAM Requirements ({projectConfig.adamDataset})</span>
-                    </span>
-                  }
-                  className="control-panel-section"
-                >
-                  <Alert
-                    message={
-                      <Space>
-                        <InfoCircleOutlined style={{ color: '#1890ff' }} />
-                        <span>
-                          <strong>Required SDTM Datasets for {projectConfig.adamDataset}</strong>
-                        </span>
-                      </Space>
-                    }
-                    description={
-                      <div>
-                        <div style={{ marginBottom: '12px' }}>
-                          To generate <strong>{projectConfig.adamDataset}</strong>, the following SDTM datasets are required:
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
-                          {getRequiredDomains.map(domain => {
-                            const isAvailable = availableDatasets.includes(domain);
-                            return (
-                              <Tag 
-                                key={domain} 
-                                color={isAvailable ? 'success' : 'error'}
-                                style={{ margin: 0, fontSize: '13px', padding: '4px 10px' }}
-                              >
-                                {isAvailable ? <CheckCircleOutlined style={{ marginRight: '4px' }} /> : <CloseCircleOutlined style={{ marginRight: '4px' }} />}
-                                {domain}
-                              </Tag>
-                            );
-                          })}
-                        </div>
-                        {getMissingRequiredDomains.length > 0 ? (
-                          <div>
-                            <div style={{ marginBottom: '8px', color: '#ff4d4f', fontWeight: 600 }}>
-                              Missing: {getMissingRequiredDomains.join(', ')}
-                            </div>
-                            <Button
-                              type="primary"
-                              icon={<ExperimentOutlined />}
-                              onClick={handleGenerateAllRequired}
-                              loading={isGeneratingBatch}
-                              block
-                            >
-                              Generate All Missing Datasets ({getMissingRequiredDomains.length})
-                            </Button>
-                            {batchProgress && (
-                              <div style={{ marginTop: '12px' }}>
-                                <Progress 
-                                  percent={Math.round((batchProgress.current / batchProgress.total) * 100)} 
-                                  status="active"
-                                  format={() => `${batchProgress.current}/${batchProgress.total} - ${batchProgress.currentDomain || 'Starting...'}`}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div style={{ color: '#52c41a', fontWeight: 600 }}>
-                            ✓ All required datasets are available!
-                          </div>
-                        )}
-                      </div>
-                    }
-                    type={getMissingRequiredDomains.length > 0 ? 'warning' : 'success'}
-                    showIcon={false}
-                    style={{ marginBottom: 16 }}
-                  />
-                </Collapse.Panel>
-              )}
-
-              {/* Study Design Section */}
+              {/* Study Configuration & CDISC Standards Section - Always Visible */}
+              {shouldShowPanel('study-config', parameters.domain) && (
               <Collapse.Panel 
-                key="study" 
+                key="study-config" 
                 header={
                   <span className="panel-header">
                     <FileTextOutlined />
-                    <span>Study Design & CDISC Standards</span>
+                    <span>Study Configuration & CDISC Standards</span>
                   </span>
                 }
                 className="control-panel-section"
               >
-                {/* Helper message for ADAM-critical domains */}
-                {(selectedDomain?.code === 'EX' || selectedDomain?.code === 'DS') && (
-                  <Alert
-                    message={
-                      <Space>
-                        <InfoCircleOutlined style={{ color: '#1890ff' }} />
-                        <span>
-                          <strong>{selectedDomain.code} Domain</strong> - Critical for ADAM Analysis
-                        </span>
-                      </Space>
-                    }
-                    description={
-                      selectedDomain.code === 'EX' 
-                        ? "EX domain provides treatment exposure data needed for ADAM ADSL (TRTSDT, TRTEDT, TRTDURD) and ADEX datasets. When you generate DM domain, it will automatically include analysis flags if EX data is available."
-                        : "DS domain provides study completion status needed for ADAM analysis flags (ITTFL, SAFFL, EFFFL). When you generate DM domain, it will automatically include these flags if DS data is available."
-                    }
-                    type="info"
-                    showIcon={false}
-                    style={{ marginBottom: 16 }}
-                  />
-                )}
                 <Form
                   form={form}
                   layout="vertical"
                   initialValues={parameters}
                   onValuesChange={(_, allValues) => setParameters(allValues)}
                 >
+                  {/* Version and Standards */}
                   <Row gutter={16}>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="SDTM Domain"
-                        name="domain"
-                        tooltip="CDISC SDTM domain to generate. EX and DS are critical for ADAM analysis."
-                        rules={[{ required: true }]}
-                      >
-                        <Select size="middle" onChange={handleDomainChange}>
-                          {domains.map(domain => {
-                            const isAdamCritical = domain.code === 'EX' || domain.code === 'DS';
-                            const isAdamReady = domain.code === 'DM' && domain.is_critical_for_adam !== undefined;
-                            return (
-                              <Option key={domain.code} value={domain.code}>
-                                <Space>
-                                  <Tag color={isAdamCritical ? 'red' : 'blue'}>{domain.code}</Tag>
-                                  <span>{domain.name}</span>
-                                  {isAdamCritical && (
-                                    <Tag color="red" style={{ fontSize: '10px', marginLeft: 4 }}>
-                                      ADAM Critical
-                                    </Tag>
-                                  )}
-                                  {isAdamReady && (
-                                    <Tag color="green" style={{ fontSize: '10px', marginLeft: 4 }}>
-                                      ADAM Ready
-                                    </Tag>
-                                  )}
-                                </Space>
-                              </Option>
-                            );
-                          })}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                    <Col span={8}>
-                      <Form.Item
-                        label="SDTM Version"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            SDTM Version
+                            <Tooltip title="CDISC SDTM standard version">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="sdtm_version"
-                        tooltip="CDISC SDTM standard version"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="3.4">SDTM v3.4 (Recommended)</Option>
                           <Option value="3.3">SDTM v3.3</Option>
                           <Option value="3.2">SDTM v3.2</Option>
                         </Select>
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="ADaM IG Version"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            ADaM IG Version
+                            <Tooltip title="ADaM Implementation Guide version">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="adam_ig_version"
-                        tooltip="ADaM Implementation Guide version"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="1.3">ADaM IG v1.3 (Recommended)</Option>
                           <Option value="1.4">ADaM IG v1.4</Option>
                           <Option value="2.0">ADaM IG v2.0</Option>
@@ -1225,14 +1363,22 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                       </Form.Item>
                     </Col>
                   </Row>
+
+                  {/* Study Phase and Therapeutic Area */}
                   <Row gutter={16}>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Study Phase"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Study Phase
+                            <Tooltip title="Clinical trial phase">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="study_phase"
-                        tooltip="Clinical trial phase"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="Phase I">Phase I</Option>
                           <Option value="Phase II">Phase II</Option>
                           <Option value="Phase III">Phase III</Option>
@@ -1240,13 +1386,19 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                         </Select>
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Therapeutic Area"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Therapeutic Area
+                            <Tooltip title="CDISC therapeutic area">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="therapeutic_area"
-                        tooltip="CDISC therapeutic area"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="Oncology">Oncology</Option>
                           <Option value="Cardiovascular">Cardiovascular</Option>
                           <Option value="Neurology">Neurology</Option>
@@ -1255,40 +1407,65 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                         </Select>
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
-                      <Form.Item
-                        label="Study Start Date"
-                        name="study_start_date"
-                        rules={[{ required: true }]}
-                      >
-                        <Input type="date" size="middle" />
-                      </Form.Item>
-                    </Col>
                   </Row>
+
+                  {/* Study Dates */}
                   <Row gutter={16}>
                     <Col span={12}>
                       <Form.Item
-                        label="Study End Date"
-                        name="study_end_date"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            <span style={{ color: '#ff4d4f', marginRight: '4px' }}>*</span>
+                            Study Start Date
+                          </span>
+                        }
+                        name="study_start_date"
                         rules={[{ required: true }]}
                       >
-                        <Input type="date" size="middle" />
+                        <Input type="date" size="large" style={{ borderRadius: '8px', height: '40px' }} />
                       </Form.Item>
                     </Col>
                     <Col span={12}>
                       <Form.Item
-                        label="Controlled Terminology"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            <span style={{ color: '#ff4d4f', marginRight: '4px' }}>*</span>
+                            Study End Date
+                          </span>
+                        }
+                        name="study_end_date"
+                        rules={[{ required: true }]}
+                      >
+                        <Input type="date" size="large" style={{ borderRadius: '8px', height: '40px' }} />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  {/* Controlled Terminology */}
+                  <Row gutter={16}>
+                    <Col span={24}>
+                      <Form.Item
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Controlled Terminology
+                            <Tooltip title="Include CDISC controlled terminology in generated data">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="include_ct"
                         valuePropName="checked"
                       >
-                        <Switch checkedChildren="Include CT" unCheckedChildren="No CT" />
+                        <Switch checkedChildren="Enabled" unCheckedChildren="Disabled" size="default" />
                       </Form.Item>
                     </Col>
                   </Row>
                 </Form>
               </Collapse.Panel>
+              )}
 
               {/* Subjects Section */}
+              {shouldShowPanel('subjects', parameters.domain) && (
               <Collapse.Panel 
                 key="subjects" 
                 header={
@@ -1300,28 +1477,40 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
               >
                 <Form form={form} layout="vertical" onValuesChange={(_, allValues) => setParameters(allValues)}>
                   <Row gutter={16}>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Number of Subjects"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Number of Subjects
+                            <Tooltip title="Total subjects in study (CDISC: N)">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="num_subjects"
-                        tooltip="Total subjects in study (CDISC: N)"
                         rules={[{ required: true }]}
                       >
                         <InputNumber
                           min={1}
                           max={1000}
-                          style={{ width: '100%' }}
-                          size="middle"
+                          style={{ width: '100%', borderRadius: '8px' }}
+                          size="large"
                         />
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Sex Distribution"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Sex Distribution
+                            <Tooltip title="Distribution of sex (CDISC: SEX)">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="sex_distribution"
-                        tooltip="Distribution of sex (CDISC: SEX)"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="balanced">Balanced (50/50)</Option>
                           <Option value="male_biased">Male Biased (60/40)</Option>
                           <Option value="female_biased">Female Biased (40/60)</Option>
@@ -1329,13 +1518,21 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                         </Select>
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Age Distribution"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Age Distribution
+                            <Tooltip title="Age distribution pattern (CDISC: AGE)">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="age_distribution"
-                        tooltip="Age distribution pattern (CDISC: AGE)"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="realistic">Realistic (Normal)</Option>
                           <Option value="normal">Normal Distribution</Option>
                           <Option value="uniform">Uniform Distribution</Option>
@@ -1388,8 +1585,10 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                   </Row>
                 </Form>
               </Collapse.Panel>
+              )}
 
               {/* Treatment Section */}
+              {shouldShowPanel('treatment', parameters.domain) && (
               <Collapse.Panel 
                 key="treatment" 
                 header={
@@ -1401,27 +1600,39 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
               >
                 <Form form={form} layout="vertical" onValuesChange={(_, allValues) => setParameters(allValues)}>
                   <Row gutter={16}>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Number of Treatment Arms"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Number of Treatment Arms
+                            <Tooltip title="CDISC: TRT01P, TRT02P, etc.">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="num_treatment_arms"
-                        tooltip="CDISC: TRT01P, TRT02P, etc."
                       >
                         <InputNumber
                           min={1}
                           max={4}
-                          style={{ width: '100%' }}
-                          size="middle"
+                          style={{ width: '100%', borderRadius: '8px' }}
+                          size="large"
                         />
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Randomization Ratio"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Randomization Ratio
+                            <Tooltip title="Treatment allocation ratio">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="randomization_ratio"
-                        tooltip="Treatment allocation ratio"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="1:1">1:1 (Balanced)</Option>
                           <Option value="2:1">2:1 (Active:Placebo)</Option>
                           <Option value="1:2">1:2 (Placebo:Active)</Option>
@@ -1429,13 +1640,21 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                         </Select>
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={24}>
                       <Form.Item
-                        label="Template Source"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Template Source
+                            <Tooltip title="Data generation template">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="template_source"
-                        tooltip="Data generation template"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="pharmaverse">Pharmaverse (Industry)</Option>
                           <Option value="cdisc">CDISC Reference</Option>
                           <Option value="custom">Custom Template</Option>
@@ -1445,8 +1664,10 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                   </Row>
                 </Form>
               </Collapse.Panel>
+              )}
 
               {/* Visits Section */}
+              {shouldShowPanel('visits', parameters.domain) && (
               <Collapse.Panel 
                 key="visits" 
                 header={
@@ -1458,41 +1679,61 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
               >
                 <Form form={form} layout="vertical" onValuesChange={(_, allValues) => setParameters(allValues)}>
                   <Row gutter={16}>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Number of Visits"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Number of Visits
+                            <Tooltip title="CDISC: VISITNUM, VISIT variables">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="num_visits"
-                        tooltip="CDISC: VISITNUM, VISIT variables"
                       >
                         <InputNumber
                           min={1}
                           max={20}
-                          style={{ width: '100%' }}
-                          size="middle"
+                          style={{ width: '100%', borderRadius: '8px' }}
+                          size="large"
                         />
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                    <Col span={12}>
                       <Form.Item
-                        label="Visit Window (Days)"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Visit Window (Days)
+                            <Tooltip title="Allowable window around scheduled visit">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="visit_window_days"
-                        tooltip="Allowable window around scheduled visit"
                       >
                         <InputNumber
                           min={0}
                           max={30}
-                          style={{ width: '100%' }}
-                          size="middle"
+                          style={{ width: '100%', borderRadius: '8px' }}
+                          size="large"
                         />
                       </Form.Item>
                     </Col>
-                    <Col span={8}>
+                  </Row>
+                  <Row gutter={16}>
+                    <Col span={24}>
                       <Form.Item
-                        label="Distribution Type"
+                        label={
+                          <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                            Distribution Type
+                            <Tooltip title="Data distribution pattern">
+                              <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                            </Tooltip>
+                          </span>
+                        }
                         name="distribution_type"
-                        tooltip="Data distribution pattern"
                       >
-                        <Select size="middle">
+                        <Select size="large" style={{ borderRadius: '8px' }}>
                           <Option value="realistic">Realistic (Recommended)</Option>
                           <Option value="normal">Normal</Option>
                           <Option value="uniform">Uniform</Option>
@@ -1502,8 +1743,10 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                   </Row>
                 </Form>
               </Collapse.Panel>
+              )}
 
               {/* Safety Configuration Section - CDISC SDTM 3.4 */}
+              {shouldShowPanel('safety', parameters.domain) && (
               <Collapse.Panel 
                 key="safety" 
                 header={
@@ -1596,8 +1839,10 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                   </Row>
                 </Form>
               </Collapse.Panel>
+              )}
 
               {/* Data Quality Section */}
+              {shouldShowPanel('quality', parameters.domain) && (
               <Collapse.Panel 
                 key="quality" 
                 header={
@@ -1663,37 +1908,467 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                   </Row>
                 </Form>
               </Collapse.Panel>
+              )}
+
+              {/* Domain-Specific Configuration Section */}
+              {getDomainConfig(parameters.domain)?.domainSpecificConfig?.additionalFields && 
+               getDomainConfig(parameters.domain)!.domainSpecificConfig!.additionalFields!.length > 0 && (
+              <Collapse.Panel 
+                key="domain-specific" 
+                header={
+                  <span className="panel-header">
+                    <SettingOutlined />
+                    <span>{selectedDomain?.name || 'Domain'} Specific Configuration</span>
+                    <Tag color="blue" style={{ marginLeft: 8, fontSize: '11px' }}>
+                      {parameters.domain}
+                    </Tag>
+                  </span>
+                }
+                className="control-panel-section"
+              >
+                <Form form={form} layout="vertical" onValuesChange={(_, allValues) => setParameters(allValues)}>
+                  {parameters.domain === 'AE' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Average AE Duration (Days)
+                                <Tooltip title="CDISC: Average duration of adverse events">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="ae_duration_days"
+                            initialValue={7}
+                          >
+                            <InputNumber
+                              min={1}
+                              max={365}
+                              style={{ width: '100%', borderRadius: '8px' }}
+                              size="large"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                AE Outcome Distribution
+                                <Tooltip title="CDISC: Distribution of AE outcomes (RECOVERED, RECOVERING, NOT RECOVERED, FATAL)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="ae_outcome_dist"
+                            initialValue="realistic"
+                          >
+                            <Select size="large" style={{ borderRadius: '8px' }}>
+                              <Option value="realistic">Realistic (Most Recovered)</Option>
+                              <Option value="balanced">Balanced</Option>
+                              <Option value="severe">More Severe Outcomes</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+                  
+                  {parameters.domain === 'LB' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Lab Test Panels
+                                <Tooltip title="CDISC: Laboratory test panels to include (CBC, Chemistry, Lipid Panel, etc.)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="lab_test_panels"
+                            initialValue={['CBC', 'Chemistry', 'Lipid']}
+                          >
+                            <Select 
+                              mode="multiple" 
+                              size="large" 
+                              style={{ borderRadius: '8px' }}
+                              placeholder="Select lab panels"
+                            >
+                              <Option value="CBC">Complete Blood Count (CBC)</Option>
+                              <Option value="Chemistry">Chemistry Panel</Option>
+                              <Option value="Lipid">Lipid Panel</Option>
+                              <Option value="Liver">Liver Function Tests</Option>
+                              <Option value="Renal">Renal Function Tests</Option>
+                              <Option value="Coagulation">Coagulation Panel</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Units Standard
+                                <Tooltip title="CDISC: Standard units for lab values (SI, Conventional)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="lab_units_standard"
+                            initialValue="SI"
+                          >
+                            <Select size="large" style={{ borderRadius: '8px' }}>
+                              <Option value="SI">SI Units (Recommended)</Option>
+                              <Option value="Conventional">Conventional Units</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+                  
+                  {parameters.domain === 'VS' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Vital Sign Types
+                                <Tooltip title="CDISC: Types of vital signs to include">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="vital_sign_types"
+                            initialValue={['SBP', 'DBP', 'HR', 'TEMP', 'WEIGHT', 'HEIGHT']}
+                          >
+                            <Select 
+                              mode="multiple" 
+                              size="large" 
+                              style={{ borderRadius: '8px' }}
+                              placeholder="Select vital signs"
+                            >
+                              <Option value="SBP">Systolic Blood Pressure</Option>
+                              <Option value="DBP">Diastolic Blood Pressure</Option>
+                              <Option value="HR">Heart Rate</Option>
+                              <Option value="TEMP">Temperature</Option>
+                              <Option value="WEIGHT">Weight</Option>
+                              <Option value="HEIGHT">Height</Option>
+                              <Option value="BMI">Body Mass Index</Option>
+                              <Option value="RESP">Respiratory Rate</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Body Position
+                                <Tooltip title="CDISC: Position for vital sign measurements (SITTING, STANDING, SUPINE)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="vs_position"
+                            initialValue="SITTING"
+                          >
+                            <Select size="large" style={{ borderRadius: '8px' }}>
+                              <Option value="SITTING">Sitting (Most Common)</Option>
+                              <Option value="STANDING">Standing</Option>
+                              <Option value="SUPINE">Supine</Option>
+                              <Option value="MIXED">Mixed Positions</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+                  
+                  {parameters.domain === 'EX' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Dose Unit
+                                <Tooltip title="CDISC: Unit of measurement for dose (mg, g, mL, etc.)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="ex_dose_unit"
+                            initialValue="mg"
+                          >
+                            <Select size="large" style={{ borderRadius: '8px' }}>
+                              <Option value="mg">Milligrams (mg)</Option>
+                              <Option value="g">Grams (g)</Option>
+                              <Option value="mL">Milliliters (mL)</Option>
+                              <Option value="IU">International Units (IU)</Option>
+                              <Option value="tablets">Tablets</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Route of Administration
+                                <Tooltip title="CDISC: Route of drug administration (ORAL, IV, IM, etc.)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="ex_route"
+                            initialValue="ORAL"
+                          >
+                            <Select size="large" style={{ borderRadius: '8px' }}>
+                              <Option value="ORAL">Oral</Option>
+                              <Option value="IV">Intravenous</Option>
+                              <Option value="IM">Intramuscular</Option>
+                              <Option value="SC">Subcutaneous</Option>
+                              <Option value="TOPICAL">Topical</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Dosing Frequency
+                                <Tooltip title="CDISC: Frequency of administration (QD, BID, TID, QW, etc.)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="ex_frequency"
+                            initialValue="QD"
+                          >
+                            <Select size="large" style={{ borderRadius: '8px' }}>
+                              <Option value="QD">Once Daily (QD)</Option>
+                              <Option value="BID">Twice Daily (BID)</Option>
+                              <Option value="TID">Three Times Daily (TID)</Option>
+                              <Option value="QW">Once Weekly (QW)</Option>
+                              <Option value="Q2W">Every 2 Weeks (Q2W)</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+                  
+                  {parameters.domain === 'DS' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Disposition Events
+                                <Tooltip title="CDISC: Types of disposition events to include">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="ds_events"
+                            initialValue={['ENROLLED', 'COMPLETED', 'SCREEN FAILURE']}
+                          >
+                            <Select 
+                              mode="multiple" 
+                              size="large" 
+                              style={{ borderRadius: '8px' }}
+                              placeholder="Select disposition events"
+                            >
+                              <Option value="ENROLLED">Enrolled</Option>
+                              <Option value="SCREEN FAILURE">Screen Failure</Option>
+                              <Option value="RANDOMIZED">Randomized</Option>
+                              <Option value="COMPLETED">Completed</Option>
+                              <Option value="EARLY TERMINATION">Early Termination</Option>
+                              <Option value="LOST TO FOLLOW-UP">Lost to Follow-up</Option>
+                            </Select>
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Completion Rate
+                                <Tooltip title="CDISC: Percentage of subjects who complete the study">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="completion_rate_pct"
+                            initialValue={80}
+                          >
+                            <InputNumber
+                              min={0}
+                              max={100}
+                              style={{ width: '100%', borderRadius: '8px' }}
+                              size="large"
+                              formatter={value => `${value}%`}
+                              parser={value => value!.replace('%', '')}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+                  
+                  {parameters.domain === 'DM' && (
+                    <>
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Number of Sites
+                                <Tooltip title="CDISC: Number of study sites (for SITEID generation)">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="num_sites"
+                            initialValue={5}
+                          >
+                            <InputNumber
+                              min={1}
+                              max={50}
+                              style={{ width: '100%', borderRadius: '8px' }}
+                              size="large"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            label={
+                              <span style={{ fontWeight: 700, fontSize: '13px' }}>
+                                Include Race/Ethnicity
+                                <Tooltip title="CDISC: Include RACE and ETHNIC variables">
+                                  <InfoCircleOutlined style={{ marginLeft: 6, fontSize: '12px', color: '#94a3b8' }} />
+                                </Tooltip>
+                              </span>
+                            }
+                            name="include_race_ethnicity"
+                            valuePropName="checked"
+                            initialValue={true}
+                          >
+                            <Switch checkedChildren="Enabled" unCheckedChildren="Disabled" />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </>
+                  )}
+                </Form>
+              </Collapse.Panel>
+              )}
             </Collapse>
           </div>
         </div>
 
-        {/* Right Panel: Data Table View */}
+        {/* Right Panel: Study Design Configuration & Data Table View */}
         <div className="test-data-table-panel-right">
-          {!generatedData ? (
-            <div className="empty-state-right">
-              <ExperimentOutlined style={{ fontSize: 64, color: '#cbd5e1', marginBottom: 20 }} />
-              <Title level={3} style={{ color: '#475569', marginBottom: 8 }}>No SDTM Data Generated</Title>
-              <Paragraph style={{ color: '#94a3b8', textAlign: 'center', maxWidth: '500px', marginBottom: 24 }}>
-                Configure your SDTM data parameters on the left panel and click "Generate Test Data" to create 
-                realistic SDTM datasets for validating your consolidated ADAM code.
-              </Paragraph>
-              <Space direction="vertical" size="small" style={{ textAlign: 'left', maxWidth: '500px' }}>
-                <Text type="secondary" style={{ fontSize: '13px' }}>
-                  <CheckCircleOutlined style={{ color: '#10b981', marginRight: 8 }} />
-                  Create variations of SDTM data to test edge cases
-                </Text>
-                <Text type="secondary" style={{ fontSize: '13px' }}>
-                  <CheckCircleOutlined style={{ color: '#10b981', marginRight: 8 }} />
-                  Validate your consolidated code against different data scenarios
-                </Text>
-                <Text type="secondary" style={{ fontSize: '13px' }}>
-                  <CheckCircleOutlined style={{ color: '#10b981', marginRight: 8 }} />
-                  Export data in CSV, SAS, or RDS formats
-                </Text>
-              </Space>
-            </div>
-          ) : (
-            <div className="table-panel-content">
+          <div className="main-panel-content">
+            {/* Study Design & CDISC Standards Section - Always Visible */}
+            <Card
+              className="study-design-main-card"
+              title={
+                <Space>
+                  <FileTextOutlined style={{ color: '#3b82f6', fontSize: '18px' }} />
+                  <span style={{ fontSize: '18px', fontWeight: 700 }}>Study Design & CDISC Standards</span>
+                </Space>
+              }
+              style={{ marginBottom: 24 }}
+            >
+              <Form
+                form={form}
+                layout="vertical"
+                initialValues={parameters}
+                onValuesChange={(_, allValues) => setParameters(allValues)}
+              >
+                {/* Visual Domain Selection Grid */}
+                <Form.Item
+                  label={
+                    <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e293b' }}>
+                      <span style={{ color: '#ff4d4f', marginRight: '4px' }}>*</span>
+                      Select SDTM Domain
+                      <Tooltip title="Choose the CDISC SDTM domain to generate. EX and DS are critical for ADAM analysis.">
+                        <InfoCircleOutlined style={{ marginLeft: 8, color: '#64748b', fontSize: '13px' }} />
+                      </Tooltip>
+                    </span>
+                  }
+                  name="domain"
+                  rules={[{ required: true }]}
+                  style={{ marginBottom: 24 }}
+                >
+                  <div className="domain-selection-grid-main">
+                    {domains.map(domain => {
+                      const isAdamCritical = domain.code === 'EX' || domain.code === 'DS';
+                      const isAdamReady = domain.code === 'DM' && domain.is_critical_for_adam !== undefined;
+                      const isSelected = parameters.domain === domain.code;
+                      return (
+                        <div
+                          key={domain.code}
+                          className={`domain-card-main ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            handleDomainChange(domain.code);
+                            form.setFieldValue('domain', domain.code);
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {(isAdamCritical || isAdamReady) && (
+                            <span className={`domain-badge-main ${isAdamCritical ? 'adam-critical' : 'adam-ready'}`}>
+                              {isAdamCritical ? 'Critical' : 'Ready'}
+                            </span>
+                          )}
+                          <div className="domain-card-code-main">{domain.code}</div>
+                          <div className="domain-card-name-main">{domain.name}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Form.Item>
+
+                {/* Helper message for ADAM-critical domains */}
+                {(selectedDomain?.code === 'EX' || selectedDomain?.code === 'DS') && (
+                  <Alert
+                    message={
+                      <Space>
+                        <InfoCircleOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
+                        <span style={{ fontWeight: 600 }}>
+                          <strong>{selectedDomain.code} Domain</strong> - Critical for ADAM Analysis
+                        </span>
+                      </Space>
+                    }
+                    description={
+                      <div style={{ marginTop: '8px', fontSize: '13px', lineHeight: '1.6' }}>
+                        {selectedDomain.code === 'EX' 
+                          ? "The EX (Exposure) domain provides treatment exposure data needed for ADAM ADSL (TRTSDT, TRTEDT, TRTDURD) and ADEX datasets. When you generate DM domain, it will automatically include analysis flags if EX data is available."
+                          : "The DS (Disposition) domain provides study completion status needed for ADAM analysis flags (ITTFL, SAFFL, EFFFL). When you generate DM domain, it will automatically include these flags if DS data is available."}
+                      </div>
+                    }
+                    type="info"
+                    showIcon={false}
+                    style={{ 
+                      marginBottom: 24,
+                      borderRadius: '10px',
+                      border: '1px solid #bfdbfe',
+                      background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)'
+                    }}
+                  />
+                )}
+
+              </Form>
+            </Card>
+
+            {/* Data Table View - Shows when data is generated */}
+            {generatedData && (
+              <div className="table-panel-content">
               {/* Compact Statistics Bar */}
               {statistics && (
                 <div className="stats-bar-compact">
@@ -1920,7 +2595,10 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                       <Table
                         dataSource={filteredData.map((row: any, idx: number) => ({ ...row, key: idx }))}
                         columns={getPreviewColumns()}
-                        scroll={{ x: 'max-content', y: 'calc(100vh - 520px)' }}
+                        scroll={{ 
+                          x: Math.max(800, getPreviewColumns().length * 120), 
+                          y: 'calc(100vh - 520px)' 
+                        }}
                         pagination={{
                           current: tablePagination.current,
                           pageSize: tablePagination.pageSize,
@@ -1942,7 +2620,8 @@ export const TestWithDataPanel: React.FC<TestWithDataPanelProps> = ({ standalone
                 </Card>
               )}
             </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

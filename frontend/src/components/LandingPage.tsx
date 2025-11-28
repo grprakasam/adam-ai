@@ -58,17 +58,6 @@ const utilityFeatures: UtilityFeature[] = [
     color: '#667eea',
   },
   {
-    key: 'test-data',
-    name: 'Test Data',
-    path: '/test-with-data',
-    icon: <ExperimentOutlined />,
-    status: 'Live',
-    statusColor: 'green',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    color: '#f093fb',
-  },
-  {
     key: 'code-converter',
     name: 'Code Converter',
     path: '/migration',
@@ -114,7 +103,7 @@ const utilityFeatures: UtilityFeature[] = [
   },
   {
     key: 'sdtm-generator',
-    name: 'SDTM Generator',
+    name: 'SDTM Test Data Generator',
     path: '/test-with-data',
     icon: <ExperimentOutlined />,
     status: 'Live',
@@ -180,8 +169,9 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout, o
       return;
     }
     
-    if (key === 'test-data' || path === '/test-with-data') {
-      setIsTestDataVisible(true);
+    // SDTM Test Data Generator should use normal navigation
+    if (key === 'sdtm-generator' && onNavigateToUtility) {
+      onNavigateToUtility(path);
       return;
     }
     
@@ -265,14 +255,6 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout, o
                 >
                   Start Project
                   <ArrowRightOutlined />
-                </Button>
-                <Button
-                  size="large"
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => setIsTestDataVisible(true)}
-                  className="cta-secondary-visual"
-                >
-                  Test Data
                 </Button>
               </div>
             </div>
