@@ -450,7 +450,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           label: (
             <Tooltip title={TAB_TOOLTIPS.testdata}>
               <span>
-                SDTM Generator{' '}
+                SDTM Test Data Generator{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>

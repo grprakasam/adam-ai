@@ -56,7 +56,7 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
       { key: '/adam-dataset-comparer', label: 'Dataset Comparer', icon: <FileTextOutlined />, description: 'Compare and validate ADAM datasets' },
       { key: '/code-comparer', label: 'Code Comparer', icon: <CodeOutlined />, description: 'Compare different versions of ADAM code to identify differences' },
       { key: '/adam-generator', label: 'ADAM Generator', icon: <RocketOutlined />, description: 'Execute & validate R programs' },
-      { key: '/test-with-data', label: 'SDTM Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant test data' },
+      { key: '/test-with-data', label: 'SDTM Test Data Generator', icon: <ExperimentOutlined />, description: 'Generate CDISC-compliant test data' },
       { key: '/r-frontend', label: 'R Frontend', icon: <ThunderboltOutlined />, description: 'Professional R code execution environment' },
       { key: '/adam-data-analytics', label: 'ADAM Data Analytics', icon: <DashboardOutlined />, description: 'Analytics and insights for ADAM data' },
       { key: '/study-chatbot', label: 'Study ChatBot', icon: <CommentOutlined />, description: 'AI-powered study assistant and Q&A' },

@@ -4,13 +4,16 @@ Test Data Generation API Endpoints
 Provides endpoints for generating mock SDTM datasets for testing.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List, Dict, Any
 import pandas as pd
 import io
 from datetime import datetime
+from pathlib import Path
+import zipfile
+import json
 
 from app.modules.test_data_generation import SDTMDataGenerator, SDTMGenerationRequest
 from loguru import logger
@@ -178,14 +181,16 @@ async def generate_sdtm_data(
 @router.post("/download-sdtm")
 async def download_sdtm_data(
     request: SDTMGenerationRequest,
-    format: Literal['csv', 'sas7bdat', 'rds'] = 'csv'
+    format: Literal['csv', 'sas7bdat', 'rds', 'xlsx', 'xpt'] = 'csv'
 ):
     """
     Download generated SDTM dataset in specified format.
     
     Formats:
     - csv: Comma-separated values
+    - xlsx: Excel workbook (requires openpyxl)
     - sas7bdat: SAS dataset (requires pyreadstat)
+    - xpt: SAS transport format (requires pyreadstat)
     - rds: R data format (requires pyreadr)
     """
     try:
@@ -215,6 +220,60 @@ async def download_sdtm_data(
                 }
             )
         
+        elif format == 'xlsx':
+            try:
+                from openpyxl import Workbook
+                from openpyxl.utils.dataframe import dataframe_to_rows
+                import tempfile
+                import os
+                
+                # Create workbook
+                wb = Workbook()
+                ws = wb.active
+                ws.title = domain
+                
+                # Write data
+                for r in dataframe_to_rows(df, index=False, header=True):
+                    ws.append(r)
+                
+                # Auto-adjust column widths
+                for column in ws.columns:
+                    max_length = 0
+                    column_letter = column[0].column_letter
+                    for cell in column:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except:
+                            pass
+                    adjusted_width = min(max_length + 2, 50)
+                    ws.column_dimensions[column_letter].width = adjusted_width
+                
+                # Save to temporary file
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+                wb.save(temp_file.name)
+                temp_file.close()
+                
+                # Read file and return
+                with open(temp_file.name, 'rb') as f:
+                    excel_data = f.read()
+                
+                # Clean up
+                os.unlink(temp_file.name)
+                
+                return StreamingResponse(
+                    io.BytesIO(excel_data),
+                    media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    headers={
+                        'Content-Disposition': f'attachment; filename="{filename}.xlsx"'
+                    }
+                )
+            except ImportError:
+                raise HTTPException(
+                    status_code=501,
+                    detail="Excel format export requires openpyxl library. Please install it or use CSV format."
+                )
+        
         elif format == 'sas7bdat':
             try:
                 import pyreadstat
@@ -235,14 +294,54 @@ async def download_sdtm_data(
                     detail="SAS format export requires pyreadstat library. Please install it or use CSV format."
                 )
         
+        elif format == 'xpt':
+            try:
+                import pyreadstat
+                import tempfile
+                import os
+                
+                # XPT files need to be written to disk first
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xpt')
+                temp_file.close()
+                
+                # Write XPT file
+                pyreadstat.write_xport(df, temp_file.name)
+                
+                # Read file and return
+                with open(temp_file.name, 'rb') as f:
+                    xpt_data = f.read()
+                
+                # Clean up
+                os.unlink(temp_file.name)
+                
+                return StreamingResponse(
+                    io.BytesIO(xpt_data),
+                    media_type='application/octet-stream',
+                    headers={
+                        'Content-Disposition': f'attachment; filename="{filename}.xpt"'
+                    }
+                )
+            except ImportError:
+                raise HTTPException(
+                    status_code=501,
+                    detail="XPT format export requires pyreadstat library. Please install it or use CSV format."
+                )
+        
         elif format == 'rds':
             try:
                 import pyreadr
-                output = io.BytesIO()
-                pyreadr.write_rds(f"/tmp/{filename}.rds", df)
+                import tempfile
+                import os
                 
-                with open(f"/tmp/{filename}.rds", 'rb') as f:
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.rds')
+                temp_file.close()
+                
+                pyreadr.write_rds(temp_file.name, df)
+                
+                with open(temp_file.name, 'rb') as f:
                     rds_data = f.read()
+                
+                os.unlink(temp_file.name)
                 
                 return StreamingResponse(
                     io.BytesIO(rds_data),
@@ -266,6 +365,224 @@ async def download_sdtm_data(
     except Exception as e:
         logger.error(f"Error downloading SDTM data: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to download SDTM data: {str(e)}")
+
+
+@router.get("/list-sdtm-datasets")
+async def list_sdtm_datasets(
+    study_id: Optional[str] = Query(None, description="Study ID to list datasets for")
+):
+    """
+    List all available SDTM datasets for a study.
+    
+    Returns list of available domains and their metadata.
+    """
+    try:
+        if not study_id:
+            return {
+                "study_id": None,
+                "datasets": [],
+                "message": "No study_id provided. Datasets are only saved when study_id is provided during generation."
+            }
+        
+        backend_dir = Path(__file__).resolve().parents[4]
+        sdtm_dir = (backend_dir / "Content" / "Generated" / "SDTM" / study_id).resolve()
+        
+        if not sdtm_dir.exists():
+            return {
+                "study_id": study_id,
+                "datasets": [],
+                "message": f"No datasets found for study {study_id}"
+            }
+        
+        datasets = []
+        metadata_file = sdtm_dir / "metadata.json"
+        
+        # Read metadata if available
+        metadata = {}
+        if metadata_file.exists():
+            with open(metadata_file, 'r') as f:
+                metadata = json.load(f)
+        
+        # Find all CSV files (primary format)
+        for csv_file in sdtm_dir.glob("*.csv"):
+            domain = csv_file.stem.upper()
+            file_size = csv_file.stat().st_size
+            
+            domain_metadata = metadata.get(domain, {})
+            
+            datasets.append({
+                "domain": domain,
+                "filename": csv_file.name,
+                "file_path": str(csv_file),
+                "file_size": file_size,
+                "generated_at": domain_metadata.get("generated_at"),
+                "num_rows": domain_metadata.get("num_rows"),
+                "num_columns": domain_metadata.get("num_columns"),
+                "num_subjects": domain_metadata.get("num_subjects"),
+            })
+        
+        return {
+            "study_id": study_id,
+            "datasets": datasets,
+            "total": len(datasets),
+            "message": f"Found {len(datasets)} dataset(s) for study {study_id}"
+        }
+    
+    except Exception as e:
+        logger.error(f"Error listing SDTM datasets: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to list SDTM datasets: {str(e)}")
+
+
+@router.get("/download-all-sdtm")
+async def download_all_sdtm_datasets(
+    study_id: str = Query(..., description="Study ID to download datasets for"),
+    format: Literal['zip', 'csv', 'xlsx', 'xpt', 'sas7bdat'] = Query('zip', description="Format for download. 'zip' downloads all formats in a ZIP file")
+):
+    """
+    Download all SDTM datasets for a study as a ZIP file.
+    
+    The ZIP file contains all available datasets in CSV format by default.
+    If format is specified, all datasets are converted to that format.
+    """
+    try:
+        backend_dir = Path(__file__).resolve().parents[4]
+        sdtm_dir = (backend_dir / "Content" / "Generated" / "SDTM" / study_id).resolve()
+        
+        if not sdtm_dir.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"No datasets found for study {study_id}"
+            )
+        
+        # Create ZIP file in memory
+        zip_buffer = io.BytesIO()
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Find all CSV files
+            csv_files = list(sdtm_dir.glob("*.csv"))
+            
+            if not csv_files:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No CSV datasets found for study {study_id}"
+                )
+            
+            generator = SDTMDataGenerator(seed=42)
+            
+            for csv_file in csv_files:
+                domain = csv_file.stem.upper()
+                
+                # Read the CSV file
+                df = pd.read_csv(csv_file)
+                
+                if format == 'zip' or format == 'csv':
+                    # Add CSV to ZIP
+                    csv_data = df.to_csv(index=False)
+                    zip_file.writestr(f"{domain}.csv", csv_data)
+                
+                if format == 'zip' or format == 'xlsx':
+                    # Add Excel file
+                    try:
+                        from openpyxl import Workbook
+                        from openpyxl.utils.dataframe import dataframe_to_rows
+                        import tempfile
+                        import os
+                        
+                        wb = Workbook()
+                        ws = wb.active
+                        ws.title = domain
+                        
+                        for r in dataframe_to_rows(df, index=False, header=True):
+                            ws.append(r)
+                        
+                        # Auto-adjust column widths
+                        for column in ws.columns:
+                            max_length = 0
+                            column_letter = column[0].column_letter
+                            for cell in column:
+                                try:
+                                    if len(str(cell.value)) > max_length:
+                                        max_length = len(str(cell.value))
+                                except:
+                                    pass
+                            adjusted_width = min(max_length + 2, 50)
+                            ws.column_dimensions[column_letter].width = adjusted_width
+                        
+                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+                        wb.save(temp_file.name)
+                        temp_file.close()
+                        
+                        with open(temp_file.name, 'rb') as f:
+                            excel_data = f.read()
+                        
+                        os.unlink(temp_file.name)
+                        zip_file.writestr(f"{domain}.xlsx", excel_data)
+                    except ImportError:
+                        logger.warning("openpyxl not available, skipping Excel format")
+                
+                if format == 'zip' or format == 'xpt':
+                    # Add XPT file
+                    try:
+                        import pyreadstat
+                        import tempfile
+                        import os
+                        
+                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.xpt')
+                        temp_file.close()
+                        
+                        pyreadstat.write_xport(df, temp_file.name)
+                        
+                        with open(temp_file.name, 'rb') as f:
+                            xpt_data = f.read()
+                        
+                        os.unlink(temp_file.name)
+                        zip_file.writestr(f"{domain}.xpt", xpt_data)
+                    except ImportError:
+                        logger.warning("pyreadstat not available, skipping XPT format")
+                
+                if format == 'zip' or format == 'sas7bdat':
+                    # Add SAS7BDAT file
+                    try:
+                        import pyreadstat
+                        import tempfile
+                        import os
+                        
+                        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.sas7bdat')
+                        temp_file.close()
+                        
+                        pyreadstat.write_sas7bdat(df, temp_file.name)
+                        
+                        with open(temp_file.name, 'rb') as f:
+                            sas_data = f.read()
+                        
+                        os.unlink(temp_file.name)
+                        zip_file.writestr(f"{domain}.sas7bdat", sas_data)
+                    except ImportError:
+                        logger.warning("pyreadstat not available, skipping SAS format")
+            
+            # Add metadata file if it exists
+            metadata_file = sdtm_dir / "metadata.json"
+            if metadata_file.exists():
+                with open(metadata_file, 'r') as f:
+                    metadata_content = f.read()
+                zip_file.writestr("metadata.json", metadata_content)
+        
+        zip_buffer.seek(0)
+        filename = f"SDTM_Datasets_{study_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        
+        return StreamingResponse(
+            io.BytesIO(zip_buffer.read()),
+            media_type='application/zip',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"'
+            }
+        )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading all SDTM datasets: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to download all SDTM datasets: {str(e)}")
 
 
 @router.post("/generate-sdtm-batch", response_model=BatchGenerateSDTMResponse)

@@ -120,7 +120,7 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
         <div className="mega-menu-item" onClick={() => handleNavigate('/test-with-data')}>
           <ExperimentOutlined className="mega-menu-icon" />
           <div className="mega-menu-item-content">
-            <div className="mega-menu-item-title">SDTM Generator</div>
+            <div className="mega-menu-item-title">SDTM Test Data Generator</div>
             <div className="mega-menu-item-desc">Generate CDISC-compliant SDTM test data</div>
           </div>
         </div>
