@@ -16,9 +16,40 @@ import zipfile
 import json
 
 from app.modules.test_data_generation import SDTMDataGenerator, SDTMGenerationRequest
+from app.middleware.resource_monitor import ResourceMonitor, get_system_metrics
+from app.schemas.sdtm_security import (
+    validate_study_id,
+    sanitize_filename,
+    SecureDomainCode,
+    SecureDateRange,
+    SecureParameterValidator
+)
+from app.utils.file_lock import file_lock, FileLockError
 from loguru import logger
+import hashlib
+import time
 
 router = APIRouter()
+
+
+def generate_request_seed(study_id: str, domain: str, num_subjects: int) -> int:
+    """
+    Generate a unique seed for each request to prevent duplicate data in concurrent generation.
+
+    Args:
+        study_id: Study identifier
+        domain: SDTM domain code
+        num_subjects: Number of subjects
+
+    Returns:
+        Unique integer seed based on request parameters and timestamp
+    """
+    # Combine request parameters with timestamp to ensure uniqueness
+    seed_str = f"{study_id}_{domain}_{num_subjects}_{time.time()}"
+    hash_obj = hashlib.sha256(seed_str.encode())
+    # Convert first 8 bytes of hash to integer
+    seed = int.from_bytes(hash_obj.digest()[:8], byteorder='big') % (2**31)
+    return seed
 
 
 class BatchGenerateSDTMRequest(BaseModel):
@@ -83,7 +114,7 @@ async def generate_sdtm_data(
 ):
     """
     Generate mock SDTM dataset for testing ADAM programs.
-    
+
     Supports domains: DM, AE, LB, VS, EX, DS
     Returns preview (first 10 rows) and validation results.
     If study_id is provided, saves to study-scoped directory.
@@ -91,9 +122,40 @@ async def generate_sdtm_data(
     """
     try:
         logger.info(f"Generating SDTM data for domain: {request.domain}, subjects: {request.num_subjects}, study_id: {study_id}")
-        
-        # Generate data
-        generator = SDTMDataGenerator(seed=42)  # Fixed seed for consistency
+
+        # Security validation: Validate study_id if provided
+        if study_id:
+            study_id = validate_study_id(study_id)
+
+        # Security validation: Validate domain code
+        domain_validator = SecureDomainCode(domain=request.domain)
+        validated_domain = domain_validator.domain
+
+        # Security validation: Validate date range
+        date_validator = SecureDateRange(
+            start_date=request.study_start_date,
+            end_date=request.study_end_date
+        )
+
+        # Resource validation: Check memory and request size limits
+        validation_result = ResourceMonitor.validate_generation_request(
+            domain=validated_domain,
+            num_subjects=request.num_subjects,
+            records_per_subject=getattr(request, 'records_per_subject', None),
+            num_visits=getattr(request, 'num_visits', 6)
+        )
+        logger.info(f"Resource validation passed: {validation_result}")
+
+        # Generate request-scoped seed to prevent duplicates in concurrent generation
+        request_seed = generate_request_seed(
+            study_id or "TEMP",
+            validated_domain,
+            request.num_subjects
+        )
+        logger.info(f"Using request-scoped seed: {request_seed}")
+
+        # Generate data with unique seed
+        generator = SDTMDataGenerator(seed=request_seed)
         df = generator.generate(request)
         
         if df is None or df.empty:
@@ -112,13 +174,14 @@ async def generate_sdtm_data(
             sdtm_dir = (backend_dir / "Content" / "Generated" / "SDTM" / study_id).resolve()
             sdtm_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Saving SDTM data to: {sdtm_dir}")
-            
-            # Save CSV
-            csv_file = sdtm_dir / f"{request.domain.upper()}.csv"
+
+            # Save CSV with sanitized filename
+            safe_filename = sanitize_filename(f"{validated_domain}.csv")
+            csv_file = sdtm_dir / safe_filename
             df.to_csv(csv_file, index=False)
             logger.info(f"Saved SDTM dataset to {csv_file}")
             
-            # Save metadata
+            # Save metadata with file locking to prevent race conditions
             metadata = {
                 "study_id": study_id,
                 "domain": request.domain.upper(),
@@ -130,19 +193,27 @@ async def generate_sdtm_data(
                 "generation_params": request.dict(),
             }
             metadata_file = sdtm_dir / "metadata.json"
-            if metadata_file.exists():
-                # Update existing metadata
-                with open(metadata_file, 'r') as f:
-                    existing = json.load(f)
-                if not isinstance(existing, dict):
-                    existing = {}
-                existing[request.domain.upper()] = metadata
-                with open(metadata_file, 'w') as f:
-                    json.dump(existing, f, indent=2)
-            else:
-                # Create new metadata
-                with open(metadata_file, 'w') as f:
-                    json.dump({request.domain.upper(): metadata}, f, indent=2)
+
+            # Use file locking to prevent concurrent write corruption
+            try:
+                with file_lock(metadata_file, timeout=30):
+                    if metadata_file.exists():
+                        # Update existing metadata
+                        with open(metadata_file, 'r') as f:
+                            existing = json.load(f)
+                        if not isinstance(existing, dict):
+                            existing = {}
+                        existing[request.domain.upper()] = metadata
+                        with open(metadata_file, 'w') as f:
+                            json.dump(existing, f, indent=2)
+                    else:
+                        # Create new metadata
+                        with open(metadata_file, 'w') as f:
+                            json.dump({request.domain.upper(): metadata}, f, indent=2)
+                    logger.info(f"Metadata saved with file lock: {metadata_file}")
+            except FileLockError as e:
+                logger.error(f"Failed to acquire file lock for metadata: {e}")
+                # Continue without metadata update (non-critical failure)
         
         # Get preview (first 10 rows)
         preview_df = df.head(10)
@@ -589,20 +660,60 @@ async def download_all_sdtm_datasets(
 async def generate_sdtm_batch(request: BatchGenerateSDTMRequest):
     """
     Generate multiple SDTM datasets in batch.
-    
+
     This endpoint generates multiple SDTM domains at once, which is useful
     when generating all required datasets for ADAM generation.
-    
+
     Args:
         request: Batch generation request with list of domains
-        
+
     Returns:
         BatchGenerateSDTMResponse with success/failure status for each domain
     """
     try:
         logger.info(f"Batch generating SDTM data: domains={request.domains}, study_id={request.study_id}")
-        
-        generator = SDTMDataGenerator(seed=42)  # Fixed seed for consistency
+
+        # Security validation: Validate study_id if provided
+        if request.study_id:
+            request.study_id = validate_study_id(request.study_id)
+
+        # Security validation: Validate all domain codes
+        validated_domains = []
+        for domain in request.domains:
+            domain_validator = SecureDomainCode(domain=domain)
+            validated_domains.append(domain_validator.domain)
+
+        # Security validation: Validate date range
+        date_validator = SecureDateRange(
+            start_date=request.study_start_date,
+            end_date=request.study_end_date
+        )
+
+        # Security validation: Validate treatment arms
+        validated_arms = SecureParameterValidator.validate_treatment_arms(request.treatment_arms)
+        request.treatment_arms = validated_arms
+
+        # Security validation: Validate visit schedule
+        validated_visits = SecureParameterValidator.validate_visit_schedule(request.visit_schedule_days)
+        request.visit_schedule_days = validated_visits
+
+        # Resource validation: Check batch memory and request size limits
+        batch_validation = ResourceMonitor.validate_batch_request(
+            domains=validated_domains,
+            num_subjects=request.num_subjects,
+            records_per_subject=request.records_per_subject,
+            num_visits=request.num_visits
+        )
+        logger.info(f"Batch resource validation passed: {batch_validation}")
+
+        # Generate base seed for batch request
+        batch_seed = generate_request_seed(
+            request.study_id or "TEMP_BATCH",
+            "_".join(validated_domains),
+            request.num_subjects
+        )
+        logger.info(f"Using batch base seed: {batch_seed}")
+
         generated = []
         failed = []
         
@@ -648,17 +759,22 @@ async def generate_sdtm_batch(request: BatchGenerateSDTMRequest):
             sdtm_dir.mkdir(parents=True, exist_ok=True)
             logger.info(f"Saving batch SDTM data to: {sdtm_dir}")
         
-        # Generate each domain
-        for domain in request.domains:
+        # Generate each domain with unique seeds
+        for idx, domain in enumerate(request.domains):
             try:
                 logger.info(f"Generating domain: {domain}")
-                
+
+                # Create unique seed for this domain (batch_seed + domain index)
+                domain_seed = batch_seed + idx
+                generator = SDTMDataGenerator(seed=domain_seed)
+                logger.info(f"Using domain-specific seed for {domain}: {domain_seed}")
+
                 # Create request for this domain
                 domain_request = SDTMGenerationRequest(
                     domain=domain,
                     **base_params
                 )
-                
+
                 # Generate data
                 df = generator.generate(domain_request)
                 
@@ -667,7 +783,8 @@ async def generate_sdtm_batch(request: BatchGenerateSDTMRequest):
                 
                 # Save to study-scoped directory if study_id provided
                 if sdtm_dir:
-                    csv_file = sdtm_dir / f"{domain.upper()}.csv"
+                    safe_filename = sanitize_filename(f"{domain.upper()}.csv")
+                    csv_file = sdtm_dir / safe_filename
                     df.to_csv(csv_file, index=False)
                     logger.info(f"Saved SDTM dataset: {csv_file}")
                 

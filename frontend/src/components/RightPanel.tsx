@@ -3,7 +3,7 @@ import { CopyOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, Warnin
 import Editor from '@monaco-editor/react';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { GenerationResponse, ProgrammingLanguage } from '../types';
-import { api } from '../services/api';
+import { validateCode as validateCodeService } from '../services/validationService';
 import { triggerDownload } from '../utils/downloadHelpers';
 import { VariablesAnalysisTab } from './VariablesAnalysisTab';
 import { ConsolidatedCodeTab } from './ConsolidatedCodeTab';
@@ -14,6 +14,7 @@ import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { AdamGeneratorTab } from './AdamGeneratorTab';
 import { RFrontendTab } from './RFrontendTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
+import { CodeComparerTab } from './CodeComparerTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { notifyUserError } from '../utils/errorNotifications';
@@ -185,7 +186,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
       setIsValidating(true);
       try {
-        const result = await api.validateCode({ code, language });
+        const result = await validateCodeService(code, language as 'R' | 'SAS');
         setValidationResults(result);
       } catch (error) {
         notifyUserError(error, 'Validating ADAM code');
@@ -271,77 +272,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
         <h3 style={{ marginBottom: '10px', color: '#1e293b' }}>{title}</h3>
         <p>This feature is under development. Check back soon for updates!</p>
-      </div>
-    );
-
-    const CodeComparerPlaceholder = () => (
-      <div style={{ padding: '40px 20px', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ color: '#1e293b', marginBottom: '10px', fontSize: '28px' }}>Code Comparer</h2>
-          <p style={{ color: '#64748b', fontSize: '16px' }}>
-            Compare different versions of ADAM code to identify differences and validate changes
-          </p>
-        </div>
-
-        <div style={{ 
-          background: '#f8f9fa', 
-          borderRadius: '8px', 
-          padding: '30px',
-          marginBottom: '30px',
-          border: '1px solid #e5e7eb'
-        }}>
-          <h3 style={{ color: '#1e293b', marginBottom: '15px', fontSize: '20px' }}>Features</h3>
-          <ul style={{ listStyle: 'none', padding: 0, color: '#475569' }}>
-            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 0 }}>•</span>
-              Side-by-side comparison of code versions
-            </li>
-            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 0 }}>•</span>
-              Highlight differences between code versions
-            </li>
-            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 0 }}>•</span>
-              Line-by-line diff visualization
-            </li>
-            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 0 }}>•</span>
-              Syntax highlighting for R/SAS code
-            </li>
-            <li style={{ marginBottom: '10px', paddingLeft: '24px', position: 'relative' }}>
-              <span style={{ position: 'absolute', left: 0 }}>•</span>
-              Export comparison results
-            </li>
-          </ul>
-        </div>
-
-        <div style={{ 
-          background: '#fff', 
-          borderRadius: '8px', 
-          padding: '30px',
-          border: '1px solid #e5e7eb'
-        }}>
-          <h3 style={{ color: '#1e293b', marginBottom: '15px', fontSize: '20px' }}>How to Use</h3>
-          <ol style={{ color: '#475569', paddingLeft: '20px' }}>
-            <li style={{ marginBottom: '10px' }}>Upload or paste the first version of your code</li>
-            <li style={{ marginBottom: '10px' }}>Upload or paste the second version to compare</li>
-            <li style={{ marginBottom: '10px' }}>Select comparison options (ignore whitespace, case sensitivity, etc.)</li>
-            <li style={{ marginBottom: '10px' }}>Review the highlighted differences</li>
-            <li style={{ marginBottom: '10px' }}>Export or save the comparison report</li>
-          </ol>
-        </div>
-
-        <div style={{ 
-          marginTop: '30px',
-          padding: '20px',
-          background: '#fef3c7',
-          borderRadius: '8px',
-          border: '1px solid #fbbf24'
-        }}>
-          <p style={{ color: '#92400e', margin: 0, fontSize: '14px' }}>
-            <strong>Note:</strong> This feature is currently under development. Full functionality will be available in a future update.
-          </p>
-        </div>
       </div>
     );
 
@@ -520,7 +450,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               </span>
             </Tooltip>
           ),
-          children: <CodeComparerPlaceholder />,
+          children: <CodeComparerTab />,
         },
       ];
 
