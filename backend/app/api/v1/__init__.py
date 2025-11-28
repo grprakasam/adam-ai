@@ -4,6 +4,7 @@ Consolidates all API endpoints
 """
 
 from fastapi import APIRouter
+from app.utils.health_check import HealthCheck
 
 api_router = APIRouter()
 
@@ -68,3 +69,9 @@ async def api_status():
         "api_version": "v1",
         "status": "active"
     }
+
+
+@api_router.get("/health")
+async def api_health():
+    """API v1 health check endpoint"""
+    return HealthCheck.get_quick_status()

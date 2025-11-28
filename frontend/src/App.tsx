@@ -242,6 +242,24 @@ function App() {
     message.success({ content: 'Workspace initialized! Configure your project to generate code.', duration: 2 });
   };
 
+  const handleOpenUtility = async (path: string) => {
+    if (!currentStudyId) {
+      await handleOpenStudy('demo-study-1');
+    } else {
+      setViewMode('workspace');
+    }
+
+    setIsRightPanelUnlocked(true);
+
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent('adam-ai:navigate-workspace', {
+          detail: { path },
+        })
+      );
+    }, 50);
+  };
+
   const handleStudyChange = (studyId: string) => {
     Modal.confirm({
       title: 'Switch Study?',
@@ -278,6 +296,7 @@ function App() {
                 onOpenMigration={handleOpenMigration}
                 currentUser={currentUser}
                 onLogout={handleLogout}
+                onNavigateToUtility={handleOpenUtility}
               />
             ) : viewMode === 'projects' ? (
               <ProjectsPage
