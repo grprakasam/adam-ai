@@ -27,6 +27,12 @@ class RateLimitConfig:
     # File upload requests per minute
     FILE_UPLOAD_PER_MINUTE = 5
 
+    # SDTM test data generation requests per minute (VERY restrictive due to memory usage)
+    SDTM_GEN_PER_MINUTE = 5
+
+    # SDTM batch generation requests per 5 minutes (extremely restrictive)
+    SDTM_BATCH_PER_5MIN = 2
+
 
 class RateLimiter:
     """
@@ -139,7 +145,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         Returns:
             Tuple of (limit, window_seconds)
         """
-        # Code generation endpoints (most restrictive)
+        # SDTM batch generation (most restrictive)
+        if "/generate-sdtm-batch" in path:
+            return RateLimitConfig.SDTM_BATCH_PER_5MIN, 300  # 2 requests per 5 minutes
+
+        # SDTM single domain generation (very restrictive)
+        if "/generate-sdtm" in path or "/download-sdtm" in path:
+            return RateLimitConfig.SDTM_GEN_PER_MINUTE, 60  # 5 requests per minute
+
+        # Code generation endpoints (restrictive)
         if "/code-generation/" in path or "/generate" in path:
             return RateLimitConfig.CODE_GEN_PER_MINUTE, 60
 
