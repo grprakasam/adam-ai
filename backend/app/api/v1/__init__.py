@@ -27,6 +27,9 @@ from app.api.v1.endpoints import (
     r_execution,
     code_review_finalization,
     code_comparer,
+    adam_analytics,
+    study_chatbot,
+    tlf_generator,
 )
 from app.api import auth_routes, validation_routes, performance_routes, review_routes
 
@@ -62,6 +65,9 @@ api_router.include_router(adam_generation.router, tags=["adam-generation"])
 api_router.include_router(r_execution.router, tags=["r-execution"])
 api_router.include_router(code_review_finalization.router, prefix="/code-review", tags=["code-review-finalization"])
 api_router.include_router(code_comparer.router, tags=["code-comparer"])
+api_router.include_router(study_chatbot.router, tags=["study-chatbot"])
+api_router.include_router(adam_analytics.router, tags=["adam-analytics"])
+api_router.include_router(tlf_generator.router, tags=["tlf-generator"])
 
 
 @api_router.get("/status")

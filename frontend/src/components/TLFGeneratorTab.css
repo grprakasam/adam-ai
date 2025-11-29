@@ -1,0 +1,300 @@
+.tlf-generator-tab {
+  padding: 24px;
+  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  min-height: 100vh;
+}
+
+.tlf-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.tlf-header h2 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 32px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+
+.tlf-subtitle {
+  font-size: 16px;
+  color: #64748b;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.tlf-main-card {
+  max-width: 1200px;
+  margin: 0 auto;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Type Selection */
+.tlf-type-selection {
+  padding: 24px;
+}
+
+.selection-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.tlf-type-card {
+  height: 100%;
+  text-align: center;
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.tlf-type-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.tlf-type-card.selected {
+  border-width: 2px;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+}
+
+.tlf-type-icon {
+  font-size: 64px;
+  margin: 24px 0;
+}
+
+.tlf-type-card h4 {
+  margin: 16px 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.tlf-description {
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.tlf-examples {
+  text-align: left;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.tlf-examples .ant-typography {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.selected-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #52c41a;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Upload Form */
+.tlf-upload-form {
+  padding: 24px;
+}
+
+.form-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.form-header .anticon {
+  margin-bottom: 16px;
+}
+
+.tlf-form .ant-form-item-label > label {
+  font-weight: 600;
+}
+
+/* Understanding Review */
+.understanding-review {
+  padding: 24px;
+}
+
+.review-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.review-header .anticon {
+  margin-bottom: 16px;
+}
+
+.understanding-card {
+  margin-bottom: 24px;
+  border-radius: 12px;
+}
+
+.understanding-details {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.detail-card {
+  border-radius: 8px;
+}
+
+.detail-card pre {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+
+/* Generated Output */
+.generated-output {
+  padding: 24px;
+}
+
+.generating-state {
+  text-align: center;
+  padding: 80px 24px;
+}
+
+.generating-state .ant-spin {
+  margin-bottom: 24px;
+}
+
+.output-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.output-header .anticon {
+  margin-bottom: 16px;
+}
+
+.output-card {
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.output-content {
+  padding: 24px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  min-height: 400px;
+}
+
+.output-content table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.output-content table th,
+.output-content table td {
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  text-align: left;
+}
+
+.output-content table th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.citations-section {
+  margin-top: 24px;
+}
+
+.citations-section ul {
+  list-style-position: inside;
+}
+
+/* Step Actions */
+.step-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .tlf-generator-tab {
+    padding: 16px;
+  }
+
+  .tlf-header h2 {
+    font-size: 24px;
+  }
+
+  .tlf-type-icon {
+    font-size: 48px;
+  }
+
+  .tlf-type-card h4 {
+    font-size: 20px;
+  }
+
+  .output-content {
+    overflow-x: auto;
+  }
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tlf-type-selection,
+.tlf-upload-form,
+.understanding-review,
+.generated-output {
+  animation: fadeInUp 0.5s ease;
+}
+
+/* Ant Design Customization */
+.tlf-main-card .ant-steps-item-icon {
+  font-size: 20px;
+}
+
+.tlf-main-card .ant-steps-item-title {
+  font-weight: 600;
+}
+
+.tlf-main-card .ant-card-head {
+  border-bottom: 2px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.tlf-main-card .ant-upload-list {
+  margin-top: 8px;
+}
+
+.tlf-main-card .ant-alert {
+  border-radius: 8px;
+}
+
+
