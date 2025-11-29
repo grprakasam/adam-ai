@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ConfigProvider, theme, message, Modal } from 'antd';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { AppHeader } from './components/AppHeader';
-import LeftPanel from './components/LeftPanel';
 import RightPanel from './components/RightPanel';
 import LandingPage from './components/LandingPage';
 import ProjectsPage from './components/ProjectsPage';
 import CodeMigrationPage from './components/CodeMigrationPage';
+import EnterStudyDetailsPage from './components/EnterStudyDetailsPage';
 import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -24,7 +23,7 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useApplyPreferences } from './hooks/useApplyPreferences';
 import './App.css';
 
-type ViewMode = 'login' | 'landing' | 'projects' | 'workspace' | 'migration';
+type ViewMode = 'login' | 'landing' | 'projects' | 'workspace' | 'migration' | 'enter-study-details';
 
 function App() {
   // Clear any stale auth tokens on app startup
@@ -38,30 +37,19 @@ function App() {
     return () => window.removeEventListener('adam-ai:open-left-tab', handler as any);
   }, []);
 
-  // Listen for left panel toggle event from workspace
-  useEffect(() => {
-    const handler = () => {
-      setIsLeftPanelCollapsed(prev => !prev);
-    };
-    window.addEventListener('adam-ai:toggle-left-panel', handler as any);
-    return () => window.removeEventListener('adam-ai:toggle-left-panel', handler as any);
-  }, []);
   const [viewMode, setViewMode] = useState<ViewMode>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentStudyId, setCurrentStudyId] = useState<string | undefined>(undefined);
   const [language] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
-  const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
   const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(false);
   const [isHelpCenterOpen, setHelpCenterOpen] = useState(false);
   const [isPreferencesOpen, setPreferencesOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const mainContentRef = useRef<HTMLElement | null>(null);
   const undo = useWorkspaceHistory((state) => state.undo);
   const redo = useWorkspaceHistory((state) => state.redo);
   const clearHistory = useWorkspaceHistory((state) => state.clear);
-  const layoutMode = usePreferencesStore((state) => state.layoutMode);
   useApplyPreferences();
 
   // Access Zustand store
@@ -105,30 +93,11 @@ function App() {
     mainContentRef.current?.focus();
   }, [viewMode]);
 
+  // Left configuration panel has been integrated into the Pair Programming tab.
+  // Keep a no-op handler so keyboard shortcuts remain stable.
   const toggleLeftPanel = useCallback(() => {
-    // Check if mobile view (considering layout mode preference)
-    const actualWidth = window.innerWidth;
-    const isMobile = 
-      layoutMode === 'mobile' || 
-      (layoutMode === 'auto' && actualWidth <= 768);
-    
-    if (isMobile) {
-      setIsMobileMenuOpen((prev) => !prev);
-    } else {
-      setIsLeftPanelCollapsed((prev) => !prev);
-    }
-  }, [layoutMode]);
-
-  const closeMobileMenu = useCallback(() => {
-    setIsMobileMenuOpen(false);
+    // no-op: legacy toggle preserved for shortcut compatibility
   }, []);
-
-  // Close mobile menu when switching to desktop layout
-  useEffect(() => {
-    if (layoutMode === 'desktop') {
-      setIsMobileMenuOpen(false);
-    }
-  }, [layoutMode]);
 
   const focusMainContent = useCallback(() => {
     mainContentRef.current?.focus();
@@ -313,6 +282,8 @@ function App() {
               />
             ) : viewMode === 'migration' ? (
               <CodeMigrationPage onBack={() => setViewMode('landing')} />
+            ) : viewMode === 'enter-study-details' ? (
+              <EnterStudyDetailsPage onBack={() => setViewMode('landing')} />
             ) : (
               <>
                 <AppHeader
@@ -322,49 +293,12 @@ function App() {
                   showStudySelector={true}
                   currentStudyId={currentStudyId}
                   onStudyChange={handleStudyChange}
-                  onToggleMobileMenu={toggleLeftPanel}
                 />
 
                 <HelpCenterDrawer open={isHelpCenterOpen} onClose={closeHelpCenter} activeTab={activeTab} />
                 <PreferencesDrawer open={isPreferencesOpen} onClose={closePreferences} />
 
                 <div className="main-content" role="region" aria-label="Workspace canvas">
-                  {/* Mobile backdrop */}
-                  <div 
-                    className={`mobile-backdrop ${isMobileMenuOpen ? 'active' : ''}`}
-                    onClick={closeMobileMenu}
-                    aria-hidden="true"
-                  />
-                  
-                  <div className={`left-panel-wrapper ${isMobileMenuOpen ? 'active' : ''}`}>
-                    <LeftPanel
-                      activeTab={activeTab}
-                      onTabChange={(tab) => {
-                        setActiveTab(tab);
-                        // Close mobile menu when tab changes on mobile
-                        if (window.innerWidth <= 768) {
-                          closeMobileMenu();
-                        }
-                      }}
-                      isCollapsed={isLeftPanelCollapsed}
-                      onOpenHelpCenter={openHelpCenter}
-                    />
-                    <button
-                      type="button"
-                      className={`panel-toggle-btn ${isLeftPanelCollapsed ? 'collapsed' : ''}`}
-                      onClick={toggleLeftPanel}
-                      aria-pressed={!isLeftPanelCollapsed}
-                      aria-expanded={!isLeftPanelCollapsed}
-                      aria-controls="configuration-panel"
-                      title={isLeftPanelCollapsed ? 'Show configuration panel' : 'Hide configuration panel'}
-                    >
-                      {isLeftPanelCollapsed ? <ChevronRight size={20} aria-hidden="true" /> : <ChevronLeft size={20} aria-hidden="true" />}
-                      <span className="sr-only">
-                        {isLeftPanelCollapsed ? 'Expand configuration panel' : 'Collapse configuration panel'}
-                      </span>
-                    </button>
-                  </div>
-
                   <RightPanel
                     generationResult={generationResult}
                     language={language}
@@ -372,6 +306,7 @@ function App() {
                     completionPercentage={completionPercentage}
                     onUnlock={handleUnlockPairProgramming}
                     onSwitchProject={handleSwitchProject}
+                    onOpenHelpCenter={openHelpCenter}
                   />
                 </div>
 

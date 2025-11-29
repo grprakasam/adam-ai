@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { TabNavigation, Tab } from './TabNavigation';
 import ProjectConfigTab from './tabs/ProjectConfigTab';
 import DatasetSelectionTab from './tabs/DatasetSelectionTab';
-import SpecificationUploadTab from './tabs/SpecificationUploadTab';
 import StandardsTab from './tabs/StandardsTab';
 import { ContextualHelpCard } from './ContextualHelpCard';
 import { useProjectStore } from '../store/projectStore';
@@ -39,11 +38,6 @@ const LeftPanel = ({
       status: getTabStatus('project'),
     },
     {
-      key: 'specification',
-      label: 'Upload ADAM Specification',
-      status: getTabStatus('specification'),
-    },
-    {
       key: 'standards',
       label: 'Choose Standards Version',
       status: getTabStatus('standards'),
@@ -61,8 +55,6 @@ const LeftPanel = ({
         return <ProjectConfigTab />;
       case 'dataset':
         return <DatasetSelectionTab />;
-      case 'specification':
-        return <SpecificationUploadTab />;
       case 'standards':
         return <StandardsTab />;
       default:

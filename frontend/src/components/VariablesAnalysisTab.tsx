@@ -47,9 +47,14 @@ interface VariablesAnalysisTabProps {
   onSwitchProject?: () => void;
   onNavigateToConsolidated?: () => void;
   onNavigateToTraceability?: () => void;
+  onOpenHelpCenter?: () => void;
 }
 
-export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNavigateToConsolidated, onNavigateToTraceability: _onNavigateToTraceability }) => {
+export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
+  onNavigateToConsolidated,
+  onNavigateToTraceability: _onNavigateToTraceability,
+  onOpenHelpCenter,
+}) => {
   const {
     specificationFile,
     projectConfig,
@@ -586,7 +591,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
     }
 
     if (!projectConfig.studyId || projectConfig.studyId.trim().length < 3) {
-      message.warning('Please configure a valid Study ID (minimum 3 characters) in Project Configuration tab');
+      message.warning('Please configure a valid Study ID (minimum 3 characters) in the "Enter Study Details" page');
       return;
     }
 
@@ -1015,7 +1020,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({ onNa
         <div className="variables-empty-state" key="no-spec">
           <AlertCircle size={64} className="empty-icon" />
           <h3>No Specification File Uploaded</h3>
-          <p>Please upload an ADAM specification file in the Specification tab to analyze variables.</p>
+          <p>Please upload an ADAM specification file using the "Upload ADAM Specification" step in the configuration section above to analyze variables.</p>
         </div>
       )}
 

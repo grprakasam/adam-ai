@@ -34,9 +34,10 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
     icon: <CodeOutlined />,
     color: '#3b82f6',
     items: [
-      { key: '/pair-programming', label: '1. Pair Programming', icon: <TeamOutlined />, description: 'AI-assisted variable coding' },
-      { key: '/code-review', label: '2. Code Review', icon: <CommentOutlined />, description: 'Review and approve code with comments' },
-      { key: '/consolidated-code', label: '3. Consolidated Code', icon: <FileTextOutlined />, description: 'Complete program generation' },
+      { key: '/enter-study-details', label: '1. Enter Study Details', icon: <FileTextOutlined />, description: 'Enter study information and upload ADAM specification file' },
+      { key: '/pair-programming', label: '2. Pair Programming', icon: <TeamOutlined />, description: 'AI-assisted variable coding' },
+      { key: '/code-review', label: '3. Code Review', icon: <CommentOutlined />, description: 'Review and approve code with comments' },
+      { key: '/consolidated-code', label: '4. Consolidated Code', icon: <FileTextOutlined />, description: 'Complete program generation' },
     ],
   },
   adamValidation: {
@@ -45,7 +46,6 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
     color: '#10b981',
     items: [
       { key: '/submission-dashboard', label: '5. Submission', icon: <DashboardOutlined />, description: 'Regulatory submission package' },
-      { key: '/code-validator', label: '6. Code Validator', icon: <CodeOutlined />, description: 'Validate and execute code snippets' },
     ],
   },
   utilities: {
@@ -66,6 +66,7 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
 };
 
 const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
+  'study-details': 'adamCoding',
   'pair': 'adamCoding',
   'review': 'adamCoding',
   'consolidated': 'adamCoding',
@@ -73,7 +74,6 @@ const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
   'comparer': 'utilities',
   'code-comparer': 'utilities',
   'submission': 'adamValidation',
-  'code-validator': 'adamValidation',
   'testdata': 'utilities',
   'r-frontend': 'utilities',
   'analytics': 'utilities',
@@ -82,6 +82,7 @@ const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
 };
 
 const PATH_TO_TAB_MAP: Record<string, string> = {
+  '/enter-study-details': 'study-details',
   '/pair-programming': 'pair',
   '/code-review': 'review',
   '/consolidated-code': 'consolidated',
@@ -89,8 +90,6 @@ const PATH_TO_TAB_MAP: Record<string, string> = {
   '/adam-dataset-comparer': 'comparer',
   '/code-comparer': 'code-comparer',
   '/submission-dashboard': 'submission',
-  '/code-validator': 'code-validator',
-  '/validation-reports': 'code-validator',
   '/test-with-data': 'testdata',
   '/traceability': 'traceability',
   '/r-frontend': 'r-frontend',
@@ -99,6 +98,7 @@ const PATH_TO_TAB_MAP: Record<string, string> = {
 };
 
 const TAB_TO_PATH_MAP: Record<string, string> = {
+  'study-details': '/enter-study-details',
   'pair': '/pair-programming',
   'review': '/code-review',
   'consolidated': '/consolidated-code',
@@ -106,7 +106,6 @@ const TAB_TO_PATH_MAP: Record<string, string> = {
   'comparer': '/adam-dataset-comparer',
   'code-comparer': '/code-comparer',
   'submission': '/submission-dashboard',
-  'code-validator': '/code-validator',
   'testdata': '/test-with-data',
   'traceability': '/traceability',
   'r-frontend': '/r-frontend',
@@ -115,7 +114,7 @@ const TAB_TO_PATH_MAP: Record<string, string> = {
 };
 
 export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
-  activeTab = 'pair',
+  activeTab = 'study-details',
   onTabChange,
   onNavigate
 }) => {
@@ -123,7 +122,7 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
     TAB_TO_SECTION_MAP[activeTab] || 'adamCoding'
   );
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  const [selectedPath, setSelectedPath] = useState<string>(TAB_TO_PATH_MAP[activeTab] || '/pair-programming');
+  const [selectedPath, setSelectedPath] = useState<string>(TAB_TO_PATH_MAP[activeTab] || '/enter-study-details');
 
   // Debug log to verify component is rendering
   useEffect(() => {
@@ -265,4 +264,3 @@ export const WorkspaceNavigation: React.FC<WorkspaceNavigationProps> = ({
     </div>
   );
 };
-

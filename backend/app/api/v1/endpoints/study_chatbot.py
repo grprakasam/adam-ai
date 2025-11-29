@@ -19,12 +19,18 @@ from app.modules.study_chatbot.schemas import (
     ChatResponse,
     SuggestedQuestionsResponse,
 )
-from app.modules.study_chatbot.service import StudyChatbotService
+
+# Use advanced service with sentence-transformers and FAISS
+try:
+    from app.modules.study_chatbot.advanced_service import AdvancedStudyChatbotService
+    study_chatbot_service = AdvancedStudyChatbotService()
+    logger.info("✅ Using Advanced RAG Service with semantic search")
+except Exception as e:
+    logger.warning(f"⚠️  Advanced service unavailable: {e}. Falling back to basic service.")
+    from app.modules.study_chatbot.service import StudyChatbotService
+    study_chatbot_service = StudyChatbotService()
 
 router = APIRouter(prefix="/study-chatbot", tags=["study-chatbot"])
-
-# Initialize service
-study_chatbot_service = StudyChatbotService()
 
 
 @router.post("/upload", response_model=dict)
