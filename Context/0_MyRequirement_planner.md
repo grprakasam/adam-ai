@@ -1,22 +1,57 @@
-i want to design the page for 'Code Comparer' tab in the application.
+Take the role of a technical archtiterct and also a senior developer
 
-the expected feature is that the ui should have options to import either sas code or r code and then compare the two codes and show the differences between the two codes.
+i want to design the page for 'Dataset Comparer' tab in the application.
 
-the compsarison should basically check on multiple paramaters like the code similairity, functionalal differences, logical differences, syntax difference and give a score based on the differences. it should also justify the reason for the scores.
+the expected feature is that the ui should have options in the ui to load 2 datsets in any format like csv, excel, sas, r, xpt formats
 
-the striking feature of this page is that it will be on par with market standard tools that will intelligently check the code similarity between the two codes and highlight the similaiarities and different with more visual clues
+it should then allow the user to select columns from both datasets to compare
 
-think like a coding review expert who is great in code comapriosns or ile comparisons and bring in this feature that is at industry grade
+then it should provide options to select the type of comparison like value comparison, structure comparison, summary statistics comparison etc.,
 
-the use case of this will be to compare the developer code and qc code to check how much each code is unique or similar and show the user a clear visual report of the differences and similarities.
+categorise the below features in an intuitive and logical way and present the options ofr the user to select from the appropriate choices based on the below features
+Note that the categorisation shall be in the perspective of an adam developer 
+Dataset Metadata
 
-you can also provide some sample code to compare and show the user a clear visual report of the differences and similarities.
+Creation dates
+Modification dates
+Number of variables (NVar)
+Number of observations (NObs)
+Dataset labels
 
-the design shall be in a way the code1 is on first column and code2 shall be on 2nd column and once the user clicks on the Compare button, the code comparison should be done and the results should be shown in a clear visual report.
+Variables
 
-Make this page as a master class in code comparisons and bring in the best of the industry standards in terms of ui/ux and design principles.
-search the internet and research papers to architect the best possible approach to implement the following features.                                                                                 
-ensure that the code comparison is done in a way that is very intuitive and simple and with a great domain centric logical flow.                            
+Variable names
+Variable types (character vs. numeric)
+Variables in common between datasets
+Variables present in only one dataset
+Variable attributes and properties
+
+Observations
+
+Total number of observations in each dataset
+Number of observations in common
+Number of observations with equal values
+Number of observations with unequal values across some or all variables
+
+Values
+
+Actual data values for matching variables
+Specific values that differ between datasets
+For numeric variables: the difference between values and maximum difference
+Missing values (with options to customize how they're treated)
+
+Comparison Results Summary
+
+Count of variables with all values equal
+Count of variables with one or more differences
+Which specific observations have differences
+Which specific variables have differences
+Statistical information about differences (when using options like ALLSTATS)
+
+
+Think like an expert in dataset comparison and design the ui and also it must be very simple and intuitive for the user . design like a pro and design the ui
+
+             
 
 allow your creativity and deep think to architect a workable plan and try to make a better possible approach and implement it
 
