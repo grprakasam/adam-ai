@@ -724,8 +724,8 @@ export const useProjectStore = create<ProjectStore>()(
       generateTraceability: async () => {
         const state = get();
 
-        if (!state.specificationFile) {
-          set({ traceabilityError: 'No specification file uploaded. Upload an Excel spec under Specification tab.' });
+          if (!state.specificationFile) {
+            set({ traceabilityError: 'No specification file uploaded. Upload an Excel specification in the configuration section of the Pair Programming workspace.' });
           return;
         }
 

@@ -47,6 +47,7 @@ interface UtilityFeature {
   actionLabel: string;
   gradient: string;
   color: string;
+  tagline?: string;
 }
 
 interface CategoryFeatures {
@@ -74,6 +75,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Generate your own sample SDTM Datasets',
       },
     ],
   },
@@ -93,6 +95,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Generate ADAM Dataset with SDTM Data+ ADAM Code',
       },
       {
         key: 'traceability',
@@ -104,10 +107,11 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'ADAM Specification Variables Traceability to SDTM',
       },
       {
         key: 'pair-programmer',
-        name: 'Pair Programmer',
+        name: 'ADAM AI Pair Programmer',
         path: '/workspace',
         icon: <CodeOutlined />,
         status: 'Live',
@@ -115,6 +119,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Get AI Assisted Code for ADAM Specification',
       },
     ],
   },
@@ -134,6 +139,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Generate your Tables, Listings, Figures based on Mockshells',
       },
     ],
   },
@@ -153,6 +159,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'AI support to Submission',
       },
     ],
   },
@@ -172,6 +179,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Structured AI Enabled approach to do proper SAS to R Migration',
       },
     ],
   },
@@ -191,6 +199,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Get answers to your queries about the Study Documents',
       },
       {
         key: 'code-comparer',
@@ -202,6 +211,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Compare Development and Validation Code and get metrics',
       },
       {
         key: 'dataset-comparer',
@@ -213,10 +223,11 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Compare Datasets and get differences between data',
       },
       {
         key: 'analytics',
-        name: 'Analytics',
+        name: 'Role based analytics',
         path: '/adam-data-analytics',
         icon: <DashboardOutlined />,
         status: 'In progress',
@@ -224,6 +235,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Coming Soon',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Analyse your data as a Statistician , Clinician',
       },
       {
         key: 'r-frontend',
@@ -235,6 +247,7 @@ const categorizedFeatures: CategoryFeatures[] = [
         actionLabel: 'Launch',
         gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
         color: '#1890ff',
+        tagline: 'Execute your R Programs',
       },
     ],
   },
@@ -360,6 +373,9 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout, o
                             </Tag>
                           </div>
                           <Title level={5} className="feature-name-visual">{feature.name}</Title>
+                          {feature.tagline && (
+                            <Text className="feature-tagline-visual">{feature.tagline}</Text>
+                          )}
                           <Button 
                             type="text"
                             className="feature-action-visual"
@@ -399,6 +415,9 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout, o
                           </Tag>
                         </div>
                         <Title level={5} className="feature-name-visual">{feature.name}</Title>
+                        {feature.tagline && (
+                          <Text className="feature-tagline-visual">{feature.tagline}</Text>
+                        )}
                         <Button 
                           type="text"
                           className="feature-action-visual"

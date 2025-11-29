@@ -5,6 +5,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 type CompareLanguage = 'sas' | 'r' | 'auto';
 type ComparisonMode = 'quick' | 'standard' | 'deep';
 
+export interface RequestOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
 export interface CodeComparisonRequest {
   code_1: string;
   code_2: string;
@@ -347,10 +352,58 @@ export const getAdamAnalyticsCorrelations = async (
 };
 
 /**
+ * Categorize specification by server-side path (default specifications or uploaded to server).
+ */
+export const categorizeSpecification = async (
+  specFilePath: string,
+  datasetType: string,
+  options?: RequestOptions,
+) => {
+  const response = await axios.post(
+    `${API_BASE_URL}/api/v1/specification/categorize-path`,
+    {
+      spec_file_path: specFilePath,
+      dataset_type: datasetType,
+    },
+    {
+      signal: options?.signal,
+      timeout: options?.timeoutMs ?? 120000,
+    },
+  );
+  return response.data;
+};
+
+/**
+ * Categorize specification by uploading a local file (client-side file upload).
+ */
+export const categorizeSpecificationFile = async (
+  file: File,
+  datasetType: string,
+  options?: RequestOptions,
+) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('dataset_type', datasetType);
+
+  const response = await axios.post(
+    `${API_BASE_URL}/api/v1/specification/categorize`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      signal: options?.signal,
+      timeout: options?.timeoutMs ?? 120000,
+    },
+  );
+  return response.data;
+};
+
+/**
  * Main ADAM AI API object
  */
 export const adamApi = {
   compareCode,
+  categorizeSpecification,
+  categorizeSpecificationFile,
   getAdamAnalyticsOverview,
   getAdamAnalyticsRoleInsights,
   uploadAdamAnalyticsFiles,

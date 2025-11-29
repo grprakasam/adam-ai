@@ -136,7 +136,9 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     setPairProgrammingAcceptance,
     setPairProgrammingSnippet,
     programmingLanguage,
-    categorizedVariables
+    categorizedVariables,
+    projectConfig,
+    specificationFile
   } = useProjectStore();
 
   // Get ALL variables from all categories for accurate counts
@@ -551,6 +553,26 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
               <div className="header-title-group">
               <h2 className="header-title">Pair Programming Area</h2>
               <div className="header-subtitle">
+                {(projectConfig.studyId || specificationFile?.name) && (
+                  <>
+                    {projectConfig.studyId && (
+                      <span className="header-study-info">
+                        Study: {projectConfig.studyId}
+                      </span>
+                    )}
+                    {projectConfig.studyId && specificationFile?.name && (
+                      <span className="header-divider">•</span>
+                    )}
+                    {specificationFile?.name && (
+                      <span className="header-file-info">
+                        File: {specificationFile.name}
+                      </span>
+                    )}
+                    {(projectConfig.studyId || specificationFile?.name) && (
+                      <span className="header-divider">•</span>
+                    )}
+                  </>
+                )}
                 <span className="header-category">{categoryName}</span>
                 <span className="header-divider">•</span>
                 <span className="header-count">

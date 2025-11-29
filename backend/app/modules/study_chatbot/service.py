@@ -242,12 +242,19 @@ Return as JSON array:
                 top_k=5
             )
 
+            # If keyword-based retrieval finds nothing (common for very general
+            # or meta questions like "What information is contained in the uploaded documents?"),
+            # fall back to representative overview chunks so the model can still
+            # summarize the uploaded content.
             if not relevant_chunks:
-                # No relevant chunks found
+                relevant_chunks = self._get_overview_chunks(kb, top_k=5)
+
+            if not relevant_chunks:
+                # No chunks could be selected at all
                 message = ChatMessage(
                     id=hashlib.md5(f"{request.session_id}{time.time()}".encode()).hexdigest(),
                     type="assistant",
-                    content="I could not find information related to your question in the uploaded documents. Please try rephrasing your question or ask about different topics covered in your documents.",
+                    content="I could not find readable content in the uploaded documents. Please check the files and try again.",
                     timestamp=datetime.now(),
                     sources=None
                 )
@@ -399,16 +406,27 @@ Return as JSON array:
         Current: Keyword-based (simple but effective)
         Production: Use sentence-transformers + FAISS
         """
-        all_chunks = []
+        all_chunks: List[Dict[str, Any]] = []
         for doc in kb['documents']:
             all_chunks.extend(doc['chunks'])
 
-        # Simple keyword scoring
-        query_keywords = set(query.lower().split())
+        if not all_chunks:
+            return []
 
-        scored_chunks = []
+        # Simple keyword scoring with light normalization
+        # NOTE: This intentionally stays lightweight, but we strip
+        # punctuation and very short tokens to make matching more robust.
+        def normalize(text: str) -> List[str]:
+            text = re.sub(r'[^a-zA-Z0-9]+', ' ', text.lower())
+            return [t for t in text.split() if len(t) > 2]
+
+        query_keywords = set(normalize(query))
+        if not query_keywords:
+            return []
+
+        scored_chunks: List[Tuple[int, Dict[str, Any]]] = []
         for chunk in all_chunks:
-            chunk_keywords = set(chunk['content'].lower().split())
+            chunk_keywords = set(normalize(chunk['content']))
             overlap = len(query_keywords & chunk_keywords)
             if overlap > 0:
                 scored_chunks.append((overlap, chunk))
@@ -416,6 +434,44 @@ Return as JSON array:
         # Sort by score and return top_k
         scored_chunks.sort(reverse=True, key=lambda x: x[0])
         return [chunk for score, chunk in scored_chunks[:top_k]]
+
+    def _get_overview_chunks(
+        self,
+        kb: Dict[str, Any],
+        top_k: int = 5
+    ) -> List[Dict[str, Any]]:
+        """
+        Fallback selection of representative chunks when direct retrieval fails.
+
+        Strategy:
+        - Take the first chunk from up to `top_k` documents
+        - If still fewer than `top_k` chunks, fill from remaining chunks
+
+        This allows the assistant to answer broad questions like
+        \"What information is contained in the uploaded documents?\" by
+        summarising a small but representative sample of the content.
+        """
+        documents: List[Dict[str, Any]] = kb.get('documents', [])
+        if not documents:
+            return []
+
+        overview_chunks: List[Dict[str, Any]] = []
+
+        # First pass: first chunk of each document
+        for doc in documents:
+            if doc.get('chunks'):
+                overview_chunks.append(doc['chunks'][0])
+                if len(overview_chunks) >= top_k:
+                    return overview_chunks
+
+        # Second pass: fill from remaining chunks
+        for doc in documents:
+            for chunk in doc.get('chunks', [])[1:]:
+                overview_chunks.append(chunk)
+                if len(overview_chunks) >= top_k:
+                    return overview_chunks
+
+        return overview_chunks
 
     def _build_context_with_citations(self, chunks: List[Dict[str, Any]]) -> str:
         """Build context string with clear citations"""
@@ -445,11 +501,14 @@ Return as JSON array:
         prompt = f"""You are a document Q&A assistant. Your job is to answer questions using ONLY the information provided in the context below.
 
 STRICT RULES:
-1. ONLY use information from the context below
-2. DO NOT use any external knowledge
-3. If the answer is not in the context, say: "I cannot find this information in the uploaded documents."
-4. Cite sources by referring to [Source X] references
-5. Be precise and factual
+1. ONLY use information from the context below.
+2. DO NOT use any external knowledge or assumptions beyond the context.
+3. ALWAYS provide a helpful answer to the user.
+   - If the context clearly answers the question, answer it directly.
+   - If the context only partially answers the question, explain what can be answered and what is missing.
+   - If the context does not directly address the question, clearly say that the documents do not contain a direct answer, then summarize the most relevant information from the context instead.
+4. Cite sources by referring to [Source X] references.
+5. Be precise and factual.
 6. {style_instructions.get(response_style, style_instructions['detailed'])}
 
 CONTEXT:

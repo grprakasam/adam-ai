@@ -13,12 +13,12 @@ import { TraceabilityTab } from './TraceabilityTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
 import { AdamGeneratorTab } from './AdamGeneratorTab';
 import { RFrontendTab } from './RFrontendTab';
-import { CodeValidatorTab } from './CodeValidatorTab';
 import { CodeComparerTab } from './CodeComparerTab';
 import { DatasetComparerTab } from './DatasetComparerTab';
 import { AdamAnalyticsTab } from './AdamAnalyticsTab';
 import { StudyChatbotTab } from './StudyChatbotTab';
 import { TLFGeneratorTab } from './TLFGeneratorTab';
+import EnterStudyDetailsPage from './EnterStudyDetailsPage';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { notifyUserError } from '../utils/errorNotifications';
@@ -31,16 +31,17 @@ interface RightPanelProps {
   completionPercentage: number;
   onUnlock: () => void;
   onSwitchProject?: () => void;
+  onOpenHelpCenter?: () => void;
 }
 
 type WorkspaceTabKey =
+  | 'study-details'
   | 'pair'
   | 'review'
   | 'consolidated'
   | 'adam-generator'
   | 'comparer'
   | 'submission'
-  | 'code-validator'
   | 'testdata'
   | 'traceability'
   | 'r-frontend'
@@ -53,13 +54,13 @@ type WorkspaceGroup = 'adamCoding' | 'adamValidation' | 'utilities';
 
 // Tab tooltips for better discoverability
 const TAB_TOOLTIPS: Record<string, string> = {
+  'study-details': 'Enter study information and upload ADAM specification file',
   pair: 'Generate AI code snippets for individual variables with pair programming assistance',
   review: 'Review and approve code variables with approval tracking and comments',
   consolidated: 'Consolidate approved variables into a complete, optimized ADAM program',
   'adam-generator': 'Execute and validate R programs to generate ADAM datasets',
   comparer: 'Compare ADAM datasets side-by-side and validate consistency',
   submission: 'Review readiness for regulatory submission with checklist and validation',
-  'code-validator': 'Validate and execute code snippets with syntax checks and Docker environment',
   testdata: 'Generate CDISC-compliant SDTM test data (prerequisite for ADAM development)',
   traceability: 'Track SDTM-to-ADAM lineage and create regulatory traceability documentation',
   'r-frontend': 'Professional R code execution environment - write and run any R scripts',
@@ -69,13 +70,21 @@ const TAB_TOOLTIPS: Record<string, string> = {
   'tlf-generator': 'AI-powered generation of Tables, Listings, and Figures from mockshell documents'
 };
 
-const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock, onSwitchProject }: RightPanelProps) => {
+const RightPanel = ({
+  generationResult,
+  language,
+  isUnlocked,
+  completionPercentage,
+  onUnlock,
+  onSwitchProject,
+  onOpenHelpCenter,
+}: RightPanelProps) => {
   const [editedCode, setEditedCode] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResults, setValidationResults] = useState<any>(null);
   const validationTimeoutRef = useRef<number | null>(null);
-  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>('pair');
+  const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<WorkspaceTabKey>('study-details');
   const [activeGroup, setActiveGroup] = useState<WorkspaceGroup>('adamCoding');
   const workspaceContentRef = useRef<HTMLDivElement | null>(null);
   const rightPanelRef = useRef<HTMLElement | null>(null);
@@ -85,8 +94,8 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
 
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
-    adamCoding: ['pair', 'review', 'consolidated'],
-    adamValidation: ['submission', 'code-validator'],
+    adamCoding: ['study-details', 'pair', 'review', 'consolidated'],
+    adamValidation: ['submission'],
     utilities: ['comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator'],
   };
 
@@ -121,6 +130,11 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       if (!path) return;
 
       switch (path) {
+        case '/study-details':
+        case '/enter-study-details':
+          setActiveGroup('adamCoding');
+          setActiveWorkspaceTab('study-details');
+          break;
         case '/pair-programming':
           setActiveGroup('adamCoding');
           setActiveWorkspaceTab('pair');
@@ -146,11 +160,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         case '/submission-package':
           setActiveGroup('adamValidation');
           setActiveWorkspaceTab('submission');
-          break;
-        case '/code-validator':
-        case '/validation-reports':
-          setActiveGroup('adamValidation');
-          setActiveWorkspaceTab('code-validator');
           break;
         case '/test-with-data':
           setActiveGroup('utilities');
@@ -281,12 +290,25 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
     try {
       const allItems = [
         {
+          key: 'study-details',
+          group: 'adamCoding' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['study-details']}>
+              <span>
+                <span style={{ fontWeight: 700, color: 'inherit' }}>1.</span> Enter Study Details{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <EnterStudyDetailsPage />,
+        },
+        {
           key: 'pair',
           group: 'adamCoding' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.pair}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>1.</span> Pair Programming{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>2.</span> Pair Programming{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -296,6 +318,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               onSwitchProject={onSwitchProject}
               onNavigateToConsolidated={navigateToConsolidated}
               onNavigateToTraceability={navigateToTraceability}
+              onOpenHelpCenter={onOpenHelpCenter}
             />
           ),
         },
@@ -305,7 +328,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           label: (
             <Tooltip title={TAB_TOOLTIPS.review}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>2.</span> Code Review{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>3.</span> Code Review{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -318,7 +341,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           label: (
             <Tooltip title={TAB_TOOLTIPS.consolidated}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>3.</span> Consolidated Code{' '}
+                <span style={{ fontWeight: 700, color: 'inherit' }}>4.</span> Consolidated Code{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -363,19 +386,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             </Tooltip>
           ),
           children: <SubmissionReadinessTab />,
-        },
-        {
-          key: 'code-validator',
-          group: 'adamValidation' as WorkspaceGroup,
-          label: (
-            <Tooltip title={TAB_TOOLTIPS['code-validator']}>
-              <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>6.</span> Code Validator{' '}
-                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
-              </span>
-            </Tooltip>
-          ),
-          children: <CodeValidatorTab />,
         },
         {
           key: 'testdata',
