@@ -1,1657 +1,1358 @@
-# Code Comparer Tab – Revised Implementation Plan
+# Enter Study Details & Study Chatbot – Revised Implementation Plan
+
 ## Executive Summary
 
-This revised plan enhances the initial implementation with industry best practices, improved UX patterns, and addresses critical gaps identified during review. The Code Comparer will be a **masterclass in code comparison**, leveraging Monaco DiffEditor, AI-powered analysis, and domain-specific insights for ADaM programmers.
+This revised plan addresses all requirements from `0_MyRequirement_planner.md`, integrates with existing architecture patterns from `TECH_STACK.md`, and provides comprehensive implementation details for building the "Enter Study Details" module as the **single source of truth** for study-specific data across the ADAM_AI application.
 
-### Key Enhancements Over Initial Plan:
-1. **Industry-grade diff visualization** using Monaco DiffEditor with inline annotations
-2. **Progressive disclosure UX** to avoid overwhelming users
-3. **Smart comparison modes** (quick, standard, deep analysis)
-4. **Enhanced accessibility** and keyboard navigation
-5. **Context-aware ADaM domain insights** with CDISC rule mapping
-6. **Export and sharing capabilities** for regulatory workflows
-7. **Performance optimizations** for large programs
-8. **Comprehensive error recovery** and graceful degradation
-
----
-
-## 1. Objectives & Context
-
-### 1.1 Vision
-Build an **industry-leading Code Comparer** that becomes the gold standard for comparing ADaM programs, combining:
-- Visual excellence of modern diff tools (GitHub, VS Code, Beyond Compare)
-- Intelligence of AI-powered analysis
-- Domain expertise for clinical trial programming
-
-### 1.2 Success Criteria
-- **Usability**: Users can compare two programs in <30 seconds
-- **Clarity**: 95% of differences correctly categorized by severity and type
-- **Trust**: Domain experts prefer this tool over manual comparison
-- **Performance**: Sub-3-second response for typical 500-line programs
-- **Accessibility**: WCAG 2.1 AA compliant
+**Key Improvements Over Initial Plan:**
+- ✅ Integration with existing `study_models.py` and `study_service.py`
+- ✅ Detailed state management strategy using existing Zustand patterns
+- ✅ Comprehensive error handling and edge case coverage
+- ✅ Performance optimization strategies
+- ✅ Security and compliance (21 CFR Part 11) considerations
+- ✅ Migration strategy for existing data
+- ✅ Testing strategy with specific coverage targets
+- ✅ Risk mitigation and rollback procedures
 
 ---
 
-## 2. Scope & Non-Goals
+## 1. Goals & Scope (Refined)
 
-### 2.1 In Scope (MVP with Enhancements)
+### Primary Goals
+1. **Central Study Hub**: "Enter Study Details" page becomes the **single source of truth** for all study metadata and documents
+2. **Study-Centric Architecture**: All modules (Pre-P21, CT Validator, ADRG/SDRG, eCTD, Pair Programming, TLF Generator) operate on `study_id` basis
+3. **Document Management**: Secure upload, storage, and retrieval of study documents (specs, SDTMs, ADaMs, SAPs, etc.)
+4. **Study Chatbot**: RAG-based assistant that answers **strictly** from uploaded study documents only
+5. **Seamless Integration**: Zero breaking changes to existing functionality; backward compatible
 
-**Core Functionality:**
-- Dedicated Code Comparer tab under AI Utilities
-- Import/paste support for SAS and R programs
-- Side-by-side Monaco DiffEditor with synchronized scrolling
-- Three comparison modes:
-  1. **Quick Compare** (static diff only, <1s)
-  2. **Standard Compare** (diff + basic AI categorization, <5s)
-  3. **Deep Analysis** (full AI + domain mapping, <15s)
-
-**Advanced Features:**
-- **Smart difference categorization**:
-  - Critical: Output-altering logic changes
-  - Important: Derivation rule differences
-  - Minor: Style/formatting differences
-  - Informational: Comments, whitespace
-- **Domain-aware insights**:
-  - Map differences to CDISC ADaM variables (e.g., "This affects AVAL derivation")
-  - Identify common patterns (baseline flags, treatment-emergent rules)
-  - Flag potential compliance issues
-- **Interactive features**:
-  - Click difference to jump to location
-  - Filter by severity/category
-  - "Show only differences" toggle
-  - Difference navigator (prev/next buttons)
-- **Export capabilities**:
-  - PDF comparison report
-  - HTML snapshot for documentation
-  - JSON diff data for programmatic access
-
-**Sample Programs:**
-- 4 curated examples (2 R + 2 SAS):
-  - Nearly identical code (>95% similar)
-  - Minor refactoring (70-90% similar)
-  - Functional differences (<70% similar)
-  - Cross-language comparison (R vs SAS for same derivation)
-
-### 2.2 Out of Scope (Future Phases)
-
-- Real-time collaborative comparison
-- Multi-way comparison (>2 programs)
-- Automated merge suggestions
-- Version control integration (Git, SVN)
-- Comparison history and audit trail (Phase 2)
-- Three-way merge conflict resolution
-
-### 2.3 Gaps Addressed from Initial Plan
-
-| Gap Identified | Solution |
-|----------------|----------|
-| No keyboard navigation mentioned | Full keyboard shortcuts (Alt+N/P for next/prev diff, Ctrl+D to toggle inline) |
-| Missing progressive disclosure | Collapsible sections, smart defaults, "Show only differences" mode |
-| No export/sharing capabilities | PDF report, HTML snapshot, shareable links |
-| Limited error handling details | Comprehensive error states, partial results on LLM failure |
-| No performance strategy for large files | Virtualization, diff chunking, progressive rendering |
-| Accessibility not addressed | ARIA labels, screen reader support, high contrast mode |
-| No user testing validation | Validation checklist and acceptance criteria added |
+### Success Criteria
+- ✅ Users can create/switch studies without losing context
+- ✅ All uploaded documents are accessible across all modules via `study_id`
+- ✅ Chatbot provides accurate, document-based answers with citations
+- ✅ Study switching updates all dependent pages automatically
+- ✅ Extensible schema supports future field additions without migrations
+- ✅ 21 CFR Part 11 compliant audit trails
 
 ---
 
-## 3. User Personas & Enhanced User Flows
+## 2. Architecture Integration & Enhancements
 
-### 3.1 Personas (Expanded)
+### 2.1 Integration with Existing Codebase
 
-1. **ADaM Developer** (Primary)
-   - Needs: Quick validation that QC code is functionally equivalent
-   - Pain points: Manual line-by-line review is time-consuming and error-prone
-   - Success: Can approve QC code with confidence in <5 minutes
+**Leverage Existing Infrastructure:**
+- ✅ **Study Models**: Extend `backend/app/models/study_models.py` (already exists)
+- ✅ **Study Service**: Enhance `backend/app/services/study_service.py` (already exists)
+- ✅ **Database**: Use existing Alembic migration `001_multi_study_architecture.py` as foundation
+- ✅ **State Management**: Extend `frontend/src/store/projectStore.ts` with study context
+- ✅ **API Patterns**: Follow existing FastAPI patterns from `tlf_generator.py`
 
-2. **QC Programmer/Reviewer** (Primary)
-   - Needs: Understand how their code differs from production code
-   - Pain points: Unclear which differences are acceptable vs problematic
-   - Success: Clear guidance on which differences require discussion
+**New Components to Build:**
+- `backend/app/api/v1/endpoints/studies.py` - Study CRUD endpoints
+- `backend/app/api/v1/endpoints/study_documents.py` - Document management
+- `backend/app/api/v1/endpoints/study_chat.py` - Chatbot endpoint
+- `backend/app/modules/studies/document_service.py` - Document processing
+- `backend/app/modules/studies/embedding_service.py` - Vector embeddings
+- `backend/app/modules/studies/rag_service.py` - Retrieval-augmented generation
+- `frontend/src/components/StudySelector.tsx` - Global study switcher
+- `frontend/src/components/EnterStudyDetailsPage.tsx` - Main study details page
+- `frontend/src/components/StudyChatbotPanel.tsx` - Chatbot UI
+- `frontend/src/store/studyStore.ts` - Study-specific state management
 
-3. **Lead Statistician** (Secondary)
-   - Needs: High-level assurance of code alignment without reading code
-   - Pain points: Lacks programming expertise to review code directly
-   - Success: Can read executive summary and trust similarity scores
+### 2.2 State Management Strategy
 
-4. **Regulatory Reviewer** (Future)
-   - Needs: Documented evidence of independent QC
-   - Pain points: Manual comparison reports are inconsistent
-   - Success: Standardized comparison report for submission package
-
-### 3.2 Primary User Flows (Enhanced)
-
-#### Flow 1: Quick Ad-Hoc Comparison (90% of use cases)
-```
-1. User clicks "Code Comparer" from Landing Page or Workspace Navigation
-2. Page loads with empty editors and "Get Started" guide
-3. User pastes Developer code (left) and QC code (right)
-   - Auto-detect language (SAS/R) or manual selection
-4. User clicks "Compare" (default: Standard mode)
-5. Within 3-5 seconds:
-   - DiffEditor highlights all differences
-   - Summary card shows: 87% similar, 3 critical, 5 minor differences
-   - Top 3 most important differences shown expanded
-6. User clicks "Show only differences" toggle
-   - Editors collapse to show only changed sections
-7. User clicks critical difference #1
-   - Both editors jump to line 142
-   - Difference detail panel explains: "Baseline flag condition differs: `ABLFL == 'Y'` vs `ABLFL == 1`"
-8. User navigates through differences with Alt+N shortcut
-9. User exports PDF report for documentation
-10. Done ✓
-```
-
-**Time to completion: 2-3 minutes** (vs 15-30 minutes manually)
-
-#### Flow 2: Deep Domain Analysis (10% of use cases)
-```
-1-4. [Same as Flow 1]
-5. User selects "Deep Analysis" mode and clicks "Compare"
-6. Progress indicator shows: "Analyzing syntax... Categorizing differences... Mapping to ADaM domains..."
-7. Within 10-15 seconds:
-   - All features from Standard mode PLUS:
-   - ADaM-specific insights: "This difference affects ADSL.SAFFL derivation"
-   - CDISC rule mapping: "Related to ADaM IG Section 3.2.1"
-   - Common pattern detection: "Both use treatment-emergent logic (TRTEMFL)"
-8. User reviews domain narrative in expandable panel
-9. User filters to show only "CDISC-relevant" differences
-10. User exports enhanced PDF with ADaM context
-```
-
-**Time to completion: 5-8 minutes** (provides regulatory-grade documentation)
-
-#### Flow 3: Learning with Samples
-```
-1. User opens Code Comparer (first time, no study loaded)
-2. Welcome screen shows "Try an Example" section
-3. User clicks "R Example: Baseline Flag Derivation"
-4. Both editors auto-populate with curated R code
-5. Comparison auto-runs in Standard mode
-6. Interactive tutorial overlay highlights key features:
-   - "Green = added lines, Red = removed, Blue = modified"
-   - "Click any difference to see details"
-   - "Try navigating with Alt+N/Alt+P"
-7. User explores sample, builds mental model
-8. User clicks "Clear" and starts their own comparison
-```
-
-**Onboarding time: <2 minutes**
-
----
-
-## 4. UX & Interaction Design (Industry Best Practices)
-
-### 4.1 Layout Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ [Header Bar]                                                    │
-│ Code Comparer | Compare SAS/R programs for ADaM datasets       │
-│                                        [Mode: Standard ▼] [⚙️]  │
-├─────────────────────────────────────────────────────────────────┤
-│ [Context Bar - Optional]                                        │
-│ 📁 Study: STUDY123 | Dataset: ADSL | 3 Critical Differences    │
-├──────────────────────────────┬──────────────────────────────────┤
-│                              │                                  │
-│  Code 1: Developer           │  Code 2: QC                      │
-│  [R ▼] [📋 Paste] [📂 Upload]│  [R ▼] [📋 Paste] [📂 Upload]    │
-│  ┌────────────────────────┐  │  ┌────────────────────────┐      │
-│  │                        │  │  │                        │      │
-│  │  Monaco DiffEditor     │◄─┼─►│  (Synchronized)        │      │
-│  │  (Original side)       │  │  │  (Modified side)       │      │
-│  │                        │  │  │                        │      │
-│  │                        │  │  │                        │      │
-│  └────────────────────────┘  │  └────────────────────────┘      │
-│                              │                                  │
-├──────────────────────────────┴──────────────────────────────────┤
-│ [Action Bar]                                                    │
-│  ☑️ Show only differences   [◀️ Prev] [▶️ Next]  [🔄 Compare]  │
-├─────────────────────────────────────────────────────────────────┤
-│ [Results Panel - Collapsible sections]                          │
-│                                                                 │
-│  ▼ Summary (Always expanded by default)                        │
-│     🎯 87% Similar | ⚠️ 3 Critical | ℹ️ 5 Minor                  │
-│                                                                 │
-│  ▼ Top Differences (Top 3 auto-expanded)                       │
-│     1. ⚠️ Critical: Baseline flag logic differs (Line 142)     │
-│        "Developer uses ABLFL == 'Y', QC uses ABLFL == 1"       │
-│     2. ⚠️ Critical: Missing WHERE clause in QC (Line 89)       │
-│     3. ℹ️ Minor: Variable naming: base_dt vs baseline_dt       │
-│                                                                 │
-│  ▶️ All Differences (12 total) - Click to expand                │
-│  ▶️ ADaM Domain Insights - Click to expand                      │
-│  ▶️ Syntax Issues (2) - Click to expand                         │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 4.2 Color Coding & Visual Language
-
-**Diff Highlighting (Monaco Standard + Enhancements):**
-- 🟢 **Green background**: Lines added in Code 2
-- 🔴 **Red background**: Lines removed from Code 1
-- 🔵 **Blue outline**: Lines modified (changed content)
-- 🟡 **Yellow highlight**: Character-level changes within modified lines
-- ⚪ **Gray text**: Identical lines (dimmed when "Show only differences" enabled)
-
-**Severity Indicators:**
-- 🔴 **Critical** (Red badge): Output-altering differences
-- 🟠 **Important** (Orange badge): Logic differences, potential issues
-- 🔵 **Minor** (Blue badge): Style, naming, non-functional changes
-- ⚪ **Informational** (Gray badge): Comments, whitespace
-
-**Accessibility:**
-- All colors have 4.5:1 contrast ratio minimum
-- Icons paired with text labels
-- Pattern fills for colorblind users (e.g., diagonal stripes for critical)
-
-### 4.3 Comparison Modes (Smart Defaults)
-
-| Mode | Speed | LLM Used | Use Case |
-|------|-------|----------|----------|
-| **Quick** | <1s | No | Just show me the diff |
-| **Standard** (Default) | 3-5s | Light | Categorize differences, basic insights |
-| **Deep Analysis** | 10-15s | Full | ADaM domain mapping, regulatory context |
-
-**Progressive Enhancement:**
-- All modes show immediate visual diff
-- AI analysis loads progressively (don't block diff rendering)
-- "Deep Analysis" can be triggered after Standard if needed
-
-### 4.4 Interactive Features
-
-**Difference Navigation:**
-- **Next/Previous buttons**: Navigate through differences in document order
-- **Keyboard shortcuts**:
-  - `Alt+N` / `Alt+P`: Next/Previous difference
-  - `Ctrl+D`: Toggle "Show only differences"
-  - `Ctrl+F`: Find in both files
-  - `Escape`: Close detail panels
-- **Jump-to-line**: Click difference in results panel → both editors scroll to location
-
-**Filtering & Grouping:**
-- Filter by severity: [All] [Critical] [Important] [Minor]
-- Filter by type: [All] [Functional] [Logical] [Syntax] [Style]
-- Group by: [Location] [Severity] [Type] [ADaM Domain]
-
-**Expandable Sections:**
-- Summary: Always expanded
-- Top 3 Differences: Expanded by default
-- All Differences: Collapsed initially
-- ADaM Insights: Collapsed initially
-- Syntax Issues: Expanded only if issues found
-
-### 4.5 Monaco DiffEditor Configuration
-
-**Implementation Details:**
-```typescript
-import { DiffEditor } from '@monaco-editor/react';
-
-<DiffEditor
-  original={code1}
-  modified={code2}
-  language={detectedLanguage}
-  theme="vs-light" // or "vs-dark" based on app theme
-  options={{
-    renderSideBySide: true, // Side-by-side view
-    readOnly: true, // No editing in compare mode
-    renderOverviewRuler: true, // Minimap with diff indicators
-    scrollBeyondLastLine: false,
-    fontSize: 13,
-    minimap: { enabled: true },
-    wordWrap: 'off',
-    diffWordWrap: 'off',
-
-    // Enhanced diff features
-    enableSplitViewResizing: true, // User can resize panes
-    renderIndicators: true, // Show +/- indicators
-    ignoreTrimWhitespace: ignoreWhitespaceOption,
-
-    // Accessibility
-    accessibilitySupport: 'on',
-    ariaLabel: 'Code comparison editor',
-  }}
-  onMount={(editor) => {
-    // Get access to both editors
-    const originalEditor = editor.getOriginalEditor();
-    const modifiedEditor = editor.getModifiedEditor();
-
-    // Setup diff navigator for keyboard shortcuts
-    const diffNavigator = monaco.editor.createDiffNavigator(editor, {
-      followsCaret: true,
-      ignoreCharChanges: true,
-    });
-
-    // Add custom keybindings
-    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyN, () => {
-      diffNavigator.next();
-    });
-
-    editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.KeyP, () => {
-      diffNavigator.previous();
-    });
-  }}
-/>
-```
-
-**Fallback Strategy:**
-- If DiffEditor fails to load: Fall back to two separate Editor instances
-- Manually overlay diff decorations using Monaco's decoration API
-- Maintain same UX with custom implementation
-
-### 4.6 Sample Programs (Curated Examples)
-
-**Sample 1: R - Nearly Identical (95% similar)**
-```r
-# Developer Code
-adsl <- sdtm$dm %>%
-  mutate(
-    SAFFL = if_else(!is.na(RFSTDTC), "Y", "N"),
-    ITTFL = if_else(ARMCD != "SCRNFAIL", "Y", "N")
-  )
-
-# QC Code (style difference only)
-adsl <- sdtm$dm %>%
-  mutate(
-    SAFFL = ifelse(!is.na(RFSTDTC), "Y", "N"),  # Different function
-    ITTFL = ifelse(ARMCD != "SCRNFAIL", "Y", "N")
-  )
-```
-**Expected Output:** 95% similar, 1 minor difference (if_else vs ifelse)
-
-**Sample 2: SAS - Functional Difference (65% similar)**
-```sas
-/* Developer Code */
-data adsl;
-  set sdtm.dm;
-  if rfstdtc ne '' then saffl = 'Y';
-  else saffl = 'N';
-run;
-
-/* QC Code */
-data adsl;
-  set sdtm.dm;
-  saffl = 'N';  /* Missing: Reversed logic! */
-  if rfstdtc = '' then saffl = 'Y';
-run;
-```
-**Expected Output:** 65% similar, 1 critical difference (reversed boolean logic)
-
-**Sample 3: R - Logic Difference (72% similar)**
-```r
-# Baseline flag: Different window definitions
-# Developer: Last pre-dose value
-# QC: Closest to Day 1
-```
-
-**Sample 4: Cross-Language (SAS vs R)**
-```r
-# Same derivation, different languages
-# Test AI's ability to detect functional equivalence
-```
-
----
-
-## 5. Functional Requirements (Enhanced)
-
-### 5.1 Input Validation
-
-**Required Inputs:**
-- `code_1: string` (1 to 50,000 characters)
-- `code_2: string` (1 to 50,000 characters)
-
-**Optional Inputs:**
-- `language_1, language_2`: `"sas" | "r" | "auto"`
-- `comparison_mode`: `"quick" | "standard" | "deep"`
-- `options`:
-  - `ignore_whitespace: boolean` (default: true)
-  - `ignore_comments: boolean` (default: false)
-  - `case_sensitive: boolean` (default: false for SAS, true for R)
-- `context` (for deep analysis):
-  - `study_id: string`
-  - `dataset: string` (e.g., ADSL, ADAE)
-
-**Validation Rules:**
-- Reject if both codes are empty
-- Warn if codes are identical (offer to cancel comparison)
-- Limit to 50,000 chars per side (~2000 lines) for MVP
-- For larger files: Offer to compare in chunks or export for offline comparison
-
-### 5.2 Output Schema (Comprehensive)
+**Extend Existing Zustand Store Pattern:**
 
 ```typescript
-interface CodeComparisonResult {
-  // High-level scores
-  overall_similarity_score: number; // 0-100
-  classification_label: "Very similar" | "Similar with differences" |
-                        "Moderately different" | "Significantly different";
-
-  // Subscores
-  subscores: {
-    code_similarity: number; // Static diff ratio (0-100)
-    functional_equivalence: number; // AI assessment (0-100)
-    logical_alignment: number; // Same intent, different approach (0-100)
-    syntax_quality: number; // Both codes syntactically valid (0-100)
-  };
-
-  // Executive summary
-  summary: {
-    total_differences: number;
-    critical_count: number;
-    important_count: number;
-    minor_count: number;
-    executive_narrative: string; // 2-3 sentence summary
-  };
-
-  // Categorized differences
-  differences: Difference[];
-
-  // Domain insights (Deep Analysis mode only)
-  adam_insights?: {
-    affected_variables: string[]; // e.g., ["SAFFL", "ITTFL"]
-    cdisc_rules_referenced: string[]; // e.g., ["ADaM IG 3.2.1"]
-    common_patterns_detected: string[]; // e.g., ["Treatment-emergent logic"]
-    potential_compliance_issues: ComplianceIssue[];
-  };
-
-  // Syntax issues
-  syntax_issues: SyntaxIssue[];
-
-  // Metadata
-  metadata: {
-    comparison_mode: "quick" | "standard" | "deep";
-    language_1: string;
-    language_2: string;
-    execution_time_ms: number;
-    llm_used: boolean;
-  };
+// frontend/src/store/studyStore.ts
+interface StudyStore {
+  // Current study context
+  currentStudyId: string | null;
+  currentStudy: Study | null;
+  
+  // Study list cache
+  studies: StudyListItem[];
+  studiesLoading: boolean;
+  
+  // Study documents cache
+  documents: Record<string, StudyDocument[]>; // keyed by study_id
+  documentsLoading: Record<string, boolean>;
+  
+  // Chatbot state
+  chatSessions: Record<string, ChatSession[]>; // keyed by study_id
+  activeChatSession: string | null;
+  
+  // Actions
+  setCurrentStudy: (studyId: string) => Promise<void>;
+  loadStudies: () => Promise<void>;
+  loadStudyDocuments: (studyId: string) => Promise<void>;
+  createStudy: (data: CreateStudyRequest) => Promise<Study>;
+  updateStudy: (studyId: string, data: UpdateStudyRequest) => Promise<Study>;
+  uploadDocument: (studyId: string, file: File, metadata: DocumentMetadata) => Promise<StudyDocument>;
+  sendChatMessage: (studyId: string, message: string, sessionId?: string) => Promise<ChatResponse>;
+  
+  // Computed
+  getStudyDocuments: (studyId: string, type?: DocumentType) => StudyDocument[];
+  getStudyConfig: (studyId: string) => StudyConfig | null;
 }
 
-interface Difference {
-  id: string;
-  type: "functional" | "logical" | "syntax" | "style" | "comment";
-  severity: "critical" | "important" | "minor" | "informational";
-
-  // Location
-  code1_span: { start_line: number; end_line: number; } | null;
-  code2_span: { start_line: number; end_line: number; } | null;
-
-  // Description
-  title: string; // "Baseline flag logic differs"
-  summary: string; // One-liner
-  details?: string; // Longer explanation
-
-  // ADaM context (Deep Analysis only)
-  adam_context?: {
-    affected_variables: string[];
-    impact_description: string;
-  };
-
-  // Suggested action
-  recommendation?: "Review required" | "Acceptable difference" | "Fix QC code";
-}
-
-interface SyntaxIssue {
-  side: "code1" | "code2";
-  line: number;
-  severity: "error" | "warning";
-  message: string;
-  code_snippet?: string;
-}
-
-interface ComplianceIssue {
-  rule_id: string; // e.g., "CDISC-ADAM-3.2.1"
-  description: string;
-  affected_code_side: "code1" | "code2" | "both";
-}
+// Integration with existing projectStore
+// projectStore.ts will reference studyStore for study context
 ```
+
+**Global Study Context Provider:**
+- Wrap app with `StudyContextProvider` to broadcast study changes
+- Use React Context + Zustand for reactive updates across components
+- Persist `currentStudyId` in localStorage for session restoration
+
+### 2.3 Backend Service Layer Architecture
+
+**Follow Existing Module Pattern:**
+
+```
+backend/app/modules/studies/
+├── __init__.py
+├── models.py              # Domain models (extend study_models.py)
+├── service.py             # Business logic (extend study_service.py)
+├── document_service.py    # Document upload, storage, processing
+├── embedding_service.py   # Vector embeddings generation
+├── rag_service.py         # Retrieval-augmented generation
+└── context_service.py     # Helper for other modules to get study context
+```
+
+**Integration Points:**
+- `StudyContextService.get_study_summary(study_id)` - Used by all modules
+- `StudyContextService.get_study_documents(study_id, type)` - Used by validators
+- `StudyContextService.get_study_dataset_selection(study_id)` - Used by pair programming
 
 ---
 
-## 6. Frontend Architecture (Best Practices)
+## 3. Enhanced Data Model & Database Design
 
-### 6.1 Component Hierarchy
+### 3.1 Extend Existing Study Schema
 
-```
-CodeComparerTab/ (Main Container)
-├── CodeComparerHeader
-│   ├── Title & Subtitle
-│   ├── Context Tags (Study, Dataset)
-│   └── Mode Selector & Settings
-├── CodeComparerEditors
-│   ├── EditorToolbar (Left)
-│   │   ├── Language Selector
-│   │   ├── Paste Button
-│   │   ├── Upload Button
-│   │   └── Load Sample Menu
-│   ├── DiffEditorWrapper
-│   │   └── Monaco DiffEditor
-│   ├── EditorToolbar (Right)
-│   └── DiffNavigator (Prev/Next)
-├── CodeComparerActionBar
-│   ├── Compare Button
-│   ├── Mode Selector
-│   ├── Show Only Differences Toggle
-│   └── Progress Indicator
-├── CodeComparerResults
-│   ├── SummaryCard
-│   │   ├── Similarity Score Gauge
-│   │   ├── Difference Counts
-│   │   └── Executive Narrative
-│   ├── TopDifferences (Auto-expanded)
-│   ├── AllDifferencesList (Collapsible)
-│   │   ├── DifferenceFilter
-│   │   └── DifferenceItem (clickable)
-│   ├── AdamInsightsPanel (Collapsible, Deep mode only)
-│   └── SyntaxIssuesPanel (Collapsible)
-└── CodeComparerExport
-    ├── Export PDF Button
-    ├── Export HTML Button
-    └── Copy Shareable Link
-```
-
-### 6.2 State Management
-
-**Component State (`CodeComparerTab.tsx`):**
-```typescript
-interface CodeComparerState {
-  // Input state
-  code1: string;
-  code2: string;
-  language1: Language;
-  language2: Language;
-
-  // Comparison options
-  comparisonMode: "quick" | "standard" | "deep";
-  ignoreWhitespace: boolean;
-  ignoreComments: boolean;
-  caseSensitive: boolean;
-
-  // UI state
-  isComparing: boolean;
-  showOnlyDifferences: boolean;
-  activeDifferenceId: string | null;
-
-  // Results
-  result: CodeComparisonResult | null;
-  error: ApiError | null;
-
-  // Export state
-  isExporting: boolean;
-  exportFormat: "pdf" | "html" | "json";
-}
-```
-
-**Why Component State (Not Zustand):**
-- Comparison is session-based, no need for global persistence
-- Keep state management simple for MVP
-- Can migrate to Zustand in Phase 2 if history/sharing features added
-
-**State Transitions:**
-```
-EMPTY → READY → COMPARING → SUCCESS → RESULT_DISPLAYED
-                     ↓
-                   ERROR → READY (retry)
-```
-
-### 6.3 API Integration
-
-**New API Method (`api.ts`):**
-```typescript
-export const compareCode = async (
-  request: CodeComparisonRequest
-): Promise<CodeComparisonResult> => {
-  try {
-    const response = await apiClient.post('/code-comparer/analyze', request);
-    return response.data;
-  } catch (error) {
-    // Map backend errors to user-friendly messages
-    if (error.response?.status === 413) {
-      throw new Error('Code too large. Please limit to 2000 lines per file.');
-    }
-    if (error.response?.status === 400) {
-      throw new Error(error.response.data.detail || 'Invalid input');
-    }
-    if (error.response?.status === 503) {
-      throw new Error('Analysis service temporarily unavailable. Showing basic diff only.');
-    }
-    throw error;
-  }
-};
-```
-
-**Error Handling Strategy:**
-- **Partial success**: If static diff works but LLM fails, show diff + warning
-- **Complete failure**: Clear error message with retry button
-- **Timeout**: After 30s, offer to cancel or continue waiting
-
-### 6.4 Performance Optimizations
-
-**Large File Handling:**
-1. **Virtualization**: Use `react-window` for difference list (1000+ differences)
-2. **Diff Chunking**: For files >1000 lines, process diff in chunks
-3. **Progressive Rendering**:
-   - Render visual diff immediately
-   - Load AI analysis in background
-   - Update UI as results arrive
-4. **Web Worker**: Offload diff computation to Web Worker (future)
-
-**Monaco Optimizations:**
-```typescript
-options={{
-  // Limit expensive features for large files
-  minimap: { enabled: code1.length < 10000 },
-  renderValidationDecorations: 'off', // Disable for performance
-  quickSuggestions: false,
-  parameterHints: { enabled: false },
-}}
-```
-
-### 6.5 Accessibility (WCAG 2.1 AA)
-
-**Keyboard Navigation:**
-- All interactive elements accessible via Tab
-- Difference navigation: Alt+N/P
-- Toggle features: Ctrl+D, Ctrl+F
-- Escape to close panels
-
-**Screen Reader Support:**
-```tsx
-<div role="region" aria-label="Code comparison results">
-  <div role="status" aria-live="polite">
-    {isComparing ? "Comparing code..." : `Comparison complete. ${result.summary.total_differences} differences found.`}
-  </div>
-
-  <button
-    onClick={handleNextDifference}
-    aria-label="Navigate to next difference"
-    aria-keyshortcuts="Alt+N"
-  >
-    Next
-  </button>
-</div>
-```
-
-**Visual Accessibility:**
-- High contrast mode support
-- Minimum 13px font size in editors
-- 4.5:1 color contrast for all text
-- Focus indicators on all interactive elements
-
----
-
-## 7. Backend Architecture (Robust & Scalable)
-
-### 7.1 API Endpoint Design
-
-**New Router: `backend/app/api/v1/endpoints/code_comparer.py`**
+**Build on `backend/alembic/versions/001_multi_study_architecture.py`:**
 
 ```python
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from app.schemas.code_comparer import CodeComparisonRequest, CodeComparisonResult
-from app.services.code_comparer_service import CodeComparerService
+# Additional tables to add via new migration
 
-router = APIRouter(prefix="/code-comparer", tags=["code-comparer"])
-
-@router.post("/analyze", response_model=CodeComparisonResult)
-async def analyze_code_comparison(
-    request: CodeComparisonRequest,
-    background_tasks: BackgroundTasks,
-):
-    """
-    Compare two code snippets and return detailed analysis.
-
-    - **Quick mode**: <1s, static diff only
-    - **Standard mode**: 3-5s, diff + AI categorization
-    - **Deep mode**: 10-15s, full AI + domain mapping
-    """
-    try:
-        service = CodeComparerService()
-        result = await service.compare(request)
-
-        # Log analytics in background (non-blocking)
-        background_tasks.add_task(
-            log_comparison_analytics,
-            result.metadata,
-            request.context,
-        )
-
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except TimeoutError:
-        raise HTTPException(status_code=503, detail="Analysis timeout. Try Quick mode.")
-    except Exception as e:
-        logger.error(f"Code comparison failed: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-```
-
-### 7.2 Service Layer Design
-
-**`backend/app/services/code_comparer_service.py`**
-
-```python
-class CodeComparerService:
-    """
-    Orchestrates code comparison pipeline:
-    1. Preprocessing & validation
-    2. Static diff computation
-    3. Syntax checking
-    4. AI-powered categorization (optional)
-    5. ADaM domain mapping (Deep mode only)
-    """
-
-    async def compare(self, request: CodeComparisonRequest) -> CodeComparisonResult:
-        # 1. Preprocess
-        code1_norm, code2_norm = self._preprocess(
-            request.code_1,
-            request.code_2,
-            request.options
-        )
-
-        # 2. Static diff (always runs, <1s)
-        diff_result = self._compute_diff(code1_norm, code2_norm)
-        similarity_score = diff_result.similarity_ratio * 100
-
-        # 3. Syntax check (parallel, <500ms)
-        syntax_issues = await asyncio.gather(
-            self._check_syntax(request.code_1, request.language_1),
-            self._check_syntax(request.code_2, request.language_2),
-        )
-
-        # 4. AI categorization (Standard & Deep modes)
-        if request.comparison_mode in ["standard", "deep"]:
-            differences = await self._categorize_with_ai(
-                diff_result,
-                request.language_1,
-                request.language_2
-            )
-        else:
-            differences = self._basic_categorization(diff_result)
-
-        # 5. ADaM domain mapping (Deep mode only)
-        adam_insights = None
-        if request.comparison_mode == "deep" and request.context:
-            adam_insights = await self._analyze_adam_domain(
-                differences,
-                request.context.study_id,
-                request.context.dataset,
-            )
-
-        # 6. Assemble result
-        return CodeComparisonResult(
-            overall_similarity_score=similarity_score,
-            classification_label=self._classify_similarity(similarity_score),
-            subscores=self._compute_subscores(diff_result, differences),
-            summary=self._generate_summary(differences),
-            differences=differences,
-            adam_insights=adam_insights,
-            syntax_issues=syntax_issues,
-            metadata=self._build_metadata(request),
-        )
-```
-
-### 7.3 AI Integration Strategy
-
-**Prompt Engineering for Categorization:**
-```python
-async def _categorize_with_ai(
-    self,
-    diff_result: DiffResult,
-    lang1: str,
-    lang2: str
-) -> List[Difference]:
-    """
-    Use LLM to categorize each difference by:
-    - Type: functional, logical, syntax, style
-    - Severity: critical, important, minor
-    - Impact: what changes in behavior
-    """
-
-    # Prepare context for LLM
-    prompt = f"""
-You are an expert {lang1}/{lang2} code reviewer specializing in clinical trial data programming (CDISC ADaM).
-
-Compare these two code snippets:
-
-CODE 1 (Developer):
-{diff_result.code1_context}
-
-CODE 2 (QC):
-{diff_result.code2_context}
-
-DIFFERENCES DETECTED:
-{diff_result.diff_hunks}
-
-For each difference, provide:
-1. Type: functional (changes output), logical (different approach), style (formatting), or comment
-2. Severity: critical (must fix), important (should review), minor (acceptable)
-3. Title: Brief description (max 50 chars)
-4. Summary: One sentence explanation
-5. Recommendation: "Review required", "Acceptable difference", or "Fix QC code"
-
-Output as JSON array.
-"""
-
-    # Use existing LLM integration with retry logic
-    llm_response = await self.llm_service.generate(
-        prompt=prompt,
-        model="gpt-4o-mini",  # Fast, accurate for categorization
-        temperature=0.1,  # Deterministic
-        timeout=10,  # 10s max
+# StudyDatasetSelection (already partially exists, enhance)
+class StudyDatasetSelection(Base):
+    __tablename__ = 'study_dataset_selections'
+    
+    id = Column(String(50), primary_key=True)
+    study_id = Column(String(255), ForeignKey('studies.id'), nullable=False, index=True)
+    dataset_name = Column(String(50), nullable=False)  # ADSL, ADAE, ADLB, etc.
+    language = Column(String(10), nullable=False)  # R, SAS, Both
+    is_active = Column(Boolean, default=True)
+    priority = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        UniqueConstraint('study_id', 'dataset_name', name='uq_study_dataset'),
+        Index('idx_study_dataset_active', 'study_id', 'is_active'),
     )
 
-    return self._parse_llm_categorization(llm_response)
+# StudyDocument (new table)
+class StudyDocument(Base):
+    __tablename__ = 'study_documents'
+    
+    id = Column(String(50), primary_key=True)
+    study_id = Column(String(255), ForeignKey('studies.id'), nullable=False, index=True)
+    document_type = Column(String(50), nullable=False)  # SPECIFICATION, SAP, ADAM_SPEC, etc.
+    file_name = Column(String(255), nullable=False)
+    original_file_name = Column(String(255), nullable=False)
+    storage_path = Column(String(500), nullable=False)  # S3 key or local path
+    storage_url = Column(String(500))  # Pre-signed URL (if S3)
+    mime_type = Column(String(100))
+    size_bytes = Column(BigInteger)
+    version_label = Column(String(50))
+    tags = Column(JSONB)  # {"visit": "week12", "dataset": "ADSL"}
+    uploaded_by = Column(String(255), ForeignKey('users.id'), nullable=False)
+    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    is_active = Column(Boolean, default=True)
+    processing_status = Column(String(50), default='pending')  # pending, processing, completed, failed
+    extracted_text = Column(Text)  # For chatbot retrieval
+    metadata = Column(JSONB)  # Page count, sections, etc.
+    
+    __table_args__ = (
+        Index('idx_study_doc_type', 'study_id', 'document_type', 'is_active'),
+        Index('idx_study_doc_active', 'study_id', 'is_active'),
+    )
+
+# DocumentEmbedding (for vector search)
+class DocumentEmbedding(Base):
+    __tablename__ = 'document_embeddings'
+    
+    id = Column(String(50), primary_key=True)
+    study_document_id = Column(String(50), ForeignKey('study_documents.id'), nullable=False, index=True)
+    chunk_id = Column(String(50), nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    chunk_text = Column(Text, nullable=False)
+    embedding_vector = Column(JSONB)  # Store as JSON array, or use pgvector if available
+    metadata = Column(JSONB)  # page_number, section, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        Index('idx_embedding_doc', 'study_document_id', 'chunk_index'),
+    )
+
+# StudyChatSession
+class StudyChatSession(Base):
+    __tablename__ = 'study_chat_sessions'
+    
+    id = Column(String(50), primary_key=True)
+    study_id = Column(String(255), ForeignKey('studies.id'), nullable=False, index=True)
+    title = Column(String(255))
+    created_by = Column(String(255), ForeignKey('users.id'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    __table_args__ = (
+        Index('idx_chat_session_study', 'study_id', 'created_at'),
+    )
+
+# StudyChatMessage
+class StudyChatMessage(Base):
+    __tablename__ = 'study_chat_messages'
+    
+    id = Column(String(50), primary_key=True)
+    session_id = Column(String(50), ForeignKey('study_chat_sessions.id'), nullable=False, index=True)
+    role = Column(String(20), nullable=False)  # user, assistant, system
+    content = Column(Text, nullable=False)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    source_document_ids = Column(JSONB)  # List of document IDs used for answer
+    model_used = Column(String(100))  # gemini-2.5-flash, etc.
+    tokens_used = Column(Integer)
+    
+    __table_args__ = (
+        Index('idx_chat_msg_session', 'session_id', 'timestamp'),
+    )
 ```
 
-**Graceful Degradation:**
-- If LLM times out: Return static diff-based categorization
-- If LLM returns invalid JSON: Fall back to heuristics
-- Never fail the entire comparison due to AI failure
+### 3.2 Migration Strategy
 
-### 7.4 Static Analysis Modules
+**Create New Migration: `002_study_documents_and_chat.py`**
 
-**Diff Computation (`diff_engine.py`):**
 ```python
-import difflib
-from dataclasses import dataclass
-
-@dataclass
-class DiffResult:
-    similarity_ratio: float  # 0.0 to 1.0
-    diff_hunks: List[DiffHunk]
-    total_lines_1: int
-    total_lines_2: int
-    added_lines: int
-    removed_lines: int
-    modified_lines: int
-
-class DiffEngine:
-    def compute(self, code1: str, code2: str) -> DiffResult:
-        """Compute detailed diff using Python's difflib."""
-        lines1 = code1.splitlines()
-        lines2 = code2.splitlines()
-
-        # Compute similarity
-        matcher = difflib.SequenceMatcher(None, code1, code2)
-        similarity = matcher.ratio()
-
-        # Get diff hunks
-        diff = difflib.unified_diff(lines1, lines2, lineterm='')
-        hunks = self._parse_unified_diff(diff)
-
-        return DiffResult(
-            similarity_ratio=similarity,
-            diff_hunks=hunks,
-            total_lines_1=len(lines1),
-            total_lines_2=len(lines2),
-            added_lines=sum(1 for h in hunks if h.type == 'add'),
-            removed_lines=sum(1 for h in hunks if h.type == 'remove'),
-            modified_lines=sum(1 for h in hunks if h.type == 'change'),
-        )
+# Key considerations:
+1. Non-breaking: All new tables, no modifications to existing
+2. Backward compatible: Existing code continues to work
+3. Idempotent: Safe to run multiple times
+4. Data migration: Optional backfill for existing studies
 ```
 
-**Syntax Checker (`syntax_checker.py`):**
+**Migration Steps:**
+1. Create new tables with proper foreign keys
+2. Add indexes for performance
+3. Set up constraints (unique, check)
+4. Optional: Backfill existing study data if any
+5. Verify no breaking changes to existing queries
+
+---
+
+## 4. Enhanced Backend API Design
+
+### 4.1 Study CRUD Endpoints
+
+**File: `backend/app/api/v1/endpoints/studies.py`**
+
 ```python
-class SyntaxChecker:
-    """Lightweight syntax validation (no code execution)."""
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import List, Optional
+from app.models.study_models import Study, StudyCreate, StudyUpdate, StudyListItem
+from app.services.study_service import StudyService
+from app.dependencies import get_db, get_current_user
 
-    async def check_r(self, code: str) -> List[SyntaxIssue]:
-        """Check R code for basic syntax errors."""
-        issues = []
+router = APIRouter(prefix="/studies", tags=["studies"])
 
-        # Check balanced brackets
-        if not self._is_balanced(code, ['(', ')'], ['[', ']'], ['{', '}']):
-            issues.append(SyntaxIssue(
-                line=self._find_unbalanced_line(code),
-                severity="error",
-                message="Unbalanced brackets/parentheses",
-            ))
-
-        # Check unclosed strings
-        if self._has_unclosed_strings(code):
-            issues.append(SyntaxIssue(
-                line=self._find_unclosed_string_line(code),
-                severity="error",
-                message="Unclosed string literal",
-            ))
-
-        # Optional: Use R parser in subprocess (isolated)
-        # Only if available and safe
-
-        return issues
-
-    async def check_sas(self, code: str) -> List[SyntaxIssue]:
-        """Check SAS code for basic syntax errors."""
-        issues = []
-
-        # Check for missing semicolons
-        lines = code.splitlines()
-        for i, line in enumerate(lines):
-            stripped = line.strip()
-            if stripped and not stripped.endswith(';') and \
-               not stripped.endswith('/*') and \
-               not stripped.startswith('/*') and \
-               not stripped.startswith('*'):
-                # Heuristic: likely missing semicolon
-                issues.append(SyntaxIssue(
-                    line=i + 1,
-                    severity="warning",
-                    message="Possible missing semicolon",
-                ))
-
-        return issues
-```
-
-### 7.5 ADaM Domain Analyzer (Deep Mode)
-
-**`adam_domain_analyzer.py`:**
-```python
-class AdamDomainAnalyzer:
+@router.get("", response_model=List[StudyListItem])
+async def list_studies(
+    search: Optional[str] = Query(None),
+    tag: Optional[str] = Query(None),
+    is_active: bool = Query(True),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
     """
-    Maps code differences to ADaM domain concepts:
-    - Which ADaM variables are affected?
-    - Which CDISC rules apply?
-    - What are common patterns in ADaM programming?
+    List studies with filtering and pagination
+    - Supports search by name/protocol
+    - Filter by tags
+    - Pagination support
+    """
+    service = StudyService(db, current_user)
+    return await service.list_studies(
+        search=search,
+        tag=tag,
+        is_active=is_active,
+        page=page,
+        page_size=page_size
+    )
+
+@router.post("", response_model=Study, status_code=201)
+async def create_study(
+    study_data: StudyCreate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Create a new study
+    - Generates unique study_id
+    - Sets up default configurations
+    - Returns full study object
+    """
+    service = StudyService(db, current_user)
+    return await service.create_study(study_data)
+
+@router.get("/{study_id}", response_model=Study)
+async def get_study(
+    study_id: str,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Get study details including:
+    - Metadata
+    - Dataset selections
+    - Document counts by type
+    - Recent activity
+    """
+    service = StudyService(db, current_user)
+    study = await service.get_study(study_id)
+    if not study:
+        raise HTTPException(404, "Study not found")
+    return study
+
+@router.put("/{study_id}", response_model=Study)
+async def update_study(
+    study_id: str,
+    study_data: StudyUpdate,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Update study metadata (partial updates supported)
+    - Validates user permissions
+    - Logs changes for audit
+    """
+    service = StudyService(db, current_user)
+    return await service.update_study(study_id, study_data)
+
+@router.delete("/{study_id}", status_code=204)
+async def delete_study(
+    study_id: str,
+    hard_delete: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Soft delete study (default) or hard delete if no dependencies
+    - Checks for active jobs, code generations
+    - Refuses hard delete if study is in use
+    """
+    service = StudyService(db, current_user)
+    await service.delete_study(study_id, hard_delete=hard_delete)
+```
+
+### 4.2 Study Dataset Selection Endpoints
+
+```python
+@router.put("/{study_id}/datasets", response_model=List[StudyDataset])
+async def update_datasets(
+    study_id: str,
+    datasets: StudyDatasetSelectionRequest,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Update ADAM dataset selections for a study
+    - Validates dataset names against ADaM rules
+    - Supports multi-select (ADSL, ADAE, ADLB, etc.)
+    - Language preferences (R, SAS, Both)
+    """
+    # Implementation: Replace/upsert StudyDatasetSelection records
+    # Validate against known ADaM datasets from Context/ADAMRules
+
+@router.get("/{study_id}/datasets", response_model=List[StudyDataset])
+async def get_datasets(
+    study_id: str,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Get current dataset selections
+    - Used by pair programming page to populate dropdown
+    """
+```
+
+### 4.3 Document Management Endpoints
+
+**File: `backend/app/api/v1/endpoints/study_documents.py`**
+
+```python
+@router.post("/{study_id}/documents", response_model=StudyDocument)
+async def upload_document(
+    study_id: str,
+    file: UploadFile = File(...),
+    document_type: str = Form(...),
+    version_label: Optional[str] = Form(None),
+    tags: Optional[str] = Form(None),  # JSON string
+    description: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Upload study document
+    - Validates file type and size
+    - Stores in S3 or local storage
+    - Creates StudyDocument record
+    - Triggers background processing (text extraction, embeddings)
+    """
+    # Implementation:
+    # 1. Validate file (type, size, name sanitization)
+    # 2. Generate storage path: studies/{study_id}/documents/{document_type}/{filename}
+    # 3. Upload to storage (S3 or local)
+    # 4. Create StudyDocument record
+    # 5. Queue background task for text extraction and embedding
+    # 6. Return document metadata
+
+@router.get("/{study_id}/documents", response_model=List[StudyDocument])
+async def list_documents(
+    study_id: str,
+    document_type: Optional[str] = Query(None),
+    active_only: bool = Query(True),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    List study documents with filtering
+    - Filter by document type
+    - Pagination support
+    - Returns metadata + pre-signed URLs for download
     """
 
-    async def analyze(
+@router.get("/{study_id}/documents/{document_id}", response_model=StudyDocument)
+async def get_document(
+    study_id: str,
+    document_id: str,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Get document details and download URL
+    - Returns pre-signed URL (S3) or direct path (local)
+    - Includes processing status
+    """
+
+@router.delete("/{study_id}/documents/{document_id}", status_code=204)
+async def delete_document(
+    study_id: str,
+    document_id: str,
+    hard_delete: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Soft delete document (default)
+    - Sets is_active=False
+    - Keeps file in storage for audit
+    - Hard delete only if explicitly requested and no dependencies
+    """
+```
+
+### 4.4 Study Chatbot Endpoint
+
+**File: `backend/app/api/v1/endpoints/study_chat.py`**
+
+```python
+@router.post("/{study_id}/chat", response_model=ChatResponse)
+async def chat(
+    study_id: str,
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """
+    Study chatbot endpoint with RAG
+    - Retrieves relevant document chunks
+    - Builds context-aware prompt
+    - Calls LLM with strict guardrails
+    - Returns answer with citations
+    """
+    # Implementation flow:
+    # 1. Validate study_id and user access
+    # 2. Check if documents exist for study
+    # 3. Retrieve relevant chunks using RAG service
+    # 4. Build prompt with system message enforcing document-only answers
+    # 5. Call LLM (Gemini) with low temperature
+    # 6. Save messages to database
+    # 7. Return answer with citations
+
+@router.get("/{study_id}/chat/sessions", response_model=List[ChatSession])
+async def list_sessions(
+    study_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """List chat sessions for a study"""
+
+@router.get("/{study_id}/chat/sessions/{session_id}", response_model=ChatSessionDetail)
+async def get_session(
+    study_id: str,
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    """Get chat session with full message history"""
+```
+
+### 4.5 RAG Service Implementation
+
+**File: `backend/app/modules/studies/rag_service.py`**
+
+```python
+class RAGService:
+    """
+    Retrieval-Augmented Generation service for study chatbot
+    """
+    
+    def __init__(self, db: Session, llm_service: LLMService):
+        self.db = db
+        self.llm_service = llm_service
+        self.embedding_service = EmbeddingService()
+    
+    async def retrieve_relevant_chunks(
         self,
-        differences: List[Difference],
         study_id: str,
-        dataset: str,
-    ) -> AdamInsights:
-        # 1. Extract variable names from diff spans
-        affected_vars = self._extract_adam_variables(differences)
-
-        # 2. Map to CDISC rules (use existing rules engine)
-        cdisc_rules = await self._map_to_cdisc_rules(
-            affected_vars,
-            dataset
+        question: str,
+        top_k: int = 5
+    ) -> List[DocumentChunk]:
+        """
+        Retrieve relevant document chunks for a question
+        - Generates embedding for question
+        - Searches document embeddings (vector similarity)
+        - Filters strictly by study_id
+        - Returns top-k most relevant chunks with metadata
+        """
+        # Implementation:
+        # 1. Generate question embedding
+        # 2. Query DocumentEmbedding table with vector similarity
+        # 3. Filter by study_id (critical for isolation)
+        # 4. Return chunks with document references
+    
+    async def generate_answer(
+        self,
+        study_id: str,
+        question: str,
+        context_chunks: List[DocumentChunk],
+        chat_history: Optional[List[ChatMessage]] = None
+    ) -> ChatResponse:
+        """
+        Generate answer using LLM with strict guardrails
+        - System prompt enforces document-only answers
+        - Includes citations in response
+        - Low temperature to reduce hallucinations
+        """
+        # Build prompt:
+        system_prompt = """
+        You are a study assistant for ADaM programmers. 
+        Answer questions STRICTLY based on the provided study documents.
+        If the answer is not present in the documents, say "I don't know based on the available documents."
+        Do not provide generic or sample answers.
+        Always cite which document and section you used.
+        """
+        
+        # Compose context with citations
+        context = self._build_context_with_citations(context_chunks)
+        
+        # Call LLM
+        response = await self.llm_service.generate(
+            system_prompt=system_prompt,
+            user_message=question,
+            context=context,
+            temperature=0.1,  # Low temperature
+            max_tokens=1000
         )
-
-        # 3. Detect common ADaM patterns
-        patterns = self._detect_patterns(differences)
-
-        # 4. Check for compliance issues
-        compliance_issues = await self._check_compliance(
-            differences,
-            dataset,
+        
+        # Extract citations from chunks used
+        citations = [chunk.document_reference for chunk in context_chunks]
+        
+        return ChatResponse(
+            answer=response,
+            citations=citations,
+            source_document_ids=[chunk.document_id for chunk in context_chunks]
         )
-
-        return AdamInsights(
-            affected_variables=affected_vars,
-            cdisc_rules_referenced=cdisc_rules,
-            common_patterns_detected=patterns,
-            potential_compliance_issues=compliance_issues,
-        )
-
-    def _detect_patterns(self, differences: List[Difference]) -> List[str]:
-        """Detect common ADaM programming patterns."""
-        patterns = []
-
-        # Look for treatment-emergent logic
-        if self._mentions_pattern(differences, ['TRTEMFL', 'RFSTDTC', 'RFENDTC']):
-            patterns.append("Treatment-emergent event logic")
-
-        # Look for baseline flag derivation
-        if self._mentions_pattern(differences, ['ABLFL', 'baseline', 'pre-dose']):
-            patterns.append("Baseline flag derivation")
-
-        # Look for analysis value derivation
-        if self._mentions_pattern(differences, ['AVAL', 'BASE', 'CHG']):
-            patterns.append("Analysis value (AVAL/CHG) derivation")
-
-        return patterns
-```
-
-### 7.6 Performance & Reliability
-
-**Timeouts & Async Execution:**
-```python
-# Set timeouts per stage
-TIMEOUT_DIFF = 2  # seconds
-TIMEOUT_SYNTAX = 1  # seconds
-TIMEOUT_AI_CATEGORIZATION = 10  # seconds
-TIMEOUT_ADAM_ANALYSIS = 15  # seconds
-
-async def compare(self, request):
-    try:
-        # Static diff must complete quickly
-        diff_result = await asyncio.wait_for(
-            self._compute_diff(...),
-            timeout=TIMEOUT_DIFF,
-        )
-
-        # AI categorization can take longer
-        try:
-            differences = await asyncio.wait_for(
-                self._categorize_with_ai(...),
-                timeout=TIMEOUT_AI_CATEGORIZATION,
-            )
-        except asyncio.TimeoutError:
-            logger.warning("AI categorization timeout, using heuristics")
-            differences = self._basic_categorization(diff_result)
-
-        # Return partial results if any stage fails
-        return CodeComparisonResult(...)
-
-    except asyncio.TimeoutError:
-        raise TimeoutError("Comparison exceeded maximum time")
-```
-
-**Caching Strategy:**
-```python
-# Cache results for identical inputs (1 hour TTL)
-@lru_cache(maxsize=100)
-def _compute_diff_cached(self, code1_hash: str, code2_hash: str):
-    # Actual diff computation
-    pass
-
-# Hash inputs for cache key
-def compare(self, request):
-    code1_hash = hashlib.sha256(request.code_1.encode()).hexdigest()
-    code2_hash = hashlib.sha256(request.code_2.encode()).hexdigest()
-
-    return self._compute_diff_cached(code1_hash, code2_hash)
 ```
 
 ---
 
-## 8. Integration with Existing System
+## 5. Enhanced Frontend Implementation
 
-### 8.1 Frontend Integration Points
+### 5.1 Study Selector Component
 
-**RightPanel.tsx:**
+**File: `frontend/src/components/StudySelector.tsx`**
+
 ```typescript
-// Add new tab content rendering
-case 'code-comparer':
-  return <CodeComparerTab />;
+interface StudySelectorProps {
+  value?: string; // currentStudyId
+  onChange?: (studyId: string) => void;
+  onStudyChange?: (study: Study) => void;
+  showCreateButton?: boolean;
+  compact?: boolean;
+}
+
+export const StudySelector: React.FC<StudySelectorProps> = ({
+  value,
+  onChange,
+  onStudyChange,
+  showCreateButton = true,
+  compact = false
+}) => {
+  const { studies, currentStudyId, setCurrentStudy, loadStudies } = useStudyStore();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  
+  // Features:
+  // - Dropdown with search
+  // - Study tags and versions visible
+  // - "Create New Study" button
+  // - Last selected study persisted in localStorage
+  // - Broadcasts study change to all subscribed components
+  
+  useEffect(() => {
+    if (value && value !== currentStudyId) {
+      setCurrentStudy(value);
+    }
+  }, [value]);
+  
+  const handleStudyChange = async (studyId: string) => {
+    await setCurrentStudy(studyId);
+    onChange?.(studyId);
+    // Broadcast to all pages
+    window.dispatchEvent(new CustomEvent('study-changed', { detail: { studyId } }));
+  };
+  
+  // Render dropdown with search, study list, create button
+};
 ```
 
-**WorkspaceNavigation.tsx:**
-- Already configured with Code Comparer link ✓
-- Ensure icon matches design (use `<HighlightOutlined />`)
+### 5.2 Enter Study Details Page
 
-**LandingPage.tsx:**
-- Already has Code Comparer card ✓
-- Update click handler:
+**File: `frontend/src/components/EnterStudyDetailsPage.tsx`**
+
+**Layout Structure:**
+```
+┌─────────────────────────────────────────────────────────┐
+│  Header: Study Selector + Study Name                     │
+├─────────────────────────────────────────────────────────┤
+│  Tab Navigation:                                         │
+│  [Basic Info] [Standards] [Datasets] [Documents] [Chat] │
+├─────────────────────────────────────────────────────────┤
+│  Tab Content (based on active tab)                       │
+│                                                          │
+│  Basic Info Tab:                                         │
+│  - Study Name (required)                                 │
+│  - Study ID (auto-generated, read-only, copyable)        │
+│  - Protocol Number                                       │
+│  - Sponsor                                               │
+│  - Therapeutic Area                                      │
+│  - Study Phase                                           │
+│  - Description (textarea)                                │
+│  - Tags (multi-select with autocomplete)                 │
+│                                                          │
+│  Standards Tab:                                          │
+│  - SDTM Version (dropdown)                              │
+│  - ADaM IG Version (dropdown)                          │
+│  - MedDRA Version (dropdown)                            │
+│  - Define-XML Version (optional)                         │
+│                                                          │
+│  Datasets Tab:                                           │
+│  - Multi-select for ADAM datasets                        │
+│  - Language preferences (R/SAS/Both)                    │
+│  - Dataset priority/ordering                             │
+│                                                          │
+│  Documents Tab:                                          │
+│  - Drag & drop upload area                               │
+│  - Document type selector                                │
+│  - Version label input                                   │
+│  - Tags input                                            │
+│  - Documents table with filters                          │
+│  - Actions: Download, Delete, View                       │
+│                                                          │
+│  Chat Tab:                                               │
+│  - Chat interface (see StudyChatbotPanel)                 │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Key Features:**
+- Auto-save on field blur (debounced)
+- Unsaved changes warning on navigation
+- Real-time validation with inline errors
+- Loading states for async operations
+- Success/error notifications
+- Responsive design (mobile-friendly)
+
+### 5.3 Study Chatbot Panel
+
+**File: `frontend/src/components/StudyChatbotPanel.tsx`**
+
 ```typescript
-const handleUtilityClick = (path: string) => {
-  if (path === '/code-comparer') {
-    // Initialize demo workspace if needed
-    if (!currentStudy) {
-      dispatch({ type: 'INIT_DEMO_WORKSPACE' });
+interface StudyChatbotPanelProps {
+  studyId: string;
+  compact?: boolean;
+}
+
+export const StudyChatbotPanel: React.FC<StudyChatbotPanelProps> = ({
+  studyId,
+  compact = false
+}) => {
+  const { sendChatMessage, chatSessions, activeChatSession } = useStudyStore();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // Features:
+  // - Chat message list with user/assistant distinction
+  // - Input box with send button
+  // - Citation badges showing source documents
+  // - "I don't know" indicator when no relevant docs found
+  // - Session management (new session, load previous)
+  // - Clear indication that answers are document-based only
+  
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+    
+    setIsLoading(true);
+    const userMessage = { role: 'user', content: input };
+    setMessages(prev => [...prev, userMessage]);
+    
+    try {
+      const response = await sendChatMessage(studyId, input, activeChatSession);
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: response.answer,
+        citations: response.citations
+      }]);
+      setInput('');
+    } catch (error) {
+      // Handle error
+    } finally {
+      setIsLoading(false);
     }
-    // Navigate to workspace and activate Code Comparer
-    navigate('/workspace');
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('adam-ai:navigate-workspace', {
-        detail: { path: '/code-comparer' }
-      }));
-    }, 100);
+  };
+  
+  // Render chat UI
+};
+```
+
+### 5.4 Global Study Context Integration
+
+**File: `frontend/src/contexts/StudyContext.tsx`**
+
+```typescript
+// React Context to broadcast study changes
+export const StudyContext = createContext<{
+  currentStudyId: string | null;
+  currentStudy: Study | null;
+  setCurrentStudy: (studyId: string) => Promise<void>;
+}>({
+  currentStudyId: null,
+  currentStudy: null,
+  setCurrentStudy: async () => {}
+});
+
+// Provider component wraps app
+export const StudyContextProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const studyStore = useStudyStore();
+  
+  useEffect(() => {
+    // Listen for study changes and update all subscribed components
+    const handleStudyChange = (event: CustomEvent) => {
+      const { studyId } = event.detail;
+      // Update Zustand store
+      // Trigger re-renders in subscribed components
+    };
+    
+    window.addEventListener('study-changed', handleStudyChange as EventListener);
+    return () => window.removeEventListener('study-changed', handleStudyChange as EventListener);
+  }, []);
+  
+  return (
+    <StudyContext.Provider value={{
+      currentStudyId: studyStore.currentStudyId,
+      currentStudy: studyStore.currentStudy,
+      setCurrentStudy: studyStore.setCurrentStudy
+    }}>
+      {children}
+    </StudyContext.Provider>
+  );
+};
+```
+
+---
+
+## 6. Integration with Existing Modules
+
+### 6.1 Pair Programming Page Integration
+
+**Modifications to `VariablesAnalysisTab.tsx`:**
+
+```typescript
+// Add StudySelector at top
+<StudySelector 
+  value={currentStudyId}
+  onChange={handleStudyChange}
+/>
+
+// Load datasets from study
+useEffect(() => {
+  if (currentStudyId) {
+    const studyConfig = studyStore.getStudyConfig(currentStudyId);
+    if (studyConfig?.datasets) {
+      // Update dataset dropdown with study selections
+      setAvailableDatasets(studyConfig.datasets);
+    }
+  }
+}, [currentStudyId]);
+
+// Use study documents for context
+const studyDocuments = studyStore.getStudyDocuments(currentStudyId, 'SPECIFICATION');
+```
+
+### 6.2 Pre-P21 & CT Validator Integration
+
+```typescript
+// Require study selection
+if (!currentStudyId) {
+  return <Alert message="Please select a study first" />;
+}
+
+// Load study documents
+const specifications = studyStore.getStudyDocuments(currentStudyId, 'SPECIFICATION');
+const ctLists = studyStore.getStudyDocuments(currentStudyId, 'CT_LIST');
+
+// Use in validation
+```
+
+### 6.3 ADRG/SDRG Templates Integration
+
+```typescript
+// Fetch study metadata
+const study = studyStore.currentStudy;
+const studyConfig = studyStore.getStudyConfig(currentStudyId);
+
+// Populate template with study data
+const templateData = {
+  studyName: study.name,
+  protocolNumber: study.protocolNumber,
+  sponsor: study.sponsor,
+  datasets: studyConfig.datasets,
+  standards: {
+    sdtm: study.sdtmVersion,
+    adam: study.adamIgVersion
   }
 };
 ```
 
-### 8.2 Backend Integration
+### 6.4 eCTD Packaging Integration
 
-**Register router in `backend/app/api/v1/__init__.py`:**
-```python
-from app.api.v1.endpoints import code_comparer
-
-api_router = APIRouter()
-api_router.include_router(code_comparer.router)
-```
-
-**Reuse existing services:**
-- `llm_integration`: For AI-powered categorization
-- `adam_rules`: For CDISC rule mapping
-- `validation`: For syntax checking
-
-### 8.3 Feature Flag
-
-**Environment Variable:**
-```env
-# .env
-CODE_COMPARER_ENABLED=true
-CODE_COMPARER_DEFAULT_MODE=standard
-CODE_COMPARER_MAX_FILE_SIZE=50000
-```
-
-**Frontend Check:**
 ```typescript
-const CODE_COMPARER_ENABLED = import.meta.env.VITE_CODE_COMPARER_ENABLED !== 'false';
+// Use study documents and metadata
+const studyDocuments = studyStore.getStudyDocuments(currentStudyId);
+const studyConfig = studyStore.getStudyConfig(currentStudyId);
 
-// In RightPanel
-case 'code-comparer':
-  return CODE_COMPARER_ENABLED
-    ? <CodeComparerTab />
-    : <PlaceholderMessage message="Code Comparer coming soon!" />;
+// Build package structure based on study
+```
+
+### 6.5 TLF Generator Integration
+
+**Modify `tlf_generator.py`:**
+
+```python
+# Accept study_id in request
+class TLFAnalysisRequest(BaseModel):
+    study_id: Optional[str] = None  # New field
+    # ... existing fields
+
+# Use study context if provided
+if request.study_id:
+    study_context = StudyContextService.get_study_summary(request.study_id)
+    study_documents = StudyContextService.get_study_documents(
+        request.study_id, 
+        document_type="SPECIFICATION"
+    )
+    # Enrich prompt with study context
+else:
+    # Fall back to existing behavior
+    pass
 ```
 
 ---
 
-## 9. Export & Sharing Features
+## 7. Document Processing Pipeline
 
-### 9.1 PDF Report Generation
+### 7.1 Background Task for Document Processing
 
-**Backend Endpoint:**
+**File: `backend/app/modules/studies/document_service.py`**
+
 ```python
-@router.post("/export/pdf")
-async def export_comparison_pdf(
-    result: CodeComparisonResult,
-    options: PdfExportOptions,
-):
-    """Generate a professional PDF comparison report."""
-    generator = ComparisonPdfGenerator()
-    pdf_bytes = generator.generate(result, options)
+from celery import shared_task
+import pdfplumber
+from docx import Document
+import openpyxl
 
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": "attachment; filename=code_comparison_report.pdf"
-        },
-    )
+@shared_task
+def process_study_document(document_id: str):
+    """
+    Background task to process uploaded document
+    - Extract text based on file type
+    - Normalize and chunk text
+    - Generate embeddings
+    - Store in database
+    """
+    # 1. Load document from storage
+    # 2. Detect file type (PDF, DOCX, XLSX, TXT)
+    # 3. Extract text using appropriate library
+    # 4. Normalize text (clean, remove special chars)
+    # 5. Split into chunks (500-1000 tokens with overlap)
+    # 6. Generate embeddings for each chunk
+    # 7. Store chunks and embeddings in DocumentEmbedding table
+    # 8. Update document processing_status to 'completed'
+    
+    document = db.query(StudyDocument).filter_by(id=document_id).first()
+    
+    # Extract text
+    if document.mime_type == 'application/pdf':
+        text = extract_pdf_text(document.storage_path)
+    elif document.mime_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+        text = extract_docx_text(document.storage_path)
+    elif document.mime_type == 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+        text = extract_xlsx_text(document.storage_path)
+    else:
+        text = extract_text_generic(document.storage_path)
+    
+    # Update document with extracted text
+    document.extracted_text = text
+    document.processing_status = 'processing'
+    db.commit()
+    
+    # Chunk and embed
+    chunks = chunk_text(text, chunk_size=500, overlap=50)
+    embeddings = generate_embeddings(chunks)
+    
+    # Store embeddings
+    for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        doc_embedding = DocumentEmbedding(
+            study_document_id=document_id,
+            chunk_id=f"{document_id}_chunk_{i}",
+            chunk_index=i,
+            chunk_text=chunk,
+            embedding_vector=embedding,
+            metadata={"page": i // 10, "section": "unknown"}
+        )
+        db.add(doc_embedding)
+    
+    document.processing_status = 'completed'
+    db.commit()
 ```
 
-**PDF Contents:**
-1. **Cover Page**: Study ID, Dataset, Date, Similarity Score
-2. **Executive Summary**: Narrative + key metrics
-3. **Comparison Details**:
-   - Side-by-side code snippets (first 50 lines)
-   - Highlighted differences table
-4. **ADaM Insights** (if Deep mode)
-5. **Recommendations**
+### 7.2 Embedding Generation
 
-### 9.2 HTML Snapshot
+**File: `backend/app/modules/studies/embedding_service.py`**
 
-**Self-contained HTML export:**
-```html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Code Comparison: ADSL - Developer vs QC</title>
-  <style>/* Embedded styles */</style>
-</head>
-<body>
-  <!-- Full comparison UI, read-only -->
-  <div class="comparison-snapshot">
-    <!-- Similarity scores -->
-    <!-- Diff visualization -->
-    <!-- Difference list -->
-  </div>
-  <script>/* Embedded interactive diff viewer */</script>
-</body>
-</html>
+```python
+class EmbeddingService:
+    """
+    Generate embeddings for document chunks
+    Options:
+    1. Use OpenAI embeddings API
+    2. Use sentence-transformers (local)
+    3. Use Gemini embeddings (if available)
+    """
+    
+    def __init__(self):
+        # Choose embedding model based on config
+        self.model = self._load_embedding_model()
+    
+    def generate_embedding(self, text: str) -> List[float]:
+        """Generate embedding vector for text"""
+        # Implementation based on chosen model
+        pass
+    
+    def generate_embeddings_batch(self, texts: List[str]) -> List[List[float]]:
+        """Batch generate embeddings for efficiency"""
+        pass
 ```
 
-**Use Case**: Email to stakeholders, attach to submission package
+---
 
-### 9.3 Shareable Links (Future)
+## 8. Security, Compliance & Performance
 
-**Backend:**
-- Store comparison result in database with unique ID
-- Generate short URL: `https://adam-ai.com/compare/abc123`
-- Expire after 7 days
+### 8.1 Security Enhancements
+
+**Authentication & Authorization:**
+- All endpoints require authentication (JWT or session-based)
+- Study access control: Users can only access studies they created or have been shared with
+- Document access: Validate study ownership before serving files
+- File upload validation:
+  - Whitelist file types (PDF, DOCX, XLSX, TXT only)
+  - Max file size: 50MB (configurable)
+  - Virus scanning (optional, for production)
+  - Sanitize file names to prevent path traversal
+
+**Data Isolation:**
+- Strict `study_id` filtering in all queries
+- No cross-study data leakage
+- Vector search scoped to study_id only
+
+**Input Validation:**
+- Pydantic models for all request/response schemas
+- SQL injection prevention (use parameterized queries)
+- XSS prevention (sanitize user inputs)
+
+### 8.2 21 CFR Part 11 Compliance
+
+**Audit Trail:**
+- Log all study metadata changes (who, what, when, why)
+- Log all document uploads/deletions
+- Log all chatbot interactions (for decision-making audit)
+- Immutable audit logs (append-only, no deletions)
+- Timestamp all actions with timezone
+
+**Data Integrity:**
+- Checksums for uploaded documents
+- Version control for documents
+- Immutable document storage (once used in regulatory deliverable)
+
+**User Actions:**
+- Track `created_by`, `updated_by`, `deleted_by` for all entities
+- Session management and timeout
+- E-signature support (future enhancement)
+
+### 8.3 Performance Optimization
+
+**Database:**
+- Indexes on frequently queried fields:
+  - `studies.id`, `studies.name`, `studies.created_by`
+  - `study_documents.study_id`, `study_documents.document_type`
+  - `document_embeddings.study_document_id`
+- Connection pooling
+- Query optimization (avoid N+1 queries)
+
+**Caching:**
+- Cache study summaries in Redis (5-minute TTL)
+- Cache document metadata (1-minute TTL)
+- Cache frequently accessed study configs
+
+**Background Processing:**
+- Use Celery for document processing (async)
+- Batch embedding generation
+- Queue management for heavy operations
 
 **Frontend:**
-```typescript
-const handleShare = async () => {
-  const shareId = await api.shareComparison(result);
-  const shareUrl = `${window.location.origin}/compare/${shareId}`;
-
-  navigator.clipboard.writeText(shareUrl);
-  message.success('Shareable link copied!');
-};
-```
+- Lazy load study documents (pagination)
+- Virtual scrolling for long lists
+- Debounce search inputs
+- Optimistic UI updates
 
 ---
 
-## 10. Testing & Validation Strategy
+## 9. Testing Strategy
 
-### 10.1 Backend Testing
+### 9.1 Backend Tests
 
-**Unit Tests (`test_code_comparer_service.py`):**
+**Unit Tests:**
 ```python
-def test_identical_code_comparison():
-    """Identical code should yield 100% similarity."""
-    code = "x <- 1\ny <- 2"
-    result = service.compare(code, code, mode="quick")
-    assert result.overall_similarity_score == 100
-    assert result.differences == []
+# test_study_service.py
+- test_create_study()
+- test_update_study()
+- test_delete_study_soft()
+- test_delete_study_hard_with_dependencies()
+- test_list_studies_with_filters()
+- test_get_study_not_found()
 
-def test_functional_difference_detected():
-    """Critical functional difference should be flagged."""
-    code1 = "if x > 0: y = 1"
-    code2 = "if x < 0: y = 1"  # Reversed condition!
+# test_document_service.py
+- test_upload_document()
+- test_upload_invalid_file_type()
+- test_upload_oversized_file()
+- test_list_documents_filtered()
+- test_delete_document_soft()
 
-    result = service.compare(code1, code2, mode="standard")
-    assert result.summary.critical_count >= 1
-    assert any(d.type == "functional" for d in result.differences)
-
-def test_ai_timeout_graceful_degradation():
-    """Should return basic diff if AI times out."""
-    with patch('llm_service.generate', side_effect=TimeoutError):
-        result = service.compare(code1, code2, mode="standard")
-        assert result is not None  # Partial success
-        assert result.metadata.llm_used == False
+# test_rag_service.py
+- test_retrieve_relevant_chunks()
+- test_generate_answer_with_context()
+- test_generate_answer_no_documents()
+- test_generate_answer_no_relevant_chunks()
+- test_citation_extraction()
 ```
 
 **Integration Tests:**
 ```python
-@pytest.mark.asyncio
-async def test_full_comparison_pipeline():
-    """Test entire pipeline with real LLM call."""
-    code1 = load_sample_r_code("developer_adsl.R")
-    code2 = load_sample_r_code("qc_adsl.R")
-
-    result = await service.compare(
-        code1, code2,
-        mode="deep",
-        context={"study_id": "TEST001", "dataset": "ADSL"}
-    )
-
-    assert result.overall_similarity_score > 0
-    assert len(result.differences) > 0
-    assert result.adam_insights is not None
+# test_study_workflow.py
+- test_create_study_upload_documents_chat_flow()
+- test_switch_study_isolation()
+- test_study_document_processing_pipeline()
+- test_chatbot_with_multiple_documents()
 ```
 
-### 10.2 Frontend Testing
+**Coverage Target:** 80%+ for new code
 
-**Component Tests (`CodeComparerTab.test.tsx`):**
+### 9.2 Frontend Tests
+
+**Component Tests (Vitest):**
 ```typescript
-test('disables Compare button when code is empty', () => {
-  render(<CodeComparerTab />);
-  const button = screen.getByText(/Compare/i);
-  expect(button).toBeDisabled();
-});
+// StudySelector.test.tsx
+- renders study dropdown
+- filters studies by search term
+- calls onChange when study selected
+- shows create button when enabled
 
-test('shows loading state during comparison', async () => {
-  render(<CodeComparerTab />);
-  // Fill editors and click Compare
-  fireEvent.click(screen.getByText(/Compare/i));
-  expect(screen.getByText(/Analyzing differences/i)).toBeInTheDocument();
-});
+// EnterStudyDetailsPage.test.tsx
+- renders all tabs
+- validates required fields
+- saves study data on blur
+- shows unsaved changes warning
+- handles document upload
 
-test('renders differences after successful comparison', async () => {
-  const mockResult = {
-    overall_similarity_score: 85,
-    summary: { total_differences: 3, critical_count: 1 },
-    differences: [/* mock data */],
-  };
-
-  api.compareCode = jest.fn().mockResolvedValue(mockResult);
-
-  render(<CodeComparerTab />);
-  // Trigger comparison
-  await waitFor(() => {
-    expect(screen.getByText(/85% Similar/i)).toBeInTheDocument();
-    expect(screen.getByText(/1 Critical/i)).toBeInTheDocument();
-  });
-});
+// StudyChatbotPanel.test.tsx
+- sends message and receives response
+- displays citations correctly
+- handles "I don't know" responses
+- manages chat sessions
 ```
 
-**Accessibility Tests:**
-```typescript
-test('meets WCAG 2.1 AA standards', async () => {
-  const { container } = render(<CodeComparerTab />);
-  const results = await axe(container);
-  expect(results).toHaveNoViolations();
-});
+**E2E Tests (Playwright):**
+- Create study → Upload document → Ask chatbot question
+- Switch studies → Verify context isolation
+- Upload document → Verify processing status
 
-test('keyboard navigation works', () => {
-  render(<CodeComparerTab />);
-  const nextButton = screen.getByLabelText(/Next difference/i);
+### 9.3 Regression Tests
 
-  userEvent.keyboard('{Alt>}n{/Alt}');
-  expect(nextButton).toHaveFocus();
-});
-```
-
-### 10.3 User Acceptance Testing
-
-**Validation Checklist:**
-- [ ] New user can complete first comparison in <2 minutes
-- [ ] All sample comparisons run without errors
-- [ ] Similarity scores match manual review (±5%)
-- [ ] Critical differences are correctly flagged (95% accuracy)
-- [ ] Export PDF renders correctly
-- [ ] Keyboard shortcuts work as documented
-- [ ] Screen reader announces results clearly
-- [ ] No console errors on any user action
-
-**UAT Scenarios:**
-1. **Scenario 1**: Compare two nearly identical R programs
-   - Expected: >90% similarity, <3 minor differences, green summary
-2. **Scenario 2**: Compare SAS with reversed logic
-   - Expected: <70% similarity, ≥1 critical difference, red flag
-3. **Scenario 3**: Deep analysis with ADaM context
-   - Expected: ADaM insights populated, CDISC rules referenced
-4. **Scenario 4**: Large file (1500 lines)
-   - Expected: Comparison completes in <10s, no UI freeze
-5. **Scenario 5**: LLM unavailable (simulated)
-   - Expected: Basic diff still works, warning shown
+- Ensure existing pair programming page works without study_id
+- Ensure existing TLF generator works without study_id
+- Verify backward compatibility for all modules
 
 ---
 
-## 11. Edge Cases & Error Handling
+## 10. Implementation Phases (Detailed)
 
-### 11.1 Edge Cases
+### Phase 1: Database & Backend Foundations (Week 1-2)
 
-| Edge Case | Handling Strategy |
-|-----------|-------------------|
-| Both codes empty | Disable Compare button, show hint |
-| Codes are identical | Show "100% identical" banner, offer to cancel |
-| One code is empty | Allow comparison, show "Added" or "Removed" diff |
-| Code exceeds 50k chars | Reject with error: "File too large. Limit: 2000 lines" |
-| Invalid language selection | Auto-detect or treat as plain text |
-| Mixed languages (SAS vs R) | Allow, but disable functional equivalence check |
-| Code with syntax errors | Show diff + syntax errors panel, proceed anyway |
-| LLM timeout | Show basic diff + warning banner |
-| LLM returns invalid JSON | Fall back to heuristics, log error |
-| Network failure during comparison | Show retry button, preserve input state |
-| User navigates away mid-comparison | Cancel request, clean up state |
+**Tasks:**
+1. ✅ Review existing `study_models.py` and `study_service.py`
+2. ✅ Create migration `002_study_documents_and_chat.py`
+3. ✅ Extend `StudyService` with document and dataset methods
+4. ✅ Implement `DocumentService` for upload/storage
+5. ✅ Create API endpoints for study CRUD
+6. ✅ Create API endpoints for document management
+7. ✅ Unit tests for services
 
-### 11.2 Error Messages (User-Friendly)
+**Deliverables:**
+- Database schema with migrations
+- Backend API endpoints (studies, documents)
+- Service layer with business logic
+- Unit tests (80% coverage)
 
-**Example Error Messages:**
-```typescript
-const ERROR_MESSAGES = {
-  CODE_TOO_LARGE: "The code you're trying to compare is too large (over 2000 lines). Please split into smaller sections.",
+### Phase 2: Document Processing Pipeline (Week 2-3)
 
-  NETWORK_ERROR: "Unable to connect to the comparison service. Please check your connection and try again.",
+**Tasks:**
+1. ✅ Implement text extraction (PDF, DOCX, XLSX)
+2. ✅ Implement text chunking strategy
+3. ✅ Implement embedding generation
+4. ✅ Set up Celery tasks for background processing
+5. ✅ Create `EmbeddingService`
+6. ✅ Store embeddings in database
+7. ✅ Integration tests for processing pipeline
 
-  LLM_TIMEOUT: "AI analysis is taking longer than expected. We've shown you the basic differences. Try Quick mode for faster results.",
+**Deliverables:**
+- Document processing service
+- Embedding generation and storage
+- Background task queue setup
+- Processing status tracking
 
-  INVALID_SYNTAX: "Code 1 has syntax errors on lines 42, 89. Comparison will proceed, but results may be affected.",
+### Phase 3: Study Chatbot (Week 3-4)
 
-  UNKNOWN_ERROR: "Something went wrong. Our team has been notified. Please try again or contact support.",
-};
-```
+**Tasks:**
+1. ✅ Implement `RAGService` for retrieval
+2. ✅ Implement vector similarity search
+3. ✅ Build prompt engineering with guardrails
+4. ✅ Integrate with LLM service (Gemini)
+5. ✅ Implement citation extraction
+6. ✅ Create chat API endpoints
+7. ✅ Store chat sessions and messages
+8. ✅ Tests for RAG and chatbot
 
-**Error UI:**
-```tsx
-<Alert
-  type="error"
-  message="Comparison Failed"
-  description={errorMessage}
-  action={
-    <Space>
-      <Button size="small" onClick={handleRetry}>Retry</Button>
-      <Button size="small" type="link" onClick={handleContactSupport}>
-        Contact Support
-      </Button>
-    </Space>
-  }
-  closable
-/>
-```
+**Deliverables:**
+- RAG service with vector search
+- Chatbot API endpoint
+- Citation system
+- Chat history storage
 
----
+### Phase 4: Frontend Study Details Page (Week 4-5)
 
-## 12. Rollout Plan
+**Tasks:**
+1. ✅ Create `StudyStore` (Zustand)
+2. ✅ Create `StudySelector` component
+3. ✅ Create `EnterStudyDetailsPage` with tabs
+4. ✅ Implement document upload UI
+5. ✅ Implement study chatbot UI panel
+6. ✅ Add auto-save functionality
+7. ✅ Add validation and error handling
+8. ✅ Component tests
 
-### Phase 1: Development (Weeks 1-2)
-- [ ] Backend service implementation
-- [ ] Frontend component structure
-- [ ] Monaco DiffEditor integration
-- [ ] Basic diff + Quick mode working
-- [ ] Unit tests
+**Deliverables:**
+- Complete Enter Study Details page
+- Study selector component
+- Document upload interface
+- Chatbot UI panel
 
-### Phase 2: AI Integration (Week 3)
-- [ ] LLM-powered categorization
-- [ ] Standard mode implementation
-- [ ] Prompt engineering & testing
-- [ ] Error handling & fallbacks
+### Phase 5: Global Study Context Integration (Week 5-6)
 
-### Phase 3: Advanced Features (Week 4)
-- [ ] Deep Analysis mode
-- [ ] ADaM domain analyzer
-- [ ] Export PDF/HTML
-- [ ] Sample programs
-- [ ] Accessibility audit
+**Tasks:**
+1. ✅ Create `StudyContextProvider`
+2. ✅ Integrate `StudySelector` in header/navigation
+3. ✅ Update `VariablesAnalysisTab` to use study context
+4. ✅ Update Pre-P21/CT Validator to use study documents
+5. ✅ Update ADRG/SDRG to use study metadata
+6. ✅ Update eCTD Packaging to use study documents
+7. ✅ Update TLF Generator to accept study_id
+8. ✅ Integration tests for cross-module functionality
 
-### Phase 4: Testing & Refinement (Week 5)
-- [ ] Integration testing
-- [ ] UAT with ADaM programmers
-- [ ] Performance optimization
-- [ ] Bug fixes
+**Deliverables:**
+- Global study context system
+- All modules integrated with study selection
+- Backward compatibility maintained
 
-### Phase 5: Production Release (Week 6)
-- [ ] Feature flag enabled
-- [ ] Documentation updated
-- [ ] User training materials
-- [ ] Monitor metrics
+### Phase 6: Hardening, QA & Documentation (Week 6-7)
 
----
+**Tasks:**
+1. ✅ Performance testing and optimization
+2. ✅ Security audit
+3. ✅ 21 CFR Part 11 compliance verification
+4. ✅ End-to-end testing
+5. ✅ User acceptance testing
+6. ✅ Documentation (API docs, user guide)
+7. ✅ Deployment preparation
 
-## 13. Observability & Metrics
-
-### 13.1 Backend Metrics
-
-**Track via logging:**
-```python
-logger.info("code_comparison_completed", extra={
-    "comparison_mode": request.comparison_mode,
-    "similarity_score": result.overall_similarity_score,
-    "critical_differences": result.summary.critical_count,
-    "execution_time_ms": result.metadata.execution_time_ms,
-    "llm_used": result.metadata.llm_used,
-    "code_size_chars": len(request.code_1) + len(request.code_2),
-})
-```
-
-**Dashboards:**
-- Average comparison time (by mode)
-- Similarity score distribution
-- LLM usage rate
-- Error rate (by error type)
-
-### 13.2 Frontend Analytics
-
-**Track user actions:**
-- Comparison initiated (by mode)
-- Sample loaded
-- Difference clicked
-- Export generated
-- Error occurred
+**Deliverables:**
+- Production-ready code
+- Complete test coverage
+- Documentation
+- Deployment guide
 
 ---
 
-## 14. Open Questions & Decisions Required
+## 11. Risk Mitigation & Edge Cases
 
-### 14.1 Critical Decisions
+### 11.1 Identified Risks
 
-**Q1: Should we support cross-language comparison (SAS vs R) in MVP?**
-- **Recommendation**: YES, but with limitations
-  - Allow comparison for structural similarity
-  - Disable functional equivalence checks
-  - Show warning: "Cross-language comparison has limited accuracy"
-  - Useful for QC teams that use different languages
+**Risk 1: Data Migration Issues**
+- **Mitigation:** 
+  - Test migrations on staging database first
+  - Create rollback scripts
+  - Backup database before migration
+  - Feature flag to disable new study module if issues arise
 
-**Q2: Should we persist comparison history?**
-- **Recommendation**: NOT in MVP, add in Phase 2
-  - MVP: Session-based only
-  - Phase 2: Add history table, 30-day retention
-  - Phase 3: Tie to study/dataset for audit trail
+**Risk 2: Performance with Large Documents**
+- **Mitigation:**
+  - Implement document size limits (50MB)
+  - Use streaming for large file uploads
+  - Background processing for embeddings
+  - Pagination for document lists
+  - Cache frequently accessed data
 
-**Q3: Maximum file size limit?**
-- **Recommendation**: 50,000 characters (~2000 lines)
-  - Covers 95% of ADaM programs
-  - For larger: Suggest comparing in sections
-  - Future: Support chunked comparison
+**Risk 3: Chatbot Hallucinations**
+- **Mitigation:**
+  - Strict system prompts
+  - Low temperature (0.1)
+  - Citation requirements
+  - "I don't know" responses when no relevant docs
+  - User education about document-based answers
 
-**Q4: Which LLM provider for categorization?**
-- **Recommendation**: GPT-4o-mini (default), with fallback
-  - Fast (2-3s response time)
-  - Accurate for code understanding
-  - Fallback order: Gemini Flash → Claude Haiku → Heuristics
+**Risk 4: Breaking Existing Functionality**
+- **Mitigation:**
+  - Backward compatibility for all endpoints
+  - Feature flag to enable/disable study module
+  - Comprehensive regression tests
+  - Gradual rollout (canary deployment)
 
-**Q5: Should we validate code execution equivalence?**
-- **Recommendation**: NOT in MVP (too complex)
-  - Static analysis only
-  - Suggest using ADAM Generator for execution testing
-  - Phase 3 feature: "Test equivalence" button
+**Risk 5: Vector Search Performance**
+- **Mitigation:**
+  - Use pgvector if PostgreSQL available
+  - Alternative: Use external vector DB (Pinecone, Weaviate)
+  - Index optimization
+  - Limit search scope to study_id
 
-### 14.2 Clarifications Needed from Product Owner
+### 11.2 Edge Cases Handled
 
-1. **Regulatory requirements**: Do comparison reports need to be 21 CFR Part 11 compliant (audit trail, e-signatures)?
-2. **Export format preferences**: PDF sufficient, or also need Word/Excel?
-3. **User access control**: Should Code Comparer require special permissions?
-4. **SLA expectations**: What's acceptable response time for Deep mode (15s? 30s?)?
-5. **Branding**: Any specific visual style for comparison reports (logo, colors)?
-
----
-
-## 15. Risk Mitigation
-
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
-| Monaco DiffEditor performance issues with large files | Medium | High | Implement virtualization, file size limits, progressive rendering |
-| LLM categorization inaccurate | Low | Medium | Validate with test suite, allow manual override in Phase 2 |
-| Users confused by severity labels | Medium | Medium | Clear definitions in UI, examples in samples |
-| Backend timeout on slow networks | Low | High | Implement client-side retry, increase timeouts, show progress |
-| Accessibility compliance gaps | Low | High | Conduct audit early, use ARIA best practices |
-| Scope creep (too many features) | High | Medium | Strict adherence to MVP scope, defer advanced features |
+1. **No documents uploaded** → Chatbot returns "No documents available"
+2. **No relevant chunks found** → Chatbot returns "I don't know based on available documents"
+3. **Study deletion with active jobs** → Prevent hard delete, show dependencies
+4. **Document upload failure** → Retry mechanism, status tracking
+5. **Embedding generation failure** → Fallback to keyword search
+6. **Study switch during active operation** → Cancel/complete current operation, switch context
+7. **Concurrent document uploads** → Queue management, status tracking
+8. **Large number of studies** → Pagination, search, filtering
+9. **Invalid study_id in URL** → 404 error, redirect to study list
+10. **Network failure during save** → Retry logic, offline indicator
 
 ---
 
-## 16. Success Metrics (3 Months Post-Launch)
+## 12. Clarification Questions
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| **Adoption** | 60% of active users try Code Comparer | Backend analytics |
-| **Usage frequency** | 3+ comparisons/week per QC team | Backend analytics |
-| **Satisfaction** | 4.5/5 user rating | In-app survey |
-| **Accuracy** | 90% agreement with manual review | UAT validation |
-| **Performance** | 95% of comparisons <5s | Backend metrics |
-| **Error rate** | <2% of comparisons fail | Backend error logs |
+1. **Database Engine**: Is PostgreSQL with pgvector available, or should we use external vector store (Pinecone, Weaviate)?
 
----
+2. **File Storage**: S3 in production or local filesystem? What's the storage path structure preference?
 
-## 17. Documentation & Training
+3. **User/Tenant Model**: Are there existing user/tenant concepts that should scope studies? Multi-tenant architecture?
 
-### 17.1 User Documentation
+4. **PHI/PII Concerns**: Do study documents contain PHI/PII requiring additional encryption or masking?
 
-**User Guide Sections:**
-1. Getting Started (2 min tutorial)
-2. Understanding Similarity Scores
-3. Interpreting Difference Categories
-4. Best Practices for Code Comparison
-5. Keyboard Shortcuts Reference
-6. Troubleshooting Common Issues
+5. **Maximum Scale**: Expected maximum number of studies per user? Documents per study? File sizes?
 
-**Video Tutorials:**
-- "Your First Comparison" (3 min)
-- "Deep Analysis for Regulatory Review" (5 min)
-- "Exporting Comparison Reports" (2 min)
+6. **Existing Study Data**: Are there existing study-related tables/models that should be reused to avoid duplication?
 
-### 17.2 Developer Documentation
+7. **Chatbot Availability**: Should chatbot be available only in "Enter Study Details" page or also embedded in pair programming and validation pages?
 
-- API Reference (OpenAPI/Swagger)
-- Architecture Decision Records (ADRs)
-- Contributing Guide
-- Prompt Engineering Guide (for LLM categorization)
+8. **Embedding Model**: Preference for embedding model (OpenAI, sentence-transformers, Gemini embeddings)?
+
+9. **Audit Requirements**: Level of 21 CFR Part 11 compliance needed initially? E-signature requirements?
+
+10. **Feature Flag**: Should study module be behind a feature flag for gradual rollout?
 
 ---
 
-## 18. Future Enhancements (Post-MVP)
+## 13. Success Metrics
 
-**Phase 2 (6 months):**
-- Comparison history and search
-- Manual difference categorization override
-- Multi-file comparison (compare entire programs folder)
-- Integration with version control (Git diff UI)
-
-**Phase 3 (12 months):**
-- Three-way merge visualization
-- Automated QC acceptance workflow
-- Real-time collaborative comparison
-- AI-suggested code merge
+- ✅ Users can create and switch studies seamlessly
+- ✅ All study documents accessible across modules
+- ✅ Chatbot provides accurate, cited answers
+- ✅ Zero breaking changes to existing functionality
+- ✅ <2s response time for study switching
+- ✅ <5s document upload processing start
+- ✅ 80%+ test coverage for new code
+- ✅ Zero security vulnerabilities
+- ✅ 21 CFR Part 11 audit trail complete
 
 ---
 
-## Appendix A: Technical Dependencies
+## 14. Next Steps
 
-### Frontend
-- `@monaco-editor/react`: ^4.7.0
-- `antd`: ^5.x
-- `react-window`: For virtualization
-- `jspdf`: For PDF export
-- `html2canvas`: For HTML export
-
-### Backend
-- `difflib`: Built-in Python
-- `asyncio`: Built-in Python
-- `reportlab` or `weasyprint`: PDF generation
-- Existing LLM integration modules
+1. **Review & Approve Plan** - Stakeholder review of this revised plan
+2. **Answer Clarification Questions** - Address open questions above
+3. **Set Up Development Environment** - Database, Redis, S3/local storage
+4. **Create Project Board** - Break down into tickets (Jira/GitHub Issues)
+5. **Kickoff Phase 1** - Begin database and backend foundations
 
 ---
 
-## Appendix B: Research Sources
-
-This plan incorporates industry best practices from:
-
-1. **Code Comparison Tools Research**:
-   - [What is Diff - Understanding Code Diff Tools | Codecademy](https://www.codecademy.com/article/what-is-diffing)
-   - [Pros and Cons of Code Compare 2024](https://www.trustradius.com/products/code-compare/reviews?qs=pros-and-cons)
-
-2. **UI/UX Best Practices**:
-   - [How to design feature comparison tables | LogRocket](https://blog.logrocket.com/ux-design/ui-design-comparison-features/)
-   - [4 Ways to Optimize the Comparison Feature – Baymard](https://baymard.com/blog/user-friendly-comparison-tools)
-   - [10 UX Trends That Will Shape the Industry in 2024](https://www.wix.com/blog/ux-design-trends)
-
-3. **Monaco Editor Integration**:
-   - [monaco-editor/react - npm](https://www.npmjs.com/package/@monaco-editor/react)
-   - [DiffEditor Component | DeepWiki](https://deepwiki.com/suren-atoyan/monaco-react/2.2-diffeditor-component)
-   - [Monaco Editor React Docs](https://monaco-react.surenatoyan.com/)
-
----
-
-## Summary of Improvements Over Initial Plan
-
-✅ **Added**: Progressive disclosure UX to avoid overwhelming users
-✅ **Added**: Three comparison modes (Quick, Standard, Deep)
-✅ **Added**: Export capabilities (PDF, HTML, JSON)
-✅ **Added**: Comprehensive keyboard navigation and accessibility
-✅ **Added**: Performance optimizations for large files
-✅ **Added**: Graceful error handling and partial results
-✅ **Added**: Sample programs with guided learning flow
-✅ **Enhanced**: Difference categorization with ADaM domain mapping
-✅ **Enhanced**: Visual diff with Monaco DiffEditor best practices
-✅ **Enhanced**: User flows with time estimates
-✅ **Clarified**: Technical implementation details for both frontend and backend
-✅ **Structured**: Clear rollout plan, testing strategy, and success metrics
-
-This revised plan provides a **production-ready roadmap** for building an industry-grade Code Comparer that sets a new standard for code comparison in clinical trial programming.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+**Document Version:** 2.0  
+**Last Updated:** November 25, 2025  
+**Status:** Ready for Implementation  
+**Estimated Timeline:** 6-7 weeks for full implementation
 
 

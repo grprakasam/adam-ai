@@ -24,13 +24,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
       console.log('📡 Sending request to: /api/v1/auth/login');
 
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
       const response = await fetch('/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData,
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       console.log('📥 Response status:', response.status);
       console.log('📥 Response OK:', response.ok);
@@ -81,14 +88,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         console.error('❌ Login failed:', errorMessage);
         message.error(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('💥 Login error:', error);
+      console.error('Error name:', error?.name);
       console.error('Error type:', error instanceof TypeError ? 'Network/CORS Error' : 'Unknown Error');
       
-      if (error instanceof TypeError) {
+      if (error?.name === 'AbortError') {
+        message.error('Request timed out. The backend server may not be responding. Please check if the backend is running on port 8000.');
+      } else if (error instanceof TypeError) {
         message.error('Network error: Cannot connect to backend. Please ensure the backend server is running on port 8000.');
       } else {
-        message.error('Login failed. Please check your connection and try again.');
+        message.error(error?.message || 'Login failed. Please check your connection and try again.');
       }
     } finally {
       setLoading(false);

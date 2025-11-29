@@ -26,7 +26,7 @@ from sqlalchemy import (
     UniqueConstraint
 )
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, BIGINT
 import uuid
 
 from app.core.database import Base
@@ -575,4 +575,246 @@ class CodeReviewCommentDB(Base):
         Index("idx_review_comment_line", "line_number"),
         Index("idx_review_comment_status", "status"),
         Index("idx_review_comment_created", "created_at"),
+    )
+
+
+# ============================================================================
+# Study Management Models
+# ============================================================================
+
+class StudyDB(Base):
+    """
+    Study database model
+    Stores clinical study metadata
+    """
+    __tablename__ = "studies"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    protocol_number: Mapped[Optional[str]] = mapped_column(String(255))
+    sponsor: Mapped[Optional[str]] = mapped_column(String(255))
+    therapeutic_area: Mapped[Optional[str]] = mapped_column(String(255))
+    phase: Mapped[Optional[str]] = mapped_column(String(50))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_accessed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    # Progress tracking
+    setup_complete: Mapped[bool] = mapped_column(Boolean, default=False)
+    code_generated: Mapped[bool] = mapped_column(Boolean, default=False)
+    validation_status: Mapped[str] = mapped_column(String(50), default='not_started')
+    submission_status: Mapped[str] = mapped_column(String(50), default='not_ready')
+
+    # Standards versions
+    sdtm_version: Mapped[Optional[str]] = mapped_column(String(50))
+    adam_ig_version: Mapped[Optional[str]] = mapped_column(String(50))
+    meddra_version: Mapped[Optional[str]] = mapped_column(String(50))
+
+    # Soft delete
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+
+    __table_args__ = (
+        Index("idx_studies_created_by", "created_by"),
+        Index("idx_studies_created_at", "created_at"),
+        Index("idx_studies_is_deleted", "is_deleted"),
+    )
+
+
+# ============================================================================
+# Study Documents & Chatbot Models
+# ============================================================================
+
+class StudyDatasetSelectionDB(Base):
+    """
+    Enhanced dataset selection for studies
+    Tracks which ADAM datasets are selected for generation
+    """
+    __tablename__ = "study_dataset_selections"
+
+    id: Mapped[str] = mapped_column(
+        String(50),
+        primary_key=True,
+        default=lambda: f"dataset-sel-{uuid.uuid4().hex[:12]}"
+    )
+    study_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("studies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    dataset_name: Mapped[str] = mapped_column(String(50), nullable=False)  # ADSL, ADAE, ADLB, etc.
+    language: Mapped[str] = mapped_column(String(10), nullable=False)  # R, SAS, Both
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    priority: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("study_id", "dataset_name", name="uq_study_dataset"),
+        Index("idx_study_dataset_study_id", "study_id"),
+        Index("idx_study_dataset_active", "study_id", "is_active"),
+    )
+
+
+class StudyDocumentDB(Base):
+    """
+    Study document storage and metadata
+    Supports various document types: specifications, SAPs, ADAM specs, etc.
+    """
+    __tablename__ = "study_documents"
+
+    id: Mapped[str] = mapped_column(
+        String(50),
+        primary_key=True,
+        default=lambda: f"doc-{uuid.uuid4().hex[:12]}"
+    )
+    study_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("studies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    document_type: Mapped[str] = mapped_column(String(50), nullable=False)  # SPECIFICATION, SAP, ADAM_SPEC, etc.
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    original_file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    storage_url: Mapped[Optional[str]] = mapped_column(String(500))  # Pre-signed URL for S3
+    mime_type: Mapped[Optional[str]] = mapped_column(String(100))
+    size_bytes: Mapped[Optional[int]] = mapped_column(BIGINT)
+    version_label: Mapped[Optional[str]] = mapped_column(String(50))
+    tags: Mapped[Optional[dict]] = mapped_column(JSON)  # {"visit": "week12", "dataset": "ADSL"}
+    uploaded_by: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("users.id"),
+        nullable=False
+    )
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    processing_status: Mapped[str] = mapped_column(
+        String(50),
+        default="pending",
+        nullable=False
+    )  # pending, processing, completed, failed
+    extracted_text: Mapped[Optional[str]] = mapped_column(Text)  # For chatbot retrieval
+    doc_metadata: Mapped[Optional[dict]] = mapped_column(JSON)  # Page count, sections, etc.
+
+    # Relationships
+    embeddings = relationship("DocumentEmbeddingDB", back_populates="document", cascade="all, delete-orphan")
+    uploader = relationship("UserDB")
+
+    __table_args__ = (
+        Index("idx_study_doc_study_id", "study_id"),
+        Index("idx_study_doc_type", "study_id", "document_type", "is_active"),
+        Index("idx_study_doc_active", "study_id", "is_active"),
+        Index("idx_study_doc_processing", "processing_status"),
+    )
+
+
+class DocumentEmbeddingDB(Base):
+    """
+    Vector embeddings for document chunks
+    Used for RAG (Retrieval-Augmented Generation) in chatbot
+    """
+    __tablename__ = "document_embeddings"
+
+    id: Mapped[str] = mapped_column(
+        String(50),
+        primary_key=True,
+        default=lambda: f"embed-{uuid.uuid4().hex[:12]}"
+    )
+    study_document_id: Mapped[str] = mapped_column(
+        String(50),
+        ForeignKey("study_documents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    chunk_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
+    embedding_vector: Mapped[Optional[list]] = mapped_column(JSON)  # Store as JSON array
+    chunk_metadata: Mapped[Optional[dict]] = mapped_column(JSON)  # page_number, section, etc.
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    document = relationship("StudyDocumentDB", back_populates="embeddings")
+
+    __table_args__ = (
+        Index("idx_embedding_doc", "study_document_id", "chunk_index"),
+        Index("idx_embedding_chunk", "chunk_id"),
+    )
+
+
+class StudyChatSessionDB(Base):
+    """
+    Chatbot session for study-specific questions
+    Each session belongs to a study and tracks conversation history
+    """
+    __tablename__ = "study_chat_sessions"
+
+    id: Mapped[str] = mapped_column(
+        String(50),
+        primary_key=True,
+        default=lambda: f"chat-session-{uuid.uuid4().hex[:12]}"
+    )
+    study_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("studies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    title: Mapped[Optional[str]] = mapped_column(String(255))
+    created_by: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("users.id"),
+        nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    messages = relationship("StudyChatMessageDB", back_populates="session", cascade="all, delete-orphan")
+    creator = relationship("UserDB")
+
+    __table_args__ = (
+        Index("idx_chat_session_study", "study_id", "created_at"),
+    )
+
+
+class StudyChatMessageDB(Base):
+    """
+    Chat message in a chatbot session
+    Stores user questions and assistant answers with citations
+    """
+    __tablename__ = "study_chat_messages"
+
+    id: Mapped[str] = mapped_column(
+        String(50),
+        primary_key=True,
+        default=lambda: f"chat-msg-{uuid.uuid4().hex[:12]}"
+    )
+    session_id: Mapped[str] = mapped_column(
+        String(50),
+        ForeignKey("study_chat_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # user, assistant, system
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    source_document_ids: Mapped[Optional[list]] = mapped_column(JSON)  # List of document IDs used for answer
+    model_used: Mapped[Optional[str]] = mapped_column(String(100))  # gemini-2.5-flash, etc.
+    tokens_used: Mapped[Optional[int]] = mapped_column(Integer)
+
+    # Relationships
+    session = relationship("StudyChatSessionDB", back_populates="messages")
+
+    __table_args__ = (
+        Index("idx_chat_msg_session", "session_id", "timestamp"),
     )

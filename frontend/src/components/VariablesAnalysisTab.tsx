@@ -3,6 +3,7 @@ import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, RefreshCw, ArrowRight } from 'lucide-react';
 import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
+import { useStudyStore } from '../store/studyStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
 import { PairProgrammingArea } from './PairProgrammingArea';
@@ -76,6 +77,10 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     resetWorkspace,
     getCompletionPercentage,
   } = useProjectStore();
+
+  // Study context integration
+  const { currentStudyId, currentStudy, getStudyConfig } = useStudyStore();
+  const studyConfig = currentStudyId ? getStudyConfig(currentStudyId) : null;
 
   const [activeCategory, setActiveCategory] = useState<string>('all'); // Default to "All Variables"
   const [error, setError] = useState<string | null>(null);
@@ -590,8 +595,10 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       return;
     }
 
-    if (!projectConfig.studyId || projectConfig.studyId.trim().length < 3) {
-      message.warning('Please configure a valid Study ID (minimum 3 characters) in the "Enter Study Details" page');
+    // Use study context if available, otherwise fall back to project config
+    const effectiveStudyId = currentStudyId || projectConfig.studyId;
+    if (!effectiveStudyId || (typeof effectiveStudyId === 'string' && effectiveStudyId.trim().length < 3)) {
+      message.warning('Please select or configure a valid Study in the "Enter Study Details" page');
       return;
     }
 

@@ -21,6 +21,7 @@ import { TLFGeneratorTab } from './TLFGeneratorTab';
 import EnterStudyDetailsPage from './EnterStudyDetailsPage';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
+import { StudySelector } from './StudySelector';
 import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
@@ -50,7 +51,7 @@ type WorkspaceTabKey =
   | 'code-comparer'
   | 'tlf-generator';
 
-type WorkspaceGroup = 'adamCoding' | 'adamValidation' | 'utilities';
+type WorkspaceGroup = 'adamCoding' | 'utilities';
 
 // Tab tooltips for better discoverability
 const TAB_TOOLTIPS: Record<string, string> = {
@@ -95,8 +96,7 @@ const RightPanel = ({
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
     adamCoding: ['study-details', 'pair', 'review', 'consolidated'],
-    adamValidation: ['submission'],
-    utilities: ['comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator'],
+    utilities: ['submission', 'comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator'],
   };
 
   // Keep active tab consistent with active group
@@ -158,7 +158,7 @@ const RightPanel = ({
           break;
         case '/submission-dashboard':
         case '/submission-package':
-          setActiveGroup('adamValidation');
+          setActiveGroup('utilities');
           setActiveWorkspaceTab('submission');
           break;
         case '/test-with-data':
@@ -376,11 +376,11 @@ const RightPanel = ({
         },
         {
           key: 'submission',
-          group: 'adamValidation' as WorkspaceGroup,
+          group: 'utilities' as WorkspaceGroup,
           label: (
             <Tooltip title={TAB_TOOLTIPS.submission}>
               <span>
-                <span style={{ fontWeight: 700, color: 'inherit' }}>5.</span> Submission{' '}
+                Submission{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
@@ -493,6 +493,9 @@ const RightPanel = ({
         >
           {/* Unified Workspace Header Group - Combined Sections - ALWAYS VISIBLE */}
           <div className="workspace-header-group">
+            <div className="study-selector-section" style={{ marginBottom: '1rem', padding: '0 1rem' }}>
+              <StudySelector compact={true} />
+            </div>
             <div className="workspace-navigation-section">
               <WorkspaceNavigation
                 activeTab={activeWorkspaceTab}

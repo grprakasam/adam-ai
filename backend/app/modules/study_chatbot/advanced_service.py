@@ -834,7 +834,7 @@ YOUR ANSWER (strictly from context above):"""
             max_tokens=1000,
         )
 
-        return response.content
+        return response['content']
 
     def _verify_answer(self, answer: str, chunks: List[DocumentChunk]) -> VerificationResult:
         """Verify answer is grounded in context"""
@@ -965,7 +965,7 @@ Return ONLY a JSON array:
 
             # Parse JSON
             import json
-            json_match = re.search(r'\[.*\]', response.content, re.DOTALL)
+            json_match = re.search(r'\[.*\]', response['content'], re.DOTALL)
 
             if json_match:
                 questions_data = json.loads(json_match.group(0))

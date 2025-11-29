@@ -371,3 +371,139 @@ class PaginatedResponse(BaseModel):
     skip: int
     limit: int
     has_more: bool
+
+
+# ============================================================================
+# Study Documents & Chat Models
+# ============================================================================
+
+class DocumentType(str, Enum):
+    SPECIFICATION = "SPECIFICATION"
+    SAP = "SAP"
+    ADAM_SPEC = "ADAM_SPEC"
+    SDTM_SPEC = "SDTM_SPEC"
+    CT_LIST = "CT_LIST"
+    PROTOCOL = "PROTOCOL"
+    OTHER = "OTHER"
+
+
+class ProcessingStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class StudyDatasetSelectionRequest(BaseModel):
+    """Request to update dataset selections"""
+    datasets: List[Dict[str, Any]] = Field(..., description="List of dataset selections")
+    # Each item: {"dataset_name": "ADSL", "language": "R", "priority": 0}
+
+
+class StudyDatasetSelection(BaseModel):
+    """Dataset selection for a study"""
+    id: str
+    study_id: str
+    dataset_name: str
+    language: str
+    is_active: bool
+    priority: int
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StudyDocumentBase(BaseModel):
+    """Base document model"""
+    document_type: DocumentType
+    version_label: Optional[str] = None
+    tags: Optional[Dict[str, Any]] = None
+    description: Optional[str] = None
+
+
+class StudyDocumentCreate(StudyDocumentBase):
+    """Request to upload a document"""
+    pass
+
+
+class StudyDocument(StudyDocumentBase):
+    """Complete document model"""
+    id: str
+    study_id: str
+    file_name: str
+    original_file_name: str
+    storage_path: str
+    storage_url: Optional[str] = None
+    mime_type: Optional[str] = None
+    size_bytes: Optional[int] = None
+    uploaded_by: str
+    uploaded_at: datetime
+    is_active: bool
+    processing_status: ProcessingStatus
+    extracted_text: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ChatRequest(BaseModel):
+    """Request for chatbot"""
+    message: str = Field(..., min_length=1, max_length=2000)
+    session_id: Optional[str] = None
+    temperature: Optional[float] = Field(0.1, ge=0.0, le=1.0)
+
+
+class ChatMessage(BaseModel):
+    """Chat message"""
+    id: str
+    role: str  # user, assistant, system
+    content: str
+    timestamp: datetime
+    source_document_ids: Optional[List[str]] = None
+    model_used: Optional[str] = None
+    tokens_used: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class Citation(BaseModel):
+    """Citation for chatbot answer"""
+    document_id: str
+    document_name: str
+    page_number: Optional[int] = None
+    section: Optional[str] = None
+    chunk_text: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    """Response from chatbot"""
+    answer: str
+    citations: List[Citation]
+    source_document_ids: List[str]
+    session_id: str
+    message_id: str
+
+
+class ChatSession(BaseModel):
+    """Chat session"""
+    id: str
+    study_id: str
+    title: Optional[str] = None
+    created_by: str
+    created_at: datetime
+    message_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+
+class ChatSessionDetail(ChatSession):
+    """Chat session with messages"""
+    messages: List[ChatMessage] = []
+
+    class Config:
+        from_attributes = True

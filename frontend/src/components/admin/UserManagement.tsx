@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Tag, Modal, Form, Input, Select, Space, message } from 'antd';
 import { UserAddOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import { api } from '../../services/api';
+import axios from 'axios';
 
 interface User {
   username: string;
@@ -24,9 +24,15 @@ export const UserManagement: React.FC = () => {
   const loadUsers = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/v1/auth/users');
+      const baseUrl = import.meta.env.VITE_API_URL || '';
+      const response = await axios.get(`${baseUrl}/api/v1/auth/users`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('adam_access_token') || ''}`,
+        },
+      });
       setUsers(response.data.users || []);
     } catch (error) {
+      console.error('Failed to load users', error);
       message.error('Failed to load users');
     } finally {
       setLoading(false);

@@ -1,266 +1,226 @@
 import React, { useState, useEffect } from 'react';
-import { Select, Modal, Form, Input, Button, message, Spin, Empty } from 'antd';
-import { FolderOutlined, PlusOutlined } from '@ant-design/icons';
-import { api } from '../services/api';
+import { Search, Plus, ChevronDown } from 'lucide-react';
+import { useStudyStore } from '../store/studyStore';
+import { message } from 'antd';
 import './StudySelector.css';
 
-const { Option } = Select;
-
-interface Study {
-  id: string;
-  name: string;
-  protocol_number?: string;
-  sponsor?: string;
-  phase?: string;
-  last_accessed_at?: string;
-  setup_complete: boolean;
-  my_permission: string;
-}
-
 interface StudySelectorProps {
-  value?: string;
+  value?: string; // currentStudyId
   onChange?: (studyId: string) => void;
-  onStudyChange?: (study: Study | null) => void;
+  onStudyChange?: (study: any) => void;
+  showCreateButton?: boolean;
+  compact?: boolean;
 }
 
 export const StudySelector: React.FC<StudySelectorProps> = ({
   value,
   onChange,
-  onStudyChange
+  onStudyChange,
+  showCreateButton = true,
+  compact = false
 }) => {
-  const [studies, setStudies] = useState<Study[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [createModalVisible, setCreateModalVisible] = useState(false);
-  const [creatingStudy, setCreatingStudy] = useState(false);
-  const [selectedStudyId, setSelectedStudyId] = useState<string | undefined>(value);
-  const [form] = Form.useForm();
+  const {
+    studies,
+    currentStudyId,
+    currentStudy,
+    studiesLoading,
+    loadStudies,
+    setCurrentStudy,
+    createStudy
+  } = useStudyStore();
 
-  // Load studies on mount
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
   useEffect(() => {
     loadStudies();
-  }, []);
+  }, [loadStudies]);
 
-  // Update selected study when value prop changes
   useEffect(() => {
-    setSelectedStudyId(value);
-  }, [value]);
-
-  const loadStudies = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/v1/studies');
-      setStudies(response.data);
-
-      // If there's a selected study, emit it
-      if (selectedStudyId && onStudyChange) {
-        const study = response.data.find((s: Study) => s.id === selectedStudyId);
-        onStudyChange(study || null);
-      }
-    } catch (error) {
-      message.error('Failed to load studies');
-      console.error('Error loading studies:', error);
-    } finally {
-      setLoading(false);
+    if (value && value !== currentStudyId) {
+      setCurrentStudy(value);
     }
-  };
+  }, [value, currentStudyId, setCurrentStudy]);
 
-  const handleStudySelect = async (studyId: string) => {
-    setSelectedStudyId(studyId);
-
-    // Track access
-    try {
-      await api.post(`/api/v1/studies/${studyId}/access`);
-    } catch (error) {
-      console.error('Failed to track study access:', error);
-    }
-
-    // Emit change
-    if (onChange) {
-      onChange(studyId);
-    }
-
-    // Emit full study object if callback provided
-    if (onStudyChange) {
-      const study = studies.find(s => s.id === studyId);
-      onStudyChange(study || null);
-    }
-  };
-
-  const handleCreateStudy = async (values: any) => {
-    setCreatingStudy(true);
-    try {
-      const response = await api.post('/api/v1/studies', values);
-      const newStudy = response.data;
-
-      message.success(`Study "${newStudy.name}" created successfully`);
-
-      // Add to list and select
-      setStudies([newStudy, ...studies]);
-      handleStudySelect(newStudy.id);
-
-      // Close modal and reset form
-      setCreateModalVisible(false);
-      form.resetFields();
-    } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to create study');
-      console.error('Error creating study:', error);
-    } finally {
-      setCreatingStudy(false);
-    }
-  };
-
-  const renderStudyOption = (study: Study) => (
-    <Option key={study.id} value={study.id}>
-      <div className="study-option">
-        <div className="study-option-main">
-          <FolderOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-          <span className="study-name">{study.name}</span>
-          {study.protocol_number && (
-            <span className="study-protocol"> ({study.protocol_number})</span>
-          )}
-        </div>
-        {study.sponsor && (
-          <div className="study-option-meta">{study.sponsor}</div>
-        )}
-      </div>
-    </Option>
+  const filteredStudies = studies.filter(study =>
+    study.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    study.protocol_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    study.sponsor?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  return (
-    <>
-      <Select
-        className="study-selector"
-        placeholder="Select a study"
-        value={selectedStudyId}
-        onChange={handleStudySelect}
-        loading={loading}
-        style={{ minWidth: 250 }}
-        size="large"
-        showSearch
-        optionFilterProp="children"
-        filterOption={(input, option) =>
-          (option?.children as any)?.props?.children?.[1]?.props?.children
-            ?.toLowerCase()
-            .includes(input.toLowerCase())
-        }
-        dropdownRender={menu => (
-          <div>
-            {menu}
-            <div style={{ padding: '8px', borderTop: '1px solid #f0f0f0' }}>
-              <Button
-                type="link"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateModalVisible(true)}
-                block
-              >
-                Create New Study
-              </Button>
+  const handleStudySelect = async (studyId: string) => {
+    await setCurrentStudy(studyId);
+    onChange?.(studyId);
+    if (currentStudy) {
+      onStudyChange?.(currentStudy);
+    }
+    setIsOpen(false);
+    setSearchTerm('');
+    // Broadcast change
+    window.dispatchEvent(new CustomEvent('study-changed', { detail: { studyId } }));
+  };
+
+  const handleCreateStudy = async () => {
+    setIsCreating(true);
+    try {
+      const newStudy = await createStudy({
+        name: `New Study ${new Date().toLocaleDateString()}`,
+        description: 'Created from Study Selector'
+      });
+      await handleStudySelect(newStudy.id);
+      message.success(`Study "${newStudy.name}" created.`);
+    } catch (error) {
+      console.error('Error creating study:', error);
+      message.error('Failed to create study. Please try again.');
+    } finally {
+      setIsCreating(false);
+      setIsOpen(false);
+    }
+  };
+
+  const selectedStudy = studies.find(s => s.id === (value || currentStudyId));
+
+  if (compact) {
+    return (
+      <div className="study-selector-compact">
+        <button
+          className="study-selector-trigger-compact"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          <span>{selectedStudy?.name || 'Select Study'}</span>
+          <ChevronDown size={16} />
+        </button>
+        {isOpen && (
+          <div className="study-selector-dropdown">
+            <div className="study-selector-search">
+              <Search size={16} />
+              <input
+                type="text"
+                placeholder="Search studies..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="study-selector-list">
+              {filteredStudies.map(study => (
+                <button
+                  key={study.id}
+                  className={`study-selector-item ${study.id === (value || currentStudyId) ? 'active' : ''}`}
+                  onClick={() => handleStudySelect(study.id)}
+                >
+                  <div className="study-item-name">{study.name}</div>
+                  {study.protocol_number && (
+                    <div className="study-item-meta">Protocol: {study.protocol_number}</div>
+                  )}
+                </button>
+              ))}
+              {showCreateButton && (
+                <button
+                  className="study-selector-create"
+                  onClick={handleCreateStudy}
+                  disabled={isCreating}
+                >
+                  <Plus size={16} />
+                  {isCreating ? 'Creating...' : 'Create New Study'}
+                </button>
+              )}
             </div>
           </div>
         )}
-        notFoundContent={
-          loading ? (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <Spin />
-            </div>
-          ) : (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="No studies found"
-            >
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={() => setCreateModalVisible(true)}
-              >
-                Create Your First Study
-              </Button>
-            </Empty>
-          )
-        }
-      >
-        {studies.map(renderStudyOption)}
-      </Select>
+      </div>
+    );
+  }
 
-      {/* Create Study Modal */}
-      <Modal
-        title="Create New Study"
-        open={createModalVisible}
-        onCancel={() => {
-          setCreateModalVisible(false);
-          form.resetFields();
-        }}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleCreateStudy}
+  return (
+    <div className="study-selector">
+      <div className="study-selector-header">
+        <label>Study</label>
+        {showCreateButton && (
+          <button
+            className="create-study-btn"
+            onClick={handleCreateStudy}
+            disabled={isCreating}
+          >
+            <Plus size={16} />
+            {isCreating ? 'Creating...' : 'New Study'}
+          </button>
+        )}
+      </div>
+      <div className="study-selector-wrapper">
+        <button
+          className="study-selector-trigger"
+          onClick={() => setIsOpen(!isOpen)}
+          disabled={studiesLoading}
         >
-          <Form.Item
-            name="name"
-            label="Study Name"
-            rules={[{ required: true, message: 'Please enter study name' }]}
-          >
-            <Input placeholder="e.g., STUDY-2025-001" />
-          </Form.Item>
-
-          <Form.Item
-            name="protocol_number"
-            label="Protocol Number"
-          >
-            <Input placeholder="e.g., PROTO-001" />
-          </Form.Item>
-
-          <Form.Item
-            name="sponsor"
-            label="Sponsor"
-          >
-            <Input placeholder="e.g., Acme Pharma" />
-          </Form.Item>
-
-          <Form.Item
-            name="therapeutic_area"
-            label="Therapeutic Area"
-          >
-            <Input placeholder="e.g., Oncology" />
-          </Form.Item>
-
-          <Form.Item
-            name="phase"
-            label="Study Phase"
-          >
-            <Select placeholder="Select phase">
-              <Option value="Phase I">Phase I</Option>
-              <Option value="Phase II">Phase II</Option>
-              <Option value="Phase III">Phase III</Option>
-              <Option value="Phase IV">Phase IV</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Description"
-          >
-            <Input.TextArea rows={3} placeholder="Brief study description" />
-          </Form.Item>
-
-          <Form.Item style={{ marginBottom: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <Button onClick={() => {
-                setCreateModalVisible(false);
-                form.resetFields();
-              }}>
-                Cancel
-              </Button>
-              <Button type="primary" htmlType="submit" loading={creatingStudy}>
-                Create Study
-              </Button>
+          <span>
+            {selectedStudy ? (
+              <>
+                <strong>{selectedStudy.name}</strong>
+                {selectedStudy.protocol_number && (
+                  <span className="study-protocol"> ({selectedStudy.protocol_number})</span>
+                )}
+              </>
+            ) : (
+              'Select a study...'
+            )}
+          </span>
+          <ChevronDown size={20} />
+        </button>
+        {isOpen && (
+          <div className="study-selector-dropdown">
+            <div className="study-selector-search">
+              <Search size={16} />
+              <input
+                type="text"
+                placeholder="Search studies..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                autoFocus
+              />
             </div>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </>
+            <div className="study-selector-list">
+              {filteredStudies.length === 0 ? (
+                <div className="study-selector-empty">
+                  {searchTerm ? 'No studies found' : 'No studies available'}
+                </div>
+              ) : (
+                filteredStudies.map(study => (
+                  <button
+                    key={study.id}
+                    className={`study-selector-item ${study.id === (value || currentStudyId) ? 'active' : ''}`}
+                    onClick={() => handleStudySelect(study.id)}
+                  >
+                    <div className="study-item-header">
+                      <div className="study-item-name">{study.name}</div>
+                      {study.validation_status && (
+                        <span className={`study-status status-${study.validation_status}`}>
+                          {study.validation_status}
+                        </span>
+                      )}
+                    </div>
+                    <div className="study-item-meta">
+                      {study.protocol_number && (
+                        <span>Protocol: {study.protocol_number}</span>
+                      )}
+                      {study.sponsor && (
+                        <span>Sponsor: {study.sponsor}</span>
+                      )}
+                    </div>
+                    <div className="study-item-footer">
+                      <span className="study-datasets">{study.datasets_count} dataset(s)</span>
+                      <span className="study-date">
+                        {new Date(study.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

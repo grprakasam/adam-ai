@@ -1,24 +1,41 @@
-/* Form Block Styles */
+/* Form Block Styles - Professional UI/UX */
 
 .form-block {
-  margin-bottom: var(--space-6);
+  margin-bottom: 2rem;
+  background: white;
+  border-radius: 12px;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.form-block:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.08);
 }
 
 .form-block-header {
   position: relative;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  border-bottom: 2px solid #e5e7eb;
 }
 
 .form-block-title-group {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 0.625rem;
 }
 
 .form-block-title {
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  color: var(--gray-900);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
   margin: 0;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .help-icon-button {
@@ -42,10 +59,11 @@
 }
 
 .form-block-description {
-  margin: var(--space-2) 0 0 0;
-  font-size: var(--text-sm);
-  color: var(--gray-600);
-  line-height: var(--leading-normal);
+  margin: 0.625rem 0 0 0;
+  font-size: 0.9375rem;
+  color: #6b7280;
+  line-height: 1.6;
+  font-weight: 400;
 }
 
 .collapse-toggle {
@@ -75,8 +93,24 @@
 
 .form-block-content {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: var(--space-5);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  padding: 1.75rem;
+  background: white;
+}
+
+.form-block-content * {
+  pointer-events: auto;
+}
+
+.form-block-content input,
+.form-block-content textarea,
+.form-block-content select {
+  pointer-events: auto !important;
+  cursor: text !important;
 }
 
 /* Single column layout for narrow blocks */

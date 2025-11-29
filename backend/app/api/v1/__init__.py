@@ -30,6 +30,10 @@ from app.api.v1.endpoints import (
     adam_analytics,
     study_chatbot,
     tlf_generator,
+    studies,
+    study_documents,
+    study_chat,
+    admin,
 )
 from app.api import auth_routes, validation_routes, performance_routes, review_routes
 
@@ -68,6 +72,10 @@ api_router.include_router(code_comparer.router, tags=["code-comparer"])
 api_router.include_router(study_chatbot.router, tags=["study-chatbot"])
 api_router.include_router(adam_analytics.router, tags=["adam-analytics"])
 api_router.include_router(tlf_generator.router, tags=["tlf-generator"])
+api_router.include_router(studies.router, tags=["studies"])
+api_router.include_router(study_documents.router, tags=["study-documents"])
+api_router.include_router(study_chat.router, tags=["study-chat"])
+api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 
 
 @api_router.get("/status")

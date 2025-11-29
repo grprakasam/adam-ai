@@ -1,7 +1,112 @@
-/* TextField Styles */
+/* TextField Styles - Professional UI/UX */
 
 .text-field {
   display: flex;
   flex-direction: column;
   width: 100%;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.text-field * {
+  pointer-events: auto;
+}
+
+.text-field .label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.625rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.text-field .label-required::after {
+  content: ' *';
+  color: #ef4444;
+  font-weight: 700;
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.text-field .input,
+.text-field .textarea {
+  padding: 0.875rem 1rem;
+  font-size: 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: inherit;
+  width: 100%;
+  background: #ffffff;
+  cursor: text;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+  line-height: 1.5;
+}
+
+.text-field .input:hover:not(:disabled),
+.text-field .textarea:hover:not(:disabled) {
+  border-color: #a78bfa;
+  background: #faf5ff;
+}
+
+.text-field .input:disabled,
+.text-field .textarea:disabled {
+  background: #f9fafb;
+  cursor: not-allowed;
+  opacity: 0.7;
+  border-color: #d1d5db;
+}
+
+.text-field .input:focus,
+.text-field .textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1),
+              0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.text-field .input-error,
+.text-field .textarea.input-error {
+  border-color: #ef4444;
+}
+
+.text-field .input-error:focus,
+.text-field .textarea.input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.text-field .textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.text-field .help-text {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
+.text-field .error-text {
+  font-size: 0.8125rem;
+  color: #ef4444;
+  margin-top: 0.5rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.text-field .error-text::before {
+  content: '⚠️';
+  font-size: 0.875rem;
 }

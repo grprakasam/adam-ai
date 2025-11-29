@@ -9,8 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.study_models import Notification, APIResponse
 from app.services.notification_service import NotificationService
 from app.core.database import get_db
-from app.core.auth import get_current_active_user, verify_websocket_token
-from app.models.user import User
+from app.core.auth import get_current_active_user, verify_websocket_token, User
 from app.core.websocket import notification_manager
 
 

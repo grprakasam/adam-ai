@@ -13,8 +13,7 @@ from app.models.study_models import (
 )
 from app.services.audit_service import AuditService
 from app.core.database import get_db
-from app.core.auth import get_current_admin_user
-from app.models.user import User
+from app.core.auth import get_current_admin_user, User
 
 
 router = APIRouter(prefix="/admin", tags=["Admin"])

@@ -30,7 +30,7 @@ class TLFType(str):
 class TLFAnalysisRequest(BaseModel):
     """Request for analyzing uploaded mockshell"""
     tlf_type: str = Field(..., description="Type: table, listing, or figure")
-    study_id: Optional[str] = Field(None, description="Study identifier")
+    study_id: Optional[str] = Field(None, description="Study identifier - if provided, enriches context with study documents and metadata")
     dataset_name: Optional[str] = Field(None, description="Dataset name (e.g., ADSL, ADAE)")
     output_name: Optional[str] = Field(None, description="Output name (e.g., T_14_1_01)")
     description: Optional[str] = Field(None, description="Description of the output")
