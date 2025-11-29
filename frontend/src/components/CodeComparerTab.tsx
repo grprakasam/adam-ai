@@ -329,14 +329,19 @@ export const CodeComparerTab: React.FC = () => {
   // DiffEditor mount handler
   const handleEditorMount = useCallback((editor: editor.IDiffEditor) => {
     diffEditorRef.current = editor;
-    
+
     // Create diff navigator
-      if (window.monaco) {
-        const navigator = window.monaco.editor.createDiffNavigator(editor, {
-          followsCaret: true,
-          ignoreCharChanges: true,
-        });
-        setDiffNavigator(navigator);
+      try {
+        if (window.monaco && window.monaco.editor && typeof window.monaco.editor.createDiffNavigator === 'function') {
+          const navigator = window.monaco.editor.createDiffNavigator(editor, {
+            followsCaret: true,
+            ignoreCharChanges: true,
+          });
+          setDiffNavigator(navigator);
+        }
+      } catch (error) {
+        console.warn('Failed to create diff navigator:', error);
+        // Navigator is optional, continue without it
       }
     }, []);
     
@@ -895,6 +900,8 @@ declare global {
     monaco?: typeof import('monaco-editor');
   }
 }
+
+
 
 
 
