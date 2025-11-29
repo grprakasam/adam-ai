@@ -15,6 +15,7 @@ import { AdamGeneratorTab } from './AdamGeneratorTab';
 import { RFrontendTab } from './RFrontendTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
 import { CodeComparerTab } from './CodeComparerTab';
+import { DatasetComparerTab } from './DatasetComparerTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { notifyUserError } from '../utils/errorNotifications';
@@ -346,7 +347,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               </span>
             </Tooltip>
           ),
-          children: <PlaceholderContent title="ADAM Dataset Comparer" />,
+          children: <DatasetComparerTab />,
         },
         {
           key: 'submission',
