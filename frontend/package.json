@@ -17,6 +17,7 @@
     "axios": "^1.6.2",
     "lucide-react": "^0.553.0",
     "networkx": "^0.0.1-security",
+    "recharts": "^2.10.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "reactflow": "^11.11.4",

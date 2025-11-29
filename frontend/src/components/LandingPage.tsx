@@ -1,4 +1,4 @@
-import { Button, Typography, Tag, Card, Space } from 'antd';
+import { Button, Typography, Tag, Card, Space, Tabs } from 'antd';
 import { 
   RocketOutlined, 
   CodeOutlined,
@@ -17,6 +17,10 @@ import {
   SafetyOutlined,
   PlayCircleOutlined,
   FileTextOutlined,
+  DatabaseOutlined,
+  ToolOutlined,
+  SwapOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useState, ReactNode } from 'react';
 import HelpPage from './HelpPage';
@@ -45,122 +49,201 @@ interface UtilityFeature {
   color: string;
 }
 
-const utilityFeatures: UtilityFeature[] = [
+interface CategoryFeatures {
+  categoryKey: string;
+  categoryName: string;
+  categoryIcon: ReactNode;
+  categoryGradient: string;
+  features: UtilityFeature[];
+}
+
+const categorizedFeatures: CategoryFeatures[] = [
   {
-    key: 'pair-programmer',
-    name: 'Pair Programmer',
-    path: '/workspace',
-    icon: <CodeOutlined />,
-    status: 'Live',
-    statusColor: 'green',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: '#667eea',
+    categoryKey: 'sdtm-ai',
+    categoryName: 'SDTM.AI',
+    categoryIcon: <DatabaseOutlined />,
+    categoryGradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+    features: [
+      {
+        key: 'sdtm-generator',
+        name: 'SDTM Test Data Generator',
+        path: '/test-with-data',
+        icon: <ExperimentOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+    ],
   },
   {
-    key: 'code-converter',
-    name: 'Code Converter',
-    path: '/migration',
-    icon: <BranchesOutlined />,
-    status: 'Live',
-    statusColor: 'green',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    color: '#4facfe',
+    categoryKey: 'adam-ai',
+    categoryName: 'ADAM.AI',
+    categoryIcon: <RocketOutlined />,
+    categoryGradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+    features: [
+      {
+        key: 'adam-generator',
+        name: 'ADAM Generator',
+        path: '/adam-generator',
+        icon: <RocketOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+      {
+        key: 'traceability',
+        name: 'Traceability',
+        path: '/traceability',
+        icon: <BranchesOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+      {
+        key: 'pair-programmer',
+        name: 'Pair Programmer',
+        path: '/workspace',
+        icon: <CodeOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+    ],
   },
   {
-    key: 'adam-generator',
-    name: 'ADAM Generator',
-    path: '/adam-generator',
-    icon: <RocketOutlined />,
-    status: 'Live',
-    statusColor: 'green',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    color: '#667eea',
+    categoryKey: 'tlf-ai',
+    categoryName: 'TLF.AI',
+    categoryIcon: <FileTextOutlined />,
+    categoryGradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+    features: [
+      {
+        key: 'tlf-generator',
+        name: 'TLF Generator',
+        path: '/tlf-generator',
+        icon: <FileTextOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+    ],
   },
   {
-    key: 'dataset-comparer',
-    name: 'Dataset Comparer',
-    path: '/adam-dataset-comparer',
-    icon: <DeploymentUnitOutlined />,
-    status: 'Preview',
-    statusColor: 'blue',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    color: '#4facfe',
+    categoryKey: 'compliance-ai',
+    categoryName: 'Compliance.AI',
+    categoryIcon: <SafetyOutlined />,
+    categoryGradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+    features: [
+      {
+        key: 'submission',
+        name: 'Submission',
+        path: '/submission-dashboard',
+        icon: <CheckCircleOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+    ],
   },
   {
-    key: 'code-comparer',
-    name: 'Code Comparer',
-    path: '/code-comparer',
-    icon: <HighlightOutlined />,
-    status: 'Preview',
-    statusColor: 'blue',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-    color: '#fa709a',
+    categoryKey: 'code-migration',
+    categoryName: 'CodeMigration.AI',
+    categoryIcon: <SwapOutlined />,
+    categoryGradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+    features: [
+      {
+        key: 'code-converter',
+        name: 'SAS to R Conversion Framework',
+        path: '/migration',
+        icon: <BranchesOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+    ],
   },
   {
-    key: 'sdtm-generator',
-    name: 'SDTM Test Data Generator',
-    path: '/test-with-data',
-    icon: <ExperimentOutlined />,
-    status: 'Live',
-    statusColor: 'green',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
-    color: '#30cfd0',
-  },
-  {
-    key: 'r-frontend',
-    name: 'R Frontend',
-    path: '/r-frontend',
-    icon: <ThunderboltOutlined />,
-    status: 'Live',
-    statusColor: 'green',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    color: '#f093fb',
-  },
-  {
-    key: 'analytics',
-    name: 'Analytics',
-    path: '/adam-data-analytics',
-    icon: <DashboardOutlined />,
-    status: 'In progress',
-    statusColor: 'orange',
-    actionLabel: 'Coming Soon',
-    gradient: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    color: '#4facfe',
-  },
-  {
-    key: 'chatbot',
-    name: 'Study ChatBot',
-    path: '/study-chatbot',
-    icon: <RobotOutlined />,
-    status: 'Preview',
-    statusColor: 'blue',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
-    color: '#a8edea',
-  },
-  {
-    key: 'traceability',
-    name: 'Traceability',
-    path: '/traceability',
-    icon: <BranchesOutlined />,
-    status: 'Live',
-    statusColor: 'green',
-    actionLabel: 'Launch',
-    gradient: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
-    color: '#ffecd2',
+    categoryKey: 'ai-utilities',
+    categoryName: 'Utilities.AI',
+    categoryIcon: <ToolOutlined />,
+    categoryGradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+    features: [
+      {
+        key: 'chatbot',
+        name: 'Study ChatBot',
+        path: '/study-chatbot',
+        icon: <RobotOutlined />,
+        status: 'Preview',
+        statusColor: 'blue',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+      {
+        key: 'code-comparer',
+        name: 'Code Comparer',
+        path: '/code-comparer',
+        icon: <HighlightOutlined />,
+        status: 'Preview',
+        statusColor: 'blue',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+      {
+        key: 'dataset-comparer',
+        name: 'Dataset Comparer',
+        path: '/adam-dataset-comparer',
+        icon: <DeploymentUnitOutlined />,
+        status: 'Preview',
+        statusColor: 'blue',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+      {
+        key: 'analytics',
+        name: 'Analytics',
+        path: '/adam-data-analytics',
+        icon: <DashboardOutlined />,
+        status: 'In progress',
+        statusColor: 'orange',
+        actionLabel: 'Coming Soon',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+      {
+        key: 'r-frontend',
+        name: 'R Frontend',
+        path: '/r-frontend',
+        icon: <ThunderboltOutlined />,
+        status: 'Live',
+        statusColor: 'green',
+        actionLabel: 'Launch',
+        gradient: 'linear-gradient(135deg, #1890ff 0%, #096dd9 100%)',
+        color: '#1890ff',
+      },
+    ],
   },
 ];
 
 const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout, onNavigateToUtility }: LandingPageProps) => {
   const [isHelpVisible, setIsHelpVisible] = useState(false);
   const [isTestDataVisible, setIsTestDataVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('all');
 
   const handleUtilityLaunch = (path: string, key?: string) => {
     // Handle special cases for quick actions
@@ -210,112 +293,126 @@ const LandingPage = ({ onStartProject, onOpenMigration, currentUser, onLogout, o
               <div className="user-avatar">
                 <UserOutlined />
               </div>
-              <Text strong style={{ color: '#f1f5f9' }}>{currentUser.full_name}</Text>
+              <Text strong style={{ color: '#262626' }}>{currentUser.full_name}</Text>
             </Space>
-            <Button
-              icon={<LogoutOutlined />}
-              size="small"
-              onClick={onLogout}
-              className="logout-btn"
-            >
-              Logout
-            </Button>
+            <Space size="middle">
+              <Button
+                icon={<QuestionCircleOutlined />}
+                size="small"
+                onClick={() => setIsHelpVisible(true)}
+                className="help-btn"
+              >
+                Help
+              </Button>
+              <Button
+                type="primary"
+                icon={<RocketOutlined />}
+                onClick={onStartProject}
+                className="start-project-btn"
+              >
+                Start Project
+              </Button>
+              <Button
+                icon={<LogoutOutlined />}
+                size="small"
+                onClick={onLogout}
+                className="logout-btn"
+              >
+                Logout
+              </Button>
+            </Space>
           </div>
         </div>
       )}
 
-      {/* Hero Section - Visual First */}
-      <section className="hero-visual">
-        <div className="hero-visual-bg">
-          <div className="hero-gradient-1"></div>
-          <div className="hero-gradient-2"></div>
-          <div className="hero-gradient-3"></div>
-          <div className="hero-particles"></div>
-        </div>
-        <div className="hero-container-visual">
-          <div className="hero-content-wrapper">
-            <div className="hero-main-content">
-              <div className="hero-badge-visual">
-                <StarOutlined />
-                <span>AI-Powered Clinical Data Platform</span>
-              </div>
-              
-              <div className="hero-title-visual">
-                <span className="hero-title-main">ADAM AI</span>
-                <span className="hero-title-sub">Code Generator</span>
-              </div>
-
-              <div className="hero-ctas-visual">
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<RocketOutlined />}
-                  onClick={onStartProject}
-                  className="cta-primary-visual"
-                >
-                  Start Project
-                  <ArrowRightOutlined />
-                </Button>
-              </div>
-            </div>
-
-            {/* CTA Section - Moved to right side */}
-            <div className="cta-side-section">
-              <div className="cta-icon-large">
-                <RocketOutlined />
-              </div>
-              <Title level={2} className="cta-title-visual">Ready to Get Started?</Title>
-              <Button
-                type="primary"
-                size="large"
-                icon={<RocketOutlined />}
-                onClick={onStartProject}
-                className="cta-button-visual"
-              >
-                Launch Workspace
-                <ArrowRightOutlined style={{ marginLeft: 8 }} />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* All Tools Grid - Visual Only */}
+      {/* Tools Section with Tabs - Space Efficient */}
       <section className="features-visual-section">
         <div className="section-container-visual">
-          <Title level={2} className="section-title-visual">All Tools</Title>
-          <div className="features-grid-visual">
-            {utilityFeatures.map((feature) => (
-              <Card
-                key={feature.key}
-                className="feature-card-visual"
-                hoverable
-                onClick={() => handleUtilityLaunch(feature.path, feature.key)}
-                style={{ borderColor: feature.color + '40' }}
-              >
-                <div className="feature-visual-header">
-                  <div 
-                    className="feature-icon-visual"
-                    style={{ background: feature.gradient }}
-                  >
-                    {feature.icon}
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            className="category-tabs"
+            items={[
+              {
+                key: 'all',
+                label: (
+                  <span className="tab-label">
+                    <ToolOutlined />
+                    All Tools
+                  </span>
+                ),
+                children: (
+                  <div className="features-grid-visual">
+                    {categorizedFeatures.flatMap(category => 
+                      category.features.map((feature) => (
+                        <Card
+                          key={feature.key}
+                          className="feature-card-visual"
+                          hoverable
+                          onClick={() => handleUtilityLaunch(feature.path, feature.key)}
+                        >
+                          <div className="feature-visual-header">
+                            <div className="feature-icon-visual">
+                              {feature.icon}
+                            </div>
+                            <Tag color={feature.statusColor} className="feature-status-visual">
+                              {feature.status}
+                            </Tag>
+                          </div>
+                          <Title level={5} className="feature-name-visual">{feature.name}</Title>
+                          <Button 
+                            type="text"
+                            className="feature-action-visual"
+                          >
+                            {feature.actionLabel}
+                            <ArrowRightOutlined style={{ marginLeft: 6 }} />
+                          </Button>
+                        </Card>
+                      ))
+                    )}
                   </div>
-                  <Tag color={feature.statusColor} className="feature-status-visual">
-                    {feature.status}
-                  </Tag>
-                </div>
-                <Title level={4} className="feature-name-visual">{feature.name}</Title>
-                <Button 
-                  type="text"
-                  className="feature-action-visual"
-                  style={{ color: feature.color }}
-                >
-                  {feature.actionLabel}
-                  <ArrowRightOutlined style={{ marginLeft: 8 }} />
-                </Button>
-              </Card>
-            ))}
-          </div>
+                ),
+              },
+              ...categorizedFeatures.map((category) => ({
+                key: category.categoryKey,
+                label: (
+                  <span className="tab-label">
+                    {category.categoryIcon}
+                    {category.categoryName}
+                  </span>
+                ),
+                children: (
+                  <div className="features-grid-visual">
+                    {category.features.map((feature) => (
+                      <Card
+                        key={feature.key}
+                        className="feature-card-visual"
+                        hoverable
+                        onClick={() => handleUtilityLaunch(feature.path, feature.key)}
+                      >
+                        <div className="feature-visual-header">
+                          <div className="feature-icon-visual">
+                            {feature.icon}
+                          </div>
+                          <Tag color={feature.statusColor} className="feature-status-visual">
+                            {feature.status}
+                          </Tag>
+                        </div>
+                        <Title level={5} className="feature-name-visual">{feature.name}</Title>
+                        <Button 
+                          type="text"
+                          className="feature-action-visual"
+                        >
+                          {feature.actionLabel}
+                          <ArrowRightOutlined style={{ marginLeft: 6 }} />
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                ),
+              })),
+            ]}
+          />
         </div>
       </section>
 

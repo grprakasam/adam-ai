@@ -16,6 +16,9 @@ import { RFrontendTab } from './RFrontendTab';
 import { CodeValidatorTab } from './CodeValidatorTab';
 import { CodeComparerTab } from './CodeComparerTab';
 import { DatasetComparerTab } from './DatasetComparerTab';
+import { AdamAnalyticsTab } from './AdamAnalyticsTab';
+import { StudyChatbotTab } from './StudyChatbotTab';
+import { TLFGeneratorTab } from './TLFGeneratorTab';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { notifyUserError } from '../utils/errorNotifications';
@@ -43,7 +46,8 @@ type WorkspaceTabKey =
   | 'r-frontend'
   | 'analytics'
   | 'chatbot'
-  | 'code-comparer';
+  | 'code-comparer'
+  | 'tlf-generator';
 
 type WorkspaceGroup = 'adamCoding' | 'adamValidation' | 'utilities';
 
@@ -61,7 +65,8 @@ const TAB_TOOLTIPS: Record<string, string> = {
   'r-frontend': 'Professional R code execution environment - write and run any R scripts',
   analytics: 'Advanced analytics and insights for ADAM datasets with visualization tools',
   chatbot: 'AI-powered study assistant for questions about specifications and standards',
-  'code-comparer': 'Compare different versions of ADAM code to identify differences and validate changes'
+  'code-comparer': 'Compare different versions of ADAM code to identify differences and validate changes',
+  'tlf-generator': 'AI-powered generation of Tables, Listings, and Figures from mockshell documents'
 };
 
 const RightPanel = ({ generationResult, language, isUnlocked, completionPercentage, onUnlock, onSwitchProject }: RightPanelProps) => {
@@ -82,7 +87,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
     adamCoding: ['pair', 'review', 'consolidated'],
     adamValidation: ['submission', 'code-validator'],
-    utilities: ['comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability'],
+    utilities: ['comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator'],
   };
 
   // Keep active tab consistent with active group
@@ -170,6 +175,10 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
         case '/code-comparer':
           setActiveGroup('utilities');
           setActiveWorkspaceTab('code-comparer');
+          break;
+        case '/tlf-generator':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('tlf-generator');
           break;
         default:
           break;
@@ -268,13 +277,6 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
       setActiveWorkspaceTab('traceability');
     };
 
-
-    const PlaceholderContent = ({ title }: { title: string }) => (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
-        <h3 style={{ marginBottom: '10px', color: '#1e293b' }}>{title}</h3>
-        <p>This feature is under development. Check back soon for updates!</p>
-      </div>
-    );
 
     try {
       const allItems = [
@@ -425,7 +427,7 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
               </span>
             </Tooltip>
           ),
-          children: <PlaceholderContent title="ADAM Data Analytics" />,
+          children: <AdamAnalyticsTab />,
         },
         {
           key: 'chatbot',
@@ -433,12 +435,12 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
           label: (
             <Tooltip title={TAB_TOOLTIPS.chatbot}>
               <span>
-                Study ChatBot{' '}
+                Study Assistant{' '}
                 <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
               </span>
             </Tooltip>
           ),
-          children: <PlaceholderContent title="Study ChatBot" />,
+          children: <StudyChatbotTab />,
         },
         {
           key: 'code-comparer',
@@ -452,6 +454,19 @@ const RightPanel = ({ generationResult, language, isUnlocked, completionPercenta
             </Tooltip>
           ),
           children: <CodeComparerTab />,
+        },
+        {
+          key: 'tlf-generator',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['tlf-generator']}>
+              <span>
+                TLF Generator{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <TLFGeneratorTab />,
         },
       ];
 

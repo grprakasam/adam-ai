@@ -1,0 +1,82 @@
+Clinical Trial Protocol - ADAM-001
+========================================
+
+Study Title: A Randomized, Double-Blind, Placebo-Controlled Study of Drug X in Patients with Disease Y
+
+Study ID: ADAM-001
+Protocol Version: 2.0
+Date: November 29, 2025
+
+STUDY OVERVIEW
+--------------
+This is a Phase 3 clinical trial evaluating the efficacy and safety of Drug X compared to placebo in adult patients diagnosed with Disease Y.
+
+Primary Objective:
+To evaluate the efficacy of Drug X in reducing symptoms of Disease Y compared to placebo.
+
+Primary Endpoint:
+Change from baseline in Disease Y Symptom Score at Week 12.
+
+STUDY POPULATION
+-----------------
+Target Enrollment: 300 patients
+
+Inclusion Criteria:
+- Adults aged 18-65 years
+- Confirmed diagnosis of Disease Y
+- Disease Y Symptom Score >= 15 at baseline
+- Willing to provide informed consent
+
+Exclusion Criteria:
+- Pregnant or breastfeeding women
+- Severe hepatic impairment
+- History of cardiovascular disease
+- Use of prohibited medications within 30 days
+
+STUDY DESIGN
+------------
+This is a multicenter, randomized, double-blind, placebo-controlled study with two parallel treatment arms:
+
+Arm 1: Drug X 50mg daily for 12 weeks (N=150)
+Arm 2: Placebo daily for 12 weeks (N=150)
+
+Randomization will be 1:1 using an Interactive Web Response System (IWRS).
+
+STUDY TIMELINE
+--------------
+Screening Period: Up to 28 days
+Treatment Period: 12 weeks
+Follow-up Period: 4 weeks
+Total Study Duration: Approximately 20 weeks per patient
+
+EFFICACY ASSESSMENTS
+--------------------
+Primary efficacy endpoint will be assessed using the Disease Y Symptom Score (DYSS), a validated 0-50 scale where higher scores indicate worse symptoms.
+
+Assessments will be conducted at:
+- Baseline (Day 1)
+- Week 4
+- Week 8
+- Week 12 (Primary endpoint)
+- Week 16 (Follow-up)
+
+SAFETY ASSESSMENTS
+------------------
+Safety will be monitored throughout the study through:
+- Adverse event reporting
+- Laboratory tests (hematology, chemistry, urinalysis)
+- Vital signs (blood pressure, heart rate, temperature)
+- Physical examinations
+- ECG monitoring
+
+STATISTICAL ANALYSIS
+--------------------
+The primary analysis will compare change from baseline in DYSS at Week 12 between Drug X and placebo groups using ANCOVA with baseline DYSS as a covariate.
+
+Sample size was calculated to provide 90% power to detect a mean difference of 5 points in DYSS change with a two-sided alpha of 0.05.
+
+DATA MANAGEMENT
+---------------
+All study data will be collected using electronic case report forms (eCRF) and stored in a validated clinical trial database. Data will be reviewed for quality and consistency throughout the study.
+
+Source documents will be maintained at each study site and will be available for monitoring and audit.

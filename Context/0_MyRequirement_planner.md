@@ -1,63 +1,54 @@
-Take the role of a technical archtiterct and also a senior developer
+Take the role of a technical architect and also a senior developer
 
-i want to design the page for 'Dataset Comparer' tab in the application.
+i want to design changes for the page for 'ADAM Tables Listing Figures' page
 
-the expected feature is that the ui should have options in the ui to load 2 datsets in any format like csv, excel, sas, r, xpt formats
+update the landing page also with this new feature
 
-it should then allow the user to select columns from both datasets to compare
+i want this to be designed in way that there are 3 options given to the userr to create a table or listing or figure
 
-then it should provide options to select the type of comparison like value comparison, structure comparison, summary statistics comparison etc.,
+When the userr chooses a table option , the userr should be given a set of questions to upload a sample mockshell of table design
 
-categorise the below features in an intuitive and logical way and present the options ofr the user to select from the appropriate choices based on the below features
-Note that the categorisation shall be in the perspective of an adam developer 
-Dataset Metadata
+the uploaded document must be undersood and the table must be created as per the uploaded document. after that provide your understanding about the mockshell to the userr for confirmation before creating the table or listing or figure
 
-Creation dates
-Modification dates
-Number of variables (NVar)
-Number of observations (NObs)
-Dataset labels
+Design in such a way that once the user confirms the mockshell understanding , then only the table must be created and displayed to the userr.
 
-Variables
+if the userr is not satisfied with the mockshell understanding , then the userr should be given an option to reupload the document or to edit the mockshell understanding.
 
-Variable names
-Variable types (character vs. numeric)
-Variables in common between datasets
-Variables present in only one dataset
-Variable attributes and properties
-
-Observations
-
-Total number of observations in each dataset
-Number of observations in common
-Number of observations with equal values
-Number of observations with unequal values across some or all variables
-
-Values
-
-Actual data values for matching variables
-Specific values that differ between datasets
-For numeric variables: the difference between values and maximum difference
-Missing values (with options to customize how they're treated)
-
-Comparison Results Summary
-
-Count of variables with all values equal
-Count of variables with one or more differences
-Which specific observations have differences
-Which specific variables have differences
-Statistical information about differences (when using options like ALLSTATS)
+ensure that the user approves the mockshell understanding before creating the table or listing or figure
 
 
-Think like an expert in dataset comparison and design the ui and also it must be very simple and intuitive for the user . design like a pro and design the ui
 
-             
 
-allow your creativity and deep think to architect a workable plan and try to make a better possible approach and implement it
+When the userr chooses a listing option , the userr should be given a set of questions to upload a sample mockshell of listing design
+the uploaded document must be undersood and the listing must be created as per the uploaded document
 
-this design must be intuitive and simple and with a great domain centric logical flow. must ensure this and design the best possible approach.
+When the userr chooses a figure option , the userr should be given a set of questions to upload a sample mockshell of figure design
+the uploaded document must be undersood and the figure must be created as per the uploaded document
+
+at the mainpanel  create the report as per the user requirement and display that to the user
+
+the main idea behind this page is to create ADAM tables listings and figures as per the user requirement m based on the uploaded mockshell document
+
+
+if there are any inputs requireed from the userr then create a form to get the required inputs from the userr
+
+once the userr submits the form and uploads the document , process the document and create the required table listing or figure as per the userr requirement
+
+This is a great feature to create any kind of statistical table or listing or figure
+
+Design like a architecture pro and a senior developer and develop the best possible approach to implement this
+
+This must be innovative, purely AI Friven approach to create Reports as per the user requiremetn
+
+
+if required make api calls to ensure that the answers to the questions must be factual , refereed from thjis uploaded documents only and show the appropriate citations wherever necessary
+
+
+
 
 keep the page as simple as possible. avoid unnecessary complications.
 
 allow your creativity and deep think to architect a workable plan and try to make a better possible approach and implement it
 
+
+Design like a tech pro and an innovator and do the magic
