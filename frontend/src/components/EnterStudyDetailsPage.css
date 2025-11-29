@@ -1,6 +1,413 @@
 .enter-study-details-page {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.enter-study-details-page * {
+  pointer-events: auto;
+}
+
+.enter-study-details-page input,
+.enter-study-details-page textarea,
+.enter-study-details-page select {
+  pointer-events: auto !important;
+  cursor: text !important;
+  user-select: text !important;
+}
+
+.study-selector-container {
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.saving-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.study-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 3px solid #e5e7eb;
+  margin-bottom: 2rem;
+  background: linear-gradient(to bottom, #f9fafb 0%, transparent 100%);
+  padding: 1rem 1rem 0 1rem;
+  border-radius: 12px 12px 0 0;
+}
+
+.study-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1rem 1.75rem;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  cursor: pointer;
+  color: #6b7280;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: -3px;
+  position: relative;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.study-tab svg {
+  transition: transform 0.3s ease;
+}
+
+.study-tab:hover:not(.active) {
+  color: #4f46e5;
+  background: #f5f3ff;
+  border-color: #c7d2fe;
+  transform: translateY(-2px);
+}
+
+.study-tab:hover:not(.active) svg {
+  transform: scale(1.1);
+}
+
+.study-tab.active {
+  color: #4f46e5;
+  background: white;
+  border-color: #4f46e5;
+  border-bottom-color: white;
+  font-weight: 600;
+  box-shadow: 0 -4px 12px rgba(79, 70, 229, 0.1),
+              inset 0 -3px 0 0 #4f46e5;
+  z-index: 1;
+}
+
+.study-tab.active svg {
+  filter: drop-shadow(0 0 2px rgba(79, 70, 229, 0.3));
+}
+
+.study-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.study-tab-content * {
+  pointer-events: auto;
+}
+
+.study-tab-content input,
+.study-tab-content textarea,
+.study-tab-content select {
+  pointer-events: auto !important;
+  cursor: text !important;
+}
+
+.chat-tab-content {
+  height: 600px;
+}
+
+.document-upload-section {
+  margin-bottom: 1.5rem;
+}
+
+.documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.document-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.document-info {
+  flex: 1;
+}
+
+.document-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.document-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.status {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-processing {
+  background: #cfe2ff;
+  color: #084298;
+}
+
+.status-completed {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.status-failed {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.dataset-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dataset-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.dataset-checkbox:hover {
+  border-color: var(--primary-color);
+  background: var(--primary-color-light);
+}
+
+.dataset-checkbox input[type="checkbox"] {
+  margin-top: 0.25rem;
+  cursor: pointer;
+  pointer-events: auto;
+  z-index: 2;
+  position: relative;
+}
+
+.dataset-info {
+  flex: 1;
+}
+
+.dataset-name {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.dataset-description {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Save Study Button Container - Professional UX Design */
+.save-study-button-container {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.98) 80%, rgba(255, 255, 255, 0));
+  backdrop-filter: blur(10px);
+  padding: 2rem 1.5rem 1.5rem;
+  margin-top: 2rem;
+  border-top: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 100;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.btn-save-study {
+  min-width: 280px;
+  padding: 1rem 2rem !important;
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  border-radius: 12px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.75rem !important;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  border: none !important;
+  color: white !important;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3),
+              0 2px 8px rgba(99, 102, 241, 0.2) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  cursor: pointer !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-save-study::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-save-study:hover::before {
+  left: 100%;
+}
+
+.btn-save-study:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 28px rgba(99, 102, 241, 0.4),
+              0 4px 12px rgba(99, 102, 241, 0.3) !important;
+  background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%) !important;
+}
+
+.btn-save-study:active:not(:disabled) {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.3) !important;
+}
+
+.btn-save-study:disabled {
+  background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%) !important;
+  cursor: not-allowed !important;
+  opacity: 0.6;
+  box-shadow: none !important;
+}
+
+.btn-save-study .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.save-button-help-text {
+  font-size: 0.875rem;
+  color: #f59e0b;
+  margin: 0;
+  padding: 0.5rem 1rem;
+  background: #fffbeb;
+  border-radius: 6px;
+  border: 1px solid #fcd34d;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.save-button-help-text::before {
+  content: 'ℹ️';
+  font-size: 1rem;
+}
+
+/* Create Study Container - Enhanced Design */
+.create-study-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.create-study-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.create-study-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem 0;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.create-study-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.required-asterisk {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.dataset-description {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.no-study-message {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+}
+
+.no-study-message h3 {
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.enter-study-details-page {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   background: #ffffff;
@@ -383,6 +790,136 @@
 
   .upload-description {
     font-size: 14px;
+  }
+}
+
+/* Create New Study Form Styles */
+.create-study-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.create-study-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color, #e5e7eb);
+}
+
+.create-study-header h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  margin: 0 0 0.5rem 0;
+}
+
+.create-study-subtitle {
+  font-size: 0.9375rem;
+  color: var(--text-secondary, #6b7280);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.required-asterisk {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.store-study-button-container {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 2px solid var(--border-color, #e5e7eb);
+  display: flex;
+  justify-content: flex-end;
+  position: sticky;
+  bottom: 0;
+  background: #ffffff;
+  z-index: 10;
+}
+
+.btn-store-study {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1.75rem;
+  background: var(--primary-color, #9333ea);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(147, 51, 234, 0.2);
+}
+
+.btn-store-study:hover:not(:disabled) {
+  background: #7c3aed;
+  box-shadow: 0 4px 8px rgba(147, 51, 234, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-store-study:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-store-study .spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Form validation error styles */
+.text-field-error {
+  border-color: #ef4444 !important;
+}
+
+.error-message {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+/* Ensure form blocks look good in create mode */
+.create-study-container .form-block {
+  margin-bottom: 2rem;
+}
+
+/* Responsive adjustments for create study form */
+@media (max-width: 768px) {
+  .create-study-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .create-study-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .store-study-button-container {
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .btn-store-study {
+    width: 100%;
+    justify-content: center;
   }
 }
 

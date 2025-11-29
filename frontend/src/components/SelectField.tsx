@@ -38,12 +38,18 @@ export const SelectField: React.FC<SelectFieldProps> = ({
       </label>
       <select
         id={selectId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`select ${error ? 'input-error' : ''}`}
+        value={value || ''}
+        onChange={(e) => {
+          if (!selectProps.disabled) {
+            console.log(`SelectField: ${label} value changed to:`, e.target.value); // Debug log
+            onChange(e.target.value);
+          }
+        }}
+        className={`select ${error ? 'input-error' : ''} ${selectProps.disabled ? 'select-disabled' : ''}`}
         aria-describedby={helpText ? `${selectId}-help` : error ? `${selectId}-error` : undefined}
         aria-invalid={!!error}
         required={required}
+        tabIndex={selectProps.disabled ? -1 : 0}
         {...selectProps}
       >
         <option value="" disabled>

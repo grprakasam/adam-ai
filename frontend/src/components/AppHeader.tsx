@@ -8,6 +8,7 @@ import { LayoutSwitcher } from './LayoutSwitcher';
 import { UserMenu } from './UserMenu';
 import { StudySelector } from './StudySelector';
 import { AIConfigStatus } from './AIConfigStatus';
+import { useStudyStore } from '../store/studyStore';
 import { useProjectStore } from '../store/projectStore';
 import { usePreferencesStore } from '../store/preferencesStore';
 import { showNavigationConfirmation } from './ConfirmationDialog';
@@ -27,6 +28,7 @@ interface AppHeaderProps {
   };
   onLogout?: () => void;
   showStudySelector?: boolean;
+  showWorkspaceControls?: boolean;
   currentStudyId?: string;
   onStudyChange?: (studyId: string) => void;
   onToggleMobileMenu?: () => void;
@@ -38,6 +40,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   currentUser,
   onLogout,
   showStudySelector = false,
+  showWorkspaceControls = true,
   currentStudyId,
   onStudyChange,
   onToggleMobileMenu,
@@ -47,6 +50,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const resetWorkspace = useProjectStore((state) => state.resetWorkspace);
   const clearHistory = useWorkspaceHistory((state) => state.clear);
   const layoutMode = usePreferencesStore((state) => state.layoutMode);
+  const { currentStudyId: globalStudyId } = useStudyStore();
+
+  const displayStudyId = currentStudyId || globalStudyId || '';
 
   // Determine if we should show mobile menu button
   const showMobileMenu = 
@@ -117,7 +123,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <div className="app-brand-subtitle hide-mobile">Workspace</div>
           </div>
 
-          {showStudySelector && onStudyChange && (
+          {showWorkspaceControls && showStudySelector && onStudyChange && (
             <div className="app-header-study hide-mobile">
               <StudySelector
                 value={currentStudyId}
@@ -127,11 +133,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
 
           {/* AI Configuration Status - in left section */}
-          <AIConfigStatus className="hide-mobile" />
+          {showWorkspaceControls && <AIConfigStatus className="hide-mobile" />}
         </div>
 
         <div className="app-header-right">
           <Space size="middle">
+            <div className="hide-mobile app-header-identity">
+              <div className="identity-line">
+                User: {normalizedUser?.name || '—'}
+              </div>
+              <div className="identity-line">
+                Study: {displayStudyId || 'None selected'}
+              </div>
+            </div>
             <div className="hide-mobile"><SearchButton /></div>
             <div className="hide-mobile"><NotificationBell /></div>
             <LayoutSwitcher />

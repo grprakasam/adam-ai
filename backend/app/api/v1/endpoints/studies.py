@@ -12,8 +12,7 @@ from app.models.study_models import (
 )
 from app.services.study_service import StudyService
 from app.core.database import get_db
-from app.core.auth import get_current_user, get_current_active_user
-from app.models.user import User  # Assuming user model exists
+from app.core.auth import get_current_user, get_current_active_user, User
 
 
 router = APIRouter(prefix="/studies", tags=["Studies"])
@@ -212,3 +211,25 @@ async def get_study_access_list(
     study = study_service.get_study(study_id)
     access_list = study_service._get_study_access_list(study_id)
     return {"access_list": access_list}
+
+
+@router.put("/{study_id}/datasets")
+async def update_datasets(
+    study_id: str,
+    datasets: dict,  # {"datasets": [{"dataset_name": "ADSL", "language": "R", "priority": 0}]}
+    study_service: StudyService = Depends(get_study_service)
+):
+    """Update ADAM dataset selections for a study"""
+    datasets_list = datasets.get("datasets", [])
+    result = study_service.update_dataset_selections(study_id, datasets_list)
+    return {"datasets": result}
+
+
+@router.get("/{study_id}/datasets")
+async def get_datasets(
+    study_id: str,
+    study_service: StudyService = Depends(get_study_service)
+):
+    """Get current dataset selections for a study"""
+    datasets = study_service.get_dataset_selections(study_id)
+    return {"datasets": datasets}

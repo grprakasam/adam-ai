@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import and_, or_, func, text
 from fastapi import HTTPException, status
 
 from app.models.study_models import (
@@ -62,7 +62,7 @@ class StudyService:
 
             # Insert into database (using raw SQL or SQLAlchemy ORM)
             # Note: Adapt this to your actual database connection method
-            query = """
+            query = text("""
                 INSERT INTO studies (
                     id, name, protocol_number, sponsor, therapeutic_area, phase,
                     description, created_by, created_at, last_accessed_at,
@@ -76,7 +76,7 @@ class StudyService:
                     :sdtm_version, :adam_ig_version, :meddra_version, FALSE
                 )
                 RETURNING *
-            """
+            """)
 
             result = self.db.execute(query, study_dict)
             self.db.commit()
@@ -136,10 +136,10 @@ class StudyService:
             )
 
         # Fetch study
-        query = """
+        query = text("""
             SELECT * FROM studies
             WHERE id = :study_id AND is_deleted = FALSE
-        """
+        """)
         result = self.db.execute(query, {"study_id": study_id}).fetchone()
 
         if not result:
@@ -222,7 +222,7 @@ class StudyService:
 
         params.update({"limit": limit, "skip": skip})
 
-        results = self.db.execute(query, params).fetchall()
+        results = self.db.execute(text(query), params).fetchall()
 
         return [StudyListItem(**dict(row)) for row in results]
 
@@ -460,12 +460,12 @@ class StudyService:
 
     def _grant_access(self, study_id: str, user_id: str, permission: PermissionLevel):
         """Grant user access to study"""
-        query = """
+        query = text("""
             INSERT INTO study_access (study_id, user_id, permission, granted_by, granted_at, is_active)
             VALUES (:study_id, :user_id, :permission, :granted_by, :granted_at, TRUE)
             ON CONFLICT (study_id, user_id) DO UPDATE
             SET permission = :permission, granted_by = :granted_by, is_active = TRUE
-        """
+        """)
         self.db.execute(query, {
             "study_id": study_id,
             "user_id": user_id,
@@ -477,31 +477,31 @@ class StudyService:
 
     def _update_last_accessed(self, study_id: str):
         """Update study's last accessed timestamp"""
-        query = """
+        query = text("""
             UPDATE studies
             SET last_accessed_at = :accessed_at
             WHERE id = :study_id
-        """
+        """)
         self.db.execute(query, {"study_id": study_id, "accessed_at": datetime.utcnow()})
         self.db.commit()
 
     def _get_study_datasets(self, study_id: str) -> List[Dict[str, Any]]:
         """Get datasets for a study"""
-        query = """
+        query = text("""
             SELECT * FROM study_datasets
             WHERE study_id = :study_id
             ORDER BY created_at DESC
-        """
+        """)
         results = self.db.execute(query, {"study_id": study_id}).fetchall()
         return [dict(row) for row in results]
 
     def _get_study_specifications(self, study_id: str) -> List[Dict[str, Any]]:
         """Get specifications for a study"""
-        query = """
+        query = text("""
             SELECT * FROM study_specifications
             WHERE study_id = :study_id
             ORDER BY uploaded_at DESC
-        """
+        """)
         results = self.db.execute(query, {"study_id": study_id}).fetchall()
         return [dict(row) for row in results]
 
@@ -511,6 +511,81 @@ class StudyService:
             SELECT * FROM study_access
             WHERE study_id = :study_id AND is_active = TRUE
             ORDER BY granted_at DESC
+        """
+        results = self.db.execute(query, {"study_id": study_id}).fetchall()
+        return [dict(row) for row in results]
+
+    def update_dataset_selections(
+        self,
+        study_id: str,
+        datasets: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Update ADAM dataset selections for a study
+
+        Args:
+            study_id: Study identifier
+            datasets: List of dataset selections
+                Each item: {"dataset_name": "ADSL", "language": "R", "priority": 0}
+
+        Returns:
+            List of updated dataset selections
+        """
+        # Check access
+        if not self._has_access(study_id, self.current_user_id, min_permission=PermissionLevel.EDITOR):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to update dataset selections"
+            )
+
+        try:
+            # Delete existing selections
+            delete_query = """
+                DELETE FROM study_dataset_selections
+                WHERE study_id = :study_id
+            """
+            self.db.execute(delete_query, {"study_id": study_id})
+
+            # Insert new selections
+            import uuid
+            for dataset in datasets:
+                dataset_id = f"dataset-sel-{uuid.uuid4().hex[:12]}"
+                insert_query = """
+                    INSERT INTO study_dataset_selections (
+                        id, study_id, dataset_name, language, is_active, priority, created_at, updated_at
+                    )
+                    VALUES (
+                        :id, :study_id, :dataset_name, :language, TRUE, :priority, :created_at, :updated_at
+                    )
+                """
+                self.db.execute(insert_query, {
+                    "id": dataset_id,
+                    "study_id": study_id,
+                    "dataset_name": dataset.get("dataset_name"),
+                    "language": dataset.get("language", "Both"),
+                    "priority": dataset.get("priority", 0),
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow()
+                })
+
+            self.db.commit()
+
+            # Return updated selections
+            return self.get_dataset_selections(study_id)
+
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update dataset selections: {str(e)}"
+            )
+
+    def get_dataset_selections(self, study_id: str) -> List[Dict[str, Any]]:
+        """Get dataset selections for a study"""
+        query = """
+            SELECT * FROM study_dataset_selections
+            WHERE study_id = :study_id AND is_active = TRUE
+            ORDER BY priority ASC, created_at ASC
         """
         results = self.db.execute(query, {"study_id": study_id}).fetchall()
         return [dict(row) for row in results]

@@ -18,7 +18,7 @@ interface WorkspaceNavigationProps {
   onNavigate?: (path: string) => void;
 }
 
-type MainSection = 'adamCoding' | 'adamValidation' | 'utilities';
+type MainSection = 'adamCoding' | 'utilities';
 
 interface NavigationItem {
   key: string;
@@ -40,19 +40,12 @@ const NAVIGATION_STRUCTURE: Record<MainSection, { title: string; icon: React.Rea
       { key: '/consolidated-code', label: '4. Consolidated Code', icon: <FileTextOutlined />, description: 'Complete program generation' },
     ],
   },
-  adamValidation: {
-    title: 'ADAM Validation',
-    icon: <FileTextOutlined />,
-    color: '#10b981',
-    items: [
-      { key: '/submission-dashboard', label: '5. Submission', icon: <DashboardOutlined />, description: 'Regulatory submission package' },
-    ],
-  },
   utilities: {
     title: 'AI Utilities',
     icon: <ExperimentOutlined />,
     color: '#8b5cf6',
     items: [
+      { key: '/submission-dashboard', label: 'Submission', icon: <DashboardOutlined />, description: 'Regulatory submission package' },
       { key: '/adam-dataset-comparer', label: 'Dataset Comparer', icon: <FileTextOutlined />, description: 'Compare and validate ADAM datasets' },
       { key: '/code-comparer', label: 'Code Comparer', icon: <CodeOutlined />, description: 'Compare different versions of ADAM code to identify differences' },
       { key: '/adam-generator', label: 'ADAM Generator', icon: <RocketOutlined />, description: 'Execute & validate R programs' },
@@ -73,7 +66,7 @@ const TAB_TO_SECTION_MAP: Record<string, MainSection> = {
   'adam-generator': 'utilities',
   'comparer': 'utilities',
   'code-comparer': 'utilities',
-  'submission': 'adamValidation',
+  'submission': 'utilities',
   'testdata': 'utilities',
   'r-frontend': 'utilities',
   'analytics': 'utilities',

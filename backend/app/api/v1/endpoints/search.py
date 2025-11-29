@@ -8,8 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.study_models import SearchResult, SearchResponse, SearchType
 from app.services.search_service import SearchService
 from app.core.database import get_db
-from app.core.auth import get_current_active_user
-from app.models.user import User
+from app.core.auth import get_current_active_user, User
 import time
 
 

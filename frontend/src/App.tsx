@@ -6,6 +6,8 @@ import LandingPage from './components/LandingPage';
 import ProjectsPage from './components/ProjectsPage';
 import CodeMigrationPage from './components/CodeMigrationPage';
 import EnterStudyDetailsPage from './components/EnterStudyDetailsPage';
+import ProjectSelectionPage from './components/ProjectSelectionPage';
+import { AdminPanel } from './pages/AdminPanel';
 import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -21,9 +23,18 @@ import type { ProgrammingLanguage, GenerationResponse } from './types';
 import { SkipLink } from './components/a11y/SkipLink';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useApplyPreferences } from './hooks/useApplyPreferences';
+import { useStudyStore } from './store/studyStore';
 import './App.css';
 
-type ViewMode = 'login' | 'landing' | 'projects' | 'workspace' | 'migration' | 'enter-study-details';
+type ViewMode =
+  | 'login'
+  | 'landing'
+  | 'project-selection'
+  | 'projects'
+  | 'workspace'
+  | 'migration'
+  | 'enter-study-details'
+  | 'admin';
 
 function App() {
   // Clear any stale auth tokens on app startup
@@ -39,7 +50,6 @@ function App() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [currentStudyId, setCurrentStudyId] = useState<string | undefined>(undefined);
   const [language] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
@@ -60,8 +70,10 @@ function App() {
   const specificationFile = useProjectStore((state) => state.specificationFile);
   const initializeWorkspace = useProjectStore((state) => state.initializeWorkspace);
   const completionPercentage = useProjectStore((state) => state.getCompletionPercentage());
+  const storeCurrentStudyId = useStudyStore((state) => state.currentStudyId);
+  const setStoreCurrentStudy = useStudyStore((state) => state.setCurrentStudy);
 
-  // Check for existing authentication on mount
+  // Check for existing authentication on mount and derive initial view from URL
   useEffect(() => {
     const token = localStorage.getItem('adam_access_token');
     const userStr = localStorage.getItem('adam_user');
@@ -70,7 +82,21 @@ function App() {
       try {
         const user = JSON.parse(userStr);
         setCurrentUser(user);
-        setViewMode('landing');
+
+        const path = window.location.pathname || '/';
+        if (path.startsWith('/admin')) {
+          setViewMode('admin');
+        } else if (path.startsWith('/enter-study-details')) {
+          setViewMode('enter-study-details');
+        } else if (path.startsWith('/migration')) {
+          setViewMode('migration');
+        } else if (path.startsWith('/projects')) {
+          setViewMode('projects');
+        } else if (path.startsWith('/workspace')) {
+          setViewMode('workspace');
+        } else {
+          setViewMode('landing');
+        }
       } catch (error) {
         console.error('Invalid stored user data:', error);
         localStorage.removeItem('adam_access_token');
@@ -116,7 +142,12 @@ function App() {
 
   const handleLoginSuccess = (data: any) => {
     setCurrentUser(data.user);
-    setViewMode('landing');
+    const path = window.location.pathname || '/';
+    if (path.startsWith('/admin')) {
+      setViewMode('admin');
+    } else {
+      setViewMode('landing');
+    }
   };
 
   const handleLogout = () => {
@@ -155,7 +186,33 @@ function App() {
   };
 
   const handleStartProject = () => {
-    setViewMode('projects');
+    setViewMode('project-selection');
+  };
+
+  const handleCreateNewProject = () => {
+    setViewMode('enter-study-details');
+  };
+
+  const handleContinueExistingProject = async (studyId: string) => {
+    // Initialize workspace
+    clearHistory();
+    initializeWorkspace();
+    setIsRightPanelUnlocked(false);
+
+    try {
+      await setStoreCurrentStudy(studyId);
+      // Move to workspace view
+      setViewMode('workspace');
+    } catch (error) {
+      console.error('Failed to open study workspace', error);
+      message.error('Failed to open study workspace. Please ensure the study exists and you have access.');
+      return;
+    }
+
+    // Set default dataset if not selected
+    if (!projectConfig.adamDataset) {
+      setProjectConfig({ adamDataset: 'ADSL' } as any);
+    }
   };
 
   const handleOpenMigration = () => {
@@ -176,17 +233,21 @@ function App() {
     });
   };
 
-  const handleOpenStudy = async (studyName: string) => {
+  const handleOpenStudy = async (studyId: string) => {
     // Initialize workspace
     clearHistory();
     initializeWorkspace();
     setIsRightPanelUnlocked(false);
 
-    // Set the current study
-    setCurrentStudyId(studyName);
-
-    // Move to workspace view
-    setViewMode('workspace');
+    try {
+      await setStoreCurrentStudy(studyId);
+      // Move to workspace view
+      setViewMode('workspace');
+    } catch (error) {
+      console.error('Failed to open study workspace', error);
+      message.error('Failed to open study workspace. Please ensure the study exists and you have access.');
+      return;
+    }
 
     // Set default dataset if not selected
     if (!projectConfig.adamDataset) {
@@ -212,11 +273,14 @@ function App() {
   };
 
   const handleOpenUtility = async (path: string) => {
-    if (!currentStudyId) {
-      await handleOpenStudy('demo-study-1');
-    } else {
-      setViewMode('workspace');
+    if (!storeCurrentStudyId) {
+      message.info('Please create or select a study first.');
+      setViewMode('enter-study-details');
+      window.history.pushState({}, '', '/enter-study-details');
+      return;
     }
+
+    setViewMode('workspace');
 
     setIsRightPanelUnlocked(true);
 
@@ -236,7 +300,7 @@ function App() {
       okText: 'Switch',
       cancelText: 'Cancel',
       onOk: () => {
-        setCurrentStudyId(studyId);
+        setStoreCurrentStudy(studyId);
         setIsRightPanelUnlocked(false);
         message.info(`Switched to study: ${studyId}`);
       }
@@ -259,60 +323,124 @@ function App() {
           <main id="main-content" ref={mainContentRef} tabIndex={-1}>
             {viewMode === 'login' ? (
               <LoginPage onLoginSuccess={handleLoginSuccess} />
-            ) : viewMode === 'landing' ? (
-              <LandingPage 
-                onStartProject={handleStartProject}
-                onOpenMigration={handleOpenMigration}
-                currentUser={currentUser}
-                onLogout={handleLogout}
-                onNavigateToUtility={handleOpenUtility}
-              />
-            ) : viewMode === 'projects' ? (
-              <ProjectsPage
-                onOpenStudy={handleOpenStudy}
-                onBack={() => setViewMode('landing')}
-                studies={[{
-                  id: 'demo-study-1',
-                  name: 'Demo Study 1',
-                  sponsor: 'Demo Sponsor',
-                  therapeuticArea: 'General Medicine',
-                  description: 'Sample study showcasing ADAM AI capabilities.',
-                  lastUpdated: 'Updated today'
-                }]}
-              />
-            ) : viewMode === 'migration' ? (
-              <CodeMigrationPage onBack={() => setViewMode('landing')} />
-            ) : viewMode === 'enter-study-details' ? (
-              <EnterStudyDetailsPage onBack={() => setViewMode('landing')} />
             ) : (
               <>
                 <AppHeader
-                  onBackToLanding={() => setViewMode('landing')}
+                  onBackToLanding={() => {
+                    setViewMode('landing');
+                    window.history.pushState({}, '', '/');
+                  }}
                   currentUser={currentUser}
                   onLogout={handleLogout}
-                  showStudySelector={true}
-                  currentStudyId={currentStudyId}
+                  showStudySelector={viewMode !== 'landing'}
+                  showWorkspaceControls={viewMode !== 'landing'}
+                  currentStudyId={storeCurrentStudyId || undefined}
                   onStudyChange={handleStudyChange}
                 />
 
-                <HelpCenterDrawer open={isHelpCenterOpen} onClose={closeHelpCenter} activeTab={activeTab} />
-                <PreferencesDrawer open={isPreferencesOpen} onClose={closePreferences} />
-
-                <div className="main-content" role="region" aria-label="Workspace canvas">
-                  <RightPanel
-                    generationResult={generationResult}
-                    language={language}
-                    isUnlocked={isRightPanelUnlocked}
-                    completionPercentage={completionPercentage}
-                    onUnlock={handleUnlockPairProgramming}
-                    onSwitchProject={handleSwitchProject}
-                    onOpenHelpCenter={openHelpCenter}
+                {viewMode === 'landing' && (
+                  <LandingPage
+                    onStartProject={handleStartProject}
+                    onOpenMigration={handleOpenMigration}
+                    currentUser={currentUser}
+                    onLogout={handleLogout}
+                    onNavigateToUtility={handleOpenUtility}
                   />
-                </div>
+                )}
 
-                <RecoverySuggestions />
-                {/* Approval Progress Bar - visible after spec upload */}
-                <ApprovalProgressBar />
+                {viewMode === 'project-selection' && (
+                  <ProjectSelectionPage
+                    onCreateNew={handleCreateNewProject}
+                    onContinueExisting={handleContinueExistingProject}
+                    onBack={() => {
+                      setViewMode('landing');
+                      window.history.pushState({}, '', '/');
+                    }}
+                  />
+                )}
+
+                {viewMode === 'projects' && (
+                  <ProjectsPage
+                    onOpenStudy={handleOpenStudy}
+                    onBack={() => {
+                      setViewMode('landing');
+                      window.history.pushState({}, '', '/');
+                    }}
+                    studies={[
+                      {
+                        id: 'demo-study-1',
+                        name: 'Demo Study 1',
+                        sponsor: 'Demo Sponsor',
+                        therapeuticArea: 'General Medicine',
+                        description: 'Sample study showcasing ADAM AI capabilities.',
+                        lastUpdated: 'Updated today',
+                      },
+                    ]}
+                  />
+                )}
+
+                {viewMode === 'migration' && (
+                  <CodeMigrationPage
+                    onBack={() => {
+                      setViewMode('landing');
+                      window.history.pushState({}, '', '/');
+                    }}
+                  />
+                )}
+
+                {viewMode === 'enter-study-details' && (
+                  <EnterStudyDetailsPage
+                    onBack={() => {
+                      setViewMode('project-selection');
+                      window.history.pushState({}, '', '/project-selection');
+                    }}
+                    onStudyCreated={async (studyId: string) => {
+                      // Initialize workspace
+                      clearHistory();
+                      initializeWorkspace();
+                      setIsRightPanelUnlocked(false);
+
+                      try {
+                        await setStoreCurrentStudy(studyId);
+                        // Move to workspace view
+                        setViewMode('workspace');
+                      } catch (error) {
+                        console.error('Failed to open study workspace', error);
+                        message.error('Failed to open study workspace. Please ensure the study exists and you have access.');
+                      }
+
+                      // Set default dataset if not selected
+                      if (!projectConfig.adamDataset) {
+                        setProjectConfig({ adamDataset: 'ADSL' } as any);
+                      }
+                    }}
+                  />
+                )}
+
+                {viewMode === 'admin' && <AdminPanel />}
+
+                {viewMode === 'workspace' && (
+                  <>
+                    <HelpCenterDrawer open={isHelpCenterOpen} onClose={closeHelpCenter} activeTab={activeTab} />
+                    <PreferencesDrawer open={isPreferencesOpen} onClose={closePreferences} />
+
+                    <div className="main-content" role="region" aria-label="Workspace canvas">
+                      <RightPanel
+                        generationResult={generationResult}
+                        language={language}
+                        isUnlocked={isRightPanelUnlocked}
+                        completionPercentage={completionPercentage}
+                        onUnlock={handleUnlockPairProgramming}
+                        onSwitchProject={handleSwitchProject}
+                        onOpenHelpCenter={openHelpCenter}
+                      />
+                    </div>
+
+                    <RecoverySuggestions />
+                    {/* Approval Progress Bar - visible after spec upload */}
+                    <ApprovalProgressBar />
+                  </>
+                )}
               </>
             )}
           </main>
