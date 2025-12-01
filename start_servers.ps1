@@ -96,11 +96,16 @@ function Test-ServerHealth {
     return $false
 }
 
+# Config
+$backendPort = 8002
+$frontendPort = 3000
+$viteDevPort = 5173
+
 # Step 1: Stop existing servers
 Write-Host "Step 1: Stopping existing servers..." -ForegroundColor Yellow
-Stop-ProcessOnPort -Port 8000
-Stop-ProcessOnPort -Port 3000
-Stop-ProcessOnPort -Port 5173
+Stop-ProcessOnPort -Port $backendPort
+Stop-ProcessOnPort -Port $frontendPort
+Stop-ProcessOnPort -Port $viteDevPort
 Start-Sleep -Seconds 2
 Write-Host ""
 
@@ -177,8 +182,8 @@ Write-Host ""
 
 # Step 5: Start Backend Server
 Write-Host "Step 5: Starting Backend Server (FastAPI)..." -ForegroundColor Yellow
-Write-Host "  Port: 8000" -ForegroundColor Gray
-Write-Host "  URL: http://localhost:8000" -ForegroundColor Gray
+Write-Host "  Port: $backendPort" -ForegroundColor Gray
+Write-Host "  URL: http://localhost:$backendPort" -ForegroundColor Gray
 
 $backendScriptPath = Join-Path $scriptDir "start_backend.ps1"
 $backendDir = Join-Path $scriptDir "backend"
@@ -187,7 +192,7 @@ $pythonExe = Join-Path $scriptDir "prakenv\Scripts\python.exe"
 $backendScript = @"
 `$ErrorActionPreference = 'Continue'
 cd `"$backendDir`"
-& `"$pythonExe`" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+& `"$pythonExe`" -m uvicorn app.main:app --host 0.0.0.0 --port $backendPort --reload
 "@
 
 $backendScript | Out-File -FilePath $backendScriptPath -Encoding UTF8 -Force
@@ -196,17 +201,17 @@ Start-Sleep -Seconds 4
 
 # Verify backend is starting
 Write-Host "  Verifying backend server..." -ForegroundColor Gray
-if (Test-ServerHealth -Url "http://localhost:8000/" -MaxAttempts 15 -DelaySeconds 2) {
-    Write-Host "  [OK] Backend server is responding!" -ForegroundColor Green
-} else {
-    Write-Host "  [WARNING] Backend server may not be ready yet. Check the server window for errors." -ForegroundColor Yellow
-}
+  if (Test-ServerHealth -Url "http://localhost:$backendPort/" -MaxAttempts 15 -DelaySeconds 2) {
+      Write-Host "  [OK] Backend server is responding!" -ForegroundColor Green
+  } else {
+      Write-Host "  [WARNING] Backend server may not be ready yet. Check the server window for errors." -ForegroundColor Yellow
+  }
 Write-Host ""
 
 # Step 6: Start Frontend Server
 Write-Host "Step 6: Starting Frontend Server (Vite)..." -ForegroundColor Yellow
-Write-Host "  Port: 3000" -ForegroundColor Gray
-Write-Host "  URL: http://localhost:3000" -ForegroundColor Gray
+  Write-Host "  Port: $frontendPort" -ForegroundColor Gray
+  Write-Host "  URL: http://localhost:$frontendPort" -ForegroundColor Gray
 
 $frontendScriptPath = Join-Path $scriptDir "start_frontend.ps1"
 $frontendDir = Join-Path $scriptDir "frontend"
@@ -224,11 +229,11 @@ Start-Sleep -Seconds 5
 
 # Verify frontend is starting
 Write-Host "  Verifying frontend server..." -ForegroundColor Gray
-if (Test-ServerHealth -Url "http://localhost:3000/" -MaxAttempts 20 -DelaySeconds 2) {
-    Write-Host "  [OK] Frontend server is responding!" -ForegroundColor Green
-} else {
-    Write-Host "  [WARNING] Frontend server may not be ready yet. Check the server window for errors." -ForegroundColor Yellow
-}
+  if (Test-ServerHealth -Url "http://localhost:$frontendPort/" -MaxAttempts 20 -DelaySeconds 2) {
+      Write-Host "  [OK] Frontend server is responding!" -ForegroundColor Green
+  } else {
+      Write-Host "  [WARNING] Frontend server may not be ready yet. Check the server window for errors." -ForegroundColor Yellow
+  }
 Write-Host ""
 
 # Final summary
@@ -237,12 +242,12 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Servers Started!" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Backend API:  http://localhost:8000" -ForegroundColor Cyan
-Write-Host "  - API Docs: http://localhost:8000/api/docs" -ForegroundColor Gray
-Write-Host "  - Health:   http://localhost:8000/health" -ForegroundColor Gray
-Write-Host ""
-Write-Host "Frontend App: http://localhost:3000" -ForegroundColor Cyan
-Write-Host ""
+Write-Host "Backend API:  http://localhost:$backendPort" -ForegroundColor Cyan
+  Write-Host "  - API Docs: http://localhost:$backendPort/api/docs" -ForegroundColor Gray
+  Write-Host "  - Health:   http://localhost:$backendPort/health" -ForegroundColor Gray
+  Write-Host ""
+  Write-Host "Frontend App: http://localhost:$frontendPort" -ForegroundColor Cyan
+  Write-Host ""
 Write-Host "Note: Server windows are open. Check them for any errors." -ForegroundColor Yellow
 Write-Host "If servers don't respond, check the PowerShell windows for error messages." -ForegroundColor Yellow
 Write-Host ""

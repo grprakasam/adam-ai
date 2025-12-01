@@ -4,7 +4,7 @@ Provides CRUD operations and collaboration features for studies
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.study_models import (
     Study, StudyCreate, StudyUpdate, StudyListItem, StudyShareRequest,
@@ -19,11 +19,11 @@ router = APIRouter(prefix="/studies", tags=["Studies"])
 
 
 def get_study_service(
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> StudyService:
     """Dependency to get StudyService instance"""
-    return StudyService(db, current_user.id)
+    return StudyService(db, current_user.username)
 
 
 @router.post("", response_model=Study, status_code=status.HTTP_201_CREATED)
@@ -37,7 +37,7 @@ async def create_study(
 
     The creator automatically gets admin access.
     """
-    study = study_service.create_study(
+    study = await study_service.create_study(
         study_data,
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
@@ -62,7 +62,7 @@ async def list_studies(
     - Search by name, protocol, sponsor
     - Filter by phase and validation status
     """
-    studies = study_service.list_studies(
+    studies = await study_service.list_studies(
         skip=skip,
         limit=limit,
         search=search,
@@ -86,7 +86,7 @@ async def get_study(
     - Specifications list
     - Access list (who has access)
     """
-    study = study_service.get_study(study_id)
+    study = await study_service.get_study(study_id)
     return study
 
 
@@ -102,7 +102,7 @@ async def update_study(
 
     Requires editor or admin permission.
     """
-    study = study_service.update_study(
+    study = await study_service.update_study(
         study_id,
         study_update,
         ip_address=request.client.host,
@@ -123,7 +123,7 @@ async def delete_study(
     Requires admin permission.
     GDPR compliant - study data is marked as deleted but retained per retention policy.
     """
-    study_service.delete_study(
+    await study_service.delete_study(
         study_id,
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
@@ -143,7 +143,7 @@ async def share_study(
     Requires admin permission.
     Users receive notification if notify_users=true.
     """
-    result = study_service.share_study(study_id, share_request)
+    result = await study_service.share_study(study_id, share_request)
     return APIResponse(
         success=True,
         message=f"Study shared with {len(result['shared_with'])} users",
@@ -160,11 +160,11 @@ async def track_study_access(
     Track that user accessed this study
     Updates last_accessed_at timestamp
     """
-    study_service._update_last_accessed(study_id)
+    await study_service._update_last_accessed(study_id)
     return None
 
 
-@router.get("/{study_id}/recent", response_model=List[StudyListItem])
+@router.get("/recent", response_model=List[StudyListItem])
 async def get_recent_studies(
     limit: int = Query(5, ge=1, le=20, description="Number of recent studies"),
     study_service: StudyService = Depends(get_study_service)
@@ -172,21 +172,8 @@ async def get_recent_studies(
     """
     Get user's recently accessed studies
     """
-    studies = study_service.list_studies(skip=0, limit=limit)
+    studies = await study_service.list_studies(skip=0, limit=limit)
     return studies
-
-
-# Additional helper endpoints for study context
-@router.get("/{study_id}/datasets")
-async def get_study_datasets(
-    study_id: str,
-    study_service: StudyService = Depends(get_study_service)
-):
-    """Get all datasets for a study"""
-    # Check access first
-    study_service.get_study(study_id)
-    datasets = study_service._get_study_datasets(study_id)
-    return {"datasets": datasets}
 
 
 @router.get("/{study_id}/specifications")
@@ -196,8 +183,8 @@ async def get_study_specifications(
 ):
     """Get all specifications for a study"""
     # Check access first
-    study_service.get_study(study_id)
-    specifications = study_service._get_study_specifications(study_id)
+    await study_service.get_study(study_id)
+    specifications = await study_service._get_study_specifications(study_id)
     return {"specifications": specifications}
 
 
@@ -208,8 +195,8 @@ async def get_study_access_list(
 ):
     """Get list of users with access to this study"""
     # Check access first (admin only)
-    study = study_service.get_study(study_id)
-    access_list = study_service._get_study_access_list(study_id)
+    await study_service.get_study(study_id)
+    access_list = await study_service._get_study_access_list(study_id)
     return {"access_list": access_list}
 
 
@@ -221,7 +208,7 @@ async def update_datasets(
 ):
     """Update ADAM dataset selections for a study"""
     datasets_list = datasets.get("datasets", [])
-    result = study_service.update_dataset_selections(study_id, datasets_list)
+    result = await study_service.update_dataset_selections(study_id, datasets_list)
     return {"datasets": result}
 
 
@@ -231,5 +218,5 @@ async def get_datasets(
     study_service: StudyService = Depends(get_study_service)
 ):
     """Get current dataset selections for a study"""
-    datasets = study_service.get_dataset_selections(study_id)
+    datasets = await study_service.get_dataset_selections(study_id)
     return {"datasets": datasets}
