@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Upload, FileText, MessageSquare, Settings, Database, CheckCircle2, Loader2, Save, Plus } from 'lucide-react';
-import { StudySelector } from './StudySelector';
 import { StudyChatbotPanel } from './StudyChatbotPanel';
 import { useStudyStore, Study } from '../store/studyStore';
+import { useProjectStore } from '../store/projectStore';
 import { message } from 'antd';
 import { FormBlock } from './FormBlock';
 import { TextField } from './TextField';
 import { SelectField } from './SelectField';
+import { adamApi } from '../services/api';
 import './EnterStudyDetailsPage.css';
 
 interface EnterStudyDetailsPageEnhancedProps {
@@ -48,9 +49,12 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
     updateDatasetSelections
   } = useStudyStore();
 
+  const { setSpecificationFile, setProjectConfig, setCategorizedVariables, setTempSpecFile } = useProjectStore();
+
   const [activeTab, setActiveTab] = useState<TabType>('basic');
   const [isSaving, setIsSaving] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Local state for form fields to enable immediate UI updates
@@ -150,23 +154,177 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !currentStudyId) return;
+    if (!file) return;
+    if (!currentStudyId) {
+      message.warning('Select or create a study before uploading documents.');
+      return;
+    }
+
+    // Check if it's an Excel file for specification
+    const isExcelFile = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+
+    // Show immediate loading feedback
+    setIsUploading(true);
+    const loadingMessage = message.loading(`Uploading "${file.name}"...`, 0);
 
     try {
       setUploadProgress({ [file.name]: 0 });
-      await uploadDocument(
+
+      console.log('Starting upload for file:', file.name);
+
+      const uploadedDoc = await uploadDocument(
         currentStudyId,
         file,
-        'SPECIFICATION',
+        isExcelFile ? 'SPECIFICATION' : 'GENERAL',
         undefined,
         undefined,
         `Uploaded ${file.name}`
       );
+
+      console.log('Upload response:', uploadedDoc);
+
       setUploadProgress({ [file.name]: 100 });
+
+      // Reload documents to get the updated list
+      await loadStudyDocuments(currentStudyId);
+      console.log('Documents reloaded');
+
+      // Hide loading message
+      loadingMessage();
+
+      // If it's an Excel specification file, also set it in projectStore for pair programming
+      if (isExcelFile && uploadedDoc) {
+        // Store the temp file for categorization
+        setTempSpecFile(file);
+
+        setSpecificationFile({
+          name: uploadedDoc.original_file_name,
+          path: uploadedDoc.storage_path,
+          size: uploadedDoc.size_bytes || file.size,
+          uploadedAt: uploadedDoc.uploaded_at,
+          isDefault: true, // Mark as server-accessible for re-categorization
+        });
+
+        // Also update project config with study context
+        setProjectConfig({
+          studyId: currentStudyId,
+          studyName: currentStudy?.name,
+          studyPhase: currentStudy?.phase,
+          adamDataset: 'ADSL', // Default to ADSL
+        } as any);
+
+        console.log('Specification file set in project store');
+
+        // Trigger automatic categorization
+        try {
+          const categorizationMessage = message.loading('Categorizing variables...', 0);
+
+          // Call categorization API
+          const categorizationResult = await adamApi.categorizeSpecificationFile(
+            file,
+            'ADSL', // Default dataset type
+            { timeoutMs: 120000 }
+          );
+
+          categorizationMessage();
+
+          console.log('=== CATEGORIZATION COMPLETED ===');
+          console.log('Total variables:', categorizationResult.total_variables);
+          console.log('Categories:', categorizationResult.categories.length);
+          console.log('Full result:', categorizationResult);
+
+          // Save categorization result to project store
+          setCategorizedVariables(categorizationResult);
+          console.log('Categorization result saved to project store');
+
+          // Show success message with categorization info
+          const totalVariables = categorizationResult?.total_variables || 0;
+          const categoryCount = categorizationResult?.categories?.length || 0;
+
+          message.success({
+            content: (
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>✅ Specification uploaded & categorized!</div>
+                <div style={{ fontSize: '0.875rem', color: '#059669', marginBottom: '0.25rem' }}>
+                  📊 File: {file.name}
+                </div>
+                <div style={{ fontSize: '0.875rem', color: '#059669', marginBottom: '0.25rem' }}>
+                  📋 Variables: {totalVariables} found and categorized into {categoryCount} categories
+                </div>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                  Ready for pair programming! Navigate to "Variables Analysis" tab to review and generate code.
+                </div>
+              </div>
+            ),
+            duration: 10,
+          });
+        } catch (catError: any) {
+          console.error('Categorization error:', catError);
+          // Still show success for upload, but warn about categorization
+          message.warning({
+            content: (
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>⚠️ File uploaded but categorization failed</div>
+                <div style={{ fontSize: '0.875rem', color: '#d97706' }}>
+                  📊 File: {file.name}
+                </div>
+                <div style={{ fontSize: '0.875rem', color: '#d97706', marginTop: '0.25rem' }}>
+                  Error: {catError.message || 'Unknown error'}
+                </div>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+                  You can manually categorize from the Variables Analysis tab.
+                </div>
+              </div>
+            ),
+            duration: 8,
+          });
+        }
+      } else {
+        message.success({
+          content: (
+            <div>
+              <div style={{ fontWeight: 600 }}>✅ Document uploaded successfully!</div>
+              <div style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                {file.name}
+              </div>
+            </div>
+          ),
+          duration: 4,
+        });
+      }
+
+      // Clear progress after delay
       setTimeout(() => setUploadProgress({}), 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading file:', error);
-      message.error('Failed to upload file. Please try again.');
+
+      // Hide loading message
+      loadingMessage();
+
+      // Show detailed error
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Unknown error occurred';
+      message.error({
+        content: (
+          <div>
+            <div style={{ fontWeight: 600 }}>❌ Upload Failed</div>
+            <div style={{ fontSize: '0.875rem', marginTop: '0.5rem' }}>
+              {errorMessage}
+            </div>
+            <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', color: '#9ca3af' }}>
+              Please try again or contact support if the issue persists.
+            </div>
+          </div>
+        ),
+        duration: 6,
+      });
+      setUploadProgress({});
+    } finally {
+      setIsUploading(false);
+
+      // Reset file input
+      if (event.target) {
+        event.target.value = '';
+      }
     }
   };
 
@@ -341,10 +499,6 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
   if (!currentStudyId) {
     return (
       <div className="enter-study-details-page">
-        <div className="study-selector-container">
-          <StudySelector showCreateButton={true} />
-        </div>
-
         <div className="create-study-container">
           <div className="create-study-header">
             <h2>Create New Study</h2>
@@ -536,51 +690,17 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
 
   return (
     <div className="enter-study-details-page">
-      {/* Study Selector Header */}
-      <div className="study-selector-container">
-        <StudySelector value={currentStudyId} showCreateButton={true} />
+      {/* Current Study Header */}
+      <div className="study-header-container">
+        <div className="current-study-info">
+          <h2>{localStudyData?.name || currentStudy?.name || 'Study Details'}</h2>
+          <p className="study-id-display">Study ID: {currentStudyId}</p>
+        </div>
         {isSaving && (
           <div className="saving-indicator">
             <Loader2 className="spinner" size={16} />
             <span>Saving...</span>
           </div>
-        )}
-        {currentStudyId && (
-          <button
-            className="btn btn-secondary create-new-study-banner-btn"
-            onClick={async () => {
-              await setCurrentStudy(null);
-              setActiveTab('basic');
-              message.info('Switched to Create New Study mode');
-            }}
-            style={{
-              marginLeft: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.625rem 1.25rem',
-              background: '#10b981',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = '#059669';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = '#10b981';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          >
-            <Plus size={18} />
-            Create New Study
-          </button>
         )}
       </div>
 
@@ -754,18 +874,48 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.docx,.xlsx,.txt"
+                  accept=".pdf,.docx,.xlsx,.xls,.txt"
                   onChange={handleFileUpload}
                   style={{ display: 'none' }}
                 />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload size={18} />
-                  Upload Document
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    style={{
+                      opacity: isUploading ? 0.6 : 1,
+                      cursor: isUploading ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 size={18} className="spinner" style={{ animation: 'spin 1s linear infinite' }} />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={18} />
+                        Upload Document
+                      </>
+                    )}
+                  </button>
+                  <div style={{
+                    padding: '0.75rem 1rem',
+                    background: '#f0f9ff',
+                    border: '1px solid #bae6fd',
+                    borderRadius: '8px',
+                    fontSize: '0.875rem',
+                    color: '#0369a1'
+                  }}>
+                    <strong>💡 Tip:</strong> Upload your ADAM specification Excel file (.xlsx or .xls) to enable pair programming and code generation.
+                  </div>
+                </div>
               </div>
 
               <div className="documents-list">

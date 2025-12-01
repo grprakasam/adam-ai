@@ -2,7 +2,9 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL?.trim() || 'http://localhost:8002'
+).replace(/\/$/, '');
 
 const authHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem('adam_access_token') || ''}`,
@@ -204,9 +206,17 @@ export const useStudyStore = create<StudyStore>()(
             `${API_BASE_URL}/api/v1/studies`,
             { headers: authHeaders() }
           );
-          set({ studies: response.data, studiesLoading: false });
+          set({ studies: response.data });
         } catch (error) {
           console.error('Error loading studies:', error);
+          const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+          if (status === 401 || status === 403) {
+            // Clear stale auth and ask app to redirect to login
+            localStorage.removeItem('adam_access_token');
+            localStorage.removeItem('adam_user');
+            window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+          }
+        } finally {
           set({ studiesLoading: false });
         }
       },

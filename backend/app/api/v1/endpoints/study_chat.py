@@ -24,7 +24,7 @@ def get_rag_service(
     current_user: User = Depends(get_current_active_user)
 ) -> RAGService:
     """Dependency to get RAGService instance"""
-    return RAGService(db, current_user.id)
+    return RAGService(db, current_user.username)
 
 
 @router.post("", response_model=ChatResponse)

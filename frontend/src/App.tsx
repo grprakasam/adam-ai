@@ -201,6 +201,7 @@ function App() {
 
     try {
       await setStoreCurrentStudy(studyId);
+      setProjectConfig({ studyId } as any);
       // Move to workspace view
       setViewMode('workspace');
     } catch (error) {
@@ -211,7 +212,7 @@ function App() {
 
     // Set default dataset if not selected
     if (!projectConfig.adamDataset) {
-      setProjectConfig({ adamDataset: 'ADSL' } as any);
+      setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
     }
   };
 
@@ -241,6 +242,7 @@ function App() {
 
     try {
       await setStoreCurrentStudy(studyId);
+      setProjectConfig({ studyId } as any);
       // Move to workspace view
       setViewMode('workspace');
     } catch (error) {
@@ -251,7 +253,7 @@ function App() {
 
     // Set default dataset if not selected
     if (!projectConfig.adamDataset) {
-      setProjectConfig({ adamDataset: 'ADSL' } as any);
+      setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
     }
 
     // Set default specification file if none selected
@@ -301,6 +303,7 @@ function App() {
       cancelText: 'Cancel',
       onOk: () => {
         setStoreCurrentStudy(studyId);
+        setProjectConfig({ studyId } as any);
         setIsRightPanelUnlocked(false);
         message.info(`Switched to study: ${studyId}`);
       }
@@ -402,6 +405,7 @@ function App() {
 
                       try {
                         await setStoreCurrentStudy(studyId);
+                        setProjectConfig({ studyId } as any);
                         // Move to workspace view
                         setViewMode('workspace');
                       } catch (error) {
@@ -411,7 +415,7 @@ function App() {
 
                       // Set default dataset if not selected
                       if (!projectConfig.adamDataset) {
-                        setProjectConfig({ adamDataset: 'ADSL' } as any);
+                        setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
                       }
                     }}
                   />

@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim().length > 0
+    ? import.meta.env.VITE_API_URL.trim()
+    : 'http://localhost:8002';
 
 type CompareLanguage = 'sas' | 'r' | 'auto';
 type ComparisonMode = 'quick' | 'standard' | 'deep';
@@ -398,19 +401,195 @@ export const categorizeSpecificationFile = async (
 };
 
 /**
+ * Bulk code generation with basic progress callbacks. This uses the non-streaming endpoint
+ * for compatibility and still emits start/complete events so the UI won't throw errors.
+ */
+export const generateCodeBulkStream = async (
+  payload: any,
+  onProgress?: (progress: { status: string; total?: number; completed?: number; message?: string }) => void,
+) => {
+  const total = payload?.categorized_variables?.total_variables ?? 0;
+
+  onProgress?.({
+    status: 'started',
+    total,
+    completed: 0,
+    message: 'Starting generation...',
+  });
+
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/v1/code-generation/generate-code-bulk`,
+      payload,
+      {
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+
+    onProgress?.({
+      status: 'completed',
+      total,
+      completed: total,
+      message: 'Generation complete',
+    });
+
+    return response.data;
+  } catch (error: any) {
+    const errMsg = error.response?.data?.detail || error.message || 'Code generation failed';
+    onProgress?.({
+      status: 'error',
+      message: errMsg,
+    });
+    throw new Error(errMsg);
+  }
+};
+
+/**
+ * Generate a full ADAM program using approved variables and user notes.
+ */
+export const generateProgramWithNotes = async (payload: any) => {
+  try {
+    const response = await axios.post(
+      `${API_BASE_URL}/api/v1/program-generation/generate-with-notes`,
+      payload,
+      {
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+
+    return response.data?.data || response.data;
+  } catch (error: any) {
+    const errMsg = error.response?.data?.detail || error.message || 'Program generation failed';
+    throw new Error(errMsg);
+  }
+};
+
+/**
  * Main ADAM AI API object
  */
 export const adamApi = {
   compareCode,
   categorizeSpecification,
   categorizeSpecificationFile,
+  generateCodeBulkStream,
+  generateProgramWithNotes,
   getAdamAnalyticsOverview,
   getAdamAnalyticsRoleInsights,
   uploadAdamAnalyticsFiles,
   getAdamAnalyticsTrendSeries,
   getAdamAnalyticsOutliers,
   getAdamAnalyticsCorrelations,
-  
+
+  // LLM Connection Testing
+  testLLMConnection: async (provider: string, model?: string) => {
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/api/v1/llm-models/test-connection`,
+        { provider, model },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error('LLM connection test failed:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Connection test failed',
+      };
+    }
+  },
+
+  // Consolidated Code Generation with Streaming
+  generateConsolidatedCodeStream: async (
+    request: any,
+    onProgress: (progress: { progress_pct: number; message: string }) => void,
+    signal?: AbortSignal
+  ) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/program-generation/consolidated-stream`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(request),
+          signal,
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('Response body is not readable');
+      }
+
+      let buffer = '';
+      let finalResult: any = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            const eventType = line.substring(6).trim();
+            continue;
+          }
+
+          if (line.startsWith('data:')) {
+            const data = line.substring(5).trim();
+            if (!data) continue;
+
+            try {
+              const parsed = JSON.parse(data);
+
+              if (parsed.error) {
+                throw new Error(parsed.error);
+              }
+
+              // Handle progress events
+              if (parsed.progress_pct !== undefined) {
+                onProgress({
+                  progress_pct: parsed.progress_pct,
+                  message: parsed.message || '',
+                });
+              }
+
+              // Handle complete event
+              if (parsed.status) {
+                finalResult = parsed;
+              }
+            } catch (parseError: any) {
+              console.error('Error parsing SSE data:', parseError);
+            }
+          }
+        }
+      }
+
+      return finalResult || { status: 'error', message: 'No result received' };
+    } catch (error: any) {
+      console.error('Consolidated code generation failed:', error);
+      if (error.name === 'AbortError') {
+        throw new Error('Generation cancelled by user');
+      }
+      throw error;
+    }
+  },
+
   // Stub methods - to be implemented
   getSubmissionReadiness: async (params: any) => {
     console.warn('adamApi.getSubmissionReadiness not yet implemented');

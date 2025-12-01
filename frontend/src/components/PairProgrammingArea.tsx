@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { message, Dropdown, Checkbox } from 'antd';
 import { Code2, Loader2, AlertCircle, Search, ChevronDown, ChevronUp, Eye, Pencil } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
@@ -124,6 +124,20 @@ const highlightCode = (code: string, language: string): string => {
   }
 
   return highlighted;
+};
+
+// Derive a deterministic accent palette from the variable name for visual cues
+const getVariableAccent = (name: string) => {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return {
+    accent: `hsl(${hue}, 78%, 42%)`,
+    accentSoft: `hsla(${hue}, 78%, 94%, 0.9)`,
+    accentStrong: `hsl(${hue}, 78%, 30%)`,
+  };
 };
 
 export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
@@ -365,6 +379,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [selectedVariable, setSelectedVariable] = useState<string | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState<boolean>(false);
+  const [aiPanelOffset, setAiPanelOffset] = useState<number>(120);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   // View density state (compact/comfortable/spacious) - Load from localStorage
   const [viewDensity, _setViewDensity] = useState<'compact' | 'comfortable' | 'spacious'>(() => {
@@ -495,6 +511,23 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     });
   }, [variables, pairProgramming.snippets, searchQuery, filterStatus]);
 
+  const updateAiPanelOffset = useCallback(() => {
+    const headerHeight = headerRef.current?.getBoundingClientRect().height ?? 0;
+    const buffer = 12; // keep a little breathing room below the sticky header
+    const nextOffset = Math.max(headerHeight + buffer, 120);
+    setAiPanelOffset(nextOffset);
+  }, []);
+
+  useEffect(() => {
+    updateAiPanelOffset();
+    window.addEventListener('resize', updateAiPanelOffset);
+    return () => window.removeEventListener('resize', updateAiPanelOffset);
+  }, [updateAiPanelOffset]);
+
+  useEffect(() => {
+    updateAiPanelOffset();
+  }, [updateAiPanelOffset, categoryName, filteredVariables.length]);
+
   const toggleCardExpansion = (variableName: string) => {
     setExpandedCards(prev => {
       const newSet = new Set(prev);
@@ -545,7 +578,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
   return (
     <div className="pair-programming-area">
       {/* Pair Programming Header - Redesigned for Better UX */}
-      <div className="pair-programming-header">
+      <div className="pair-programming-header" ref={headerRef}>
         {/* Left Section: Title and Context */}
         <div className="header-left-section">
           <div className="header-brand">
@@ -678,7 +711,10 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
       </div>
 
       {/* Two-Column Layout: Specification Cards (Left) + AI Results Panel (Right) */}
-      <div className={`pair-programming-two-column-layout ${isAiPanelOpen ? 'ai-panel-open' : 'ai-panel-closed'}`}>
+      <div 
+        className={`pair-programming-two-column-layout ${isAiPanelOpen ? 'ai-panel-open' : 'ai-panel-closed'}`}
+        style={{ ['--ai-panel-sticky-offset' as any]: `${aiPanelOffset}px` }}
+      >
         {/* Left Column: Variable Cards (Specification Data Only) */}
         <div 
           ref={contentAreaRef} 
@@ -853,13 +889,25 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
             const trimmedNotes = snippet?.userNotes?.trim() ?? '';
             const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
             const pseudoContent = snippet?.pseudoCode || selectedVar.derivation || snippet?.rationale;
+            const accent = getVariableAccent(selectedVar.name);
+            const variableInitial = selectedVar.name.slice(0, 1).toUpperCase();
 
             return (
-              <div className="ai-results-panel">
+              <div
+                className="ai-results-panel"
+                style={{
+                  ['--ai-var-accent' as any]: accent.accent,
+                  ['--ai-var-accent-soft' as any]: accent.accentSoft,
+                  ['--ai-var-accent-strong' as any]: accent.accentStrong,
+                }}
+              >
                 <div className="ai-panel-header">
-                  <div className="ai-panel-title">
+                  <div className="ai-panel-title accented">
+                    <span className="ai-panel-accent-dot" aria-hidden="true" />
+                    <span className="ai-panel-accent-initial" aria-hidden="true">{variableInitial}</span>
                     <Code2 size={18} />
-                    <span>AI Results: {selectedVar.name}</span>
+                    <span className="ai-panel-title-label">AI Results:</span>
+                    <span className="ai-panel-variable-name">{selectedVar.name}</span>
                   </div>
                   <button 
                     className="ai-panel-close"

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
-import { FileSearch, AlertCircle, Loader2, Info, Zap, RefreshCw, ArrowRight } from 'lucide-react';
+import { FileSearch, AlertCircle, Loader2, Info, Zap, RefreshCw, ArrowRight, Upload } from 'lucide-react';
 import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { useStudyStore } from '../store/studyStore';
@@ -59,6 +59,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
   const {
     specificationFile,
     projectConfig,
+    setProjectConfig,
     categorizedVariables,
     setCategorizedVariables,
     isCategorizingVariables,
@@ -79,8 +80,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
   } = useProjectStore();
 
   // Study context integration
-  const { currentStudyId, currentStudy, getStudyConfig } = useStudyStore();
+  const { currentStudyId, currentStudy, getStudyConfig, loadDatasetSelections, datasetSelections } = useStudyStore();
   const studyConfig = currentStudyId ? getStudyConfig(currentStudyId) : null;
+  const studyDatasets = currentStudyId ? datasetSelections[currentStudyId] || [] : [];
 
   const [activeCategory, setActiveCategory] = useState<string>('all'); // Default to "All Variables"
   const [error, setError] = useState<string | null>(null);
@@ -254,6 +256,85 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       }))
       .sort((a, b) => a.sortKey - b.sortKey || a.displayName.localeCompare(b.displayName));
   }, [categorizedVariables]);
+
+  // Ensure dataset selections are loaded when a study is active
+  useEffect(() => {
+    if (currentStudyId) {
+      loadDatasetSelections(currentStudyId);
+    }
+  }, [currentStudyId, loadDatasetSelections]);
+
+  const datasetOptions = useMemo(() => {
+    if (studyDatasets.length > 0) {
+      return studyDatasets.map((d) => ({
+        value: d.dataset_name,
+        label: d.dataset_name,
+        language: d.language || 'Both',
+      }));
+    }
+    return [
+      { value: 'ADSL', label: 'ADSL', language: 'Both' },
+      { value: 'ADAE', label: 'ADAE', language: 'Both' },
+      { value: 'ADLB', label: 'ADLB', language: 'Both' },
+    ];
+  }, [studyDatasets]);
+
+  const handleDatasetSwitch = (datasetName: string) => {
+    setProjectConfig({
+      adamDataset: datasetName,
+      studyId: currentStudyId || projectConfig.studyId,
+      studyPhase: currentStudy?.phase || projectConfig.studyPhase,
+    });
+    message.success(`Switched to ${datasetName} for pair programming`);
+  };
+
+  // If no dataset is set in projectConfig, default to the first available option
+  useEffect(() => {
+    if (!projectConfig.adamDataset && datasetOptions.length > 0) {
+      setProjectConfig({
+        adamDataset: datasetOptions[0].value,
+        studyId: currentStudyId || projectConfig.studyId,
+        studyPhase: currentStudy?.phase || projectConfig.studyPhase,
+      });
+    }
+  }, [datasetOptions, projectConfig.adamDataset, setProjectConfig, currentStudyId, currentStudy?.phase, projectConfig.studyId, projectConfig.studyPhase]);
+
+  const handleUploadSpecCTA = () => {
+    // Navigate to Enter Study Details tab
+    window.dispatchEvent(
+      new CustomEvent('adam-ai:navigate-workspace', {
+        detail: { path: '/enter-study-details' },
+      })
+    );
+
+    // Wait for navigation, then show helpful message and try to focus on upload
+    setTimeout(() => {
+      message.success({
+        content: 'Navigating to study details. Please upload your ADAM specification Excel file in the "Upload study Documents" tab.',
+        duration: 5,
+      });
+
+      // Try to find and focus on the upload section after navigation
+      setTimeout(() => {
+        // Try to find the documents tab button and click it
+        const documentsTabs = document.querySelectorAll('.study-tab');
+        documentsTabs.forEach((tab) => {
+          if (tab.textContent?.includes('Upload study Documents')) {
+            (tab as HTMLElement).click();
+          }
+        });
+
+        // Focus on the upload button after a short delay
+        setTimeout(() => {
+          const uploadButton = document.querySelector('[type="button"]') as HTMLElement;
+          if (uploadButton && uploadButton.textContent?.includes('Upload Document')) {
+            uploadButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            uploadButton.focus();
+          }
+        }, 300);
+      }, 500);
+    }, 100);
+  };
 
   useEffect(() => {
     // Don't reset if "All Variables" is selected
@@ -1018,16 +1099,90 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     );
   }, [categorizedVariables]);
 
+  const activeDataset = projectConfig.adamDataset || datasetOptions[0]?.value || 'ADSL';
+
   // Use a stable container to prevent React from completely unmounting the component tree
   // This prevents the removeChild error by maintaining a consistent DOM structure
   return (
     <div className="variables-analysis-tab" key="variables-analysis-root">
+      {/* Always-visible context bar for dataset selection */}
+      <div className="pair-programming-context-bar">
+        <div className="context-label">Active ADaM dataset</div>
+        <div className="context-actions">
+          <select
+            value={activeDataset}
+            onChange={(e) => handleDatasetSwitch(e.target.value)}
+            className="dataset-dropdown"
+          >
+            {datasetOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {currentStudyId && (
+            <span className="context-study-pill">
+              Study: {currentStudy?.name || currentStudyId}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* No spec file uploaded */}
       {!specificationFile && (
         <div className="variables-empty-state" key="no-spec">
           <AlertCircle size={64} className="empty-icon" />
           <h3>No Specification File Uploaded</h3>
-          <p>Please upload an ADAM specification file using the "Upload ADAM Specification" step in the configuration section above to analyze variables.</p>
+          <p>
+            To analyze variables and generate code for <strong>{activeDataset}</strong>, please upload your ADAM specification Excel file. Click the button below to navigate to the upload section.
+          </p>
+          <div className="empty-actions">
+            <div className="empty-step-card">
+              <div className="step-title">Step 1: Choose ADaM dataset</div>
+              <select
+                value={activeDataset}
+                onChange={(e) => handleDatasetSwitch(e.target.value)}
+                className="dataset-dropdown"
+              >
+                {datasetOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="empty-step-card">
+              <div className="step-title">Step 2: Upload specification</div>
+              <p style={{ marginBottom: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                Upload your ADAM specification Excel file to analyze variables and generate code.
+              </p>
+              <button className="categorize-button" onClick={handleUploadSpecCTA} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Upload size={18} />
+                Take me to Upload Specification
+              </button>
+              {currentStudyId && (
+                <div className="step-helper">
+                  Study: {currentStudy?.name || currentStudyId}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hard stop until a spec is uploaded */}
+      {!specificationFile && (
+        null
+      )}
+
+      {specificationFile && (
+        <div className="spec-summary-bar">
+          <div>
+            <span className="summary-label">Dataset:</span> <strong>{activeDataset}</strong>
+          </div>
+          <div>
+            <span className="summary-label">Specification:</span> <strong>{specificationFile?.name || 'Unknown file'}</strong>
+          </div>
         </div>
       )}
 

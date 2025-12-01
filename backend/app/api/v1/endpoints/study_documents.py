@@ -25,7 +25,7 @@ def get_document_service(
     current_user: User = Depends(get_current_active_user)
 ) -> DocumentService:
     """Dependency to get DocumentService instance"""
-    return DocumentService(db, current_user.id)
+    return DocumentService(db, current_user.username)
 
 
 @router.post("", response_model=StudyDocument, status_code=status.HTTP_201_CREATED)
