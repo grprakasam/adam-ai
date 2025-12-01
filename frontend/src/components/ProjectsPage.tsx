@@ -16,7 +16,7 @@ interface Study {
 }
 
 interface ProjectsPageProps {
-  onOpenStudy: (studyName: string) => void;
+  onOpenStudy: (studyId: string) => void;
   onBack?: () => void;
   studies?: Study[];
 }
@@ -161,7 +161,7 @@ const ProjectsPage = ({
                 type="primary"
                 size="large"
                 icon={<FolderOpenOutlined />}
-                onClick={() => onOpenStudy(selectedStudy.name)}
+                onClick={() => onOpenStudy(selectedStudy.id)}
                 className="launch-workspace-button"
               >
                 Open Study Workspace

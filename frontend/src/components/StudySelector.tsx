@@ -33,9 +33,11 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Load studies on mount only (prevent infinite loop)
   useEffect(() => {
     loadStudies();
-  }, [loadStudies]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only load once on mount
 
   useEffect(() => {
     if (value && value !== currentStudyId) {

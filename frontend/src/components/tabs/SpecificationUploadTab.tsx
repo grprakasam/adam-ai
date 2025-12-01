@@ -66,7 +66,7 @@ const SpecificationUploadTab: React.FC = () => {
   }, [specificationFile, setSpecificationFile]);
 
   return (
-    <div className="tab-container">
+    <div className="tab-container" data-testid="upload-adam-spec" id="upload-adam-spec">
       <FormBlock
         title="Upload ADAM Specification"
         description="Upload the Excel specification file for ADAM dataset generation"
@@ -92,6 +92,7 @@ const SpecificationUploadTab: React.FC = () => {
             type="button"
             className="btn btn-secondary btn-browse"
             onClick={handleBrowseClick}
+            data-testid="browse-adam-spec"
           >
             <Upload size={18} />
             Browse

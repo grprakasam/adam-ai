@@ -12,7 +12,6 @@ import {
   DashboardOutlined,
   DownOutlined
 } from '@ant-design/icons';
-import { StudySelector } from './StudySelector';
 import { NotificationBell } from './NotificationBell';
 import { SearchButton } from './SearchButton';
 import { DarkModeToggle } from './DarkModeToggle';
@@ -20,22 +19,16 @@ import { UserMenu } from './UserMenu';
 import './TopNavigation.css';
 
 interface TopNavigationProps {
-  currentStudy?: any;
-  onStudyChange?: (study: any) => void;
   onNavigate?: (path: string) => void;
   showLogo?: boolean;
   showUtilities?: boolean;
-  showStudySelector?: boolean;
   embedded?: boolean;
 }
 
 export const TopNavigation: React.FC<TopNavigationProps> = ({
-  currentStudy,
-  onStudyChange,
   onNavigate,
   showLogo = true,
   showUtilities = true,
-  showStudySelector = true,
   embedded = false
 }) => {
   const [, setActiveMenu] = useState<string>('');
@@ -234,15 +227,6 @@ export const TopNavigation: React.FC<TopNavigationProps> = ({
         {/* Right Side - Utilities */}
         {showUtilities && (
           <div className="nav-right">
-            {showStudySelector && onStudyChange && (
-              <StudySelector
-                value={currentStudy?.id}
-                onStudyChange={onStudyChange}
-              />
-            )}
-
-            {showStudySelector && onStudyChange && <div className="nav-divider" />}
-
             <SearchButton />
 
             <NotificationBell />

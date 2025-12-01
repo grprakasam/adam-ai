@@ -41,7 +41,7 @@ async def get_notifications(
     - Pagination
     """
     notifications = notification_service.get_notifications(
-        user_id=current_user.id,
+        user_id=current_user.username,
         unread_only=unread_only,
         study_id=study_id,
         skip=skip,
@@ -57,7 +57,7 @@ async def mark_notification_read(
     notification_service: NotificationService = Depends(get_notification_service)
 ):
     """Mark a notification as read"""
-    success = notification_service.mark_as_read(notification_id, current_user.id)
+    success = notification_service.mark_as_read(notification_id, current_user.username)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -73,7 +73,7 @@ async def mark_all_notifications_read(
     notification_service: NotificationService = Depends(get_notification_service)
 ):
     """Mark all notifications as read for current user"""
-    count = notification_service.mark_all_as_read(current_user.id, study_id)
+    count = notification_service.mark_all_as_read(current_user.username, study_id)
     return APIResponse(
         success=True,
         message=f"Marked {count} notifications as read",
@@ -87,7 +87,7 @@ async def get_unread_count(
     notification_service: NotificationService = Depends(get_notification_service)
 ):
     """Get count of unread notifications"""
-    count = notification_service.get_unread_count(current_user.id)
+    count = notification_service.get_unread_count(current_user.username)
     return {"unread_count": count}
 
 
@@ -116,7 +116,7 @@ async def notifications_websocket(
         return
 
     # Accept connection
-    await notification_manager.connect(user.id, websocket)
+    await notification_manager.connect(user.username, websocket)
 
     try:
         # Keep connection alive
@@ -130,4 +130,4 @@ async def notifications_websocket(
                 await websocket.send_text("pong")
 
     except WebSocketDisconnect:
-        notification_manager.disconnect(user.id, websocket)
+        notification_manager.disconnect(user.username, websocket)

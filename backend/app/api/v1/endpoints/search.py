@@ -20,7 +20,7 @@ def get_search_service(
     current_user: User = Depends(get_current_active_user)
 ) -> SearchService:
     """Dependency to get SearchService instance"""
-    return SearchService(db, current_user.id)
+    return SearchService(db, current_user.username)
 
 
 @router.get("", response_model=SearchResponse)

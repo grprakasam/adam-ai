@@ -21,7 +21,6 @@ import { TLFGeneratorTab } from './TLFGeneratorTab';
 import EnterStudyDetailsPage from './EnterStudyDetailsPage';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
-import { StudySelector } from './StudySelector';
 import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
@@ -493,9 +492,6 @@ const RightPanel = ({
         >
           {/* Unified Workspace Header Group - Combined Sections - ALWAYS VISIBLE */}
           <div className="workspace-header-group">
-            <div className="study-selector-section" style={{ marginBottom: '1rem', padding: '0 1rem' }}>
-              <StudySelector compact={true} />
-            </div>
             <div className="workspace-navigation-section">
               <WorkspaceNavigation
                 activeTab={activeWorkspaceTab}
