@@ -623,6 +623,35 @@ class StudyDB(Base):
     )
 
 
+class StudyAccessDB(Base):
+    """
+    Study access control model
+    Manages user permissions for studies (admin, editor, viewer)
+    """
+    __tablename__ = "study_access"
+
+    study_id: Mapped[str] = mapped_column(
+        String(255),
+        ForeignKey("studies.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(255),
+        primary_key=True,
+        nullable=False
+    )
+    permission: Mapped[str] = mapped_column(String(50), nullable=False)  # admin, editor, viewer
+    granted_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    granted_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("idx_study_access_study", "study_id", "is_active"),
+        Index("idx_study_access_user", "user_id", "is_active"),
+    )
+
+
 # ============================================================================
 # Study Documents & Chatbot Models
 # ============================================================================

@@ -15,6 +15,7 @@ from typing import Optional, Dict, Any, List, TypedDict
 from abc import ABC, abstractmethod
 from loguru import logger
 from functools import wraps
+import os
 import asyncio
 
 from app.config import settings
@@ -799,11 +800,17 @@ class LLMIntegrationService:
     
     def __init__(self):
         self.providers: Dict[str, BaseLLMProvider] = {}
-        
+        self.rate_limiters: Dict[str, TokenBucketRateLimiter] = {}
+
+        # Allow skipping provider initialization in test/dev workflows
+        if os.getenv("DISABLE_LLM_PROVIDERS", "").lower() in {"1", "true", "yes"}:
+            logger.info("Skipping LLM provider initialization (DISABLE_LLM_PROVIDERS enabled)")
+            return
+
         # Initialize rate limiters for each provider
         # Groq: 30 requests/min, 14,400/day (tokens ~12,000/min based on error)
         # Google: 60 requests/min (free tier)
-        self.rate_limiters: Dict[str, TokenBucketRateLimiter] = {
+        self.rate_limiters = {
             'groq': TokenBucketRateLimiter(
                 requests_per_minute=25,  # Conservative limit
                 tokens_per_minute=10000,  # 80% of 12,000 TPM
