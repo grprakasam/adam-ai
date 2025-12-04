@@ -5,7 +5,11 @@
 
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Use relative URL by default (Vite proxy to backend on 8002).
+// If VITE_API_URL is set, use that as an absolute base.
+const API_BASE_URL = import.meta.env.VITE_API_URL?.trim()
+  ? import.meta.env.VITE_API_URL.trim().replace(/\/$/, '')
+  : '';
 
 export interface ValidationIssue {
   line: number;

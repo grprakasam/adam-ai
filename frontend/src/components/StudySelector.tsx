@@ -36,11 +36,60 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
 
   // Load studies on mount only (prevent infinite loop)
   useEffect(() => {
-    if (!studiesLoadedAt && !studiesLoading) {
-      loadStudies();
-    }
+    // Import diagnostics
+    import('../utils/studyDiagnostics').then(({ checkStudyLoadingDiagnostics, testStudyApiAccess }) => {
+      checkStudyLoadingDiagnostics();
+      
+      console.log('StudySelector mounted, checking studies:', {
+        studiesLoadedAt,
+        studiesLoading,
+        studiesCount: studies.length
+      });
+      
+      // Test API access if no studies
+      if (studies.length === 0 && !studiesLoading) {
+        testStudyApiAccess()
+          .then(() => {
+            console.log('API test passed, loading studies...');
+            loadStudies(true);
+          })
+          .catch((error) => {
+            console.error('API test failed, but attempting to load anyway:', error);
+            loadStudies(true);
+          });
+      } else if (!studiesLoadedAt && !studiesLoading) {
+        console.log('Loading studies from StudySelector...');
+        loadStudies(true); // Force load to ensure fresh data
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Listen to study store updates and study creation events
+  useEffect(() => {
+    const handleStudyUpdate = (event: CustomEvent) => {
+      console.log('StudySelector: Received study store update event', event.detail);
+      // Force re-render by updating local state if needed
+      // The Zustand store will automatically trigger re-render
+    };
+
+    const handleStudyCreated = (event: CustomEvent) => {
+      console.log('StudySelector: New study created', event.detail);
+      // Studies are already in store via optimistic update
+      // Just ensure dropdown is aware
+      if (isOpen) {
+        // Keep dropdown open to show new study
+      }
+    };
+
+    window.addEventListener('study-store-updated', handleStudyUpdate as EventListener);
+    window.addEventListener('study-created', handleStudyCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('study-store-updated', handleStudyUpdate as EventListener);
+      window.removeEventListener('study-created', handleStudyCreated as EventListener);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (value && value !== currentStudyId) {
@@ -54,6 +103,16 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
     study.protocol_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     study.sponsor?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  // Debug logging when studies change
+  useEffect(() => {
+    console.log('StudySelector - Studies updated:', {
+      totalStudies: studies.length,
+      filteredStudies: filteredStudies.length,
+      searchTerm,
+      studiesList: studies.map(s => ({ id: s.id, name: s.name, protocol: s.protocol_number }))
+    });
+  }, [studies.length, filteredStudies.length, searchTerm]);
 
   const handleStudySelect = async (studyId: string) => {
     await setCurrentStudy(studyId);
@@ -110,18 +169,30 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
               />
             </div>
             <div className="study-selector-list">
-              {filteredStudies.map(study => (
-                <button
-                  key={study.id}
-                  className={`study-selector-item ${study.id === (value || currentStudyId) ? 'active' : ''}`}
-                  onClick={() => handleStudySelect(study.id)}
-                >
-                  <div className="study-item-name">{study.name}</div>
-                  {study.protocol_number && (
-                    <div className="study-item-meta">Protocol: {study.protocol_number}</div>
-                  )}
-                </button>
-              ))}
+              {studiesLoading ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: '#666' }}>
+                  Loading studies...
+                </div>
+              ) : filteredStudies.length === 0 ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: '#666' }}>
+                  {studies.length === 0 
+                    ? 'No studies found. Check console for errors.'
+                    : `No studies match "${searchTerm}"`}
+                </div>
+              ) : (
+                filteredStudies.map(study => (
+                  <button
+                    key={study.id}
+                    className={`study-selector-item ${study.id === (value || currentStudyId) ? 'active' : ''}`}
+                    onClick={() => handleStudySelect(study.id)}
+                  >
+                    <div className="study-item-name">{study.name}</div>
+                    {study.protocol_number && (
+                      <div className="study-item-meta">Protocol: {study.protocol_number}</div>
+                    )}
+                  </button>
+                ))
+              )}
               {showCreateButton && (
                 <button
                   className="study-selector-create"
@@ -187,9 +258,17 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
               />
             </div>
             <div className="study-selector-list">
-              {filteredStudies.length === 0 ? (
+              {studiesLoading ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: '#666' }}>
+                  Loading studies...
+                </div>
+              ) : filteredStudies.length === 0 ? (
                 <div className="study-selector-empty">
-                  {searchTerm ? 'No studies found' : 'No studies available'}
+                  {studies.length === 0 
+                    ? 'No studies found. Check console for errors or try reloading.'
+                    : searchTerm 
+                      ? `No studies match "${searchTerm}"`
+                      : 'No studies available'}
                 </div>
               ) : (
                 filteredStudies.map(study => (
@@ -215,7 +294,7 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
                       )}
                     </div>
                     <div className="study-item-footer">
-                      <span className="study-datasets">{study.datasets_count} dataset(s)</span>
+                      <span className="study-datasets">{study.datasets_count || 0} dataset(s)</span>
                       <span className="study-date">
                         {new Date(study.created_at).toLocaleDateString()}
                       </span>

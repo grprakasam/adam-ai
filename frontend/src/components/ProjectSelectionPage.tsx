@@ -23,9 +23,49 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
 
   // Always trigger an initial load (forced) so the dropdown populates promptly
   useEffect(() => {
+    console.log('ProjectSelectionPage mounted, loading studies...', {
+      currentStudies: studies.length,
+      studiesLoading,
+      studiesLoadedAt
+    });
     loadStudies(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
+  // Listen to study store updates and study creation events
+  useEffect(() => {
+    const handleStudyUpdate = (event: CustomEvent) => {
+      console.log('ProjectSelectionPage: Received study store update event', event.detail);
+      // Studies are already updated in store, component will re-render automatically
+      // Force a refresh if needed
+      if (event.detail?.action === 'added') {
+        console.log('New study added, refreshing view');
+        // Store update will trigger re-render via Zustand
+      }
+    };
+
+    const handleStudyCreated = (event: CustomEvent) => {
+      console.log('ProjectSelectionPage: New study created', event.detail);
+      // Studies are already in store via optimistic update
+      // Component will re-render automatically
+    };
+
+    window.addEventListener('study-store-updated', handleStudyUpdate as EventListener);
+    window.addEventListener('study-created', handleStudyCreated as EventListener);
+
+    return () => {
+      window.removeEventListener('study-store-updated', handleStudyUpdate as EventListener);
+      window.removeEventListener('study-created', handleStudyCreated as EventListener);
+    };
+  }, []);
+
+  // Debug: Log when studies change
+  useEffect(() => {
+    console.log('Studies updated in ProjectSelectionPage:', {
+      count: studies.length,
+      studies: studies.map(s => ({ id: s.id, name: s.name }))
+    });
+  }, [studies]);
 
   useEffect(() => {
     if (currentStudyId) {
@@ -134,21 +174,41 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
                   className="empty-studies"
                 >
                   <Text type="secondary" className="empty-hint">
-                    Create a new study to get started
+                    {localStorage.getItem('adam_access_token') 
+                      ? 'No studies found. Create a new study to get started or check the console for errors.'
+                      : 'Please log in first to view your studies.'}
                   </Text>
-                  <Button
-                    size="small"
-                    style={{ marginTop: 12 }}
-                    onClick={() => loadStudies(true)}
-                    loading={studiesLoading}
-                  >
-                    Reload studies
-                  </Button>
+                  <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center' }}>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        console.log('Manual reload triggered. Current state:', {
+                          studiesCount: studies.length,
+                          studiesLoading,
+                          hasToken: !!localStorage.getItem('adam_access_token'),
+                          API_BASE_URL: 'http://localhost:8002'
+                        });
+                        loadStudies(true);
+                      }}
+                      loading={studiesLoading}
+                    >
+                      Reload studies
+                    </Button>
+                    {!localStorage.getItem('adam_access_token') && (
+                      <Button
+                        size="small"
+                        type="primary"
+                        onClick={() => window.location.reload()}
+                      >
+                        Go to Login
+                      </Button>
+                    )}
+                  </div>
                 </Empty>
               ) : (
                 <div className="study-selector-wrapper">
                   <Text strong className="selector-label">
-                    Select a Study:
+                    Select a Study ({studies.length} available):
                   </Text>
                   <StudySelector
                     value={selectedStudyId || undefined}
@@ -158,7 +218,10 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
                   <Button
                     size="small"
                     style={{ marginTop: 8 }}
-                    onClick={() => loadStudies(true)}
+                    onClick={() => {
+                      console.log('Manual refresh triggered');
+                      loadStudies(true);
+                    }}
                     loading={studiesLoading}
                   >
                     Refresh list
@@ -191,4 +254,5 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
 };
 
 export default ProjectSelectionPage;
+
 

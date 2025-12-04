@@ -15,57 +15,27 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
   const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true);
-    try {
-      console.log('🔐 Attempting login for user:', values.username);
-      
+
+    // Helper to perform the actual login request against a given URL
+    const performLoginRequest = async (url: string, signal: AbortSignal) => {
+      console.log('📡 Sending login request to:', url);
+
       const formData = new URLSearchParams();
       formData.append('username', values.username);
       formData.append('password', values.password);
 
-      console.log('📡 Sending request to: /api/v1/auth/login');
-
-      // Add timeout to prevent hanging requests
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const response = await fetch('/api/v1/auth/login', {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData,
-        signal: controller.signal,
+        signal,
       });
-      
-      clearTimeout(timeoutId);
 
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response OK:', response.ok);
+      console.log('📥 Response status:', response.status, 'ok:', response.ok, 'url:', url);
 
-      if (response.ok) {
-        // Check if response has content before parsing JSON
-        const responseText = await response.text();
-        if (!responseText || responseText.trim().length === 0) {
-          throw new Error('Server returned an empty response');
-        }
-        
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Failed to parse login response:', parseError);
-          throw new Error('Server returned invalid JSON response');
-        }
-        
-        console.log('✅ Login successful:', data.user);
-        
-        // Store token and user data
-        localStorage.setItem('adam_access_token', data.access_token);
-        localStorage.setItem('adam_user', JSON.stringify(data.user));
-        
-        message.success(`Welcome, ${data.user.full_name}!`);
-        onLoginSuccess(data);
-      } else {
+      if (!response.ok) {
         // Try to get error message from response
         let errorMessage = 'Invalid credentials';
         try {
@@ -82,21 +52,78 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             }
           }
         } catch (e) {
-          // Response body might be empty or unreadable
           console.error('Failed to read error response:', e);
         }
-        console.error('❌ Login failed:', errorMessage);
-        message.error(errorMessage);
+
+        console.error('❌ Login failed:', errorMessage, 'for url:', url);
+        throw new Error(errorMessage);
       }
+
+      const responseText = await response.text();
+      if (!responseText || responseText.trim().length === 0) {
+        throw new Error('Server returned an empty response');
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse login response:', parseError);
+        throw new Error('Server returned invalid JSON response');
+      }
+
+      return data;
+    };
+
+    try {
+      console.log('🔐 Attempting login for user:', values.username);
+
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      let data: any;
+
+      try {
+        // First try via the frontend proxy (/api -> backend on 8002)
+        data = await performLoginRequest('/api/v1/auth/login', controller.signal);
+      } catch (primaryError: any) {
+        console.error('Primary login via proxy failed:', primaryError);
+
+        // Only attempt a direct backend fallback for network-style errors
+        if (primaryError?.name === 'AbortError' || primaryError instanceof TypeError) {
+          try {
+            console.warn('Retrying login directly against backend at http://localhost:8002/api/v1/auth/login');
+            data = await performLoginRequest('http://localhost:8002/api/v1/auth/login', controller.signal);
+          } catch (fallbackError) {
+            console.error('Fallback login attempt failed:', fallbackError);
+            throw fallbackError;
+          }
+        } else {
+          // For logical/auth errors, just rethrow
+          throw primaryError;
+        }
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      console.log('✅ Login successful:', data.user);
+
+      // Store token and user data
+      localStorage.setItem('adam_access_token', data.access_token);
+      localStorage.setItem('adam_user', JSON.stringify(data.user));
+
+      message.success(`Welcome, ${data.user.full_name}!`);
+      onLoginSuccess(data);
     } catch (error: any) {
       console.error('💥 Login error:', error);
       console.error('Error name:', error?.name);
       console.error('Error type:', error instanceof TypeError ? 'Network/CORS Error' : 'Unknown Error');
       
       if (error?.name === 'AbortError') {
-        message.error('Request timed out. The backend server may not be responding. Please check if the backend is running on port 8000.');
+        message.error('Request timed out. Please check that the backend server is running and reachable (port 8002 via /api proxy).');
       } else if (error instanceof TypeError) {
-        message.error('Network error: Cannot connect to backend. Please ensure the backend server is running on port 8000.');
+        message.error('Network error: Cannot connect to backend. Ensure the FastAPI server is running on port 8002 and the frontend proxy is configured.');
       } else {
         message.error(error?.message || 'Login failed. Please check your connection and try again.');
       }

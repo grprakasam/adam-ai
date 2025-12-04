@@ -18,6 +18,14 @@ import { DatasetComparerTab } from './DatasetComparerTab';
 import { AdamAnalyticsTab } from './AdamAnalyticsTab';
 import { StudyChatbotTab } from './StudyChatbotTab';
 import { TLFGeneratorTab } from './TLFGeneratorTab';
+import { ADAMTutorTab } from './ADAMTutorTab';
+import { AgenticAITab } from './AgenticAITab';
+import AICodeDebuggerTab from './AICodeDebuggerTab';
+import CodeRefactorerTab from './CodeRefactorerTab';
+import MissingSpecDetectorTab from './MissingSpecDetectorTab';
+import SpecComparisonTab from './SpecComparisonTab';
+import ESubmissionCheckerTab from './ESubmissionCheckerTab';
+import FDAReviewerPreviewTab from './FDAReviewerPreviewTab';
 import EnterStudyDetailsPage from './EnterStudyDetailsPage';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { WorkspaceNavigation } from './WorkspaceNavigation';
@@ -48,7 +56,15 @@ type WorkspaceTabKey =
   | 'analytics'
   | 'chatbot'
   | 'code-comparer'
-  | 'tlf-generator';
+  | 'tlf-generator'
+  | 'adam-tutor'
+  | 'agentic-ai'
+  | 'ai-code-debugger'
+  | 'code-refactorer'
+  | 'missing-spec-detector'
+  | 'spec-comparison'
+  | 'esubmission-checker'
+  | 'fda-reviewer-preview';
 
 type WorkspaceGroup = 'adamCoding' | 'utilities';
 
@@ -67,7 +83,15 @@ const TAB_TOOLTIPS: Record<string, string> = {
   analytics: 'Advanced analytics and insights for ADAM datasets with visualization tools',
   chatbot: 'AI-powered study assistant for questions about specifications and standards',
   'code-comparer': 'Compare different versions of ADAM code to identify differences and validate changes',
-  'tlf-generator': 'AI-powered generation of Tables, Listings, and Figures from mockshell documents'
+  'tlf-generator': 'AI-powered generation of Tables, Listings, and Figures from mockshell documents',
+  'adam-tutor': 'Interactive tutorials and guides for learning ADAM programming',
+  'agentic-ai': 'Autonomous AI agents for complex ADAM tasks',
+  'ai-code-debugger': 'Paste error logs, AI explains root cause and suggests fixes',
+  'code-refactorer': 'Upload SAS/R scripts, AI suggests optimizations for better performance',
+  'missing-spec-detector': 'Upload dataset + spec Excel, AI flags discrepancies and missing values',
+  'spec-comparison': 'Upload two spec versions, AI highlights semantic differences',
+  'esubmission-checker': 'One-click FDA eSubmission Technical Conformance Guide compliance scan',
+  'fda-reviewer-preview': 'AI role-plays FDA reviewer to identify submission weak spots'
 };
 
 const RightPanel = ({
@@ -88,14 +112,14 @@ const RightPanel = ({
   const [activeGroup, setActiveGroup] = useState<WorkspaceGroup>('adamCoding');
   const workspaceContentRef = useRef<HTMLDivElement | null>(null);
   const rightPanelRef = useRef<HTMLElement | null>(null);
-  
+
   // Header is ALWAYS visible - no auto-hide functionality
   // Removed scroll detection for auto-hiding to ensure persistent visibility
 
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
     adamCoding: ['study-details', 'pair', 'review', 'consolidated'],
-    utilities: ['submission', 'comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator'],
+    utilities: ['submission', 'comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator', 'adam-tutor', 'agentic-ai', 'ai-code-debugger', 'code-refactorer', 'missing-spec-detector', 'spec-comparison', 'esubmission-checker', 'fda-reviewer-preview'],
   };
 
   // Keep active tab consistent with active group
@@ -108,12 +132,12 @@ const RightPanel = ({
         break;
       }
     }
-    
+
     // If tab belongs to a different group, switch to that group
     if (tabGroup && tabGroup !== activeGroup) {
       setActiveGroup(tabGroup);
     }
-    
+
     // Ensure tab is in allowed list for active group
     const allowed = GROUP_TABS[activeGroup];
     if (!allowed.includes(activeWorkspaceTab) && tabGroup) {
@@ -187,6 +211,38 @@ const RightPanel = ({
         case '/tlf-generator':
           setActiveGroup('utilities');
           setActiveWorkspaceTab('tlf-generator');
+          break;
+        case '/adam-tutor':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('adam-tutor');
+          break;
+        case '/agentic-ai':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('agentic-ai');
+          break;
+        case '/ai-code-debugger':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('ai-code-debugger');
+          break;
+        case '/code-refactorer':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('code-refactorer');
+          break;
+        case '/missing-spec-detector':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('missing-spec-detector');
+          break;
+        case '/spec-comparison':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('spec-comparison');
+          break;
+        case '/esubmission-checker':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('esubmission-checker');
+          break;
+        case '/fda-reviewer-preview':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('fda-reviewer-preview');
           break;
         default:
           break;
@@ -438,6 +494,110 @@ const RightPanel = ({
           ),
           children: <TLFGeneratorTab />,
         },
+        {
+          key: 'adam-tutor',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['adam-tutor']}>
+              <span>
+                ADAM Tutor{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <ADAMTutorTab />,
+        },
+        {
+          key: 'agentic-ai',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['agentic-ai']}>
+              <span>
+                Agentic AI{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <AgenticAITab />,
+        },
+        {
+          key: 'ai-code-debugger',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['ai-code-debugger']}>
+              <span>
+                AI Code Debugger{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <AICodeDebuggerTab />,
+        },
+        {
+          key: 'code-refactorer',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['code-refactorer']}>
+              <span>
+                Code Refactorer{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <CodeRefactorerTab />,
+        },
+        {
+          key: 'missing-spec-detector',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['missing-spec-detector']}>
+              <span>
+                Missing Spec Detector{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <MissingSpecDetectorTab />,
+        },
+        {
+          key: 'spec-comparison',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['spec-comparison']}>
+              <span>
+                Spec Comparison{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <SpecComparisonTab />,
+        },
+        {
+          key: 'esubmission-checker',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['esubmission-checker']}>
+              <span>
+                eSubmission Checker{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <ESubmissionCheckerTab />,
+        },
+        {
+          key: 'fda-reviewer-preview',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['fda-reviewer-preview']}>
+              <span>
+                FDA Reviewer Preview{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <FDAReviewerPreviewTab />,
+        },
       ];
 
       const itemsForGroup = allItems.filter((item) =>
@@ -445,10 +605,10 @@ const RightPanel = ({
       );
 
       return (
-        <section 
+        <section
           ref={rightPanelRef}
-          className="right-panel" 
-          role="region" 
+          className="right-panel"
+          role="region"
           aria-label="Workspace tools"
         >
           {/* Unified Workspace Header Group - Combined Sections - ALWAYS VISIBLE */}
@@ -469,7 +629,7 @@ const RightPanel = ({
               />
             </div>
           </div>
-          <div 
+          <div
             ref={workspaceContentRef}
             className="workspace-content"
           >
@@ -531,7 +691,7 @@ const RightPanel = ({
   return (
     <section className="right-panel" role="region" aria-label="Workspace tools">
       {/* Generated Code */}
-      <Card 
+      <Card
         title={
           <Space>
             Generated Code
@@ -545,8 +705,8 @@ const RightPanel = ({
         }
         extra={
           <Space>
-            <Button 
-              icon={isEditing ? <CheckOutlined /> : <EditOutlined />} 
+            <Button
+              icon={isEditing ? <CheckOutlined /> : <EditOutlined />}
               size="small"
               type={isEditing ? 'primary' : 'default'}
               onClick={toggleEditMode}
@@ -580,7 +740,7 @@ const RightPanel = ({
       </Card>
 
       {/* Validation Results */}
-      <Card 
+      <Card
         title="Validation Results"
         extra={
           <Space size="small">

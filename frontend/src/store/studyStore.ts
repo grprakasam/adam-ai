@@ -2,13 +2,26 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import axios from 'axios';
 
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL?.trim() || 'http://localhost:8002'
-).replace(/\/$/, '');
+// Use relative URL in development (via Vite proxy) or absolute URL if VITE_API_URL is set
+const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() 
+  ? import.meta.env.VITE_API_URL.trim().replace(/\/$/, '')
+  : ''; // Empty string = relative URL (uses Vite proxy)
 
-const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem('adam_access_token') || ''}`,
-});
+const authHeaders = () => {
+  const token = localStorage.getItem('adam_access_token');
+  if (!token) {
+    console.warn('No authentication token found. User may need to log in.');
+  }
+  return {
+    Authorization: token ? `Bearer ${token}` : '',
+  };
+};
+
+// Helper to build API URL (relative if API_BASE_URL is empty, absolute otherwise)
+const buildApiUrl = (path: string): string => {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return API_BASE_URL ? `${API_BASE_URL}${cleanPath}` : cleanPath;
+};
 
 // Types
 export interface Study {
@@ -140,13 +153,14 @@ export interface StudyStore {
   setCurrentStudy: (studyId: string) => Promise<void>;
   loadStudies: (force?: boolean) => Promise<void>;
   loadStudy: (studyId: string) => Promise<Study>;
-  loadStudyDocuments: (studyId: string) => Promise<void>;
+  loadStudyDocuments: (studyId: string, force?: boolean) => Promise<void>;
   loadDatasetSelections: (studyId: string) => Promise<void>;
   updateDatasetSelections: (
     studyId: string,
     datasets: Array<{ dataset_name: string; language: string; priority: number }>
   ) => Promise<void>;
   createStudy: (data: Partial<Study>) => Promise<Study>;
+  addStudyToStore: (study: StudyListItem) => void;
   updateStudy: (studyId: string, data: Partial<Study>) => Promise<Study>;
   uploadDocument: (
     studyId: string,
@@ -156,6 +170,7 @@ export interface StudyStore {
     tags?: Record<string, any>,
     description?: string
   ) => Promise<StudyDocument>;
+  deleteDocument: (studyId: string, documentId: string) => Promise<void>;
   sendChatMessage: (
     studyId: string,
     message: string,
@@ -204,27 +219,111 @@ export const useStudyStore = create<StudyStore>()(
       loadStudies: async (force = false) => {
         const { studiesLoadedAt, studiesLoading } = get();
         const now = Date.now();
-        if (!force && (studiesLoading || (studiesLoadedAt && now - studiesLoadedAt < 30000))) {
+        // Reduced cache time from 30s to 5s for more responsive updates
+        const CACHE_TIME_MS = 5000; // 5 seconds
+        
+        if (!force && (studiesLoading || (studiesLoadedAt && now - studiesLoadedAt < CACHE_TIME_MS))) {
+          console.log('Skipping loadStudies - cache still valid or already loading');
           return;
         }
+        
+        console.log('Loading studies...', { force, API_BASE_URL, hasToken: !!localStorage.getItem('adam_access_token') });
         set({ studiesLoading: true });
+        
         try {
+          const token = localStorage.getItem('adam_access_token');
+          if (!token) {
+            console.warn('No authentication token found. User needs to log in.');
+            set({ studies: [], studiesLoading: false });
+            window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+            return;
+          }
+
+          const headers = authHeaders();
+          const apiUrl = buildApiUrl('/api/v1/studies');
+          console.log('Making request to:', apiUrl);
+          console.log('Headers:', { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : 'none' });
+          
           const response = await axios.get<StudyListItem[]>(
-            `${API_BASE_URL}/api/v1/studies`,
-            { headers: authHeaders() }
+            apiUrl,
+            { 
+              headers,
+              timeout: 10000 // 10 second timeout
+            }
           );
+          
+          console.log('Studies loaded successfully:', response.data.length, 'studies');
           set({ studies: response.data, studiesLoadedAt: Date.now() });
+          
+          // Broadcast update event for components to react
+          window.dispatchEvent(new CustomEvent('study-store-updated', { 
+            detail: { 
+              studies: response.data,
+              count: response.data.length,
+              timestamp: Date.now()
+            } 
+          }));
         } catch (error) {
           console.error('Error loading studies:', error);
-          const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-          if (status === 401 || status === 403) {
-            // Clear stale auth and ask app to redirect to login
-            localStorage.removeItem('adam_access_token');
-            localStorage.removeItem('adam_user');
-            window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+          
+          if (axios.isAxiosError(error)) {
+            const status = error.response?.status;
+            const message = error.message;
+            
+            console.error('Axios error details:', {
+              status,
+              message,
+              code: error.code,
+              response: error.response?.data,
+              url: error.config?.url
+            });
+            
+            if (status === 401 || status === 403) {
+              console.warn('Authentication failed. Clearing tokens and redirecting to login.');
+              // Clear stale auth and ask app to redirect to login
+              localStorage.removeItem('adam_access_token');
+              localStorage.removeItem('adam_user');
+              set({ studies: [] });
+              window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+            } else if (!error.response) {
+              // Network error
+              console.error('Network error - backend may not be running or CORS issue');
+              const errorUrl = buildApiUrl('/api/v1/studies');
+              console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                url: errorUrl
+              });
+            }
           }
+          
+          // Don't clear studies on error - keep existing ones if any
+          // set({ studies: [] }); // Commented out to preserve existing studies
         } finally {
           set({ studiesLoading: false });
+        }
+      },
+
+      // Helper: Add study to store immediately (optimistic update)
+      addStudyToStore: (study: StudyListItem) => {
+        const currentStudies = get().studies;
+        // Check if study already exists
+        if (!currentStudies.find(s => s.id === study.id)) {
+          const updatedStudies = [...currentStudies, study];
+          set({ studies: updatedStudies });
+          
+          // Broadcast update event
+          window.dispatchEvent(new CustomEvent('study-store-updated', { 
+            detail: { 
+              studies: updatedStudies,
+              count: updatedStudies.length,
+              timestamp: Date.now(),
+              action: 'added',
+              studyId: study.id
+            } 
+          }));
+          
+          console.log('Study added to store optimistically:', study.id, study.name);
         }
       },
 
@@ -232,7 +331,7 @@ export const useStudyStore = create<StudyStore>()(
       loadStudy: async (studyId: string): Promise<Study> => {
         try {
           const response = await axios.get<Study>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}`,
+            buildApiUrl(`/api/v1/studies/${studyId}`),
             { headers: authHeaders() }
           );
           set({ currentStudy: response.data });
@@ -244,20 +343,53 @@ export const useStudyStore = create<StudyStore>()(
       },
 
       // Load study documents
-      loadStudyDocuments: async (studyId: string) => {
+      loadStudyDocuments: async (studyId: string, force: boolean = false) => {
+        // Skip if already loading (unless forced)
+        if (!force && get().documentsLoading[studyId]) {
+          return;
+        }
+        
         set({ documentsLoading: { ...get().documentsLoading, [studyId]: true } });
         try {
           const response = await axios.get<StudyDocument[]>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}/documents`,
-            { headers: authHeaders() }
+            buildApiUrl(`/api/v1/studies/${studyId}/documents`),
+            { 
+              headers: authHeaders(),
+              params: {
+                active_only: true,  // Only load active documents
+                limit: 100  // Load up to 100 documents
+              }
+            }
           );
+          
+          // Ensure storage_url is set for all documents (fallback to download endpoint)
+          const documentsWithUrls = response.data.map(doc => ({
+            ...doc,
+            storage_url: doc.storage_url || `/api/v1/studies/${studyId}/documents/${doc.id}/download`
+          }));
+          
           set({
-            documents: { ...get().documents, [studyId]: response.data },
+            documents: { ...get().documents, [studyId]: documentsWithUrls },
             documentsLoading: { ...get().documentsLoading, [studyId]: false }
           });
-        } catch (error) {
+          
+          console.log(`Loaded ${documentsWithUrls.length} documents for study ${studyId}`);
+        } catch (error: any) {
           console.error('Error loading documents:', error);
+          
+          // Check for authentication errors
+          if (error?.response?.status === 401 || error?.response?.status === 403) {
+            localStorage.removeItem('adam_access_token');
+            localStorage.removeItem('adam_user');
+            window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+          }
+          
           set({ documentsLoading: { ...get().documentsLoading, [studyId]: false } });
+          
+          // Set empty array on error to prevent retry loops
+          set({
+            documents: { ...get().documents, [studyId]: [] }
+          });
         }
       },
 
@@ -265,7 +397,7 @@ export const useStudyStore = create<StudyStore>()(
       loadDatasetSelections: async (studyId: string) => {
         try {
           const response = await axios.get<{ datasets: StudyDatasetSelection[] }>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}/datasets`,
+            buildApiUrl(`/api/v1/studies/${studyId}/datasets`),
             { headers: authHeaders() }
           );
           set({
@@ -286,7 +418,7 @@ export const useStudyStore = create<StudyStore>()(
       ) => {
         try {
           const response = await axios.put<{ datasets: StudyDatasetSelection[] }>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}/datasets`,
+            buildApiUrl(`/api/v1/studies/${studyId}/datasets`),
             { datasets },
             { headers: { ...authHeaders(), 'Content-Type': 'application/json' } }
           );
@@ -305,18 +437,99 @@ export const useStudyStore = create<StudyStore>()(
       // Create study
       createStudy: async (data: Partial<Study>): Promise<Study> => {
         try {
+          const token = localStorage.getItem('adam_access_token');
+          if (!token) {
+            const error: any = new Error('No authentication token found. Please log in.');
+            error.isAuthError = true;
+            console.error('Error creating study:', error);
+            throw error;
+          }
+
+          console.log('Creating study with data:', data);
+          const createApiUrl = buildApiUrl('/api/v1/studies');
+          console.log('API URL:', createApiUrl);
+
           const response = await axios.post<Study>(
-            `${API_BASE_URL}/api/v1/studies`,
+            createApiUrl,
             data,
-            { headers: { ...authHeaders(), 'Content-Type': 'application/json' } }
+            { 
+              headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+              timeout: 30000 // 30 second timeout
+            }
           );
-          // Reload studies list
-          await get().loadStudies();
+          
+          console.log('Study created successfully:', response.data.id, response.data.name);
+          
+          // OPTIMISTIC UPDATE: Add study to store immediately
+          const studyListItem: StudyListItem = {
+            id: response.data.id,
+            name: response.data.name,
+            protocol_number: response.data.protocol_number,
+            sponsor: response.data.sponsor,
+            phase: response.data.phase,
+            created_by: response.data.created_by,
+            created_at: response.data.created_at,
+            last_accessed_at: response.data.last_accessed_at,
+            setup_complete: response.data.setup_complete,
+            code_generated: response.data.code_generated,
+            validation_status: response.data.validation_status,
+            datasets_count: 0, // Will be updated when datasets are loaded
+            my_permission: 'admin' // Creator gets admin access
+          };
+          
+          // Add to store immediately (optimistic update)
+          get().addStudyToStore(studyListItem);
+          
+          // Clear cache to force refresh on next load
+          set({ studiesLoadedAt: null });
+          
+          // Background sync: Reload from API to ensure consistency
+          // Don't await - let it happen in background
+          get().loadStudies(true).catch(err => {
+            console.warn('Background study reload failed, but study is already in store:', err);
+          });
+          
           // Set as current study
+          console.log('Setting current study to:', response.data.id);
           await get().setCurrentStudy(response.data.id);
+          
+          // Broadcast study created event
+          window.dispatchEvent(new CustomEvent('study-created', { 
+            detail: { 
+              study: response.data,
+              studyId: response.data.id
+            } 
+          }));
+          
           return response.data;
         } catch (error) {
           console.error('Error creating study:', error);
+          
+          // Handle authentication errors
+          if (axios.isAxiosError(error)) {
+            if (error.response?.status === 401 || error.response?.status === 403) {
+              // Clear stale auth
+              localStorage.removeItem('adam_access_token');
+              localStorage.removeItem('adam_user');
+              window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+              const authError: any = new Error('Authentication required. Please log in again.');
+              authError.isAuthError = true;
+              throw authError;
+            }
+            
+            if (!error.response) {
+              // Network error - check if it's actually a CORS/auth issue
+              const networkError: any = new Error(
+                error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')
+                  ? 'Network error. Please check if you are logged in and the backend server is running.'
+                  : `Network error: ${error.message || 'Unable to connect to server'}`
+              );
+              networkError.isNetworkError = true;
+              networkError.originalError = error;
+              throw networkError;
+            }
+          }
+          
           throw error;
         }
       },
@@ -325,7 +538,7 @@ export const useStudyStore = create<StudyStore>()(
       updateStudy: async (studyId: string, data: Partial<Study>): Promise<Study> => {
         try {
           const response = await axios.put<Study>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}`,
+            buildApiUrl(`/api/v1/studies/${studyId}`),
             data,
             { headers: { ...authHeaders(), 'Content-Type': 'application/json' } }
           );
@@ -357,7 +570,7 @@ export const useStudyStore = create<StudyStore>()(
           if (description) formData.append('description', description);
 
           const response = await axios.post<StudyDocument>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}/documents`,
+            buildApiUrl(`/api/v1/studies/${studyId}/documents`),
             formData,
             {
               headers: {
@@ -367,11 +580,36 @@ export const useStudyStore = create<StudyStore>()(
             }
           );
 
-          // Reload documents
-          await get().loadStudyDocuments(studyId);
+          // Reload documents - force reload to ensure we get the newly uploaded document
+          await get().loadStudyDocuments(studyId, true);
+          
+          // Dispatch event to notify components
+          window.dispatchEvent(new CustomEvent('study-documents-updated', { 
+            detail: { studyId } 
+          }));
+        
           return response.data;
         } catch (error) {
           console.error('Error uploading document:', error);
+          throw error;
+        }
+      },
+
+      // Delete document
+      deleteDocument: async (studyId: string, documentId: string): Promise<void> => {
+        try {
+          await axios.delete(
+            buildApiUrl(`/api/v1/studies/${studyId}/documents/${documentId}`),
+            { headers: authHeaders() }
+          );
+
+          await get().loadStudyDocuments(studyId, true);
+
+          window.dispatchEvent(new CustomEvent('study-documents-updated', {
+            detail: { studyId }
+          }));
+        } catch (error) {
+          console.error('Error deleting document:', error);
           throw error;
         }
       },
@@ -385,7 +623,7 @@ export const useStudyStore = create<StudyStore>()(
       ): Promise<ChatResponse> => {
         try {
           const response = await axios.post<ChatResponse>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}/chat`,
+            buildApiUrl(`/api/v1/studies/${studyId}/chat`),
             {
               message,
               session_id: sessionId,
@@ -426,7 +664,7 @@ export const useStudyStore = create<StudyStore>()(
       loadChatSessions: async (studyId: string) => {
         try {
           const response = await axios.get<ChatSession[]>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}/chat/sessions`,
+            buildApiUrl(`/api/v1/studies/${studyId}/chat/sessions`),
             { headers: authHeaders() }
           );
           set({
@@ -452,7 +690,7 @@ export const useStudyStore = create<StudyStore>()(
             message_count: number;
             messages: ChatMessage[];
           }>(
-            `${API_BASE_URL}/api/v1/studies/${studyId}/chat/sessions/${sessionId}`,
+            buildApiUrl(`/api/v1/studies/${studyId}/chat/sessions/${sessionId}`),
             { headers: authHeaders() }
           );
 
@@ -496,5 +734,6 @@ export const useStudyStore = create<StudyStore>()(
     }
   )
 );
+
 
 
