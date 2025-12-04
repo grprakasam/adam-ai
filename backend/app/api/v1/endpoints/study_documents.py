@@ -4,7 +4,7 @@ Handles document upload, retrieval, and management for studies
 """
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status, Request, BackgroundTasks
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
 
 from app.models.study_models import (
@@ -19,9 +19,9 @@ from app.core.auth import get_current_active_user, User
 router = APIRouter(prefix="/studies/{study_id}/documents", tags=["Study Documents"])
 
 
-def get_document_service(
+async def get_document_service(
     study_id: str,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ) -> DocumentService:
     """Dependency to get DocumentService instance"""
@@ -38,7 +38,7 @@ async def upload_document(
     description: Optional[str] = Form(None),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     document_service: DocumentService = Depends(get_document_service),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Upload a document for a study
@@ -96,7 +96,7 @@ async def list_documents(
     Supports filtering by document type and pagination
     """
     doc_type = DocumentType(document_type) if document_type else None
-    documents = document_service.list_documents(
+    documents = await document_service.list_documents(
         study_id=study_id,
         document_type=doc_type,
         active_only=active_only,
@@ -113,7 +113,7 @@ async def get_document(
     document_service: DocumentService = Depends(get_document_service)
 ):
     """Get a specific document by ID"""
-    document = document_service.get_document(study_id, document_id)
+    document = await document_service.get_document(study_id, document_id)
     if not document:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -134,6 +134,6 @@ async def delete_document(
 
     Set hard_delete=true to permanently delete
     """
-    document_service.delete_document(study_id, document_id, hard_delete=hard_delete)
+    await document_service.delete_document(study_id, document_id, hard_delete=hard_delete)
     return None
 

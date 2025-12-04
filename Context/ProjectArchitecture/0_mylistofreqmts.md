@@ -1,3 +1,20 @@
+
+
+# Domain tutor card
+# Agentic AI card
+#ollama local
+
+
+
+
+
+
+
+
+
+
+
+
 i want you to take the role of a successful saas product architect   with deep experience in building  applications. this is going to be innovative product in the clinical trials domain for generating ADAM datasets from SDTM datasets using generative AI.
 
 ##########################################

@@ -8,7 +8,7 @@ import hashlib
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from datetime import datetime
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import UploadFile, HTTPException, status
 from loguru import logger
@@ -21,7 +21,7 @@ from app.modules.studies.document_processor import process_document_background
 class DocumentService:
     """Service for managing study documents"""
 
-    def __init__(self, db: Session, current_user_id: str):
+    def __init__(self, db: AsyncSession, current_user_id: str):
         self.db = db
         self.current_user_id = current_user_id
         # Storage base path
@@ -97,8 +97,8 @@ class DocumentService:
             )
 
             self.db.add(doc_db)
-            self.db.commit()
-            self.db.refresh(doc_db)
+            await self.db.commit()
+            await self.db.refresh(doc_db)
 
             logger.info(f"Document uploaded: {doc_id} for study {study_id}")
 
@@ -106,26 +106,26 @@ class DocumentService:
             return self._db_to_model(doc_db)
 
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"Error uploading document: {e}", exc_info=True)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to upload document: {str(e)}"
             )
 
-    def get_document(self, study_id: str, document_id: str) -> Optional[StudyDocument]:
+    async def get_document(self, study_id: str, document_id: str) -> Optional[StudyDocument]:
         """Get a document by ID"""
         stmt = select(StudyDocumentDB).where(
             StudyDocumentDB.id == document_id,
             StudyDocumentDB.study_id == study_id,
             StudyDocumentDB.is_active == True
         )
-        result = self.db.execute(stmt).scalar_one_or_none()
+        result = (await self.db.execute(stmt)).scalar_one_or_none()
         if result:
             return self._db_to_model(result)
         return None
 
-    def list_documents(
+    async def list_documents(
         self,
         study_id: str,
         document_type: Optional[DocumentType] = None,
@@ -147,17 +147,17 @@ class DocumentService:
         stmt = stmt.order_by(StudyDocumentDB.uploaded_at.desc())
         stmt = stmt.offset(skip).limit(limit)
 
-        results = self.db.execute(stmt).scalars().all()
+        results = (await self.db.execute(stmt)).scalars().all()
         return [self._db_to_model(doc) for doc in results]
 
-    def delete_document(self, study_id: str, document_id: str, hard_delete: bool = False) -> bool:
+    async def delete_document(self, study_id: str, document_id: str, hard_delete: bool = False) -> bool:
         """Delete a document (soft delete by default)"""
-        doc = self.db.execute(
+        doc = (await self.db.execute(
             select(StudyDocumentDB).where(
                 StudyDocumentDB.id == document_id,
                 StudyDocumentDB.study_id == study_id
             )
-        ).scalar_one_or_none()
+        )).scalar_one_or_none()
 
         if not doc:
             raise HTTPException(
@@ -169,15 +169,15 @@ class DocumentService:
             # Remove file from storage
             if Path(doc.storage_path).exists():
                 Path(doc.storage_path).unlink()
-            self.db.delete(doc)
+            await self.db.delete(doc)
         else:
             # Soft delete
             doc.is_active = False
 
-        self.db.commit()
+        await self.db.commit()
         return True
 
-    def update_processing_status(
+    async def update_processing_status(
         self,
         document_id: str,
         status: ProcessingStatus,
@@ -185,9 +185,9 @@ class DocumentService:
         metadata: Optional[Dict[str, Any]] = None
     ):
         """Update document processing status"""
-        doc = self.db.execute(
+        doc = (await self.db.execute(
             select(StudyDocumentDB).where(StudyDocumentDB.id == document_id)
-        ).scalar_one_or_none()
+        )).scalar_one_or_none()
 
         if doc:
             doc.processing_status = status.value
@@ -198,7 +198,7 @@ class DocumentService:
                     doc.doc_metadata.update(metadata)
                 else:
                     doc.doc_metadata = metadata
-            self.db.commit()
+            await self.db.commit()
 
     def _validate_file(self, file: UploadFile):
         """Validate uploaded file"""

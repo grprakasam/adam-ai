@@ -121,6 +121,7 @@ export interface StudyStore {
   
   // Study list cache
   studies: StudyListItem[];
+  studiesLoadedAt: number | null;
   studiesLoading: boolean;
   
   // Study documents cache
@@ -137,7 +138,7 @@ export interface StudyStore {
   
   // Actions
   setCurrentStudy: (studyId: string) => Promise<void>;
-  loadStudies: () => Promise<void>;
+  loadStudies: (force?: boolean) => Promise<void>;
   loadStudy: (studyId: string) => Promise<Study>;
   loadStudyDocuments: (studyId: string) => Promise<void>;
   loadDatasetSelections: (studyId: string) => Promise<void>;
@@ -180,6 +181,7 @@ export const useStudyStore = create<StudyStore>()(
       currentStudyId: null,
       currentStudy: null,
       studies: [],
+      studiesLoadedAt: null,
       studiesLoading: false,
       documents: {},
       documentsLoading: {},
@@ -199,14 +201,19 @@ export const useStudyStore = create<StudyStore>()(
       },
 
       // Load studies list
-      loadStudies: async () => {
+      loadStudies: async (force = false) => {
+        const { studiesLoadedAt, studiesLoading } = get();
+        const now = Date.now();
+        if (!force && (studiesLoading || (studiesLoadedAt && now - studiesLoadedAt < 30000))) {
+          return;
+        }
         set({ studiesLoading: true });
         try {
           const response = await axios.get<StudyListItem[]>(
             `${API_BASE_URL}/api/v1/studies`,
             { headers: authHeaders() }
           );
-          set({ studies: response.data });
+          set({ studies: response.data, studiesLoadedAt: Date.now() });
         } catch (error) {
           console.error('Error loading studies:', error);
           const status = axios.isAxiosError(error) ? error.response?.status : undefined;
