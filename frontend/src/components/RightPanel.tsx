@@ -234,46 +234,7 @@ const RightPanel = ({
     [validateCode]
   );
 
-  if (!isUnlocked) {
-    const progressLabel =
-      completionPercentage >= 80
-        ? 'You can now start generating code'
-        : 'Some configuration steps are pending - you can still start and complete them along the way.';
-
-    return (
-      <section className="right-panel locked" role="region" aria-label="Workspace tools">
-        <div className="locked-panel" role="status" aria-live="polite" aria-atomic="true">
-          <h3>Pair Programming Locked</h3>
-          <p>{progressLabel}</p>
-          <div className="locked-progress">
-            <div className="locked-progress-bar">
-              <div
-                className="locked-progress-fill"
-                style={{ width: `${Math.min(completionPercentage, 100)}%` }}
-                role="progressbar"
-                aria-valuenow={completionPercentage}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="Workspace preparation progress"
-              />
-            </div>
-            <span>{completionPercentage}% complete</span>
-          </div>
-          <Button
-            type="primary"
-            size="large"
-            onClick={onUnlock}
-            aria-describedby="workspace-lock-description"
-          >
-            Start Programming
-          </Button>
-          <VisuallyHidden id="workspace-lock-description">
-            Complete the configuration steps before unlocking the pair programming workspace.
-          </VisuallyHidden>
-        </div>
-      </section>
-    );
-  }
+  // Pair programming is always available; skip locked state UI to streamline flow
   if (!generationResult) {
     const navigateToConsolidated = () => {
       setActiveGroup('adamCoding');

@@ -53,7 +53,7 @@ function App() {
   const [language] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
   const [generationResult] = useState<GenerationResponse | null>(null);
   const [activeTab, setActiveTab] = useState('project');
-  const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(false);
+  const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(true);
   const [isHelpCenterOpen, setHelpCenterOpen] = useState(false);
   const [isPreferencesOpen, setPreferencesOpen] = useState(false);
   const mainContentRef = useRef<HTMLElement | null>(null);
@@ -197,7 +197,7 @@ function App() {
     // Initialize workspace
     clearHistory();
     initializeWorkspace();
-    setIsRightPanelUnlocked(false);
+    setIsRightPanelUnlocked(true);
 
     try {
       await setStoreCurrentStudy(studyId);
@@ -238,7 +238,7 @@ function App() {
     // Initialize workspace
     clearHistory();
     initializeWorkspace();
-    setIsRightPanelUnlocked(false);
+    setIsRightPanelUnlocked(true);
 
     try {
       await setStoreCurrentStudy(studyId);

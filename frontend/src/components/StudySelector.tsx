@@ -24,6 +24,7 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
     currentStudyId,
     currentStudy,
     studiesLoading,
+    studiesLoadedAt,
     loadStudies,
     setCurrentStudy,
     createStudy
@@ -35,15 +36,18 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
 
   // Load studies on mount only (prevent infinite loop)
   useEffect(() => {
-    loadStudies();
+    if (!studiesLoadedAt && !studiesLoading) {
+      loadStudies();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only load once on mount
+  }, []);
 
   useEffect(() => {
     if (value && value !== currentStudyId) {
       setCurrentStudy(value);
     }
-  }, [value, currentStudyId, setCurrentStudy]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
 
   const filteredStudies = studies.filter(study =>
     study.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

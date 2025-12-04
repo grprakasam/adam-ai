@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { message, Dropdown, Checkbox } from 'antd';
 import { Code2, Loader2, AlertCircle, Search, ChevronDown, ChevronUp, Eye, Pencil } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
@@ -194,11 +195,26 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
     });
   }, [pairProgramming.snippets]);
 
-  // Auto-detect derivation column from spec
-  const getDerivationText = (variable: VariableInfo): string => {
-    // Return the derivation field if available, otherwise return empty string
-    return variable.derivation || 'No derivation logic specified';
-  };
+// Auto-detect derivation column from spec, with fallbacks for common column names
+const getDerivationText = (variable: VariableInfo): string => {
+  const direct = variable.derivation?.trim();
+  if (direct) return direct;
+
+  const candidate = [
+    'derivation',
+    'Derivation',
+    'DERIVATION',
+    'Source/Derivation',
+    'Source / Derivation',
+    'Source_Derivation',
+    'Derivation Logic',
+    'derivation_logic',
+    'DerivationLogic',
+    'DERIVATION_LOGIC'
+  ].map(key => variable.extra?.[key]?.trim()).find(val => val);
+
+  return candidate || 'No derivation logic specified';
+};
 
   // Commented out - not currently used but preserved for reference
   // This function was part of an earlier implementation and may be needed again in future
@@ -425,6 +441,29 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
 
   const [fieldDropdownOpen, setFieldDropdownOpen] = useState(false);
   const hasAnySnippets = Object.keys(pairProgramming.snippets).length > 0;
+  const selectedIndex = useMemo(
+    () => filteredVariables.findIndex((v) => v.name === selectedVariable),
+    [filteredVariables, selectedVariable]
+  );
+
+  const goToVariable = useCallback(
+    (direction: 1 | -1) => {
+      if (!filteredVariables.length) return;
+      if (selectedIndex === -1) {
+        const fallback = filteredVariables[0];
+        setSelectedVariable(fallback?.name || null);
+        setIsAiPanelOpen(!!fallback);
+        return;
+      }
+      const nextIndex = (selectedIndex + direction + filteredVariables.length) % filteredVariables.length;
+      const nextVar = filteredVariables[nextIndex];
+      if (nextVar) {
+        setSelectedVariable(nextVar.name);
+        setIsAiPanelOpen(true);
+      }
+    },
+    [filteredVariables, selectedIndex]
+  );
 
   // Save preferences to localStorage
   useEffect(() => {
@@ -728,6 +767,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                 const isGenerating = pairProgramming.isGenerating[variable.name];
                 const isExpanded = expandedCards.has(variable.name);
                 const isSelected = selectedVariable === variable.name;
+                const derivationText = getDerivationText(variable);
+                const hasDerivation = derivationText && derivationText !== 'No derivation logic specified';
 
               return (
                 <div 
@@ -824,11 +865,11 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                   {isExpanded && (
                     <div className="variable-card-details">
                       {/* Derivation Logic - Only specification data shown in cards */}
-                      {isFieldVisible('derivation') && variable.derivation && (
+                      {isFieldVisible('derivation') && hasDerivation && (
                         <div className="detail-block">
                           <div className="detail-block-title">Derivation Logic</div>
                           <div className="detail-block-content">
-                            {getDerivationText(variable)}
+                            {derivationText}
                           </div>
                         </div>
                       )}
@@ -836,7 +877,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                   )}
 
                   {/* Card Footer - Show More/Less for Derivation Logic Only */}
-                  {variable.derivation && (
+                  {hasDerivation && (
                     <div className="variable-card-footer" onClick={(e) => e.stopPropagation()}>
                       <button 
                         className="secondary"
@@ -878,8 +919,8 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         )}
         </div>
 
-        {/* Right Column: AI Results Panel */}
-        {isAiPanelOpen && (
+        {/* Right Column: AI Results Panel (disabled in floating modal mode) */}
+        {false && isAiPanelOpen && (
         <div className="pair-programming-ai-panel">
           {selectedVariable ? (() => {
             const selectedVar = filteredVariables.find(v => v.name === selectedVariable);
@@ -888,7 +929,9 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
             const isGenerating = pairProgramming.isGenerating[selectedVar.name];
             const trimmedNotes = snippet?.userNotes?.trim() ?? '';
             const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
-            const pseudoContent = snippet?.pseudoCode || selectedVar.derivation || snippet?.rationale;
+            const derivationText = getDerivationText(selectedVar);
+            const hasDerivation = derivationText && derivationText !== 'No derivation logic specified';
+            const pseudoContent = snippet?.pseudoCode || (hasDerivation ? derivationText : '') || snippet?.rationale;
             const accent = getVariableAccent(selectedVar.name);
             const variableInitial = selectedVar.name.slice(0, 1).toUpperCase();
 
@@ -919,6 +962,20 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                 </div>
 
                 <div className="ai-panel-content">
+                  {hasDerivation && (
+                    <div className="ai-spec-derivation-section">
+                      <div className="ai-section-header">
+                        <div className="ai-section-title-group">
+                          <span className="ai-spec-badge">Specification</span>
+                          <span className="ai-section-title">Derivation Logic</span>
+                        </div>
+                      </div>
+                      <div className="ai-spec-derivation-content">
+                        {derivationText}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Coding Rationale - AI Generated (Read-only) */}
                   {isFieldVisible('rationale') && (
                     <div className="ai-result-section ai-generated-section">
@@ -953,7 +1010,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                         )}
                       </div>
                       {pseudoContent ? (
-                        <div className="ai-readonly-content ai-code-content">
+                        <div className="ai-readonly-content ai-code-content" key={`pseudo-${variable.name}`}>
                           <pre><code dangerouslySetInnerHTML={{ __html: highlightPseudoCode(pseudoContent) }} /></pre>
                         </div>
                       ) : (
@@ -985,7 +1042,7 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
                         </div>
                       ) : snippet?.codeSnippet ? (
                         <>
-                          <div className="ai-readonly-content ai-code-content">
+                          <div className="ai-readonly-content ai-code-content" key={`code-${variable.name}-${programmingLanguage}`}>
                             <pre><code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} /></pre>
                           </div>
                           {snippet?.metadata?.user_note_applied && (
@@ -1104,6 +1161,276 @@ export const PairProgrammingArea: React.FC<PairProgrammingAreaProps> = ({
         </div>
         )}
       </div>
+      {isAiPanelOpen && selectedVariable && (() => {
+        const selectedVar = filteredVariables.find(v => v.name === selectedVariable);
+        if (!selectedVar) return null;
+        const snippet = pairProgramming.snippets[selectedVar.name];
+        const isGenerating = pairProgramming.isGenerating[selectedVar.name];
+        const trimmedNotes = snippet?.userNotes?.trim() ?? '';
+        const needsNotes = snippet?.accepted === 'modify' && !trimmedNotes;
+        const derivationText = getDerivationText(selectedVar);
+        const hasDerivation = derivationText && derivationText !== 'No derivation logic specified';
+        const pseudoContent = snippet?.pseudoCode || (hasDerivation ? derivationText : '') || snippet?.rationale;
+        const accent = getVariableAccent(selectedVar.name);
+        const variableInitial = selectedVar.name.slice(0, 1).toUpperCase();
+        const canApprove = snippet && (snippet.accepted !== 'accept') && !(snippet.accepted === 'modify' && !snippet?.userNotes?.trim());
+        const hasNavigation = filteredVariables.length > 1;
+
+        return createPortal(
+          <div className="ai-floating-modal" role="dialog" aria-label={`AI Results for ${selectedVar.name}`}>
+            <div className="ai-floating-modal-backdrop" onClick={handleCloseAiPanel} aria-hidden="true" />
+            <div className="ai-floating-modal-panel">
+              <div className="ai-modal-toolbar">
+                {hasNavigation && (
+                  <button className="secondary" onClick={() => goToVariable(-1)} title="Previous variable">
+                    ← Previous
+                  </button>
+                )}
+                <button className="secondary" onClick={handleCloseAiPanel} title="Close workspace">
+                  ✕ Close
+                </button>
+                {snippet?.accepted !== 'modify' && (
+                  <button
+                    className="secondary"
+                    onClick={() => handleAcceptanceChange(selectedVar.name, 'modify')}
+                    title="Mark for modification"
+                  >
+                    ✎ Modify
+                  </button>
+                )}
+                {canApprove && (
+                  <button
+                    className="primary"
+                    onClick={() => handleAcceptanceChange(selectedVar.name, 'accept')}
+                    disabled={snippet?.accepted === 'modify' && !snippet?.userNotes?.trim()}
+                    title="Approve"
+                  >
+                    ✓ Approve
+                  </button>
+                )}
+                {hasNavigation && (
+                  <button className="secondary" onClick={() => goToVariable(1)} title="Next variable">
+                    Next →
+                  </button>
+                )}
+              </div>
+              <div
+                className="ai-results-panel"
+                style={{
+                  ['--ai-var-accent' as any]: accent.accent,
+                  ['--ai-var-accent-soft' as any]: accent.accentSoft,
+                  ['--ai-var-accent-strong' as any]: accent.accentStrong,
+                }}
+              >
+                <div className="ai-panel-header">
+                  <div className="ai-panel-title accented">
+                    <span className="ai-panel-accent-dot" aria-hidden="true" />
+                    <span className="ai-panel-accent-initial" aria-hidden="true">{variableInitial}</span>
+                    <Code2 size={18} />
+                    <span className="ai-panel-title-label">AI Results:</span>
+                    <span className="ai-panel-variable-name">{selectedVar.name}</span>
+                  </div>
+                  <button 
+                    className="ai-panel-close"
+                    onClick={handleCloseAiPanel}
+                    title="Close panel"
+                  >
+                    �o
+                  </button>
+                </div>
+
+                <div className="ai-panel-content">
+                  {hasDerivation && (
+                    <div className="ai-spec-derivation-section">
+                      <div className="ai-section-header">
+                        <div className="ai-section-title-group">
+                          <span className="ai-spec-badge">Specification</span>
+                          <span className="ai-section-title">Derivation Logic</span>
+                        </div>
+                      </div>
+                      <div className="ai-spec-derivation-content">
+                        {derivationText}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Coding Rationale - AI Generated (Read-only) */}
+                  {isFieldVisible('rationale') && (
+                    <div className="ai-result-section ai-generated-section">
+                      <div className="ai-section-header">
+                        <div className="ai-section-title-group">
+                          <span className="ai-generated-badge">AI Generated</span>
+                          <span className="ai-section-title">Coding Rationale</span>
+                        </div>
+                      </div>
+                      {snippet?.rationale ? (
+                        <div className="ai-readonly-content">
+                          {snippet.rationale}
+                        </div>
+                      ) : (
+                        <div className="ai-empty-state">
+                          <span>No rationale generated yet. Generate AI inputs to see rationale.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Pseudo-Code - AI Generated (Read-only) */}
+                  {isFieldVisible('pseudo') && (
+                    <div className="ai-result-section ai-generated-section">
+                      <div className="ai-section-header">
+                        <div className="ai-section-title-group">
+                          <span className="ai-generated-badge">AI Generated</span>
+                          <span className="ai-section-title">Pseudo-Code (Domain Expert View)</span>
+                        </div>
+                        {snippet?.pseudoSummary && (
+                          <span className="ai-section-subtitle">{snippet.pseudoSummary}</span>
+                        )}
+                      </div>
+                      {pseudoContent ? (
+                        <div className="ai-readonly-content ai-code-content" key={`pseudo-${variable.name}`}>
+                          <pre><code dangerouslySetInnerHTML={{ __html: highlightPseudoCode(pseudoContent) }} /></pre>
+                        </div>
+                      ) : (
+                        <div className="ai-empty-state">
+                          <span>No pseudo-code generated yet. Generate AI inputs to see pseudo-code.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Code Snippet - AI Generated (Read-only) */}
+                  {isFieldVisible('code') && (
+                    <div className="ai-result-section ai-generated-section">
+                      <div className="ai-section-header">
+                        <div className="ai-section-title-group">
+                          <span className="ai-generated-badge">AI Generated</span>
+                          <span className="ai-section-title">Code Snippet ({programmingLanguage})</span>
+                        </div>
+                      </div>
+                      {isGenerating ? (
+                        <div className="ai-loading-state">
+                          <Loader2 size={20} className="spinning" />
+                          <span>Generating code...</span>
+                        </div>
+                      ) : snippet?.error ? (
+                        <div className="ai-error-state">
+                          <AlertCircle size={16} />
+                          <span>{snippet.error}</span>
+                        </div>
+                      ) : snippet?.codeSnippet ? (
+                        <>
+                          <div className="ai-readonly-content ai-code-content" key={`code-${variable.name}-${programmingLanguage}`}>
+                            <pre><code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} /></pre>
+                          </div>
+                          {snippet?.metadata?.user_note_applied && (
+                            <div className="ai-code-badge">
+                              �o" Generated using user notes
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="ai-empty-state">
+                          <span>Not generated yet. Use "Get AI Inputs" button to generate code.</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* User Notes - Editable Section */}
+                  <div className={`ai-result-section ai-user-notes-section ${snippet?.accepted === 'modify' && needsNotes ? 'notes-required' : ''}`}>
+                    <div className="ai-section-header">
+                      <div className="ai-section-title-group">
+                        <span className="ai-user-badge">Your Input</span>
+                        <span className="ai-section-title">User Notes</span>
+                        {snippet?.accepted === 'modify' && (
+                          <span className="ai-section-required-badge">Required</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ai-notes-wrapper">
+                      <textarea
+                        className={`ai-notes-editor ai-editable-field ${snippet?.accepted === 'modify' && needsNotes ? 'notes-invalid' : ''} ${snippet?.accepted === 'modify' && !needsNotes ? 'notes-valid' : ''}`}
+                        placeholder={snippet?.accepted === 'modify' 
+                          ? "Required: Describe the specific changes needed for this variable (e.g., 'Change the calculation to use median instead of mean', 'Add validation for missing values', etc.)" 
+                          : "Add notes for modifications or clarifications..."}
+                        value={snippet?.userNotes || ''}
+                        onChange={(e) => handleNotesChange(selectedVar.name, e.target.value)}
+                        rows={5}
+                        required={snippet?.accepted === 'modify'}
+                      />
+                      {snippet?.accepted === 'modify' && (
+                        <div className="ai-notes-validation">
+                          {needsNotes ? (
+                            <div className="ai-notes-error">
+                              <AlertCircle size={14} />
+                              <span>Notes are required to proceed with modification</span>
+                            </div>
+                          ) : (
+                            <div className="ai-notes-success">
+                              <span>�o" Notes provided - Ready to update logic</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="ai-panel-actions">
+                    {snippet?.codeSnippet && !snippet?.error && (
+                      <>
+                        {snippet.accepted !== 'modify' && (
+                          <button
+                            className={`ai-action-btn modify-btn ${!snippet?.userNotes?.trim() ? 'requires-notes' : ''}`}
+                            onClick={() => {
+                              const hasNotes = snippet?.userNotes?.trim();
+                              if (hasNotes) {
+                                handleAcceptanceChange(selectedVar.name, 'modify');
+                              } else {
+                                handleAcceptanceChange(selectedVar.name, 'modify'); // Will show error and focus notes
+                              }
+                            }}
+                            title={snippet?.userNotes?.trim() 
+                              ? "Mark for logic modification" 
+                              : "Add user notes first - Notes are required to mark for modification"}
+                          >
+                            dY" Mark for Logic Modification
+                            {!snippet?.userNotes?.trim() && <span className="btn-required-indicator">*</span>}
+                          </button>
+                        )}
+                        {snippet.accepted !== 'accept' && (
+                          <button
+                            className="ai-action-btn approve-btn"
+                            onClick={() => handleAcceptanceChange(selectedVar.name, 'accept')}
+                            disabled={snippet.accepted === 'modify' && !snippet?.userNotes?.trim()}
+                            title={snippet.accepted === 'modify' 
+                              ? (snippet?.userNotes?.trim() 
+                                  ? "Update the logic with your modifications" 
+                                  : "Add notes before updating logic")
+                              : "Approve this variable"}
+                          >
+                            {snippet.accepted === 'modify' ? 'dY", Update Logic' : '�o" Approve'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {/* Show info when marked for modification but no code exists */}
+                    {!snippet?.codeSnippet && snippet?.accepted === 'modify' && (
+                      <div className="ai-action-info">
+                        <span className="ai-action-info-text">
+                          dY" This variable is marked for logic modification. Generate code to see the updated implementation.
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        );
+      })()}
     </div>
   );
 };

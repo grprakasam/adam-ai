@@ -18,12 +18,14 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
   onContinueExisting,
   onBack
 }) => {
-  const { studies, studiesLoading, loadStudies, currentStudyId, setCurrentStudy } = useStudyStore();
+  const { studies, studiesLoading, loadStudies, currentStudyId, setCurrentStudy, studiesLoadedAt } = useStudyStore();
   const [selectedStudyId, setSelectedStudyId] = useState<string | null>(null);
 
+  // Always trigger an initial load (forced) so the dropdown populates promptly
   useEffect(() => {
-    loadStudies();
-  }, [loadStudies]);
+    loadStudies(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (currentStudyId) {
@@ -113,9 +115,17 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
             </Paragraph>
 
             <div className="study-selector-section">
-              {studiesLoading ? (
+              {studiesLoading && studies.length === 0 ? (
                 <div className="loading-state">
                   <Text type="secondary">Loading studies...</Text>
+                  <Button
+                    size="small"
+                    style={{ marginTop: 12 }}
+                    onClick={() => loadStudies(true)}
+                    loading={studiesLoading}
+                  >
+                    Retry
+                  </Button>
                 </div>
               ) : studies.length === 0 ? (
                 <Empty
@@ -126,6 +136,14 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
                   <Text type="secondary" className="empty-hint">
                     Create a new study to get started
                   </Text>
+                  <Button
+                    size="small"
+                    style={{ marginTop: 12 }}
+                    onClick={() => loadStudies(true)}
+                    loading={studiesLoading}
+                  >
+                    Reload studies
+                  </Button>
                 </Empty>
               ) : (
                 <div className="study-selector-wrapper">
@@ -137,6 +155,14 @@ const ProjectSelectionPage: React.FC<ProjectSelectionPageProps> = ({
                     onChange={(studyId) => setSelectedStudyId(studyId)}
                     showCreateButton={false}
                   />
+                  <Button
+                    size="small"
+                    style={{ marginTop: 8 }}
+                    onClick={() => loadStudies(true)}
+                    loading={studiesLoading}
+                  >
+                    Refresh list
+                  </Button>
                 </div>
               )}
             </div>
