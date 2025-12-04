@@ -142,12 +142,21 @@ async def categorize_specification_by_path(request: CategorizeByPathRequest):
     # Convert to absolute path if relative
     spec_path = Path(spec_file_path)
     if not spec_path.is_absolute():
-        # Assume relative to project root (one level up from backend/)
-        project_root = Path(__file__).parent.parent.parent.parent.parent.parent
-        spec_path = project_root / spec_file_path
+        # Check if path starts with 'storage/' (study documents)
+        if spec_file_path.startswith('storage/') or spec_file_path.startswith('storage\\'):
+            # Resolve relative to backend directory
+            backend_root = Path(__file__).parent.parent.parent.parent
+            spec_path = backend_root / spec_file_path
+        else:
+            # Assume relative to project root for Content/ paths
+            project_root = Path(__file__).parent.parent.parent.parent.parent
+            spec_path = project_root / spec_file_path
+
+    logger.info(f"Resolved spec path: {spec_path}")
 
     # Validate file exists
     if not spec_path.exists():
+        logger.error(f"File not found at resolved path: {spec_path}")
         raise HTTPException(
             status_code=404,
             detail=f"Specification file not found: {spec_path}",

@@ -1,9 +1,16 @@
 import axios from 'axios';
 
+// Use relative URL in development (via Vite proxy) or absolute URL if VITE_API_URL is set
 const API_BASE_URL =
   import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim().length > 0
-    ? import.meta.env.VITE_API_URL.trim()
-    : 'http://localhost:8002';
+    ? import.meta.env.VITE_API_URL.trim().replace(/\/$/, '')
+    : ''; // Empty string = relative URL (uses Vite proxy)
+
+// Helper to build API URL (relative if API_BASE_URL is empty, absolute otherwise)
+const buildApiUrl = (path: string): string => {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return API_BASE_URL ? `${API_BASE_URL}${cleanPath}` : cleanPath;
+};
 
 type CompareLanguage = 'sas' | 'r' | 'auto';
 type ComparisonMode = 'quick' | 'standard' | 'deep';
@@ -37,7 +44,7 @@ export interface CodeComparisonRequest {
 export const compareCode = async (request: CodeComparisonRequest) => {
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/api/v1/code-comparer/analyze`,
+      buildApiUrl('/api/v1/code-comparer/analyze'),
       request,
       {
         headers: {
@@ -136,7 +143,7 @@ export const uploadStudyFiles = async (files: File[]): Promise<StudyChatbotUploa
   files.forEach((file) => formData.append('files', file));
 
   const response = await axios.post(
-    `${API_BASE_URL}/api/v1/study-chatbot/upload`,
+    buildApiUrl('/api/v1/study-chatbot/upload'),
     formData,
     {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -150,7 +157,7 @@ export const uploadStudyFiles = async (files: File[]): Promise<StudyChatbotUploa
  */
 export const createKnowledgeBase = async (request: KnowledgeBaseRequest): Promise<KnowledgeBaseResponse> => {
   const response = await axios.post(
-    `${API_BASE_URL}/api/v1/study-chatbot/knowledge-base`,
+    buildApiUrl('/api/v1/study-chatbot/knowledge-base'),
     request
   );
   return response.data;
@@ -161,7 +168,7 @@ export const createKnowledgeBase = async (request: KnowledgeBaseRequest): Promis
  */
 export const getSuggestedQuestions = async (sessionId: string): Promise<SuggestedQuestionsResponse> => {
   const response = await axios.get(
-    `${API_BASE_URL}/api/v1/study-chatbot/suggested-questions/${sessionId}`
+    buildApiUrl(`/api/v1/study-chatbot/suggested-questions/${sessionId}`)
   );
   return response.data;
 };
@@ -171,7 +178,7 @@ export const getSuggestedQuestions = async (sessionId: string): Promise<Suggeste
  */
 export const sendChatMessage = async (request: ChatRequest): Promise<ChatResponse> => {
   const response = await axios.post(
-    `${API_BASE_URL}/api/v1/study-chatbot/chat`,
+    buildApiUrl('/api/v1/study-chatbot/chat'),
     request
   );
   return response.data;
@@ -182,7 +189,7 @@ export const sendChatMessage = async (request: ChatRequest): Promise<ChatRespons
  */
 export const deleteStudyChatSession = async (sessionId: string): Promise<{ status: string; message: string }> => {
   const response = await axios.delete(
-    `${API_BASE_URL}/api/v1/study-chatbot/session/${sessionId}`
+    buildApiUrl(`/api/v1/study-chatbot/session/${sessionId}`)
   );
   return response.data;
 };
@@ -292,7 +299,7 @@ export const uploadAdamAnalyticsFiles = async (
   files.forEach((file) => formData.append('files', file));
 
   const response = await axios.post(
-    `${API_BASE_URL}/api/v1/adam-analytics/upload`,
+    buildApiUrl('/api/v1/adam-analytics/upload'),
     formData,
     {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -304,7 +311,7 @@ export const uploadAdamAnalyticsFiles = async (
 export const getAdamAnalyticsOverview = async (
   sessionId: string,
 ): Promise<AdamAnalyticsOverview> => {
-  const response = await axios.get(`${API_BASE_URL}/api/v1/adam-analytics/overview`, {
+  const response = await axios.get(buildApiUrl('/api/v1/adam-analytics/overview'), {
     params: { session_id: sessionId },
   });
   return response.data;
@@ -315,7 +322,7 @@ export const getAdamAnalyticsRoleInsights = async (
   role: AnalyticsRole,
 ): Promise<AdamAnalyticsRoleInsights> => {
   const response = await axios.get(
-    `${API_BASE_URL}/api/v1/adam-analytics/insights/${encodeURIComponent(datasetName)}`,
+    buildApiUrl(`/api/v1/adam-analytics/insights/${encodeURIComponent(datasetName)}`),
     { params: { role } }
   );
   return response.data;
@@ -326,7 +333,7 @@ export const getAdamAnalyticsTrendSeries = async (
   sessionId: string,
 ): Promise<AdamAnalyticsTrendResponse> => {
   const response = await axios.get(
-    `${API_BASE_URL}/api/v1/adam-analytics/trend-series/${encodeURIComponent(datasetName)}`,
+    buildApiUrl(`/api/v1/adam-analytics/trend-series/${encodeURIComponent(datasetName)}`),
     { params: { session_id: sessionId } }
   );
   return response.data;
@@ -337,7 +344,7 @@ export const getAdamAnalyticsOutliers = async (
   sessionId: string,
 ): Promise<AdamAnalyticsOutlierResponse> => {
   const response = await axios.get(
-    `${API_BASE_URL}/api/v1/adam-analytics/outliers/${encodeURIComponent(datasetName)}`,
+    buildApiUrl(`/api/v1/adam-analytics/outliers/${encodeURIComponent(datasetName)}`),
     { params: { session_id: sessionId } }
   );
   return response.data;
@@ -348,7 +355,7 @@ export const getAdamAnalyticsCorrelations = async (
   sessionId: string,
 ): Promise<AdamAnalyticsCorrelationResponse> => {
   const response = await axios.get(
-    `${API_BASE_URL}/api/v1/adam-analytics/correlations/${encodeURIComponent(datasetName)}`,
+    buildApiUrl(`/api/v1/adam-analytics/correlations/${encodeURIComponent(datasetName)}`),
     { params: { session_id: sessionId } }
   );
   return response.data;
@@ -362,18 +369,40 @@ export const categorizeSpecification = async (
   datasetType: string,
   options?: RequestOptions,
 ) => {
-  const response = await axios.post(
-    `${API_BASE_URL}/api/v1/specification/categorize-path`,
-    {
-      spec_file_path: specFilePath,
-      dataset_type: datasetType,
-    },
-    {
-      signal: options?.signal,
-      timeout: options?.timeoutMs ?? 120000,
-    },
-  );
-  return response.data;
+  const apiUrl = buildApiUrl('/api/v1/specification/categorize-path');
+  console.log('Categorizing specification by path:', { apiUrl, specFilePath, datasetType });
+
+  // Include auth header if token is present
+  const token = localStorage.getItem('adam_access_token');
+  
+  try {
+    const response = await axios.post(
+      apiUrl,
+      {
+        spec_file_path: specFilePath,
+        dataset_type: datasetType,
+      },
+      {
+        signal: options?.signal,
+        timeout: options?.timeoutMs ?? 120000,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
+    );
+    console.log('Categorization successful:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('Categorization API error:', {
+      url: apiUrl,
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      code: error.code
+    });
+    throw error;
+  }
 };
 
 /**
@@ -388,16 +417,37 @@ export const categorizeSpecificationFile = async (
   formData.append('file', file);
   formData.append('dataset_type', datasetType);
 
-  const response = await axios.post(
-    `${API_BASE_URL}/api/v1/specification/categorize`,
-    formData,
-    {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      signal: options?.signal,
-      timeout: options?.timeoutMs ?? 120000,
-    },
-  );
-  return response.data;
+  const apiUrl = buildApiUrl('/api/v1/specification/categorize');
+  console.log('Categorizing specification file:', { apiUrl, fileName: file.name, datasetType, fileSize: file.size });
+
+  // Include auth header if token is present
+  const token = localStorage.getItem('adam_access_token');
+
+  try {
+    const response = await axios.post(
+      apiUrl,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        signal: options?.signal,
+        timeout: options?.timeoutMs ?? 120000,
+      },
+    );
+    console.log('File categorization successful:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('File categorization API error:', {
+      url: apiUrl,
+      error: error.message,
+      status: error.response?.status,
+      data: error.response?.data,
+      code: error.code
+    });
+    throw error;
+  }
 };
 
 /**
@@ -419,7 +469,7 @@ export const generateCodeBulkStream = async (
 
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/api/v1/code-generation/generate-code-bulk`,
+      buildApiUrl('/api/v1/code-generation/generate-code-bulk'),
       payload,
       {
         headers: { 'Content-Type': 'application/json' },
@@ -450,7 +500,7 @@ export const generateCodeBulkStream = async (
 export const generateProgramWithNotes = async (payload: any) => {
   try {
     const response = await axios.post(
-      `${API_BASE_URL}/api/v1/program-generation/generate-with-notes`,
+      buildApiUrl('/api/v1/program-generation/generate-with-notes'),
       payload,
       {
         headers: { 'Content-Type': 'application/json' },
@@ -484,7 +534,7 @@ export const adamApi = {
   testLLMConnection: async (provider: string, model?: string) => {
     try {
       const response = await axios.post(
-        `${API_BASE_URL}/api/v1/llm-models/test-connection`,
+        buildApiUrl('/api/v1/llm-models/test-connection'),
         { provider, model },
         {
           headers: {
@@ -510,7 +560,7 @@ export const adamApi = {
   ) => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/program-generation/consolidated-stream`,
+        buildApiUrl('/api/v1/program-generation/consolidated-stream'),
         {
           method: 'POST',
           headers: {

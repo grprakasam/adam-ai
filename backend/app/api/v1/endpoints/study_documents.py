@@ -122,6 +122,41 @@ async def get_document(
     return document
 
 
+@router.get("/{document_id}/download")
+async def download_document(
+    study_id: str,
+    document_id: str,
+    document_service: DocumentService = Depends(get_document_service)
+):
+    """
+    Download a document file
+    
+    Returns the file content with appropriate headers
+    """
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+    
+    document = await document_service.get_document(study_id, document_id)
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found"
+        )
+    
+    file_path = Path(document.storage_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document file not found on server"
+        )
+    
+    return FileResponse(
+        path=str(file_path),
+        filename=document.original_file_name,
+        media_type=document.mime_type or "application/octet-stream"
+    )
+
+
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     study_id: str,

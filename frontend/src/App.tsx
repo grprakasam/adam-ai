@@ -41,9 +41,9 @@ function App() {
   useEffect(() => {
     clearStaleAuthTokens();
   }, []);
-  
+
   useEffect(() => {
-    const handler = (e: any) => { try { const tab = e?.detail?.tab; if (tab) setActiveTab(tab); } catch {} };
+    const handler = (e: any) => { try { const tab = e?.detail?.tab; if (tab) setActiveTab(tab); } catch { } };
     window.addEventListener('adam-ai:open-left-tab', handler as any);
     return () => window.removeEventListener('adam-ai:open-left-tab', handler as any);
   }, []);
@@ -83,7 +83,39 @@ function App() {
         const user = JSON.parse(userStr);
         setCurrentUser(user);
 
+
         const path = window.location.pathname || '/';
+
+        // List of all workspace routes that should activate workspace view
+        const workspaceRoutes = [
+          '/workspace',
+          '/pair-programming',
+          '/code-review',
+          '/consolidated-code',
+          '/generation-history',
+          '/traceability',
+          '/test-with-data',
+          '/adam-generator',
+          '/adam-dataset-comparer',
+          '/submission-dashboard',
+          '/submission-package',
+          '/code-validator',
+          '/validation-reports',
+          '/r-frontend',
+          '/adam-data-analytics',
+          '/study-chatbot',
+          '/code-comparer',
+          '/tlf-generator',
+          '/adam-tutor',
+          '/agentic-ai',
+          '/ai-code-debugger',
+          '/code-refactorer',
+          '/missing-spec-detector',
+          '/spec-comparison',
+          '/esubmission-checker',
+          '/fda-reviewer-preview'
+        ];
+
         if (path.startsWith('/admin')) {
           setViewMode('admin');
         } else if (path.startsWith('/enter-study-details')) {
@@ -92,7 +124,7 @@ function App() {
           setViewMode('migration');
         } else if (path.startsWith('/projects')) {
           setViewMode('projects');
-        } else if (path.startsWith('/workspace')) {
+        } else if (workspaceRoutes.some(route => path.startsWith(route))) {
           setViewMode('workspace');
         } else {
           setViewMode('landing');
@@ -328,18 +360,20 @@ function App() {
               <LoginPage onLoginSuccess={handleLoginSuccess} />
             ) : (
               <>
-                <AppHeader
-                  onBackToLanding={() => {
-                    setViewMode('landing');
-                    window.history.pushState({}, '', '/');
-                  }}
-                  currentUser={currentUser}
-                  onLogout={handleLogout}
-                  showStudySelector={viewMode !== 'landing'}
-                  showWorkspaceControls={viewMode !== 'landing'}
-                  currentStudyId={storeCurrentStudyId || undefined}
-                  onStudyChange={handleStudyChange}
-                />
+                {viewMode !== 'landing' && (
+                  <AppHeader
+                    onBackToLanding={() => {
+                      setViewMode('landing');
+                      window.history.pushState({}, '', '/');
+                    }}
+                    currentUser={currentUser}
+                    onLogout={handleLogout}
+                    showStudySelector={viewMode !== 'landing'}
+                    showWorkspaceControls={viewMode !== 'landing'}
+                    currentStudyId={storeCurrentStudyId || undefined}
+                    onStudyChange={handleStudyChange}
+                  />
+                )}
 
                 {viewMode === 'landing' && (
                   <LandingPage

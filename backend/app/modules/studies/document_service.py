@@ -74,6 +74,9 @@ class DocumentService:
             # Get file size
             file_size = len(file_content)
 
+            # Generate download URL
+            download_url = f"/api/v1/studies/{study_id}/documents/{doc_id}/download"
+            
             # Create database record
             doc_db = StudyDocumentDB(
                 id=doc_id,
@@ -82,6 +85,7 @@ class DocumentService:
                 file_name=storage_path.name,
                 original_file_name=file.filename or "unknown",
                 storage_path=str(storage_path),
+                storage_url=download_url,  # Set download URL
                 mime_type=file.content_type,
                 size_bytes=file_size,
                 version_label=version_label,
@@ -90,7 +94,7 @@ class DocumentService:
                 uploaded_at=datetime.utcnow(),
                 is_active=True,
                 processing_status=ProcessingStatus.PENDING.value,
-                metadata={
+                doc_metadata={
                     "file_hash": file_hash,
                     "description": description
                 }
@@ -133,22 +137,36 @@ class DocumentService:
         skip: int = 0,
         limit: int = 50
     ) -> List[StudyDocument]:
-        """List documents for a study"""
-        stmt = select(StudyDocumentDB).where(
-            StudyDocumentDB.study_id == study_id
-        )
+        """
+        List documents for a study
+        
+        Returns all active documents for the study, ordered by upload date (newest first)
+        """
+        try:
+            stmt = select(StudyDocumentDB).where(
+                StudyDocumentDB.study_id == study_id
+            )
 
-        if active_only:
-            stmt = stmt.where(StudyDocumentDB.is_active == True)
+            if active_only:
+                stmt = stmt.where(StudyDocumentDB.is_active == True)
 
-        if document_type:
-            stmt = stmt.where(StudyDocumentDB.document_type == document_type.value)
+            if document_type:
+                stmt = stmt.where(StudyDocumentDB.document_type == document_type.value)
 
-        stmt = stmt.order_by(StudyDocumentDB.uploaded_at.desc())
-        stmt = stmt.offset(skip).limit(limit)
+            stmt = stmt.order_by(StudyDocumentDB.uploaded_at.desc())
+            stmt = stmt.offset(skip).limit(limit)
 
-        results = (await self.db.execute(stmt)).scalars().all()
-        return [self._db_to_model(doc) for doc in results]
+            results = (await self.db.execute(stmt)).scalars().all()
+            documents = [self._db_to_model(doc) for doc in results]
+            
+            logger.info(f"Retrieved {len(documents)} documents for study {study_id}")
+            return documents
+        except Exception as e:
+            logger.error(f"Error listing documents for study {study_id}: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to list documents: {str(e)}"
+            )
 
     async def delete_document(self, study_id: str, document_id: str, hard_delete: bool = False) -> bool:
         """Delete a document (soft delete by default)"""
@@ -223,6 +241,19 @@ class DocumentService:
 
     def _db_to_model(self, doc_db: StudyDocumentDB) -> StudyDocument:
         """Convert database model to Pydantic model"""
+        # Generate download URL if storage_url is not set
+        storage_url = doc_db.storage_url
+        if not storage_url:
+            # Generate relative URL for download endpoint
+            storage_url = f"/api/v1/studies/{doc_db.study_id}/documents/{doc_db.id}/download"
+        
+        # Map doc_metadata (DB field) to metadata (Pydantic field)
+        # Only use doc_metadata, NOT the SQLAlchemy .metadata attribute
+        metadata = None
+        if hasattr(doc_db, 'doc_metadata') and doc_db.doc_metadata is not None:
+            if isinstance(doc_db.doc_metadata, dict):
+                metadata = doc_db.doc_metadata
+        
         return StudyDocument(
             id=doc_db.id,
             study_id=doc_db.study_id,
@@ -230,16 +261,16 @@ class DocumentService:
             file_name=doc_db.file_name,
             original_file_name=doc_db.original_file_name,
             storage_path=doc_db.storage_path,
-            storage_url=doc_db.storage_url,
+            storage_url=storage_url,
             mime_type=doc_db.mime_type,
             size_bytes=doc_db.size_bytes,
             version_label=doc_db.version_label,
-            tags=doc_db.tags,
+            tags=doc_db.tags if doc_db.tags else None,
             uploaded_by=doc_db.uploaded_by,
             uploaded_at=doc_db.uploaded_at,
             is_active=doc_db.is_active,
             processing_status=ProcessingStatus(doc_db.processing_status),
-            extracted_text=doc_db.extracted_text,
-            metadata=doc_db.metadata
+            extracted_text=doc_db.extracted_text if doc_db.extracted_text else None,
+            metadata=metadata
         )
 

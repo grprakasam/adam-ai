@@ -59,7 +59,12 @@ export const UserMenu: React.FC<UserMenuProps> = ({ user, onLogout }) => {
         window.location.href = '/release-notes';
         break;
       case 'admin':
-        window.location.href = '/admin';
+        // Use pushState and dispatch custom event to trigger view update
+        window.history.pushState({ view: 'admin' }, '', '/admin');
+        // Dispatch a custom event that App.tsx can listen to
+        window.dispatchEvent(new PopStateEvent('popstate'));
+        // Also dispatch a custom event as fallback
+        window.dispatchEvent(new CustomEvent('locationchange'));
         break;
       case 'audit-logs':
         window.location.href = '/admin/audit-logs';

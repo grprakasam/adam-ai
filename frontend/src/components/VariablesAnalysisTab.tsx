@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Tabs, message, Modal, Tooltip, Button, Progress } from 'antd';
 import { FileSearch, AlertCircle, Loader2, Info, Zap, RefreshCw, ArrowRight, Upload } from 'lucide-react';
 import { CheckCircleOutlined, LoadingOutlined } from '@ant-design/icons';
@@ -6,7 +6,7 @@ import { useProjectStore } from '../store/projectStore';
 import { useStudyStore } from '../store/studyStore';
 import { adamApi } from '../services/api';
 import type { VariableCategory } from '../types';
-import { PairProgrammingArea } from './PairProgrammingArea';
+import PairProgrammingArea from './PairProgrammingArea';
 import { useApprovalProgress } from '../hooks/useApprovalProgress';
 import { FinalCodeGenerationDialog, GenerationPreferences } from './FinalCodeGenerationDialog';
 import { ProgramDownloadModal } from './ProgramDownloadModal';
@@ -97,7 +97,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     total: 0,
     currentVariable: '',
   });
-  
+
   // Enhanced progress modal state
   const [progressModalVisible, setProgressModalVisible] = useState(false);
   const [progressDetails, setProgressDetails] = useState<{
@@ -118,7 +118,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
   const [, setIsGeneratingFinalCode] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [finalProgramCode, setFinalProgramCode] = useState('');
-  
+
   // Get layout preset from store
   const layoutPreset = useProjectStore((state) => state.workspaceLayoutPreset);
 
@@ -135,7 +135,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     let safetyCheckTimer: any;
     let isMounted = true;
     let rafId: any;
-    
+
     if (isCategorizingVariables) {
       // Use requestAnimationFrame to ensure DOM is ready before state updates
       rafId = requestAnimationFrame(() => {
@@ -143,14 +143,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         if (!categorizeStartedAt) setCategorizeStartedAt(Date.now());
         setLoadingStep(1);
       });
-      
+
       // Quick initial bump to avoid perceived stall
       initialKick = setTimeout(() => {
         if (isMounted) {
           setLoadingStep((s) => Math.max(s, 2));
         }
       }, 800);
-      
+
       // Advance visible step every ~3s up to 6, purely for user feedback
       timer = setInterval(() => {
         if (isMounted) {
@@ -162,8 +162,8 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         if (!isMounted) return;
         console.error('Categorization timeout - forcing cleanup');
         if (categorizeAbortRef.current) {
-          try { 
-            categorizeAbortRef.current.abort(); 
+          try {
+            categorizeAbortRef.current.abort();
             console.log('Abort signal sent');
           } catch (e) {
             console.error('Error aborting request:', e);
@@ -173,12 +173,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         requestAnimationFrame(() => {
           if (!isMounted) return;
           try {
-            startTransition(() => {
-              setIsCategorizingVariables(false);
-              setError('Categorization timed out after 2 minutes. The request may have failed. Please try again or check the backend server.');
-              // Force clear any pending state
-              setLoadingStep(1);
-            });
+            setIsCategorizingVariables(false);
+            setError('Categorization timed out after 2 minutes. The request may have failed. Please try again or check the backend server.');
+            setLoadingStep(1);
             message.error('Categorization timed out. Please try again or check if the backend is running.');
             categorizeAbortRef.current = null;
           } catch (error) {
@@ -187,7 +184,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
           }
         });
       }, 120000); // 2 minutes instead of 3
-      
+
       // Safety check: Monitor if stuck at step 6 for too long (30 seconds)
       safetyCheckTimer = setInterval(() => {
         if (!isMounted) return;
@@ -197,17 +194,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
           if (elapsed > 150000) { // 2.5 minutes total
             console.warn('Detected stuck state at step 6 - forcing reset');
             if (categorizeAbortRef.current) {
-              try { categorizeAbortRef.current.abort(); } catch {}
+              try { categorizeAbortRef.current.abort(); } catch { }
             }
-            // Use startTransition with requestAnimationFrame to ensure React has finished current render
             requestAnimationFrame(() => {
               if (!isMounted) return;
               try {
-                startTransition(() => {
-                  setIsCategorizingVariables(false);
-                  setError('The categorization appears to be stuck. Please try again or check the backend server.');
-                  setLoadingStep(1);
-                });
+                setIsCategorizingVariables(false);
+                setError('The categorization appears to be stuck. Please try again or check the backend server.');
+                setLoadingStep(1);
                 message.warning('Categorization appears stuck. Please try again.');
                 categorizeAbortRef.current = null;
               } catch (error) {
@@ -351,22 +345,51 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     }
   }, [sortedCategories.length, activeCategory]);
 
+  // Track if auto-categorization has been attempted to prevent duplicate calls
+  const autoCategorizeAttemptedRef = useRef(false);
+  const [autoCategorizeStatus, setAutoCategorizeStatus] = useState<'pending' | 'started' | 'completed'>('pending');
+
   useEffect(() => {
     // Auto-categorize when spec file is uploaded
-    const autoCategorize = async () => {
-      if (specificationFile && !categorizedVariables && !isCategorizingVariables && projectConfig.adamDataset) {
-        try {
-          await handleCategorizeVariables();
-        } catch (err) {
-          console.error('Auto-categorization failed:', err);
-          // Error is already handled in handleCategorizeVariables
-        }
-      }
-    };
+    // Prevent multiple calls
+    if (autoCategorizeAttemptedRef.current) {
+      return;
+    }
 
-    autoCategorize();
+    // Don't auto-categorize if there's an error or if categorization is already in progress
+    if (error || isCategorizingVariables) {
+      return;
+    }
+
+    if (specificationFile && !categorizedVariables && projectConfig.adamDataset) {
+      console.log('🔄 Specification file detected - starting automatic categorization');
+      console.log('📄 File:', specificationFile.name);
+      console.log('📊 Dataset:', projectConfig.adamDataset);
+
+      autoCategorizeAttemptedRef.current = true;
+      setAutoCategorizeStatus('started');
+
+      // Start categorization directly without delay
+      handleCategorizeVariables()
+        .then(() => {
+          setAutoCategorizeStatus('completed');
+        })
+        .catch((err) => {
+          console.error('Auto-categorization failed:', err);
+          // Reset the flag on error so user can retry manually
+          autoCategorizeAttemptedRef.current = false;
+          setAutoCategorizeStatus('pending');
+        });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [specificationFile, categorizedVariables, isCategorizingVariables, projectConfig.adamDataset]);
+  }, [specificationFile, categorizedVariables, projectConfig.adamDataset]);
+
+  // Reset auto-categorization flag when spec file or dataset changes
+  useEffect(() => {
+    console.log('🔄 Resetting auto-categorization flag (spec or dataset changed)');
+    autoCategorizeAttemptedRef.current = false;
+    setAutoCategorizeStatus('pending');
+  }, [specificationFile?.path, projectConfig.adamDataset]);
 
   const formatDuration = (seconds: number) => {
     const safeSeconds = Math.max(0, Math.round(seconds));
@@ -455,44 +478,27 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
 
     // Clear any existing error first
     setError(null);
-    
+
     // Clean up any existing abort controller before starting new one
     if (categorizeAbortRef.current) {
-      try { 
-        categorizeAbortRef.current.abort(); 
+      try {
+        categorizeAbortRef.current.abort();
       } catch (e) {
         console.debug('Error aborting previous request:', e);
       }
       categorizeAbortRef.current = null;
     }
-    
+
     // Reset loading step and start time
     setLoadingStep(1);
     setCategorizeStartedAt(Date.now());
-    
+
     // Create abort controller first
     categorizeAbortRef.current = new AbortController();
     const currentAbortController = categorizeAbortRef.current;
-    
-    // Use startTransition to mark this as a non-urgent update
-    // Combined with requestAnimationFrame to ensure DOM is completely ready
-    // This prevents React from trying to remove nodes during render
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Double-check we still have the abort controller (user might have cancelled)
-        if (categorizeAbortRef.current === currentAbortController) {
-          try {
-            startTransition(() => {
-              setIsCategorizingVariables(true);
-            });
-          } catch (error) {
-            console.error('Error setting categorization state:', error);
-            // If state update fails, clean up
-            categorizeAbortRef.current = null;
-          }
-        }
-      });
-    });
+
+    // Set categorization state directly
+    setIsCategorizingVariables(true);
 
     // Wait for state to update and DOM to stabilize
     await new Promise(resolve => {
@@ -500,23 +506,34 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         setTimeout(resolve, 0);
       });
     });
-    
+
     // Verify we still have the abort controller
     if (categorizeAbortRef.current !== currentAbortController) {
       console.log('Categorization cancelled before starting - abort controller changed');
       return;
     }
-    
+
     try {
       console.log('Starting categorization...');
       console.log('Spec file path:', specificationFile.path);
       console.log('Dataset type:', projectConfig.adamDataset);
 
+
       let result;
-      const canUseServerPath = specificationFile.isDefault || specificationFile.path?.startsWith('Content/');
+      // Check if we can use server path (file already on server)
+      // This includes:
+      // 1. Default spec files (isDefault flag)
+      // 2. Content/ paths (default specifications)
+      // 3. storage/ paths (study documents uploaded to server)
+      const canUseServerPath =
+        specificationFile.isDefault ||
+        specificationFile.path?.startsWith('Content/') ||
+        specificationFile.path?.startsWith('storage/') ||
+        specificationFile.path?.startsWith('storage\\');
 
       if (canUseServerPath) {
         console.log('Using server path categorization');
+        console.log('Server path:', specificationFile.path);
         result = await adamApi.categorizeSpecification(
           specificationFile.path,
           projectConfig.adamDataset,
@@ -541,26 +558,18 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       console.log('Spec columns:', result.spec_columns);
       console.log('First variable sample:', result.categories[0]?.variables[0]);
 
-      // Use startTransition with requestAnimationFrame to ensure DOM is stable before state update
-      requestAnimationFrame(() => {
-        try {
-          startTransition(() => {
-            setCategorizedVariables(result);
-          });
-          console.log('Categorized variables set in state');
-          message.success(
-            `Categorized ${result.total_variables} variables into ${result.categories.length} categories using VariablesMapping.xlsx`
-          );
-        } catch (error) {
-          console.error('Error setting categorized variables:', error);
-        }
-      });
+      // Set categorized variables directly
+      setCategorizedVariables(result);
+      console.log('Categorized variables set in state');
+      message.success(
+        `Categorized ${result.total_variables} variables into ${result.categories.length} categories using VariablesMapping.xlsx`
+      );
     } catch (err: any) {
       console.error('=== CATEGORIZATION ERROR ===');
       console.error('Error object:', err);
       console.error('Response:', err.response);
       console.error('Message:', err.message);
-      
+
       // Handle abort differently for cleaner UX
       if (err.name === 'CanceledError' || err.name === 'AbortError') {
         // Do not surface as an error UI; keep clean state for retry
@@ -570,36 +579,38 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         const errorMsg = 'Request timed out. The file may be too large or the server is busy. Please try again.';
         setError(errorMsg);
         message.error(errorMsg);
-      } else if (err.code === 'ERR_NETWORK') {
-        const errorMsg = 'Network error. Please check if the backend server is running.';
+      } else if (err.code === 'ERR_NETWORK' || err.message?.includes('Network Error')) {
+        // Check if user is authenticated
+        const token = localStorage.getItem('adam_access_token');
+        let errorMsg = 'Network error. ';
+        if (!token) {
+          errorMsg += 'Please log in first.';
+          window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+        } else {
+          errorMsg += 'Please check if the backend server is running on port 8002.';
+        }
         setError(errorMsg);
         message.error(errorMsg);
+      } else if (err.response?.status === 401 || err.response?.status === 403) {
+        const errorMsg = 'Authentication required. Please log in again.';
+        setError(errorMsg);
+        message.error(errorMsg);
+        localStorage.removeItem('adam_access_token');
+        localStorage.removeItem('adam_user');
+        window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
       } else {
         const errorMsg = err.response?.data?.detail || err.message || 'Failed to categorize variables';
         setError(errorMsg);
-        message.error(errorMsg);
+        message.error(`Failed to categorize variables: ${errorMsg}`);
       }
       console.error('Categorization error:', err);
     } finally {
       console.log('Categorization finally block - setting isCategorizingVariables to false');
-      // Use startTransition with double requestAnimationFrame to ensure React has completely finished render cycle
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          try {
-            startTransition(() => {
-              setIsCategorizingVariables(false);
-            });
-            // Only clear abort controller if it's still the same one
-            if (categorizeAbortRef.current === currentAbortController) {
-              categorizeAbortRef.current = null;
-            }
-          } catch (error) {
-            console.error('Error in finally block state update:', error);
-            // Force cleanup even if state update fails
-            categorizeAbortRef.current = null;
-          }
-        });
-      });
+      setIsCategorizingVariables(false);
+      // Only clear abort controller if it's still the same one
+      if (categorizeAbortRef.current === currentAbortController) {
+        categorizeAbortRef.current = null;
+      }
     }
   };
 
@@ -611,18 +622,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     } catch (e) {
       console.debug('Error aborting during cancel:', e);
     }
-    // Use startTransition with requestAnimationFrame to ensure React has finished current render
-    requestAnimationFrame(() => {
-      try {
-        startTransition(() => {
-          setIsCategorizingVariables(false);
-          setError(null);
-        });
-        message.info('Categorization cancelled. You can retry when ready.');
-      } catch (error) {
-        console.error('Error cancelling categorization:', error);
-      }
-    });
+    setIsCategorizingVariables(false);
+    setError(null);
+    message.info('Categorization cancelled. You can retry when ready.');
   };
 
   const handleForceReset = () => {
@@ -635,30 +637,20 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     } catch (e) {
       console.error('Error aborting during force reset:', e);
     }
-    // Use startTransition with requestAnimationFrame to ensure React has finished current render
-    requestAnimationFrame(() => {
-      try {
-        startTransition(() => {
-          // Force clear all state
-          setIsCategorizingVariables(false);
-          setError(null);
-          setCategorizedVariables(null);
-          setLoadingStep(1);
-          setCategorizeStartedAt(null);
-        });
-        categorizeAbortRef.current = null;
-        message.warning('Force reset completed. You can try categorizing again.');
-      } catch (error) {
-        console.error('Error in force reset:', error);
-        categorizeAbortRef.current = null;
-      }
-    });
+    // Force clear all state
+    setIsCategorizingVariables(false);
+    setError(null);
+    setCategorizedVariables(null);
+    setLoadingStep(1);
+    setCategorizeStartedAt(null);
+    categorizeAbortRef.current = null;
+    message.warning('Force reset completed. You can try categorizing again.');
   };
 
   const handleCancelBulkGeneration = () => {
     try {
       bulkGenerationAbortRef.current?.abort();
-    } catch {}
+    } catch { }
     setBulkGenerationProgress({
       isGenerating: false,
       current: 0,
@@ -747,7 +739,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
 
         // Create abort controller for cancellation
         bulkGenerationAbortRef.current = new AbortController();
-        
+
         // Update progress timer for real-time updates
         progressTimer = setInterval(() => {
           const elapsed = (Date.now() - startTime) / 1000;
@@ -787,12 +779,12 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
             : variable_name || progressMessage || 'Processing variables...';
 
           updateProgressState(completed, displayMessage);
-          
+
           const elapsedSeconds = (Date.now() - startTime) / 1000;
           const avgTimePerVar = completed > 0 ? elapsedSeconds / completed : 2;
           const remainingVars = totalVars - completed;
           const etaSeconds = Math.max(0, remainingVars * avgTimePerVar);
-          
+
           setProgressDetails({
             status: status || 'processing',
             variableName: variable_name,
@@ -823,7 +815,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
 
         const successRate = Math.round((successCount / total) * 100);
         const hasErrors = errorCount > 0;
-        
+
         Modal.success({
           title: (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -836,14 +828,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
           width: 600,
           icon: null,
           okText: 'Got it, Continue',
-          okButtonProps: { 
+          okButtonProps: {
             size: 'large',
             style: { height: '40px', fontSize: '14px', fontWeight: 500 }
           },
           content: (
             <div style={{ marginTop: '20px' }}>
               {/* Statistics Section */}
-              <div style={{ 
+              <div style={{
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 borderRadius: '12px',
                 padding: '20px',
@@ -869,31 +861,31 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Progress Bar */}
                 <div style={{ marginTop: '16px' }}>
-                  <Progress 
-                    percent={successRate} 
+                  <Progress
+                    percent={successRate}
                     strokeColor={hasErrors ? '#faad14' : '#52c41a'}
                     trailColor="rgba(255, 255, 255, 0.3)"
                     strokeWidth={12}
                     format={() => `${successRate}% Success Rate`}
                   />
                 </div>
-                
+
                 <div style={{ marginTop: '12px', textAlign: 'center', fontSize: '13px', opacity: 0.9 }}>
                   �?�,? Completed in {formatDuration(totalTime)}
                 </div>
               </div>
-              
+
               {/* Summary details */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                 {hasErrors ? (
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '12px', 
-                    padding: '12px', 
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
                     borderRadius: '8px',
                     background: 'rgba(250, 173, 20, 0.12)',
                     border: '1px solid rgba(250, 173, 20, 0.4)'
@@ -907,11 +899,11 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '12px', 
-                    padding: '12px', 
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
                     borderRadius: '8px',
                     background: 'rgba(82, 196, 26, 0.12)',
                     border: '1px solid rgba(82, 196, 26, 0.4)'
@@ -958,7 +950,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       ),
       okText: 'Start Generation',
       cancelText: 'Cancel',
-      okButtonProps: { 
+      okButtonProps: {
         type: 'primary',
         icon: <Zap size={14} />,
         style: { height: '36px' }
@@ -985,7 +977,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
           // Include if:
           // 1. Has code snippet and not marked as 'modify' (auto-approved)
           // 2. OR explicitly marked as 'accept'
-          return (snippet.codeSnippet && !snippet.error && snippet.accepted !== 'modify') 
+          return (snippet.codeSnippet && !snippet.error && snippet.accepted !== 'modify')
             || snippet.accepted === 'accept';
         })
         .map(([name, _]) => name);
@@ -1086,15 +1078,15 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
   // Get active category for pair programming panel
   // Handle special 'all' case for showing all variables
   const isAllVariablesSelected = activeCategory === 'all';
-  const activeCategoryData = isAllVariablesSelected 
-    ? null 
+  const activeCategoryData = isAllVariablesSelected
+    ? null
     : sortedCategories[parseInt(activeCategory, 10)] || null;
-  
+
   // Get all variables when "All Variables" is selected
   // IMPORTANT: This hook must be called before any conditional returns
   const allVariablesForPairProgramming = useMemo(() => {
     if (!categorizedVariables?.categories) return [];
-    return categorizedVariables.categories.flatMap(category => 
+    return categorizedVariables.categories.flatMap(category =>
       category.variables || []
     );
   }, [categorizedVariables]);
@@ -1176,20 +1168,31 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       )}
 
       {specificationFile && (
-        <div className="spec-summary-bar">
+        <div className="spec-summary-bar" key={`spec-bar-${specificationFile.name}`}>
           <div>
             <span className="summary-label">Dataset:</span> <strong>{activeDataset}</strong>
           </div>
           <div>
             <span className="summary-label">Specification:</span> <strong>{specificationFile?.name || 'Unknown file'}</strong>
           </div>
+          <div style={{ marginLeft: 'auto', fontSize: '13px', fontWeight: 500 }} key={`status-${isCategorizingVariables}-${!!categorizedVariables}`}>
+            {!categorizedVariables && !isCategorizingVariables && !error && (
+              <span style={{ color: '#10b981' }}>✓ File detected - Auto-processing will begin</span>
+            )}
+            {isCategorizingVariables && (
+              <span style={{ color: '#3b82f6' }}>⏳ Processing variables...</span>
+            )}
+            {categorizedVariables && (
+              <span style={{ color: '#10b981' }}>✓ {categorizedVariables.total_variables} variables categorized</span>
+            )}
+          </div>
         </div>
       )}
 
       {/* Categorizing in progress - use a stable wrapper to prevent unmount issues */}
       {specificationFile && isCategorizingVariables && (
-        <div 
-          className="variables-loading-state" 
+        <div
+          className="variables-loading-state"
           key={`loading-${categorizeStartedAt || 'default'}`}
           data-loading-state="true"
         >
@@ -1225,257 +1228,278 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
 
       {/* No categorized variables yet */}
       {specificationFile && !categorizedVariables && !isCategorizingVariables && !error && (
-        <div className="variables-empty-state" key="no-categories">
+        <div className="variables-empty-state" key={`no-categories-${specificationFile.name}`}>
           <FileSearch size={64} className="empty-icon" />
-          <h3>Variables Not Categorized</h3>
-          <p>Click the button below to categorize variables from the specification.</p>
-          <button className="categorize-button" onClick={handleCategorizeVariables}>
-            Categorize Variables
-          </button>
+          <h3>Specification File Detected</h3>
+          <p>
+            Found specification file: <strong>{specificationFile.name}</strong>
+            <br />
+            <span key={`auto-status-${autoCategorizeStatus}`}>
+              {autoCategorizeStatus === 'started'
+                ? 'Processing variables... Please wait.'
+                : 'Automatic categorization will start shortly.'}
+            </span>
+          </p>
+          <div key={`button-container-${autoCategorizeStatus}`}>
+            {autoCategorizeStatus === 'pending' && (
+              <button className="categorize-button" onClick={handleCategorizeVariables} key="categorize-btn">
+                Start Categorization Now
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {/* Main content with categorized variables */}
       {specificationFile && categorizedVariables && !isCategorizingVariables && (
         <div className="variables-content" key="variables-content">
-      <div className="variables-header-compact">
-        <div className="header-info-group">
-          <h2 className="header-title">
-            <FileSearch size={18} />
-            <span>Variables Analysis</span>
-          </h2>
-          <div className="header-stats-compact">
-            <div className="stat-item">
-              <span className="stat-value">{categorizedVariables?.total_variables || 0}</span>
-              <span className="stat-label">Variables</span>
+          <div className="variables-header-compact">
+            <div className="header-info-group">
+              <h2 className="header-title">
+                <FileSearch size={18} />
+                <span>Variables Analysis</span>
+              </h2>
+              <div className="header-stats-compact">
+                <div className="stat-item">
+                  <span className="stat-value">{categorizedVariables?.total_variables || 0}</span>
+                  <span className="stat-label">Variables</span>
+                </div>
+                <div className="stat-divider"></div>
+                <div className="stat-item">
+                  <span className="stat-value">{sortedCategories.length}</span>
+                  <span className="stat-label">Categories</span>
+                </div>
+                <div className="stat-divider"></div>
+                <div className="stat-item stat-item-dataset">
+                  <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                    <rect x="2" y="10" width="4" height="8" rx="1" fill="#10b981" />
+                    <rect x="8" y="6" width="4" height="12" rx="1" fill="#ec4899" />
+                    <rect x="14" y="2" width="4" height="16" rx="1" fill="#3b82f6" />
+                  </svg>
+                  <span className="stat-dataset">{projectConfig.adamDataset || 'ADSL'}</span>
+                </div>
+              </div>
             </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <span className="stat-value">{sortedCategories.length}</span>
-              <span className="stat-label">Categories</span>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item stat-item-dataset">
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                <rect x="2" y="10" width="4" height="8" rx="1" fill="#10b981" />
-                <rect x="8" y="6" width="4" height="12" rx="1" fill="#ec4899" />
-                <rect x="14" y="2" width="4" height="16" rx="1" fill="#3b82f6" />
-              </svg>
-              <span className="stat-dataset">{projectConfig.adamDataset || 'ADSL'}</span>
+            <div className="header-actions-compact">
+              <Tooltip
+                title={
+                  llmConnectionStatus !== 'connected'
+                    ? 'Test the connection first using the "Test Connection" button in the header'
+                    : bulkGenerationProgress.isGenerating
+                      ? 'Generation in progress...'
+                      : 'Generate code snippets for all variables using AI'
+                }
+              >
+                <Button
+                  onClick={handleGenerateCode}
+                  disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables || llmConnectionStatus !== 'connected'}
+                  icon={bulkGenerationProgress.isGenerating ? <Loader2 size={14} className="spinning" /> : <Zap size={14} />}
+                  className="action-button-compact action-button-primary"
+                  size="small"
+                  type="primary"
+                >
+                  {bulkGenerationProgress.isGenerating ? `Generating (${bulkGenerationProgress.current}/${bulkGenerationProgress.total})` : 'Get AI Inputs'}
+                </Button>
+              </Tooltip>
+              <Button
+                onClick={handleCategorizeVariables}
+                disabled={isCategorizingVariables}
+                icon={isCategorizingVariables ? <LoadingOutlined /> : <RefreshCw size={14} />}
+                className="action-button-compact"
+                size="small"
+                type="default"
+              >
+                Re-analyze
+              </Button>
+              <Button
+                onClick={handleRefreshAIResults}
+                icon={<RefreshCw size={14} />}
+                className="action-button-compact action-button-warning"
+                size="small"
+                type="default"
+                title="Clear all AI-generated code and start fresh"
+              >
+                Refresh AI Results
+              </Button>
+              <Button
+                onClick={handleRefresh}
+                icon={<RefreshCw size={14} />}
+                className="action-button-compact action-button-danger"
+                size="small"
+                type="default"
+                title="Reset workspace and start fresh"
+              >
+                Clear & Restart
+              </Button>
             </div>
           </div>
-        </div>
-        <div className="header-actions-compact">
-          <Tooltip
-            title={
-              llmConnectionStatus !== 'connected'
-                ? 'Test the connection first using the "Test Connection" button in the header'
-                : bulkGenerationProgress.isGenerating
-                ? 'Generation in progress...'
-                : 'Generate code snippets for all variables using AI'
-            }
-          >
-            <Button
-              onClick={handleGenerateCode}
-              disabled={bulkGenerationProgress.isGenerating || isCategorizingVariables || llmConnectionStatus !== 'connected'}
-              icon={bulkGenerationProgress.isGenerating ? <Loader2 size={14} className="spinning" /> : <Zap size={14} />}
-              className="action-button-compact action-button-primary"
-              size="small"
-              type="primary"
-            >
-              {bulkGenerationProgress.isGenerating ? `Generating (${bulkGenerationProgress.current}/${bulkGenerationProgress.total})` : 'Get AI Inputs'}
-            </Button>
-          </Tooltip>
-          <Button
-            onClick={handleCategorizeVariables}
-            disabled={isCategorizingVariables}
-            icon={isCategorizingVariables ? <LoadingOutlined /> : <RefreshCw size={14} />}
-            className="action-button-compact"
-            size="small"
-            type="default"
-          >
-            Re-analyze
-          </Button>
-          <Button
-            onClick={handleRefreshAIResults}
-            icon={<RefreshCw size={14} />}
-            className="action-button-compact action-button-warning"
-            size="small"
-            type="default"
-            title="Clear all AI-generated code and start fresh"
-          >
-            Refresh AI Results
-          </Button>
-          <Button
-            onClick={handleRefresh}
-            icon={<RefreshCw size={14} />}
-            className="action-button-compact action-button-danger"
-            size="small"
-            type="default"
-            title="Reset workspace and start fresh"
-          >
-            Clear & Restart
-          </Button>
-        </div>
-      </div>
 
-      {sortedCategories.length > 0 ? (
-        <>
-          {/* Top Section: Tabs (configurable split) + Pair Programming */}
-          <div
-            className="tabs-and-pair-programming"
-            style={{ ['--layout-columns' as any]: LAYOUT_PRESETS[layoutPreset].columns }}
-          >
-            <div className="category-tabs-container">
-              <Tabs
-                activeKey={activeCategory}
-                onChange={setActiveCategory}
-                type="card"
-                tabPosition="left"
-                className="category-tabs category-tabs-vertical"
-                tabBarGutter={8}
-                items={[
-                  // "All Variables" option at the top
-                  {
-                    key: 'all',
-                    label: (
-                      <div className="tab-label all-variables-tab">
-                        <span className="tab-name">All Variables</span>
-                        <span className="tab-count">{allVariablesForPairProgramming.length}</span>
-                      </div>
-                    ),
-                    children: null // No content for "All Variables" - handled in pair programming area
-                  },
-                  // Category tabs
-                  ...sortedCategories.map((category, index) => ({
-                    key: index.toString(),
-                    label: (
-                      <div className="tab-label">
-                        <span className="tab-name">{category.displayName}</span>
-                        <span className="tab-count">{category.count}</span>
-                      </div>
-                    ),
-                    children: renderCategoryContent(category)
-                  }))
-                ]}
-              />
-            </div>
-
-            {/* Pair Programming Panel - 70% on the right */}
-            <div className="pair-programming-container">
-              {(activeCategoryData || isAllVariablesSelected) && (
-                <div className="pair-programming-panel" role="region" aria-label="Pair Programming Area">
-                  <PairProgrammingArea
-                    variables={isAllVariablesSelected ? allVariablesForPairProgramming : (activeCategoryData?.variables || [])}
-                    categoryName={isAllVariablesSelected ? 'All Variables' : (activeCategoryData?.displayName || activeCategoryData?.name || 'Unknown')}
+          {sortedCategories.length > 0 ? (
+            <>
+              {/* Top Section: Tabs (configurable split) + Pair Programming */}
+              <div
+                className="tabs-and-pair-programming"
+                style={{ ['--layout-columns' as any]: LAYOUT_PRESETS[layoutPreset].columns }}
+              >
+                <div className="category-tabs-container">
+                  <Tabs
+                    activeKey={activeCategory}
+                    onChange={(key) => {
+                      // Direct state update - simpler and more stable
+                      setActiveCategory(key);
+                    }}
+                    type="card"
+                    tabPosition="left"
+                    className="category-tabs category-tabs-vertical"
+                    tabBarGutter={8}
+                    destroyInactiveTabPane={false}
+                    items={[
+                      // "All Variables" option at the top
+                      {
+                        key: 'all',
+                        label: (
+                          <div className="tab-label all-variables-tab">
+                            <span className="tab-name">All Variables</span>
+                            <span className="tab-count">{allVariablesForPairProgramming.length}</span>
+                          </div>
+                        ),
+                        children: null // No content for "All Variables" - handled in pair programming area
+                      },
+                      // Category tabs
+                      ...sortedCategories.map((category, index) => ({
+                        key: index.toString(),
+                        label: (
+                          <div className="tab-label">
+                            <span className="tab-name">{category.displayName}</span>
+                            <span className="tab-count">{category.count}</span>
+                          </div>
+                        ),
+                        children: renderCategoryContent(category)
+                      }))
+                    ]}
                   />
                 </div>
-              )}
-            </div>
-          </div>
 
-          {/* Bottom Action Area - Compact Status Bar */}
-          <div className="bottom-action-area">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {isReadyForGeneration ? (
-                <>
-                  <CheckCircleOutlined style={{ fontSize: '16px', color: '#10B981' }} />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#10B981' }}>
-                      Ready • {approvedCount} approved
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#6b7280' }}>
-                      {approvedCount} of {totalVariables} variables ({percentage}%)
-                    </div>
+                {/* Pair Programming Panel - 70% on the right */}
+                {/* Use a stable container that doesn't unmount to prevent removeChild errors */}
+                <div className="pair-programming-container" key="pair-programming-container">
+                  {/* Always render PairProgrammingArea to prevent mount/unmount issues */}
+                  <div
+                    className="pair-programming-panel"
+                    role="region"
+                    aria-label="Pair Programming Area"
+                  >
+                    <PairProgrammingArea
+                      key="pair-area"
+                      variables={isAllVariablesSelected ? allVariablesForPairProgramming : (activeCategoryData?.variables || [])}
+                      categoryName={isAllVariablesSelected ? 'All Variables' : (activeCategoryData?.displayName || activeCategoryData?.name || 'Unknown')}
+                    />
                   </div>
-                </>
-              ) : (
-                <>
-                  <Info size={16} color="#f59e0b" />
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#f59e0b' }}>
-                      No variables approved yet
-                    </div>
-                    <div style={{ fontSize: '11px', color: '#6b7280' }}>
-                      Approve variables to generate consolidated code
-                    </div>
-                  </div>
-                </>
-              )}
+                </div>
+              </div>
+
+              {/* Bottom Action Area - Compact Status Bar */}
+              <div className="bottom-action-area">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {isReadyForGeneration ? (
+                    <>
+                      <CheckCircleOutlined style={{ fontSize: '16px', color: '#10B981' }} />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#10B981' }}>
+                          Ready • {approvedCount} approved
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                          {approvedCount} of {totalVariables} variables ({percentage}%)
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Info size={16} color="#f59e0b" />
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#f59e0b' }}>
+                          No variables approved yet
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#6b7280' }}>
+                          Approve variables to generate consolidated code
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <a
+                  className="consolidated-code-link"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigateToConsolidated?.();
+                  }}
+                  href="#"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    color: '#3b82f6',
+                    textDecoration: 'none',
+                    fontWeight: 500,
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = '#2563eb';
+                    e.currentTarget.style.textDecoration = 'underline';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = '#3b82f6';
+                    e.currentTarget.style.textDecoration = 'none';
+                  }}
+                >
+                  <span>Consolidated Code</span>
+                  <ArrowRight size={16} />
+                </a>
+              </div>
+            </>
+          ) : (
+            <div className="no-categories">
+              <AlertCircle size={48} />
+              <p>No variable categories found</p>
             </div>
+          )}
 
-            <a
-              className="consolidated-code-link"
-              onClick={(e) => {
-                e.preventDefault();
-                onNavigateToConsolidated?.();
-              }}
-              href="#"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                color: '#3b82f6',
-                textDecoration: 'none',
-                fontWeight: 500,
-                fontSize: '14px',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#2563eb';
-                e.currentTarget.style.textDecoration = 'underline';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#3b82f6';
-                e.currentTarget.style.textDecoration = 'none';
-              }}
-            >
-              <span>Consolidated Code</span>
-              <ArrowRight size={16} />
-            </a>
-          </div>
-        </>
-      ) : (
-        <div className="no-categories">
-          <AlertCircle size={48} />
-          <p>No variable categories found</p>
-        </div>
-      )}
+          {/* Final Code Generation Dialog */}
+          <FinalCodeGenerationDialog
+            visible={showFinalGenerationDialog}
+            onCancel={() => setShowFinalGenerationDialog(false)}
+            onConfirm={handleConfirmGeneration}
+            programmingLanguage={programmingLanguage as 'R' | 'SAS'}
+          />
 
-      {/* Final Code Generation Dialog */}
-      <FinalCodeGenerationDialog
-        visible={showFinalGenerationDialog}
-        onCancel={() => setShowFinalGenerationDialog(false)}
-        onConfirm={handleConfirmGeneration}
-        programmingLanguage={programmingLanguage as 'R' | 'SAS'}
-      />
+          {/* Program Download Modal */}
+          <ProgramDownloadModal
+            visible={showDownloadModal}
+            onClose={() => setShowDownloadModal(false)}
+            programCode={finalProgramCode}
+            language={programmingLanguage as 'R' | 'SAS'}
+            datasetName={projectConfig.adamDataset || 'ADSL'}
+          />
 
-      {/* Program Download Modal */}
-      <ProgramDownloadModal
-        visible={showDownloadModal}
-        onClose={() => setShowDownloadModal(false)}
-        programCode={finalProgramCode}
-        language={programmingLanguage as 'R' | 'SAS'}
-        datasetName={projectConfig.adamDataset || 'ADSL'}
-      />
-
-      {/* Enhanced Code Generation Progress Modal */}
-      <CodeGenerationProgressModal
-        visible={progressModalVisible}
-        total={bulkGenerationProgress.total || categorizedVariables?.total_variables || 0}
-        completed={bulkGenerationProgress.current}
-        currentStatus={bulkGenerationProgress.currentVariable || progressDetails.status}
-        status={progressDetails.status}
-        variableName={progressDetails.variableName}
-        batchSize={progressDetails.batchSize}
-        variables={progressDetails.variables}
-        elapsedSeconds={progressDetails.elapsedSeconds}
-        etaSeconds={progressDetails.etaSeconds}
-        onCancel={handleCancelBulkGeneration}
-        llmProvider={llmProvider}
-        language={programmingLanguage}
-        dataset={projectConfig.adamDataset || 'ADSL'}
-      />
+          {/* Enhanced Code Generation Progress Modal */}
+          <CodeGenerationProgressModal
+            visible={progressModalVisible}
+            total={bulkGenerationProgress.total || categorizedVariables?.total_variables || 0}
+            completed={bulkGenerationProgress.current}
+            currentStatus={bulkGenerationProgress.currentVariable || progressDetails.status}
+            status={progressDetails.status}
+            variableName={progressDetails.variableName}
+            batchSize={progressDetails.batchSize}
+            variables={progressDetails.variables}
+            elapsedSeconds={progressDetails.elapsedSeconds}
+            etaSeconds={progressDetails.etaSeconds}
+            onCancel={handleCancelBulkGeneration}
+            llmProvider={llmProvider}
+            language={programmingLanguage}
+            dataset={projectConfig.adamDataset || 'ADSL'}
+          />
         </div>
       )}
     </div>

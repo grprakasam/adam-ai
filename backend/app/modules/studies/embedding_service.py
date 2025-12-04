@@ -128,3 +128,4 @@ class EmbeddingService:
         return 384  # Default dimension
 
 
+
