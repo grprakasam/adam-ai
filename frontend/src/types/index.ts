@@ -10,7 +10,33 @@ export enum LLMProvider {
   OPENAI = 'openai',
   ANTHROPIC = 'anthropic',
   GOOGLE = 'google',
-  OPENROUTER = 'openrouter'
+  OPENROUTER = 'openrouter',
+  OLLAMA = 'ollama'
+}
+
+// AI Execution Mode - Cloud (API) or Offline (Local Ollama)
+export type AIExecutionMode = 'cloud' | 'offline';
+
+// Ollama Model Information
+export interface OllamaModel {
+  name: string;
+  modified_at: string;
+  size: number;
+  digest?: string;
+  details?: {
+    format: string;
+    family: string;
+    parameter_size: string;
+    quantization_level?: string;
+  };
+}
+
+// Ollama Service Status
+export interface OllamaStatus {
+  available: boolean;
+  version?: string;
+  models: OllamaModel[];
+  error?: string;
 }
 
 export interface OpenRouterModel {
