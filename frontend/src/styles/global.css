@@ -13,6 +13,13 @@ body {
   overflow: hidden;
 }
 
+/* Allow overflow for login page */
+body:has(.login-container) {
+  overflow: visible !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+}
+
 a {
   color: var(--primary-600);
 }
@@ -24,7 +31,16 @@ a:focus-visible {
 
 #root {
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
+  position: relative;
+}
+
+/* Ensure root allows login page to display */
+#root:has(.login-container) {
+  height: 100vh !important;
+  height: 100dvh !important;
+  overflow: visible !important;
 }
 
 :focus-visible {

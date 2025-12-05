@@ -12,7 +12,6 @@ import { LoginPage } from './components/LoginPage';
 import { ApprovalProgressBar } from './components/ApprovalProgressBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useProjectStore } from './store/projectStore';
-import { usePreferencesStore } from './store/preferencesStore';
 import { RecoverySuggestions } from './components/RecoverySuggestions';
 import { HelpCenterDrawer } from './components/HelpCenterDrawer';
 import { PreferencesDrawer } from './components/PreferencesDrawer';
@@ -37,17 +36,6 @@ type ViewMode =
   | 'admin';
 
 function App() {
-  // Clear any stale auth tokens on app startup
-  useEffect(() => {
-    clearStaleAuthTokens();
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: any) => { try { const tab = e?.detail?.tab; if (tab) setActiveTab(tab); } catch { } };
-    window.addEventListener('adam-ai:open-left-tab', handler as any);
-    return () => window.removeEventListener('adam-ai:open-left-tab', handler as any);
-  }, []);
-
   const [viewMode, setViewMode] = useState<ViewMode>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [language] = useState<ProgrammingLanguage>('R' as ProgrammingLanguage);
@@ -57,12 +45,28 @@ function App() {
   const [isHelpCenterOpen, setHelpCenterOpen] = useState(false);
   const [isPreferencesOpen, setPreferencesOpen] = useState(false);
   const mainContentRef = useRef<HTMLElement | null>(null);
+
   const undo = useWorkspaceHistory((state) => state.undo);
   const redo = useWorkspaceHistory((state) => state.redo);
   const clearHistory = useWorkspaceHistory((state) => state.clear);
+
   useApplyPreferences();
 
-  // Access Zustand store
+  useEffect(() => {
+    clearStaleAuthTokens();
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      try {
+        const tab = e?.detail?.tab;
+        if (tab) setActiveTab(tab);
+      } catch { }
+    };
+    window.addEventListener('adam-ai:open-left-tab', handler as any);
+    return () => window.removeEventListener('adam-ai:open-left-tab', handler as any);
+  }, []);
+
   const projectConfig = useProjectStore((state) => state.projectConfig);
   const setIsGenerating = useProjectStore((state) => state.setIsGenerating);
   const setProjectConfig = useProjectStore((state) => state.setProjectConfig);
@@ -73,7 +77,6 @@ function App() {
   const storeCurrentStudyId = useStudyStore((state) => state.currentStudyId);
   const setStoreCurrentStudy = useStudyStore((state) => state.setCurrentStudy);
 
-  // Check for existing authentication on mount and derive initial view from URL
   useEffect(() => {
     const token = localStorage.getItem('adam_access_token');
     const userStr = localStorage.getItem('adam_user');
@@ -83,37 +86,16 @@ function App() {
         const user = JSON.parse(userStr);
         setCurrentUser(user);
 
-
         const path = window.location.pathname || '/';
 
-        // List of all workspace routes that should activate workspace view
         const workspaceRoutes = [
-          '/workspace',
-          '/pair-programming',
-          '/code-review',
-          '/consolidated-code',
-          '/generation-history',
-          '/traceability',
-          '/test-with-data',
-          '/adam-generator',
-          '/adam-dataset-comparer',
-          '/submission-dashboard',
-          '/submission-package',
-          '/code-validator',
-          '/validation-reports',
-          '/r-frontend',
-          '/adam-data-analytics',
-          '/study-chatbot',
-          '/code-comparer',
-          '/tlf-generator',
-          '/adam-tutor',
-          '/agentic-ai',
-          '/ai-code-debugger',
-          '/code-refactorer',
-          '/missing-spec-detector',
-          '/spec-comparison',
-          '/esubmission-checker',
-          '/fda-reviewer-preview'
+          '/workspace', '/pair-programming', '/code-review', '/consolidated-code',
+          '/generation-history', '/traceability', '/test-with-data', '/adam-generator',
+          '/adam-dataset-comparer', '/submission-dashboard', '/submission-package',
+          '/code-validator', '/validation-reports', '/r-frontend', '/adam-data-analytics',
+          '/study-chatbot', '/code-comparer', '/tlf-generator', '/adam-tutor',
+          '/agentic-ai', '/ai-code-debugger', '/code-refactorer', '/missing-spec-detector',
+          '/spec-comparison', '/esubmission-checker', '/fda-reviewer-preview'
         ];
 
         if (path.startsWith('/admin')) {
@@ -130,10 +112,12 @@ function App() {
           setViewMode('landing');
         }
       } catch (error) {
-        console.error('Invalid stored user data:', error);
         localStorage.removeItem('adam_access_token');
         localStorage.removeItem('adam_user');
+        setViewMode('login');
       }
+    } else {
+      setViewMode('login');
     }
   }, []);
 
@@ -151,15 +135,12 @@ function App() {
     mainContentRef.current?.focus();
   }, [viewMode]);
 
-  // Left configuration panel has been integrated into the Pair Programming tab.
-  // Keep a no-op handler so keyboard shortcuts remain stable.
-  const toggleLeftPanel = useCallback(() => {
-    // no-op: legacy toggle preserved for shortcut compatibility
-  }, []);
+  const toggleLeftPanel = useCallback(() => {}, []);
 
   const focusMainContent = useCallback(() => {
     mainContentRef.current?.focus();
   }, []);
+
   const openHelpCenter = useCallback(() => setHelpCenterOpen(true), []);
   const closeHelpCenter = useCallback(() => setHelpCenterOpen(false), []);
   const closePreferences = useCallback(() => setPreferencesOpen(false), []);
@@ -192,7 +173,6 @@ function App() {
   };
 
   const handleUnlockPairProgramming = async () => {
-    // Allow unlocking regardless of completion percentage.
     if (isRightPanelUnlocked) {
       message.info('Pair programming is already active.');
       return;
@@ -226,7 +206,6 @@ function App() {
   };
 
   const handleContinueExistingProject = async (studyId: string) => {
-    // Initialize workspace
     clearHistory();
     initializeWorkspace();
     setIsRightPanelUnlocked(true);
@@ -234,15 +213,12 @@ function App() {
     try {
       await setStoreCurrentStudy(studyId);
       setProjectConfig({ studyId } as any);
-      // Move to workspace view
       setViewMode('workspace');
     } catch (error) {
-      console.error('Failed to open study workspace', error);
       message.error('Failed to open study workspace. Please ensure the study exists and you have access.');
       return;
     }
 
-    // Set default dataset if not selected
     if (!projectConfig.adamDataset) {
       setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
     }
@@ -267,7 +243,6 @@ function App() {
   };
 
   const handleOpenStudy = async (studyId: string) => {
-    // Initialize workspace
     clearHistory();
     initializeWorkspace();
     setIsRightPanelUnlocked(true);
@@ -275,24 +250,19 @@ function App() {
     try {
       await setStoreCurrentStudy(studyId);
       setProjectConfig({ studyId } as any);
-      // Move to workspace view
       setViewMode('workspace');
     } catch (error) {
-      console.error('Failed to open study workspace', error);
       message.error('Failed to open study workspace. Please ensure the study exists and you have access.');
       return;
     }
 
-    // Set default dataset if not selected
     if (!projectConfig.adamDataset) {
       setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
     }
 
-    // Set default specification file if none selected
     if (!specificationFile) {
       const defaultSpecPath = 'Content/UserInputs/ADAMSpecifications/ADSLSpec.xlsx';
       const defaultSpecName = 'ADSLSpec.xlsx';
-      // We don't know size here; it's informational only in UI
       setSpecificationFile({
         name: defaultSpecName,
         path: defaultSpecPath,
@@ -302,7 +272,6 @@ function App() {
       } as any);
     }
 
-    // Friendly UX messaging
     message.success({ content: 'Workspace initialized! Configure your project to generate code.', duration: 2 });
   };
 
@@ -315,7 +284,6 @@ function App() {
     }
 
     setViewMode('workspace');
-
     setIsRightPanelUnlocked(true);
 
     window.setTimeout(() => {
@@ -355,10 +323,29 @@ function App() {
       >
         <SkipLink targetId="main-content" />
         <div className="app-container">
-          <main id="main-content" ref={mainContentRef} tabIndex={-1}>
-            {viewMode === 'login' ? (
-              <LoginPage onLoginSuccess={handleLoginSuccess} />
-            ) : (
+          <main
+            id="main-content"
+            ref={mainContentRef}
+            tabIndex={-1}
+            className={viewMode === 'login' ? 'login-view' : ''}
+            style={viewMode === 'login' ? {
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              overflow: 'visible',
+              zIndex: 1
+            } : {}}
+          >
+            {viewMode === 'login' && (
+              <ErrorBoundary>
+                <LoginPage onLoginSuccess={handleLoginSuccess} />
+              </ErrorBoundary>
+            )}
+            {viewMode !== 'login' && (
               <>
                 {viewMode !== 'landing' && (
                   <AppHeader
@@ -368,8 +355,8 @@ function App() {
                     }}
                     currentUser={currentUser}
                     onLogout={handleLogout}
-                    showStudySelector={viewMode !== 'landing'}
-                    showWorkspaceControls={viewMode !== 'landing'}
+                    showStudySelector={true}
+                    showWorkspaceControls={true}
                     currentStudyId={storeCurrentStudyId || undefined}
                     onStudyChange={handleStudyChange}
                   />
@@ -432,7 +419,6 @@ function App() {
                       window.history.pushState({}, '', '/project-selection');
                     }}
                     onStudyCreated={async (studyId: string) => {
-                      // Initialize workspace
                       clearHistory();
                       initializeWorkspace();
                       setIsRightPanelUnlocked(false);
@@ -440,14 +426,11 @@ function App() {
                       try {
                         await setStoreCurrentStudy(studyId);
                         setProjectConfig({ studyId } as any);
-                        // Move to workspace view
                         setViewMode('workspace');
                       } catch (error) {
-                        console.error('Failed to open study workspace', error);
                         message.error('Failed to open study workspace. Please ensure the study exists and you have access.');
                       }
 
-                      // Set default dataset if not selected
                       if (!projectConfig.adamDataset) {
                         setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
                       }
@@ -475,7 +458,6 @@ function App() {
                     </div>
 
                     <RecoverySuggestions />
-                    {/* Approval Progress Bar - visible after spec upload */}
                     <ApprovalProgressBar />
                   </>
                 )}
