@@ -791,8 +791,136 @@ class OpenRouterProvider(BaseLLMProvider):
 
 
 # ============================================================================
+# Ollama Provider - Local AI for Offline Mode
+# ============================================================================
+
+class OllamaProvider(BaseLLMProvider):
+    """
+    Local Ollama provider for secure offline AI operation.
+    Connects to Ollama running on localhost - no data leaves your device.
+    """
+    
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3.2"):
+        # Skip API key validation for Ollama (it's local)
+        self.base_url = base_url
+        self.model = model
+        self.api_key = "local"  # Placeholder for interface compatibility
+        self.provider_name = "ollama"
+        logger.info(f"✅ Initialized Ollama provider with model: {self.model} at {self.base_url}")
+    
+    @retry_on_failure(max_retries=2)  # Fewer retries for local service
+    async def generate(
+        self,
+        prompt: str,
+        temperature: float = 0.2,
+        max_tokens: int = 4000,
+        **kwargs
+    ) -> LLMResponse:
+        """Generate response using local Ollama"""
+        validate_generation_params(prompt, temperature, max_tokens)
+        
+        try:
+            import httpx
+            
+            # Ollama API format
+            payload = {
+                "model": self.model,
+                "prompt": f"{SYSTEM_PROMPT}\n\n{prompt}",
+                "stream": False,
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                }
+            }
+            
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/generate",
+                    json=payload
+                )
+                response.raise_for_status()
+                data = response.json()
+            
+            # Extract response content
+            content = data.get("response", "")
+            eval_count = data.get("eval_count", 0)
+            prompt_count = data.get("prompt_eval_count", 0)
+            
+            result: LLMResponse = {
+                "content": content,
+                "model": self.model,
+                "usage": {
+                    "prompt_tokens": prompt_count,
+                    "completion_tokens": eval_count,
+                    "total_tokens": prompt_count + eval_count
+                },
+                "finish_reason": "stop" if data.get("done", False) else "incomplete"
+            }
+            
+            logger.info(
+                f"✅ Ollama generation completed: "
+                f"{result['usage']['total_tokens']} tokens (local)"
+            )
+            return result
+            
+        except Exception as e:
+            error_msg = str(e).lower()
+            
+            if any(term in error_msg for term in ["connection", "refused", "unreachable", "timeout"]):
+                logger.error(f"❌ Ollama connection error: {str(e)}")
+                raise LLMConnectionError(
+                    f"Cannot connect to Ollama at {self.base_url}. "
+                    "Make sure Ollama is running (ollama serve)"
+                )
+            
+            if "model" in error_msg and "not found" in error_msg:
+                logger.error(f"❌ Ollama model not found: {str(e)}")
+                raise LLMProviderError(
+                    f"Model '{self.model}' not found. "
+                    f"Run 'ollama pull {self.model}' to download it."
+                )
+            
+            logger.error(f"❌ Ollama generation error: {str(e)}")
+            raise LLMProviderError(f"Ollama error: {str(e)}")
+    
+    async def validate_connection(self) -> bool:
+        """Validate that Ollama is running locally"""
+        try:
+            import httpx
+            
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(f"{self.base_url}/api/tags")
+                response.raise_for_status()
+            
+            logger.info("✅ Ollama connection validated successfully")
+            return True
+        except Exception as e:
+            logger.error(f"❌ Ollama connection validation failed: {str(e)}")
+            return False
+    
+    async def get_available_models(self) -> List[Dict[str, Any]]:
+        """Fetch list of locally available Ollama models"""
+        try:
+            import httpx
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{self.base_url}/api/tags")
+                response.raise_for_status()
+                data = response.json()
+            
+            models = data.get("models", [])
+            logger.info(f"✅ Fetched {len(models)} models from Ollama")
+            return models
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to fetch Ollama models: {str(e)}")
+            raise LLMProviderError(f"Failed to fetch Ollama models: {str(e)}")
+
+
+# ============================================================================
 # LLM Integration Service
 # ============================================================================
+
 
 
 class LLMIntegrationService:
@@ -935,10 +1063,28 @@ class LLMIntegrationService:
             )
         )
         
-        if not self.providers:
+        # Initialize Ollama (Local AI - Always available if running)
+        # No API key needed - just try to connect
+        try:
+            self.providers["ollama"] = OllamaProvider(
+                base_url="http://localhost:11434",
+                model="llama3.2"
+            )
+            logger.info("✅ Ollama provider registered for local AI operations")
+        except Exception as e:
+            logger.debug(f"Ollama provider not available: {str(e)}")
+        
+        # Summary of initialized providers
+        cloud_providers = [p for p in self.providers.keys() if p != 'ollama']
+        local_providers = ['ollama'] if 'ollama' in self.providers else []
+        
+        if not cloud_providers and not local_providers:
             logger.error("⚠️  WARNING: No LLM providers initialized! Please configure at least one API key in .env")
         else:
-            logger.info(f"✅ Initialized {len(self.providers)} LLM provider(s): {list(self.providers.keys())}")
+            if cloud_providers:
+                logger.info(f"✅ Initialized {len(cloud_providers)} cloud provider(s): {cloud_providers}")
+            if local_providers:
+                logger.info(f"🔒 Local AI provider available: {local_providers}")
     
     async def generate(
         self,
