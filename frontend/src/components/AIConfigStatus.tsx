@@ -14,7 +14,6 @@ import {
   DisconnectOutlined,
   ThunderboltOutlined,
   LockFilled,
-  ShieldFilled,
   EyeInvisibleOutlined,
   SafetyOutlined,
   SecurityScanOutlined,
@@ -307,7 +306,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
           >
             {/* Animated Background Shield */}
             <div className="ai-secure-bg-shield">
-              <ShieldFilled />
+              <SafetyCertificateOutlined />
             </div>
 
             {/* Floating Security Orbs */}
@@ -400,7 +399,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
                   <span className="ai-vault-subtitle">
                     {ollamaStatus === 'connected' ? (
                       <>
-                        <ShieldFilled className="ai-vault-protected-icon" />
+                        <SafetyCertificateOutlined className="ai-vault-protected-icon" />
                         Protected
                       </>
                     ) : ollamaStatus === 'checking' ? (
@@ -514,7 +513,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
       {aiMode === 'offline' && isHovering && (
         <div className="ai-premium-tooltip">
           <div className="ai-tooltip-glow" />
-          <ShieldFilled className="ai-tooltip-shield" />
+          <SafetyCertificateOutlined className="ai-tooltip-shield" />
           <div className="ai-tooltip-content">
             <span className="ai-tooltip-title">Enterprise Security</span>
             <span className="ai-tooltip-desc">Your clinical data never leaves this device</span>
@@ -526,7 +525,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
       {aiMode === 'offline' && (
         <div className="ai-floating-usp-banner">
           <div className="ai-usp-banner-content">
-            <ShieldFilled className="ai-usp-banner-icon" />
+            <SafetyCertificateOutlined className="ai-usp-banner-icon" />
             <span className="ai-usp-banner-text">ZERO DATA EXPOSURE</span>
           </div>
           <div className="ai-usp-banner-particles">

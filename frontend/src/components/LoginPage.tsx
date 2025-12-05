@@ -12,14 +12,13 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true);
 
     // Helper to perform the actual login request against a given URL
     const performLoginRequest = async (url: string, signal: AbortSignal) => {
-      console.log('📡 Sending login request to:', url);
-
       const formData = new URLSearchParams();
       formData.append('username', values.username);
       formData.append('password', values.password);
@@ -33,10 +32,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         signal,
       });
 
-      console.log('📥 Response status:', response.status, 'ok:', response.ok, 'url:', url);
-
       if (!response.ok) {
-        // Try to get error message from response
         let errorMessage = 'Invalid credentials';
         try {
           const errorText = await response.text();
@@ -45,17 +41,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               const errorData = JSON.parse(errorText);
               errorMessage = errorData.detail || errorData.message || errorMessage;
             } catch {
-              // If not JSON, use the text as error message if it's short
               if (errorText.length < 200) {
                 errorMessage = errorText;
               }
             }
           }
         } catch (e) {
-          console.error('Failed to read error response:', e);
+          // Silent error
         }
 
-        console.error('❌ Login failed:', errorMessage, 'for url:', url);
         throw new Error(errorMessage);
       }
 
@@ -68,7 +62,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('Failed to parse login response:', parseError);
         throw new Error('Server returned invalid JSON response');
       }
 
@@ -76,7 +69,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     };
 
     try {
-      console.log('🔐 Attempting login for user:', values.username);
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController();
@@ -88,15 +80,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         // First try via the frontend proxy (/api -> backend on 8002)
         data = await performLoginRequest('/api/v1/auth/login', controller.signal);
       } catch (primaryError: any) {
-        console.error('Primary login via proxy failed:', primaryError);
-
         // Only attempt a direct backend fallback for network-style errors
         if (primaryError?.name === 'AbortError' || primaryError instanceof TypeError) {
           try {
-            console.warn('Retrying login directly against backend at http://localhost:8002/api/v1/auth/login');
             data = await performLoginRequest('http://localhost:8002/api/v1/auth/login', controller.signal);
           } catch (fallbackError) {
-            console.error('Fallback login attempt failed:', fallbackError);
             throw fallbackError;
           }
         } else {
@@ -107,8 +95,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         clearTimeout(timeoutId);
       }
 
-      console.log('✅ Login successful:', data.user);
-
       // Store token and user data
       localStorage.setItem('adam_access_token', data.access_token);
       localStorage.setItem('adam_user', JSON.stringify(data.user));
@@ -116,14 +102,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       message.success(`Welcome, ${data.user.full_name}!`);
       onLoginSuccess(data);
     } catch (error: any) {
-      console.error('💥 Login error:', error);
-      console.error('Error name:', error?.name);
-      console.error('Error type:', error instanceof TypeError ? 'Network/CORS Error' : 'Unknown Error');
-      
       if (error?.name === 'AbortError') {
-        message.error('Request timed out. Please check that the backend server is running and reachable (port 8002 via /api proxy).');
+        message.error('Request timed out. Please check that the backend server is running.');
       } else if (error instanceof TypeError) {
-        message.error('Network error: Cannot connect to backend. Ensure the FastAPI server is running on port 8002 and the frontend proxy is configured.');
+        message.error('Network error: Cannot connect to backend. Ensure the server is running.');
       } else {
         message.error(error?.message || 'Login failed. Please check your connection and try again.');
       }
@@ -132,21 +114,88 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     }
   };
 
+  // Render error fallback
+  if (renderError) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '20px'
+      }}>
+        <div style={{
+          background: 'white',
+          padding: '40px',
+          borderRadius: '16px',
+          maxWidth: '420px',
+          width: '100%'
+        }}>
+          <h2>Login Error</h2>
+          <p>{renderError}</p>
+          <button onClick={() => setRenderError(null)}>Retry</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="login-container">
-      <div className="login-background">
+    <div
+      className="login-container"
+      style={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        padding: '20px',
+        width: '100vw',
+        height: '100dvh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        zIndex: 9999,
+        overflow: 'auto'
+      }}
+    >
+      <div className="login-background" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
         <div className="gradient-overlay"></div>
       </div>
-      
-      <Card className="login-card">
-        <div className="login-header">
-          <div className="login-icon">
-            <Lock size={48} color="#667eea" />
+
+      <Card
+        className="login-card"
+        style={{
+          width: '100%',
+          maxWidth: '420px',
+          borderRadius: '16px',
+          padding: '40px',
+          position: 'relative',
+          zIndex: 1,
+          background: 'rgba(255, 255, 255, 0.98)',
+          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
+        }}
+      >
+        <div className="login-header" style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div className="login-icon" style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            marginBottom: '16px',
+            boxShadow: '0 8px 20px rgba(102, 126, 234, 0.3)'
+          }}>
+            <Lock size={48} color="white" />
           </div>
-          <Title level={2} className="login-title">
+          <Title level={2} className="login-title" style={{ margin: '16px 0 8px 0', color: '#1a202c', fontWeight: 700 }}>
             ADAM AI Code Generator
           </Title>
-          <Text className="login-subtitle">
+          <Text className="login-subtitle" style={{ color: '#718096', fontSize: '14px' }}>
             AI-Powered Clinical Programming Assistant
           </Text>
         </div>

@@ -16,6 +16,29 @@
   min-height: 0; /* Fix flex overflow issues */
 }
 
+/* Allow login page to take full height */
+.app-container main.login-view {
+  min-height: 100vh !important;
+  min-height: 100dvh !important;
+  overflow: visible !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+}
+
+.app-container main.login-view > * {
+  flex: 1;
+  display: flex;
+  min-height: 100%;
+}
+
+/* Override body overflow for login page */
+body:has(.login-view) {
+  overflow: visible !important;
+}
+
 .main-content {
   flex: 1;
   display: flex;

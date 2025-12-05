@@ -38,6 +38,8 @@ interface LandingPageProps {
   onStartProject: () => void;
   onOpenMigration: () => void;
   onNavigateToUtility?: (path: string) => void;
+  currentUser?: any;
+  onLogout?: () => void;
 }
 
 interface UtilityFeature {
