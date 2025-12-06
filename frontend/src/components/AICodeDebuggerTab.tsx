@@ -7,6 +7,7 @@ import {
     CodeOutlined,
     FileTextOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './PlaceholderFeature.css';
 
 const { Title, Text } = Typography;
@@ -14,21 +15,12 @@ const { Title, Text } = Typography;
 const AICodeDebuggerTab = () => {
     return (
         <div className="placeholder-feature-container">
-            <div className="placeholder-feature-header">
-                <div className="placeholder-feature-icon coding-ai">
-                    <BugOutlined />
-                </div>
-                <Title level={2} className="placeholder-feature-title">
-                    AI Code Debugger
-                </Title>
-                <Text className="placeholder-feature-tagline">
-                    Paste an error log, AI explains root cause and suggests fix
-                </Text>
-                <div className="placeholder-feature-status">
-                    <ClockCircleOutlined />
-                    Coming Soon - Preview Mode
-                </div>
-            </div>
+            {/* Blue Header */}
+            <PageHeader
+                title="AI Code Debugger"
+                subtitle="Paste an error log, AI explains root cause and suggests fix"
+                icon={<BugOutlined />}
+            />
 
             <div className="placeholder-feature-content">
                 <div className="placeholder-feature-section">

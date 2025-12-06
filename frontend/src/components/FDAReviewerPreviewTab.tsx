@@ -7,6 +7,7 @@ import {
     BulbOutlined,
     SafetyOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './PlaceholderFeature.css';
 
 const { Title, Text } = Typography;
@@ -14,21 +15,12 @@ const { Title, Text } = Typography;
 const FDAReviewerPreviewTab = () => {
     return (
         <div className="placeholder-feature-container">
-            <div className="placeholder-feature-header">
-                <div className="placeholder-feature-icon submission-ai">
-                    <UserSwitchOutlined />
-                </div>
-                <Title level={2} className="placeholder-feature-title">
-                    FDA Reviewer Persona Preview
-                </Title>
-                <Text className="placeholder-feature-tagline">
-                    AI role-plays as an FDA reviewer to identify weak spots in your submission
-                </Text>
-                <div className="placeholder-feature-status">
-                    <ClockCircleOutlined />
-                    Coming Soon - Preview Mode
-                </div>
-            </div>
+            {/* Blue Header */}
+            <PageHeader
+                title="FDA Reviewer Persona"
+                subtitle="AI role-plays as an FDA reviewer to identify weak spots in your submission"
+                icon={<UserSwitchOutlined />}
+            />
 
             <div className="placeholder-feature-content">
                 <div className="placeholder-feature-section">

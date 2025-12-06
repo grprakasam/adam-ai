@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  Card, 
-  Steps, 
-  Button, 
-  Radio, 
-  Form, 
-  Input, 
-  Upload, 
-  message, 
-  Space, 
-  Typography, 
+import {
+  Card,
+  Steps,
+  Button,
+  Radio,
+  Form,
+  Input,
+  Upload,
+  message,
+  Space,
+  Typography,
   Alert,
   Spin,
   Divider,
@@ -29,6 +29,7 @@ import {
   DownloadOutlined,
   ReloadOutlined
 } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './TLFGeneratorTab.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -116,8 +117,8 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
         </Row>
 
         <div className="step-actions">
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             size="large"
             onClick={() => setCurrentStep(1)}
             disabled={!selectedType}
@@ -265,8 +266,8 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
             name="additional_context"
             tooltip="Any specific requirements, notes, or special instructions"
           >
-            <TextArea 
-              rows={4} 
+            <TextArea
+              rows={4}
               placeholder="e.g., Include footnotes for missing data, use specific formatting..."
             />
           </Form.Item>
@@ -276,8 +277,8 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
               <Button onClick={() => setCurrentStep(0)}>
                 Back
               </Button>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 htmlType="submit"
                 loading={analyzing}
                 size="large"
@@ -416,14 +417,14 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
 
         <div className="step-actions">
           <Space size="large">
-            <Button 
+            <Button
               icon={<ReloadOutlined />}
               onClick={handleReject}
               size="large"
             >
               Re-upload Document
             </Button>
-            <Button 
+            <Button
               type="primary"
               icon={<CheckCircleOutlined />}
               onClick={handleApprove}
@@ -491,7 +492,7 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
           <Paragraph>Your {selectedType} has been successfully generated</Paragraph>
         </div>
 
-        <Card 
+        <Card
           className="output-card"
           title={
             <Space>
@@ -510,7 +511,7 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
             </Space>
           }
         >
-          <div 
+          <div
             className="output-content"
             dangerouslySetInnerHTML={{ __html: generatedOutput.output }}
           />
@@ -531,7 +532,7 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
         </Card>
 
         <div className="step-actions">
-          <Button 
+          <Button
             size="large"
             onClick={() => {
               setCurrentStep(0);
@@ -559,16 +560,14 @@ export const TLFGeneratorTab: React.FC<TLFGeneratorTabProps> = ({ standalone = f
 
   return (
     <div className="tlf-generator-tab">
-      <div className="tlf-header">
-        <Title level={2}>
-          <RobotOutlined /> AI-Powered TLF Generator
-        </Title>
-        <Paragraph className="tlf-subtitle">
-          Create ADAM Tables, Listings, and Figures from mockshell documents using advanced AI
-        </Paragraph>
-      </div>
+      {/* Blue Header */}
+      <PageHeader
+        title="TLF Generator"
+        subtitle="Create Tables, Listings, and Figures from mockshell documents using AI"
+        icon={<RobotOutlined />}
+      />
 
-      <Card className="tlf-main-card">
+      <Card className="tlf-main-card" style={{ marginTop: 0, borderRadius: '0 0 8px 8px' }}>
         <Steps current={currentStep} items={steps} style={{ marginBottom: 32 }} />
 
         {currentStep === 0 && renderTypeSelection()}

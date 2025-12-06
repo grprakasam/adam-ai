@@ -7,6 +7,7 @@ import {
     HistoryOutlined,
     EyeOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './PlaceholderFeature.css';
 
 const { Title, Text } = Typography;
@@ -14,21 +15,12 @@ const { Title, Text } = Typography;
 const SpecComparisonTab = () => {
     return (
         <div className="placeholder-feature-container">
-            <div className="placeholder-feature-header">
-                <div className="placeholder-feature-icon specifications-ai">
-                    <DiffOutlined />
-                </div>
-                <Title level={2} className="placeholder-feature-title">
-                    Spec-to-Spec Comparison
-                </Title>
-                <Text className="placeholder-feature-tagline">
-                    Upload two spec versions, AI highlights semantic differences
-                </Text>
-                <div className="placeholder-feature-status">
-                    <ClockCircleOutlined />
-                    Coming Soon - Preview Mode
-                </div>
-            </div>
+            {/* Blue Header */}
+            <PageHeader
+                title="Spec Comparison"
+                subtitle="Upload two spec versions, AI highlights semantic differences"
+                icon={<DiffOutlined />}
+            />
 
             <div className="placeholder-feature-content">
                 <div className="placeholder-feature-section">

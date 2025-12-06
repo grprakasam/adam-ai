@@ -7,6 +7,7 @@ import {
     RocketOutlined,
     BarChartOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './PlaceholderFeature.css';
 
 const { Title, Text } = Typography;
@@ -14,21 +15,12 @@ const { Title, Text } = Typography;
 const CodeRefactorerTab = () => {
     return (
         <div className="placeholder-feature-container">
-            <div className="placeholder-feature-header">
-                <div className="placeholder-feature-icon coding-ai">
-                    <ThunderboltOutlined />
-                </div>
-                <Title level={2} className="placeholder-feature-title">
-                    Code Refactorer / Optimizer
-                </Title>
-                <Text className="placeholder-feature-tagline">
-                    Upload a SAS/R script, AI suggests optimizations for better performance
-                </Text>
-                <div className="placeholder-feature-status">
-                    <ClockCircleOutlined />
-                    Coming Soon - Preview Mode
-                </div>
-            </div>
+            {/* Blue Header */}
+            <PageHeader
+                title="Code Refactorer"
+                subtitle="Upload a SAS/R script, AI suggests optimizations for better performance"
+                icon={<ThunderboltOutlined />}
+            />
 
             <div className="placeholder-feature-content">
                 <div className="placeholder-feature-section">

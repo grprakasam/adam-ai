@@ -13,10 +13,11 @@ import {
   Typography,
   message,
 } from 'antd';
-import { CheckCircleOutlined, FilePdfOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CheckCircleOutlined, FilePdfOutlined, ReloadOutlined, CodeOutlined } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import { CodeReviewStatus, type VariableInfo, type CodeSnippetRequest } from '../types';
+import { PageHeader } from './PageHeader';
 import './CodeReviewTab.css';
 
 type VariableReviewState = 'pending' | 'approved' | 'changes_requested';
@@ -535,9 +536,8 @@ const CodeReviewTab: React.FC = () => {
                   <Card
                     key={row.key}
                     size="small"
-                    className={`variable-list-item${
-                      selectedRow && selectedRow.name === row.name ? ' variable-list-item-selected' : ''
-                    }`}
+                    className={`variable-list-item${selectedRow && selectedRow.name === row.name ? ' variable-list-item-selected' : ''
+                      }`}
                     onClick={() => setSelectedVariable(row.name)}
                     hoverable
                   >
@@ -653,8 +653,8 @@ const CodeReviewTab: React.FC = () => {
                             selectedRow.reviewState === 'approved'
                               ? 'accept'
                               : selectedRow.reviewState === 'changes_requested'
-                              ? 'modify'
-                              : null
+                                ? 'modify'
+                                : null
                           );
                         }
                       }}

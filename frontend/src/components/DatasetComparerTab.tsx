@@ -50,6 +50,7 @@ import {
   FileAddOutlined,
 } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
+import { PageHeader } from './PageHeader';
 import './DatasetComparerTab.css';
 
 const { Text, Title } = Typography;
@@ -636,21 +637,25 @@ export const DatasetComparerTab: React.FC = () => {
 
   return (
     <div className="dataset-comparer-tab">
-      {/* Header */}
-      <div className="dataset-comparer-header">
-        <Title level={3}>Dataset Comparer</Title>
-        <Space>
-          <Button
-            icon={<FileAddOutlined />}
-            onClick={loadSample}
-          >
-            Load Sample Datasets
-          </Button>
-          <Tooltip title="Help & Documentation">
-            <Button icon={<InfoCircleOutlined />} />
-          </Tooltip>
-        </Space>
-      </div>
+      {/* Blue Header */}
+      <PageHeader
+        title="Dataset Comparer"
+        subtitle="Compare Developer vs QC datasets with comprehensive validation"
+        icon={<FileExcelOutlined />}
+        actions={
+          <Space>
+            <Button
+              icon={<FileAddOutlined />}
+              onClick={loadSample}
+            >
+              Load Sample Datasets
+            </Button>
+            <Tooltip title="Help & Documentation">
+              <Button icon={<InfoCircleOutlined />} />
+            </Tooltip>
+          </Space>
+        }
+      />
 
       {/* Dataset Loading Section */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

@@ -7,6 +7,7 @@ import {
     DatabaseOutlined,
     SafetyOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './PlaceholderFeature.css';
 
 const { Title, Text } = Typography;
@@ -14,21 +15,12 @@ const { Title, Text } = Typography;
 const MissingSpecDetectorTab = () => {
     return (
         <div className="placeholder-feature-container">
-            <div className="placeholder-feature-header">
-                <div className="placeholder-feature-icon specifications-ai">
-                    <FileSearchOutlined />
-                </div>
-                <Title level={2} className="placeholder-feature-title">
-                    Missing Spec Detector
-                </Title>
-                <Text className="placeholder-feature-tagline">
-                    Upload dataset + specification Excel, AI flags discrepancies
-                </Text>
-                <div className="placeholder-feature-status">
-                    <ClockCircleOutlined />
-                    Coming Soon - Preview Mode
-                </div>
-            </div>
+            {/* Blue Header */}
+            <PageHeader
+                title="Spec Gap Detector"
+                subtitle="Upload dataset + specification, AI flags discrepancies"
+                icon={<FileSearchOutlined />}
+            />
 
             <div className="placeholder-feature-content">
                 <div className="placeholder-feature-section">

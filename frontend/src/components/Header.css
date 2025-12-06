@@ -5,9 +5,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   gap: 24px;
+
+  /* Sticky header behavior */
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .header-left {
@@ -228,9 +232,11 @@
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.7;
   }
+
   100% {
     opacity: 1;
   }
@@ -240,9 +246,11 @@
   0% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
+
   100% {
     opacity: 1;
   }

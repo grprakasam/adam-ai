@@ -41,6 +41,7 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons';
 import { api } from '../services/api';
+import { PageHeader } from './PageHeader';
 import './RFrontendTab.css';
 
 const { Panel } = Collapse;
@@ -288,7 +289,7 @@ export const RFrontendTab: React.FC = () => {
     a.download = `r_script_${Date.now()}.R`;
     a.style.display = 'none';
     a.setAttribute('aria-hidden', 'true');
-    
+
     // Try clicking without appending first (works in modern browsers)
     try {
       a.click();
@@ -305,11 +306,11 @@ export const RFrontendTab: React.FC = () => {
     } catch (clickError) {
       // Fallback: append to body
     }
-    
+
     // Fallback: append to body, click, then safely remove
     document.body.appendChild(a);
     a.click();
-    
+
     // Safely remove after a delay
     setTimeout(() => {
       try {
@@ -327,7 +328,7 @@ export const RFrontendTab: React.FC = () => {
         }
       }
     }, 100);
-    
+
     message.success('Code downloaded');
   };
 
@@ -365,16 +366,12 @@ export const RFrontendTab: React.FC = () => {
 
   return (
     <div className="r-frontend-container">
-      {/* Header */}
-      <div className="r-frontend-header">
-        <div className="header-left">
-          <ThunderboltOutlined style={{ fontSize: 24, color: '#1890ff' }} />
-          <div className="header-title">
-            <h2>R Frontend</h2>
-            <span className="header-subtitle">Professional R Execution Environment</span>
-          </div>
-        </div>
-        <div className="header-actions">
+      {/* Blue Header */}
+      <PageHeader
+        title="R Frontend"
+        subtitle="Professional R Execution Environment"
+        icon={<ThunderboltOutlined />}
+        actions={
           <Space size="middle">
             <Tooltip title="Download code (.R file)">
               <Button icon={<DownloadOutlined />} onClick={handleDownloadCode} size="small">
@@ -410,8 +407,8 @@ export const RFrontendTab: React.FC = () => {
               </Select>
             </Tooltip>
           </Space>
-        </div>
-      </div>
+        }
+      />
 
       {/* Info Banner */}
       <Alert

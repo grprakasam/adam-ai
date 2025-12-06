@@ -48,6 +48,7 @@ import {
 } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { compareCode } from '../services/api';
+import { PageHeader } from './PageHeader';
 import './CodeComparerTab.css';
 
 const { Text, Title } = Typography;
@@ -177,34 +178,34 @@ run;`,
 
 export const CodeComparerTab: React.FC = () => {
   const { projectConfig } = useProjectStore();
-  
+
   // Input state
   const [code1, setCode1] = useState('');
   const [code2, setCode2] = useState('');
   const [language1, setLanguage1] = useState<'sas' | 'r' | 'auto'>('auto');
   const [language2, setLanguage2] = useState<'sas' | 'r' | 'auto'>('auto');
-  
+
   // Comparison options
   const [comparisonMode, setComparisonMode] = useState<'quick' | 'standard' | 'deep'>('standard');
   const [ignoreWhitespace, setIgnoreWhitespace] = useState(true);
   const [ignoreComments, setIgnoreComments] = useState(false);
   const [caseSensitive, setCaseSensitive] = useState(false);
-  
+
   // UI state
   const [isComparing, setIsComparing] = useState(false);
   const [showOnlyDifferences, setShowOnlyDifferences] = useState(false);
   const [activeDifferenceId, setActiveDifferenceId] = useState<string | null>(null);
   const [activePanels, setActivePanels] = useState<string[]>(['summary', 'top-differences']);
   const [severityFilter, setSeverityFilter] = useState<string[]>([]);
-  
+
   // Results
   const [result, setResult] = useState<CodeComparisonResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Editor refs
   const diffEditorRef = useRef<editor.IDiffEditor | null>(null);
   const [diffNavigator, setDiffNavigator] = useState<any>(null);
-  
+
   const filteredDifferences = useMemo(() => {
     if (!result) return [];
     let diffs = result.differences;
@@ -213,25 +214,25 @@ export const CodeComparerTab: React.FC = () => {
     }
     return diffs;
   }, [result, severityFilter]);
-  
+
   const topDifferences = useMemo(() => {
     if (filteredDifferences.length > 0) {
       return filteredDifferences.slice(0, 3);
     }
     return result ? result.differences.slice(0, 3) : [];
   }, [filteredDifferences, result]);
-  
+
   // Handle comparison
   const handleCompare = useCallback(async () => {
     if (!code1.trim() || !code2.trim()) {
       message.warning('Please provide both code snippets to compare');
       return;
     }
-    
+
     setIsComparing(true);
     setError(null);
     setResult(null);
-    
+
     try {
       const response = await compareCode({
         code_1: code1,
@@ -249,23 +250,23 @@ export const CodeComparerTab: React.FC = () => {
           dataset: projectConfig.adamDataset,
         } : undefined,
       });
-      
-        setResult(response);
-        message.success('Comparison completed successfully');
-        
-        // Auto-expand top differences
-        if (response.differences.length > 0) {
-          setActivePanels(['summary', 'top-differences']);
-        }
-      } catch (err: any) {
-        const errorMsg = err.message || 'Comparison failed';
-        setError(errorMsg);
-        message.error(errorMsg);
-      } finally {
-        setIsComparing(false);
+
+      setResult(response);
+      message.success('Comparison completed successfully');
+
+      // Auto-expand top differences
+      if (response.differences.length > 0) {
+        setActivePanels(['summary', 'top-differences']);
       }
+    } catch (err: any) {
+      const errorMsg = err.message || 'Comparison failed';
+      setError(errorMsg);
+      message.error(errorMsg);
+    } finally {
+      setIsComparing(false);
+    }
   }, [code1, code2, language1, language2, comparisonMode, ignoreWhitespace, ignoreComments, caseSensitive, projectConfig]);
-  
+
   // Load sample program
   const loadSample = useCallback((sampleKey: keyof typeof SAMPLE_PROGRAMS) => {
     const sample = SAMPLE_PROGRAMS[sampleKey];
@@ -275,38 +276,38 @@ export const CodeComparerTab: React.FC = () => {
     setLanguage2(sample.language2 as 'sas' | 'r');
     message.info('Sample program loaded. Click "Compare" to analyze.');
   }, []);
-  
+
   // Navigate to difference
   const navigateToDifference = useCallback((differenceId: string, difference: any) => {
     setActiveDifferenceId(differenceId);
-    
+
     if (diffEditorRef.current && difference.code1_span) {
       const line = difference.code1_span.start_line;
       diffEditorRef.current.getOriginalEditor().revealLineInCenter(line);
       diffEditorRef.current.getModifiedEditor().revealLineInCenter(difference.code2_span?.start_line || line);
     }
   }, []);
-  
+
   // Navigate next/previous difference
   const navigateDifference = useCallback((direction: 'next' | 'prev') => {
     const sourceDiffs = filteredDifferences.length ? filteredDifferences : (result?.differences ?? []);
     if (!result || sourceDiffs.length === 0) return;
-    
+
     const currentIndex = sourceDiffs.findIndex(d => d.id === activeDifferenceId);
     let newIndex: number;
-    
+
     if (direction === 'next') {
       newIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % sourceDiffs.length;
     } else {
-      newIndex = currentIndex === -1 
-        ? sourceDiffs.length - 1 
+      newIndex = currentIndex === -1
+        ? sourceDiffs.length - 1
         : (currentIndex - 1 + sourceDiffs.length) % sourceDiffs.length;
     }
-    
+
     const diff = sourceDiffs[newIndex];
     navigateToDifference(diff.id, diff);
   }, [result, filteredDifferences, activeDifferenceId, navigateToDifference]);
-  
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -321,51 +322,51 @@ export const CodeComparerTab: React.FC = () => {
         setShowOnlyDifferences(prev => !prev);
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [navigateDifference]);
-  
+
   // DiffEditor mount handler
   const handleEditorMount = useCallback((editor: editor.IDiffEditor) => {
     diffEditorRef.current = editor;
 
     // Create diff navigator
-      try {
-        if (window.monaco && window.monaco.editor && typeof window.monaco.editor.createDiffNavigator === 'function') {
-          const navigator = window.monaco.editor.createDiffNavigator(editor, {
-            followsCaret: true,
-            ignoreCharChanges: true,
-          });
-          setDiffNavigator(navigator);
-        }
-      } catch (error) {
-        console.warn('Failed to create diff navigator:', error);
-        // Navigator is optional, continue without it
+    try {
+      if (window.monaco && window.monaco.editor && typeof window.monaco.editor.createDiffNavigator === 'function') {
+        const navigator = window.monaco.editor.createDiffNavigator(editor, {
+          followsCaret: true,
+          ignoreCharChanges: true,
+        });
+        setDiffNavigator(navigator);
       }
-    }, []);
-    
-    const diffEditorOptions = useMemo(() => ({
-      readOnly: true,
-      renderSideBySide: !showOnlyDifferences,
-      minimap: { enabled: !showOnlyDifferences && code1.length < 10000 && code2.length < 10000 },
-      fontSize: 13,
-      wordWrap: 'off',
-      scrollBeyondLastLine: false,
-      accessibilitySupport: 'on',
-      ariaLabel: 'Code comparison diff editor',
-    }), [showOnlyDifferences, code1.length, code2.length]);
-    
-    // Get severity color
-    const getSeverityColor = (severity: string) => {
-      switch (severity) {
-        case 'critical': return 'red';
-        case 'important': return 'orange';
+    } catch (error) {
+      console.warn('Failed to create diff navigator:', error);
+      // Navigator is optional, continue without it
+    }
+  }, []);
+
+  const diffEditorOptions = useMemo(() => ({
+    readOnly: true,
+    renderSideBySide: !showOnlyDifferences,
+    minimap: { enabled: !showOnlyDifferences && code1.length < 10000 && code2.length < 10000 },
+    fontSize: 13,
+    wordWrap: 'off',
+    scrollBeyondLastLine: false,
+    accessibilitySupport: 'on',
+    ariaLabel: 'Code comparison diff editor',
+  }), [showOnlyDifferences, code1.length, code2.length]);
+
+  // Get severity color
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'red';
+      case 'important': return 'orange';
       case 'minor': return 'blue';
       default: return 'default';
     }
   };
-  
+
   // Export menu
   const exportMenu: MenuProps = {
     items: [
@@ -400,7 +401,7 @@ export const CodeComparerTab: React.FC = () => {
       },
     ],
   };
-  
+
   // Sample programs menu
   const sampleMenu: MenuProps = {
     items: Object.entries(SAMPLE_PROGRAMS).map(([key, sample]) => ({
@@ -409,34 +410,33 @@ export const CodeComparerTab: React.FC = () => {
       onClick: () => loadSample(key as keyof typeof SAMPLE_PROGRAMS),
     })),
   };
-  
-    return (
-      <div className="code-comparer-tab" role="region" aria-label="Code comparer workspace">
-      {/* Header */}
-      <div className="code-comparer-header">
-        <div className="header-title-section">
-          <Title level={3} style={{ margin: 0 }}>
-            Code Comparer
-          </Title>
-          <Text type="secondary">Compare SAS/R programs for ADaM datasets</Text>
-        </div>
-        <Space>
-          <Select
-            value={comparisonMode}
-            onChange={setComparisonMode}
-            style={{ width: 150 }}
-            size="large"
-          >
-            <Option value="quick">Quick</Option>
-            <Option value="standard">Standard (Default)</Option>
-            <Option value="deep">Deep Analysis</Option>
-          </Select>
-          <Tooltip title="Settings">
-            <Button icon={<SettingOutlined />} />
-          </Tooltip>
-        </Space>
-      </div>
-      
+
+  return (
+    <div className="code-comparer-tab" role="region" aria-label="Code comparer workspace">
+      {/* Blue Header */}
+      <PageHeader
+        title="Code Comparer"
+        subtitle="Compare SAS/R programs for ADaM datasets"
+        icon={<FileTextOutlined />}
+        actions={
+          <Space>
+            <Select
+              value={comparisonMode}
+              onChange={setComparisonMode}
+              style={{ width: 150 }}
+              size="large"
+            >
+              <Option value="quick">Quick</Option>
+              <Option value="standard">Standard (Default)</Option>
+              <Option value="deep">Deep Analysis</Option>
+            </Select>
+            <Tooltip title="Settings">
+              <Button icon={<SettingOutlined />} />
+            </Tooltip>
+          </Space>
+        }
+      />
+
       {/* Context Bar */}
       {projectConfig?.studyId && (
         <Alert
@@ -463,7 +463,7 @@ export const CodeComparerTab: React.FC = () => {
           style={{ marginBottom: 16 }}
         />
       )}
-      
+
       {/* Editors Section */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={12}>
@@ -542,7 +542,7 @@ export const CodeComparerTab: React.FC = () => {
           </Card>
         </Col>
       </Row>
-      
+
       {/* Action Bar */}
       <div className="code-comparer-action-bar">
         <Space align="center" wrap>
@@ -610,11 +610,11 @@ export const CodeComparerTab: React.FC = () => {
           {isComparing
             ? 'Comparing code...'
             : result
-            ? `${severityFilter.length ? filteredDifferences.length : result.summary.total_differences} differences found${severityFilter.length ? ' (after filter)' : ''}`
-            : 'Ready to compare'}
+              ? `${severityFilter.length ? filteredDifferences.length : result.summary.total_differences} differences found${severityFilter.length ? ' (after filter)' : ''}`
+              : 'Ready to compare'}
         </div>
       </div>
-      
+
       {/* Diff Editor (shown after comparison) */}
       {result && (
         <Card
@@ -626,19 +626,19 @@ export const CodeComparerTab: React.FC = () => {
             </Text>
           }
         >
-            <div style={{ height: '400px', border: '1px solid #d9d9d9' }}>
-              <DiffEditor
-                original={code1}
-                modified={code2}
-                language={result.metadata.language_1 === 'r' ? 'r' : 'sas'}
-                theme="vs"
-                options={diffEditorOptions}
-                onMount={handleEditorMount}
-              />
-            </div>
-          </Card>
-        )}
-      
+          <div style={{ height: '400px', border: '1px solid #d9d9d9' }}>
+            <DiffEditor
+              original={code1}
+              modified={code2}
+              language={result.metadata.language_1 === 'r' ? 'r' : 'sas'}
+              theme="vs"
+              options={diffEditorOptions}
+              onMount={handleEditorMount}
+            />
+          </div>
+        </Card>
+      )}
+
       {/* Results Panel */}
       {error && (
         <Alert
@@ -651,7 +651,7 @@ export const CodeComparerTab: React.FC = () => {
           style={{ marginBottom: 16 }}
         />
       )}
-      
+
       {result && (
         <Collapse
           activeKey={activePanels}
@@ -712,30 +712,29 @@ export const CodeComparerTab: React.FC = () => {
               </Col>
             </Row>
           </Panel>
-          
+
           {/* Top Differences */}
-            <Panel
-              key="top-differences"
-              header={
-                <Space>
-                  <WarningOutlined />
-                  <span>Top Differences</span>
-                  <Tag>
-                    ({Math.min(3, severityFilter.length ? filteredDifferences.length : result.differences.length)} of {severityFilter.length ? filteredDifferences.length : result.differences.length})
-                  </Tag>
-                </Space>
-              }
-            >
-              {topDifferences.map((diff) => (
-                <Card
-                  key={diff.id}
-                  size="small"
-                  style={{
-                    marginBottom: 12,
-                  borderLeft: `4px solid ${
-                    diff.severity === 'critical' ? '#ff4d4f' :
+          <Panel
+            key="top-differences"
+            header={
+              <Space>
+                <WarningOutlined />
+                <span>Top Differences</span>
+                <Tag>
+                  ({Math.min(3, severityFilter.length ? filteredDifferences.length : result.differences.length)} of {severityFilter.length ? filteredDifferences.length : result.differences.length})
+                </Tag>
+              </Space>
+            }
+          >
+            {topDifferences.map((diff) => (
+              <Card
+                key={diff.id}
+                size="small"
+                style={{
+                  marginBottom: 12,
+                  borderLeft: `4px solid ${diff.severity === 'critical' ? '#ff4d4f' :
                     diff.severity === 'important' ? '#fa8c16' : '#1890ff'
-                  }`,
+                    }`,
                   cursor: 'pointer',
                 }}
                 onClick={() => navigateToDifference(diff.id, diff)}
@@ -762,30 +761,29 @@ export const CodeComparerTab: React.FC = () => {
                 </Space>
               </Card>
             ))}
-            </Panel>
-            
-            {/* All Differences */}
-            {(filteredDifferences.length > 0 ? filteredDifferences.length > 3 : result.differences.length > 3) && (
-              <Panel
-                key="all-differences"
-                header={
-                  <Space>
-                    <FileTextOutlined />
-                    <span>All Differences</span>
-                    <Tag>({filteredDifferences.length || result.differences.length} total)</Tag>
-                  </Space>
-                }
-              >
-                {(filteredDifferences.length ? filteredDifferences : result.differences).map((diff) => (
-                  <Card
-                    key={diff.id}
-                    size="small"
-                    style={{
-                      marginBottom: 8,
-                    borderLeft: `3px solid ${
-                      diff.severity === 'critical' ? '#ff4d4f' :
+          </Panel>
+
+          {/* All Differences */}
+          {(filteredDifferences.length > 0 ? filteredDifferences.length > 3 : result.differences.length > 3) && (
+            <Panel
+              key="all-differences"
+              header={
+                <Space>
+                  <FileTextOutlined />
+                  <span>All Differences</span>
+                  <Tag>({filteredDifferences.length || result.differences.length} total)</Tag>
+                </Space>
+              }
+            >
+              {(filteredDifferences.length ? filteredDifferences : result.differences).map((diff) => (
+                <Card
+                  key={diff.id}
+                  size="small"
+                  style={{
+                    marginBottom: 8,
+                    borderLeft: `3px solid ${diff.severity === 'critical' ? '#ff4d4f' :
                       diff.severity === 'important' ? '#fa8c16' : '#1890ff'
-                    }`,
+                      }`,
                     cursor: 'pointer',
                   }}
                   onClick={() => navigateToDifference(diff.id, diff)}
@@ -801,23 +799,23 @@ export const CodeComparerTab: React.FC = () => {
                     )}
                   </Space>
                 </Card>
-                ))}
-              </Panel>
-            )}
-            
-            {result && filteredDifferences.length === 0 && severityFilter.length > 0 && (
-              <Alert
-                message="No differences match the selected severity filter"
-                type="info"
-                showIcon
-                style={{ marginBottom: 12 }}
-              />
-            )}
-            
-            {/* ADaM Insights (Deep mode only) */}
-            {result.adam_insights && (
-              <Panel
-                key="adam-insights"
+              ))}
+            </Panel>
+          )}
+
+          {result && filteredDifferences.length === 0 && severityFilter.length > 0 && (
+            <Alert
+              message="No differences match the selected severity filter"
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+            />
+          )}
+
+          {/* ADaM Insights (Deep mode only) */}
+          {result.adam_insights && (
+            <Panel
+              key="adam-insights"
               header={
                 <Space>
                   <CheckCircleOutlined />
@@ -843,7 +841,7 @@ export const CodeComparerTab: React.FC = () => {
               )}
             </Panel>
           )}
-          
+
           {/* Syntax Issues */}
           {result.syntax_issues.length > 0 && (
             <Panel
@@ -870,7 +868,7 @@ export const CodeComparerTab: React.FC = () => {
           )}
         </Collapse>
       )}
-      
+
       {/* Empty State */}
       {!result && !isComparing && (
         <Card>

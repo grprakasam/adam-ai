@@ -23,6 +23,7 @@ import {
   TableOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
+import { PageHeader } from './PageHeader';
 import './AdamAnalyticsTab.css';
 import {
   uploadAdamAnalyticsFiles,
@@ -261,7 +262,14 @@ export const AdamAnalyticsTab: React.FC = () => {
 
   return (
     <div className="adam-analytics-tab">
-      <Row gutter={16}>
+      {/* Blue Header */}
+      <PageHeader
+        title="ADAM Analytics"
+        subtitle="Role-based analytics and insights for ADaM datasets"
+        icon={<LineChartOutlined />}
+      />
+
+      <Row gutter={16} style={{ marginTop: 16 }}>
         {/* Left: Upload + Datasets */}
         <Col xs={24} lg={7}>
           <Card
