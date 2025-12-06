@@ -65,36 +65,112 @@ export function findSpecificationDocument(documents: StudyDocument[]): StudyDocu
 }
 
 /**
- * Clear all study-specific AI-generated data from the projectStore.
+ * Clear all study-specific AI-generated data from the projectStore and backend caches.
  * This should be called when switching studies to prevent stale data.
+ * 
+ * CRITICAL: This function ensures data isolation between studies.
+ * When a user switches studies, ALL cached and generated data must be cleared
+ * to prevent showing data from the previous study.
  */
-export function clearStudySpecificData(): void {
+export function clearStudySpecificData(previousStudyId?: string): void {
     const projectStore = useProjectStore.getState();
 
-    console.log('[studyDocumentSync] Clearing study-specific data...');
+    console.log('[studyDocumentSync] === CLEARING ALL STUDY-SPECIFIC DATA ===');
+    console.log('[studyDocumentSync] Previous study ID:', previousStudyId || 'unknown');
 
-    // Clear the traceability matrix
+    // 1. TRACEABILITY: Clear traceability matrix and related state
+    console.log('[studyDocumentSync] Clearing traceability data...');
     if (typeof projectStore.clearTraceability === 'function') {
         projectStore.clearTraceability();
     } else {
-        // Fallback if method doesn't exist
         projectStore.setTraceabilityMatrix?.(null);
         projectStore.setTraceabilityError?.(null);
     }
+    projectStore.setSelectedTraceabilityVariable?.(null);
 
-    // Clear categorized variables
+    // 2. CATEGORIZED VARIABLES: Clear specification parsing results
+    console.log('[studyDocumentSync] Clearing categorized variables...');
     projectStore.setCategorizedVariables(null);
 
-    // Clear pair programming snippets
-    projectStore.clearAllAIResults?.();
+    // 3. PAIR PROGRAMMING: Clear AI-generated code snippets
+    console.log('[studyDocumentSync] Clearing AI results and code snippets...');
+    if (typeof projectStore.clearAllAIResults === 'function') {
+        projectStore.clearAllAIResults();
+    }
 
-    // Clear consolidated code
-    projectStore.resetConsolidated?.();
+    // 4. CONSOLIDATED CODE: Clear consolidated code output
+    console.log('[studyDocumentSync] Clearing consolidated code...');
+    if (typeof projectStore.resetConsolidated === 'function') {
+        projectStore.resetConsolidated();
+    }
 
-    // Clear specification file (will be set again from new study)
+    // 5. SPECIFICATION FILE: Clear to be reloaded from new study
+    console.log('[studyDocumentSync] Clearing specification file...');
     projectStore.setSpecificationFile(null);
 
-    console.log('[studyDocumentSync] Study-specific data cleared');
+    // 6. VALIDATION RESULTS: Clear any cached validation data
+    // Note: These are typically set through validation actions, not direct setters
+    // The validation store manages its own state during validation runs
+    console.log('[studyDocumentSync] Clearing validation and submission data...');
+    if (typeof (projectStore as any).setSubmissionReadinessScore === 'function') {
+        (projectStore as any).setSubmissionReadinessScore(null);
+    }
+
+    // 7. GENERATION STATE: Reset generation flags
+    console.log('[studyDocumentSync] Resetting generation states...');
+    if (typeof projectStore.cleanupGenerationStates === 'function') {
+        projectStore.cleanupGenerationStates();
+    }
+    projectStore.setIsGenerating?.(false);
+    projectStore.setIsGeneratingTraceability?.(false);
+
+    // 8. BACKEND CACHE: Clear backend caches for the previous study (fire and forget)
+    if (previousStudyId) {
+        console.log('[studyDocumentSync] Requesting backend cache clear for study:', previousStudyId);
+        clearBackendStudyCaches(previousStudyId).catch(err => {
+            console.warn('[studyDocumentSync] Backend cache clear failed:', err);
+        });
+    }
+
+    console.log('[studyDocumentSync] === STUDY DATA CLEAR COMPLETE ===');
+
+    // Dispatch event to notify components
+    window.dispatchEvent(new CustomEvent('study-data-cleared', {
+        detail: { previousStudyId, timestamp: Date.now() }
+    }));
+}
+
+/**
+ * Clear backend caches for a specific study.
+ * This ensures the backend doesn't serve stale cached data.
+ */
+async function clearBackendStudyCaches(studyId: string): Promise<void> {
+    try {
+        // Use the unified cache clearing API
+        const response = await fetch(`/api/v1/cache/study/${studyId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('[studyDocumentSync] Backend cache cleared:', result);
+        } else {
+            console.warn('[studyDocumentSync] Backend cache clear returned non-ok status:', response.status);
+        }
+    } catch (error) {
+        // Fallback: try clearing individual dataset caches
+        console.warn('[studyDocumentSync] Unified cache clear failed, trying fallback:', error);
+        const datasets = ['ADSL', 'ADAE', 'ADLB', 'ADVS', 'ADCM'];
+        await Promise.allSettled(datasets.map(dataset =>
+            fetch(`/api/v1/traceability/${studyId}/${dataset}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' }
+            }).catch(() => { /* ignore */ })
+        ));
+    }
+
+    console.log('[studyDocumentSync] Backend caches cleared for study:', studyId);
 }
 
 /**
@@ -216,12 +292,20 @@ export function selectSpecificationDocument(documentId: string): boolean {
  * when study documents are loaded.
  */
 export function setupStudyDocumentSync(): () => void {
+    // Track the current study ID to detect changes
+    let previousTrackedStudyId: string | null = null;
+
     const handleStudyChanged = (event: CustomEvent<{ studyId: string }>) => {
         const { studyId } = event.detail;
         console.log('[studyDocumentSync] Study changed event received:', studyId);
+        console.log('[studyDocumentSync] Previous study:', previousTrackedStudyId);
 
-        // Clear old study-specific data immediately
-        clearStudySpecificData();
+        // Clear old study-specific data immediately, passing the previous study ID
+        // This ensures backend caches are also invalidated
+        clearStudySpecificData(previousTrackedStudyId || undefined);
+
+        // Update tracked study ID
+        previousTrackedStudyId = studyId;
 
         // Wait a short time for documents to be loaded
         setTimeout(() => {

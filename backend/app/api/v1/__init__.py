@@ -34,6 +34,8 @@ from app.api.v1.endpoints import (
     study_documents,
     study_chat,
     admin,
+    cache,
+    spec_comparison,
 )
 from app.api import auth_routes, validation_routes, performance_routes, review_routes
 
@@ -76,6 +78,8 @@ api_router.include_router(studies.router, tags=["studies"])
 api_router.include_router(study_documents.router, tags=["study-documents"])
 api_router.include_router(study_chat.router, tags=["study-chat"])
 api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+api_router.include_router(cache.router, prefix="/cache", tags=["cache-management"])
+api_router.include_router(spec_comparison.router, prefix="/spec-comparison", tags=["spec-comparison"])
 
 
 @api_router.get("/status")
