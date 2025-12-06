@@ -2,7 +2,6 @@ import React from 'react';
 import { Button, Space, Tooltip } from 'antd';
 import { HomeOutlined, MenuOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import { NotificationBell } from './NotificationBell';
-import { SearchButton } from './SearchButton';
 import { DarkModeToggle } from './DarkModeToggle';
 import { LayoutSwitcher } from './LayoutSwitcher';
 import { UserMenu } from './UserMenu';
@@ -123,38 +122,24 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </Button>
           )}
           <div className="app-brand">
-            <div className="app-brand-title">ADAM AI</div>
-            <div className="app-brand-subtitle hide-mobile">{isOnLandingPage ? 'Workspace' : 'Workspace'}</div>
+            <div className="app-brand-title">Ephicacy Clinical AI</div>
+            <div className="app-brand-subtitle hide-mobile">Workspace</div>
           </div>
-
-          {/* Study Section - Always visible when showStudySelector is true */}
-          {showStudySelector && (
-            <div className="app-header-study-section hide-mobile">
-              {onStudyChange && (
-                <StudySelector
-                  value={currentStudyId}
-                  onChange={onStudyChange}
-                  showCreateButton={false}
-                  compact={isOnLandingPage}
-                />
-              )}
-              {onCreateStudy && (
-                <Tooltip title="Create New Study">
-                  <Button
-                    className="create-study-icon-btn"
-                    icon={<PlusCircleOutlined />}
-                    onClick={onCreateStudy}
-                    type="text"
-                    size="middle"
-                    aria-label="Create new study"
-                  />
-                </Tooltip>
-              )}
-            </div>
-          )}
 
           {/* AI Configuration Status - in left section */}
           {showWorkspaceControls && <AIConfigStatus className="hide-mobile" />}
+        </div>
+
+        {/* Center: Study Badge (Interactive) */}
+        <div className="app-header-center">
+          {showStudySelector && (
+            <StudySelector
+              value={currentStudyId}
+              onChange={onStudyChange}
+              showCreateButton={false}
+              variant="hero"
+            />
+          )}
         </div>
 
         <div className="app-header-right">
@@ -163,11 +148,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <div className="identity-line">
                 User: {normalizedUser?.name || '—'}
               </div>
-              <div className="identity-line">
-                Study: {displayStudyId || 'None selected'}
-              </div>
             </div>
-            <div className="hide-mobile"><SearchButton /></div>
             <div className="hide-mobile"><NotificationBell /></div>
             <LayoutSwitcher />
             <DarkModeToggle />
@@ -175,6 +156,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           </Space>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
+

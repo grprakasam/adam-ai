@@ -15,7 +15,6 @@ import {
   ThunderboltOutlined,
   LockFilled,
   EyeInvisibleOutlined,
-  SafetyOutlined,
   SecurityScanOutlined,
 } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
@@ -70,7 +69,6 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
   const [selectedOllamaModel, setSelectedOllamaModel] = useState<string>('llama3.2');
   const [loadingModels, setLoadingModels] = useState(false);
   const [, setModelError] = useState<string | null>(null);
-  const [isHovering, setIsHovering] = useState(false);
 
   // Check Ollama connection
   const checkOllamaConnection = useCallback(async () => {
@@ -273,269 +271,201 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
   return (
     <div
       className={`ai-config-wrapper ${aiMode === 'offline' ? 'ai-config-offline-active' : ''} ${className || ''}`}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
     >
+      {/* Main Container */}
       {/* Main Container */}
       <div className={`ai-config-status ${aiMode === 'offline' ? 'ai-config-offline-mode' : ''}`}>
 
-        {/* Mode Toggle Section - Innovative Design */}
-        <div className="ai-mode-toggle-wrapper">
-          {/* Cloud Mode Button */}
-          <button
-            className={`ai-mode-btn ${aiMode === 'cloud' ? 'ai-mode-btn-active' : ''}`}
-            onClick={() => handleModeChange('cloud')}
-          >
-            <div className="ai-mode-btn-icon">
-              <CloudOutlined />
-              <ThunderboltOutlined className="ai-mode-accent" />
-            </div>
-            <span className="ai-mode-btn-label">Cloud API</span>
-            {aiMode === 'cloud' && <div className="ai-mode-active-indicator" />}
-          </button>
-
-          {/* Divider */}
-          <div className="ai-mode-divider">
-            <span>or</span>
+        {/* Row 1: Title and Modes */}
+        <div className="ai-config-row-top" style={{ display: 'flex', alignItems: 'center', width: '100%', borderBottom: '1px solid #f0f0f0' }}>
+          <div className="ai-section-title">AI Settings</div>
+          <div className="ai-mode-toggle-wrapper">
+            <button
+              className={`ai-mode-btn ${aiMode === 'cloud' ? 'ai-mode-btn-active' : ''}`}
+              onClick={() => handleModeChange('cloud')}
+            >
+              <div className="ai-mode-btn-icon">
+                <CloudOutlined />
+                <ThunderboltOutlined className="ai-mode-accent" />
+              </div>
+              <span className="ai-mode-btn-label">Cloud API</span>
+              {aiMode === 'cloud' && <div className="ai-mode-active-indicator" />}
+            </button>
+            <div className="ai-mode-divider"><span>or</span></div>
+            <button
+              className={`ai-mode-btn ai-mode-btn-secure ${aiMode === 'offline' ? 'ai-mode-btn-active ai-mode-btn-glow' : ''}`}
+              onClick={() => handleModeChange('offline')}
+            >
+              <div className="ai-secure-bg-shield"><SafetyCertificateOutlined /></div>
+              <div className="ai-security-orbs">
+                <span className="orb orb-1" />
+                <span className="orb orb-2" />
+                <span className="orb orb-3" />
+              </div>
+              <div className="ai-mode-btn-icon ai-mode-secure-icon"><LockFilled /></div>
+              <div className="ai-mode-secure-content">
+                <span className="ai-mode-btn-label">Secure Offline</span>
+                <span className="ai-mode-secure-tag"><EyeInvisibleOutlined /> 100% Private</span>
+              </div>
+              {aiMode === 'offline' && <div className="ai-mode-active-indicator ai-mode-secure-indicator" />}
+            </button>
           </div>
-
-          {/* Secure Offline Mode - FEATURED USP */}
-          <button
-            className={`ai-mode-btn ai-mode-btn-secure ${aiMode === 'offline' ? 'ai-mode-btn-active ai-mode-btn-glow' : ''}`}
-            onClick={() => handleModeChange('offline')}
-          >
-            {/* Animated Background Shield */}
-            <div className="ai-secure-bg-shield">
-              <SafetyCertificateOutlined />
-            </div>
-
-            {/* Floating Security Orbs */}
-            <div className="ai-security-orbs">
-              <span className="orb orb-1" />
-              <span className="orb orb-2" />
-              <span className="orb orb-3" />
-            </div>
-
-            <div className="ai-mode-btn-icon ai-mode-secure-icon">
-              <LockFilled />
-            </div>
-            <div className="ai-mode-secure-content">
-              <span className="ai-mode-btn-label">Secure Offline</span>
-              <span className="ai-mode-secure-tag">
-                <EyeInvisibleOutlined />
-                100% Private
-              </span>
-            </div>
-
-            {/* Premium USP Badge */}
-            <div className="ai-usp-floating-badge">
-              <SafetyCertificateOutlined />
-              <span>HIPAA</span>
-            </div>
-
-            {aiMode === 'offline' && <div className="ai-mode-active-indicator ai-mode-secure-indicator" />}
-          </button>
         </div>
 
-        <div className="ai-config-divider-vertical" />
-
-        {/* Configuration Panel */}
-        <div className="ai-config-panel">
-          {aiMode === 'cloud' ? (
-            /* Cloud Mode Config */
-            <div className="ai-cloud-config">
-              <Select
-                value={llmProvider}
-                onChange={handleProviderChange}
-                className="ai-provider-select"
-                dropdownMatchSelectWidth={180}
-                size="small"
-                suffixIcon={<DownOutlined style={{ fontSize: 10, color: '#64748b' }} />}
-              >
-                {CLOUD_PROVIDERS.map((provider) => (
-                  <Option key={provider.value} value={provider.value}>
-                    <div className="provider-option">
-                      {provider.icon}
-                      <span>{provider.label}</span>
-                    </div>
-                  </Option>
-                ))}
-              </Select>
-
-              {llmProvider === 'openrouter' && (
+        {/* Row 2: Controls and Status */}
+        <div className="ai-config-row-bottom" style={{ display: 'flex', alignItems: 'center', width: '100%', padding: '4px 0' }}>
+          <div className="ai-config-panel">
+            {aiMode === 'cloud' ? (
+              <div className="ai-cloud-config">
                 <Select
-                  showSearch
-                  value={selectedModel || undefined}
-                  onChange={(value) => setSelectedModel(value)}
-                  className="ai-model-select"
-                  loading={loadingModels}
-                  placeholder="Model"
-                  optionFilterProp="label"
+                  value={llmProvider}
+                  onChange={handleProviderChange}
+                  className="ai-provider-select"
+                  dropdownMatchSelectWidth={180}
                   size="small"
                   suffixIcon={<DownOutlined style={{ fontSize: 10, color: '#64748b' }} />}
                 >
-                  {availableModels.map((model) => (
-                    <Option key={model.id} value={model.id} label={model.name}>
+                  {CLOUD_PROVIDERS.map((provider) => (
+                    <Option key={provider.value} value={provider.value}>
                       <div className="provider-option">
-                        <RocketOutlined />
-                        <span>{model.name}</span>
+                        {provider.icon}
+                        <span>{provider.label}</span>
                       </div>
                     </Option>
                   ))}
                 </Select>
-              )}
-            </div>
-          ) : (
-            /* Offline Mode Config - Security Vault Theme */
-            <div className="ai-offline-config">
-              <div className="ai-vault-status-card">
-                <div className="ai-vault-icon-container">
-                  <DesktopOutlined className="ai-vault-icon" />
-                  <div className="ai-vault-pulse-ring" />
-                  <div className="ai-vault-pulse-ring ai-vault-pulse-ring-2" />
-                </div>
-                <div className="ai-vault-info">
-                  <span className="ai-vault-title">Local AI Engine</span>
-                  <span className="ai-vault-subtitle">
-                    {ollamaStatus === 'connected' ? (
-                      <>
-                        <SafetyCertificateOutlined className="ai-vault-protected-icon" />
-                        Protected
-                      </>
-                    ) : ollamaStatus === 'checking' ? (
-                      'Securing...'
-                    ) : (
-                      'Checking...'
-                    )}
-                  </span>
-                </div>
+                {llmProvider === 'openrouter' && (
+                  <Select
+                    showSearch
+                    value={selectedModel || undefined}
+                    onChange={(value) => setSelectedModel(value)}
+                    className="ai-model-select"
+                    loading={loadingModels}
+                    placeholder="Model"
+                    optionFilterProp="label"
+                    size="small"
+                    suffixIcon={<DownOutlined style={{ fontSize: 10, color: '#64748b' }} />}
+                  >
+                    {availableModels.map((model) => (
+                      <Option key={model.id} value={model.id} label={model.name}>
+                        <div className="provider-option">
+                          <RocketOutlined />
+                          <span>{model.name}</span>
+                        </div>
+                      </Option>
+                    ))}
+                  </Select>
+                )}
               </div>
+            ) : (
+              <div className="ai-offline-config">
+                <div className="ai-vault-status-card">
+                  <div className="ai-vault-icon-container">
+                    <DesktopOutlined className="ai-vault-icon" />
+                    <div className="ai-vault-pulse-ring" />
+                    <div className="ai-vault-pulse-ring ai-vault-pulse-ring-2" />
+                  </div>
+                  <div className="ai-vault-info">
+                    <span className="ai-vault-title">Local AI Engine</span>
+                    <span className="ai-vault-subtitle">
+                      {ollamaStatus === 'connected' ? (
+                        <>
+                          <SafetyCertificateOutlined className="ai-vault-protected-icon" />
+                          Protected
+                        </>
+                      ) : ollamaStatus === 'checking' ? (
+                        'Securing...'
+                      ) : (
+                        'Checking...'
+                      )}
+                    </span>
+                  </div>
+                </div>
+                <Select
+                  value={selectedOllamaModel}
+                  onChange={(value) => setSelectedOllamaModel(value)}
+                  className="ai-ollama-select"
+                  dropdownMatchSelectWidth={140}
+                  size="small"
+                  disabled={ollamaStatus !== 'connected'}
+                  suffixIcon={<DownOutlined style={{ fontSize: 10 }} />}
+                >
+                  {ollamaModels.map((model) => (
+                    <Option key={model.name} value={model.name}>
+                      <div className="provider-option">
+                        <RobotOutlined />
+                        <span>{model.label || model.name}</span>
+                      </div>
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
 
-              <Select
-                value={selectedOllamaModel}
-                onChange={(value) => setSelectedOllamaModel(value)}
-                className="ai-ollama-select"
-                dropdownMatchSelectWidth={140}
+          {/* USP Security Showcase Section - Only in Offline Mode */}
+          {aiMode === 'offline' && (
+            <>
+              <div className="ai-usp-showcase">
+                {/* Animated Security Vault */}
+                <div className="ai-security-vault">
+                  <div className="ai-vault-inner">
+                    <SecurityScanOutlined className="ai-vault-scan-icon" />
+                    <div className="ai-vault-scan-line" />
+                  </div>
+                  <div className="ai-vault-text">
+                    <span className="ai-vault-headline">DATA VAULT</span>
+                    <span className="ai-vault-subtext">Zero External Calls</span>
+                  </div>
+                </div>
+
+              </div>
+            </>
+          )}
+
+          {/* Connection Status */}
+          <div className="ai-status-section">
+            <Tooltip title={
+              aiMode === 'offline'
+                ? (ollamaStatus === 'connected' ? 'Secure connection active' : 'Check connection')
+                : (llmConnectionMessage || 'Test connection')
+            }>
+              <Button
+                className={`ai-test-button ${aiMode === 'offline' ? 'ai-test-secure' : ''} ${isConnected ? 'ai-test-connected' : ''}`}
+                type={isConnected ? 'primary' : 'default'}
+                danger={isFailed}
+                loading={isTesting}
+                onClick={handleTestConnection}
                 size="small"
-                disabled={ollamaStatus !== 'connected'}
-                suffixIcon={<DownOutlined style={{ fontSize: 10 }} />}
-              >
-                {ollamaModels.map((model) => (
-                  <Option key={model.name} value={model.name}>
-                    <div className="provider-option">
-                      <RobotOutlined />
-                      <span>{model.label || model.name}</span>
-                    </div>
-                  </Option>
-                ))}
-              </Select>
-            </div>
-          )}
-        </div>
-
-        {/* USP Security Showcase Section - Only in Offline Mode */}
-        {aiMode === 'offline' && (
-          <>
-            <div className="ai-config-divider-vertical" />
-            <div className="ai-usp-showcase">
-              {/* Animated Security Vault */}
-              <div className="ai-security-vault">
-                <div className="ai-vault-inner">
-                  <SecurityScanOutlined className="ai-vault-scan-icon" />
-                  <div className="ai-vault-scan-line" />
-                </div>
-                <div className="ai-vault-text">
-                  <span className="ai-vault-headline">DATA VAULT</span>
-                  <span className="ai-vault-subtext">Zero External Calls</span>
-                </div>
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="ai-trust-badges">
-                <div className="ai-trust-badge">
-                  <SafetyOutlined />
-                  <span>Air-Gapped</span>
-                </div>
-                <div className="ai-trust-badge ai-trust-badge-featured">
-                  <LockFilled />
-                  <span>Encrypted</span>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        <div className="ai-config-divider-vertical" />
-
-        {/* Connection Status */}
-        <div className="ai-status-section">
-          <Tooltip title={
-            aiMode === 'offline'
-              ? (ollamaStatus === 'connected' ? 'Secure connection active' : 'Check connection')
-              : (llmConnectionMessage || 'Test connection')
-          }>
-            <Button
-              className={`ai-test-button ${aiMode === 'offline' ? 'ai-test-secure' : ''} ${isConnected ? 'ai-test-connected' : ''}`}
-              type={isConnected ? 'primary' : 'default'}
-              danger={isFailed}
-              loading={isTesting}
-              onClick={handleTestConnection}
-              size="small"
-              icon={
-                isConnected
-                  ? <CheckOutlined />
-                  : isFailed
-                    ? <DisconnectOutlined />
-                    : <ApiOutlined />
-              }
-            />
-          </Tooltip>
-
-          {isConnected && (
-            <div className={`ai-connected-badge ${aiMode === 'offline' ? 'ai-connected-secure' : ''}`}>
-              <CheckCircleFilled />
-              <span>{aiMode === 'offline' ? 'Secured' : 'Ready'}</span>
-            </div>
-          )}
-
-          {isFailed && aiMode === 'offline' && (
-            <Tooltip title="Start Ollama to enable secure mode">
-              <div className="ai-disconnected-badge">
-                <DisconnectOutlined />
-                <span>Offline</span>
-              </div>
+                icon={
+                  isConnected
+                    ? <CheckOutlined />
+                    : isFailed
+                      ? <DisconnectOutlined />
+                      : <ApiOutlined />
+                }
+              />
             </Tooltip>
-          )}
+            {isConnected && (
+              <div className={`ai-connected-badge ${aiMode === 'offline' ? 'ai-connected-secure' : ''}`}>
+                <CheckCircleFilled />
+                {aiMode === 'cloud' && <span>Ready</span>}
+              </div>
+            )}
+            {isFailed && aiMode === 'offline' && (
+              <Tooltip title="Start Ollama to enable secure mode">
+                <div className="ai-disconnected-badge">
+                  <DisconnectOutlined />
+                  <span>Offline</span>
+                </div>
+              </Tooltip>
+            )}
+          </div>
         </div>
+
       </div>
 
-      {/* Floating Tooltip on Hover - Premium Message */}
-      {aiMode === 'offline' && isHovering && (
-        <div className="ai-premium-tooltip">
-          <div className="ai-tooltip-glow" />
-          <SafetyCertificateOutlined className="ai-tooltip-shield" />
-          <div className="ai-tooltip-content">
-            <span className="ai-tooltip-title">Enterprise Security</span>
-            <span className="ai-tooltip-desc">Your clinical data never leaves this device</span>
-          </div>
-        </div>
-      )}
 
-      {/* Floating USP Banner - Appears in Offline Mode */}
-      {aiMode === 'offline' && (
-        <div className="ai-floating-usp-banner">
-          <div className="ai-usp-banner-content">
-            <SafetyCertificateOutlined className="ai-usp-banner-icon" />
-            <span className="ai-usp-banner-text">ZERO DATA EXPOSURE</span>
-          </div>
-          <div className="ai-usp-banner-particles">
-            <span className="particle p1" />
-            <span className="particle p2" />
-            <span className="particle p3" />
-            <span className="particle p4" />
-          </div>
-        </div>
-      )}
     </div>
   );
 };
