@@ -9,7 +9,8 @@ interface StudySelectorProps {
   onChange?: (studyId: string) => void;
   onStudyChange?: (study: any) => void;
   showCreateButton?: boolean;
-  compact?: boolean;
+  compact?: boolean; // Deprecated, use variant
+  variant?: 'default' | 'compact' | 'hero';
 }
 
 export const StudySelector: React.FC<StudySelectorProps> = ({
@@ -17,7 +18,8 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
   onChange,
   onStudyChange,
   showCreateButton = true,
-  compact = false
+  compact = false,
+  variant = compact ? 'compact' : 'default'
 }) => {
   const {
     studies,
@@ -39,13 +41,13 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
     // Import diagnostics
     import('../utils/studyDiagnostics').then(({ checkStudyLoadingDiagnostics, testStudyApiAccess }) => {
       checkStudyLoadingDiagnostics();
-      
+
       console.log('StudySelector mounted, checking studies:', {
         studiesLoadedAt,
         studiesLoading,
         studiesCount: studies.length
       });
-      
+
       // Test API access if no studies
       if (studies.length === 0 && !studiesLoading) {
         testStudyApiAccess()
@@ -103,7 +105,7 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
     study.protocol_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     study.sponsor?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  
+
   // Debug logging when studies change
   useEffect(() => {
     console.log('StudySelector - Studies updated:', {
@@ -146,7 +148,7 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
 
   const selectedStudy = studies.find(s => s.id === (value || currentStudyId));
 
-  if (compact) {
+  if (variant === 'compact') {
     return (
       <div className="study-selector-compact">
         <button
@@ -175,7 +177,7 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
                 </div>
               ) : filteredStudies.length === 0 ? (
                 <div style={{ padding: '12px', textAlign: 'center', color: '#666' }}>
-                  {studies.length === 0 
+                  {studies.length === 0
                     ? 'No studies found. Check console for errors.'
                     : `No studies match "${searchTerm}"`}
                 </div>
@@ -202,6 +204,91 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
                   <Plus size={16} />
                   {isCreating ? 'Creating...' : 'Create New Study'}
                 </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (variant === 'hero') {
+    return (
+      <div className="study-selector-hero">
+        <div className="study-selector-row-top">
+          <div className="study-section-title">Study</div>
+          <div className="study-selector-content">
+            <button
+              className="study-selector-trigger-hero"
+              onClick={() => setIsOpen(!isOpen)}
+            >
+              <span className="study-hero-value">{selectedStudy?.name || 'Select Study'}</span>
+              <ChevronDown size={20} className="study-hero-icon" />
+            </button>
+          </div>
+        </div>
+
+        <div className="study-selector-row-bottom">
+          <div className="study-details-link-wrapper">
+            <a
+              href="/enter-study-details"
+              className="study-details-link"
+              onClick={(e) => {
+                e.preventDefault();
+                window.history.pushState({}, '', '/enter-study-details');
+                window.dispatchEvent(new Event('popstate'));
+              }}
+            >
+              Study Details
+            </a>
+          </div>
+        </div>
+
+        {isOpen && (
+          <div className="study-selector-dropdown study-selector-dropdown-hero">
+            <div className="study-selector-search">
+              <Search size={16} />
+              <input
+                type="text"
+                placeholder="Search studies..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="study-selector-list">
+              {studiesLoading ? (
+                <div style={{ padding: '12px', textAlign: 'center', color: '#666' }}>
+                  Loading studies...
+                </div>
+              ) : filteredStudies.length === 0 ? (
+                <div className="study-selector-empty">
+                  {studies.length === 0
+                    ? 'No studies available.'
+                    : `No studies match "${searchTerm}"`}
+                </div>
+              ) : (
+                filteredStudies.map(study => (
+                  <button
+                    key={study.id}
+                    className={`study-selector-item ${study.id === (value || currentStudyId) ? 'active' : ''}`}
+                    onClick={() => handleStudySelect(study.id)}
+                  >
+                    <div className="study-item-header">
+                      <div className="study-item-name">{study.name}</div>
+                      {study.validation_status && (
+                        <span className={`study-status status-${study.validation_status}`}>
+                          {study.validation_status}
+                        </span>
+                      )}
+                    </div>
+                    <div className="study-item-meta">
+                      {study.protocol_number && (
+                        <span>Protocol: {study.protocol_number}</span>
+                      )}
+                    </div>
+                  </button>
+                ))
               )}
             </div>
           </div>
@@ -264,9 +351,9 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
                 </div>
               ) : filteredStudies.length === 0 ? (
                 <div className="study-selector-empty">
-                  {studies.length === 0 
+                  {studies.length === 0
                     ? 'No studies found. Check console for errors or try reloading.'
-                    : searchTerm 
+                    : searchTerm
                       ? `No studies match "${searchTerm}"`
                       : 'No studies available'}
                 </div>

@@ -14,14 +14,69 @@
   padding: 12px 24px;
   border-bottom: 1px solid #f0f0f0;
   overflow: visible;
+  position: relative;
+  min-height: 78px;
+  gap: 24px;
 }
 
 .app-header-left {
   display: flex;
   align-items: center;
   gap: 16px;
+  flex: 0 0 auto;
+  /* Do not shrink, take needed space */
+  z-index: 10;
+}
+
+/* Center Section - Flex Managed */
+.app-header-center {
   flex: 1;
-  flex-wrap: wrap;
+  /* Take up available space */
+  display: flex;
+  justify-content: center;
+  /* Center content in that space */
+  align-items: center;
+  z-index: 100;
+  position: static;
+  transform: none;
+  min-width: 0;
+  /* Allow shrinking if absolutely needed */
+}
+
+.study-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 24px;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0369a1;
+  border-radius: 30px;
+  /* More rounded pill */
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.15);
+  border: 1px solid #7dd3fc;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.study-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(3, 105, 161, 0.2);
+}
+
+.study-badge-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0369a1;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.study-badge-value {
+  font-size: 18px;
+  /* Bigger font as requested */
+  font-weight: 800;
+  color: #0c4a6e;
 }
 
 .back-button {
@@ -95,18 +150,21 @@
   align-items: center;
   overflow: visible;
   gap: 12px;
+  z-index: 1;
+  justify-content: flex-end;
+  flex: 0 0 auto;
 }
 
 .app-header-identity {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  font-size: 12px;
-  line-height: 1.2;
-  color: #4b5563;
+  gap: 4px;
 }
 
 .app-header-identity .identity-line {
+  font-size: 12px;
+  color: #4b5563;
   white-space: nowrap;
 }
 
@@ -136,6 +194,21 @@
   color: #4dabf7;
 }
 
+[data-theme="dark"] .study-badge {
+  background: linear-gradient(135deg, #0c4a6e 0%, #075985 100%);
+  color: #bae6fd;
+  border-color: #0ea5e9;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .study-badge-label {
+  color: #7dd3fc;
+}
+
+[data-theme="dark"] .study-badge-value {
+  color: #e0f2fe;
+}
+
 
 /* Mobile Menu Button */
 .mobile-menu-btn {
@@ -161,7 +234,8 @@ body[data-layout-mode="desktop"] .mobile-menu-btn {
   }
 
   .app-header-left .ai-config-status {
-    order: 10; /* Move to end of left section */
+    order: 10;
+    /* Move to end of left section */
   }
 }
 
@@ -184,6 +258,25 @@ body[data-layout-mode="desktop"] .mobile-menu-btn {
     min-height: var(--mobile-header-height);
   }
 
+  /* In mobile, static positioning (flow) is better than absolute center usually, 
+     but let's see. If we keep absolute center, it might get overlaid. 
+     Lets move it to static in mobile or just hide the text. */
+
+  .app-header-center {
+    position: static;
+    transform: none;
+    order: 2;
+    /* Put it in the middle flow */
+    flex: 1;
+    justify-content: flex-start;
+    /* Or center if space permits */
+    display: none;
+    /* Hide on very small screens if needed, or adjust */
+  }
+
+  /* Re-enable display if we want, but usually mobile header space is tight. 
+     Let's keep it simple for now and maybe hide it or simplify it on mobile. */
+
   .mobile-menu-btn {
     display: flex !important;
     padding: 8px;
@@ -191,7 +284,7 @@ body[data-layout-mode="desktop"] .mobile-menu-btn {
   }
 
   .app-header-left {
-    flex: 1;
+    flex: 0 0 auto;
     flex-direction: row;
     gap: 8px;
     align-items: center;
@@ -216,6 +309,7 @@ body[data-layout-mode="desktop"] .mobile-menu-btn {
   }
 
   .app-header-right {
+    flex: 0 0 auto;
     flex-shrink: 0;
   }
 
