@@ -1,602 +1,471 @@
 /**
- * Study Document Chatbot - Pure RAG Implementation
- *
- * STRICT REQUIREMENTS:
- * - All responses MUST come from uploaded documents only
- * - No external knowledge or assumptions
- * - Every answer MUST include specific citations (page, section, document)
- * - If answer not in documents, explicitly state "Information not found in uploaded documents"
- *
- * Architecture: Document-Grounded RAG
- * 1. Upload → Extract text with metadata (page numbers, sections)
- * 2. Chunk with overlap + metadata preservation
- * 3. User question → Retrieve relevant chunks
- * 4. LLM generates answer ONLY from retrieved context
- * 5. Response includes specific citations
+ * Document Chatbot - Simple, Working Version
+ * 
+ * Uses real API calls for document processing and chat.
+ * Clean white theme with colorful suggestions in sidebar.
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Button, message, Spin } from 'antd';
 import {
-  Card,
-  Button,
-  Upload,
-  Input,
-  Space,
-  Typography,
-  Row,
-  Col,
-  Tag,
-  Alert,
-  Divider,
-  Spin,
-  Empty,
-  Tooltip,
-  message,
-  List,
-  Progress,
-  Statistic,
-} from 'antd';
-import {
-  UploadOutlined,
-  SendOutlined,
   FileTextOutlined,
-  QuestionCircleOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
+  FileExcelOutlined,
+  SendOutlined,
   RobotOutlined,
   UserOutlined,
   DeleteOutlined,
+  UploadOutlined,
   CheckCircleOutlined,
-  BookOutlined,
-  ThunderboltOutlined,
-  WarningOutlined,
-  CheckOutlined,
-  CloseOutlined,
+  BulbOutlined,
 } from '@ant-design/icons';
-import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
+import type { UploadFile, RcFile } from 'antd/es/upload/interface';
 import { PageHeader } from './PageHeader';
 import './StudyChatbotTab.css';
 import {
   uploadStudyFiles,
   createKnowledgeBase,
+  sendChatMessage as apiSendChatMessage,
   getSuggestedQuestions,
-  sendChatMessage,
 } from '../services/api';
 
-const { Text, Title, Paragraph } = Typography;
-const { TextArea } = Input;
-
-// Types
-interface DocumentChunk {
-  content: string;
-  source: string;
-  page?: number;
-  section?: string;
-  chunk_id: string;
-}
-
-interface Citation {
-  source: string;
-  page?: number;
-  section?: string;
-  excerpt: string;
-}
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface Message {
   id: string;
   type: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  citations?: Citation[];
-  confidence?: number; // 0-100
-  grounded: boolean; // Whether answer is grounded in documents
+  sources?: string[];
 }
 
-interface ProcessedDocument {
+interface ProcessedDoc {
+  id: string;
   filename: string;
-  pages: number;
-  chunks: number;
-  size: number;
+  path: string;
 }
 
-interface KnowledgeBase {
-  session_id: string;
-  documents: ProcessedDocument[];
-  total_chunks: number;
-  created_at: string;
-}
+// ============================================================================
+// HELPERS
+// ============================================================================
 
-interface SuggestedQuestion {
-  question: string;
-  relevant_docs: string[];
-}
+const getFileIcon = (filename: string) => {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf': return <FilePdfOutlined />;
+    case 'docx':
+    case 'doc': return <FileWordOutlined />;
+    case 'xlsx':
+    case 'xls': return <FileExcelOutlined />;
+    default: return <FileTextOutlined />;
+  }
+};
+
+// Colorful gradients for suggestion buttons
+const SUGGESTION_COLORS = [
+  { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', hover: '#5a67d8' },
+  { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', hover: '#e53e3e' },
+  { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', hover: '#0bc5ea' },
+  { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', hover: '#38a169' },
+  { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', hover: '#ed8936' },
+];
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export const StudyChatbotTab: React.FC = () => {
-  // File upload state
+  // File state
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeBase | null>(null);
+
+  // Session state
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<ProcessedDoc[]>([]);
+
+  // Suggested questions (shown in sidebar)
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
 
   // Chat state
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentMessage, setCurrentMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [suggestedQuestions, setSuggestedQuestions] = useState<SuggestedQuestion[]>([]);
 
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<any>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Scroll to bottom
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Handle file upload
-  const handleFileUpload: UploadProps['onChange'] = useCallback((info) => {
-    let newFileList = [...info.fileList];
-    newFileList = newFileList.slice(-10); // Limit to 10 files
-    setFileList(newFileList);
+  // Handle file selection
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles: UploadFile[] = Array.from(files).map((file, idx) => ({
+      uid: `${Date.now()}-${idx}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      status: 'done' as const,
+      originFileObj: file as RcFile,
+    }));
+
+    setFileList(prev => [...prev, ...newFiles].slice(-10));
+    e.target.value = '';
   }, []);
 
-  // Process uploaded files and create knowledge base
-  const handleProcessFiles = useCallback(async () => {
+  // Remove file
+  const handleRemoveFile = useCallback((uid: string) => {
+    setFileList(prev => prev.filter(f => f.uid !== uid));
+  }, []);
+
+  // Send a specific question (for clickable suggestions)
+  const handleAskQuestion = useCallback(async (question: string) => {
+    if (!question || !sessionId || isTyping) return;
+
+    // Add user message
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      type: 'user',
+      content: question,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setIsTyping(true);
+
+    try {
+      const response = await apiSendChatMessage({
+        session_id: sessionId,
+        message: question,
+        response_style: 'detailed',
+        show_sources: true,
+      });
+
+      const assistantMessage: Message = {
+        id: response.message.id,
+        type: 'assistant',
+        content: response.message.content,
+        timestamp: new Date(response.message.timestamp),
+        sources: response.message.sources,
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error: any) {
+      setMessages(prev => [...prev, {
+        id: `error-${Date.now()}`,
+        type: 'assistant',
+        content: `Sorry, I couldn't process that. Error: ${error.message || 'Unknown error'}`,
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setIsTyping(false);
+    }
+  }, [sessionId, isTyping]);
+
+  // Process documents - REAL API CALL
+  const handleProcessDocuments = useCallback(async () => {
     if (fileList.length === 0) {
       message.warning('Please upload at least one document');
       return;
     }
 
     setIsProcessing(true);
-    setMessages([]);
-    setSuggestedQuestions([]);
 
     try {
-      // Step 1: Upload files to backend
-      const files = fileList
-        .map(f => f.originFileObj)
+      const files: File[] = fileList
+        .map(f => f.originFileObj as File | undefined)
         .filter((f): f is File => f !== undefined);
 
-      const uploadResponse = await uploadStudyFiles(files);
+      if (files.length === 0) {
+        throw new Error('No valid files to upload');
+      }
 
-      // Step 2: Create knowledge base from uploaded files
+      // Step 1: Upload files
+      const uploadResponse = await uploadStudyFiles(files);
+      console.log('Upload response:', uploadResponse);
+
+      // Step 2: Create knowledge base
       const kbResponse = await createKnowledgeBase({
         session_id: uploadResponse.session_id,
         file_paths: uploadResponse.files.map(f => f.path),
       });
+      console.log('KB response:', kbResponse);
 
       if (kbResponse.status === 'failed') {
         throw new Error(kbResponse.error_message || 'Failed to create knowledge base');
       }
 
-      // Map to UI state
-      const processedDocs: ProcessedDocument[] = uploadResponse.files.map(file => ({
-        filename: file.filename,
-        pages: 0, // Backend doesn't return this yet
-        chunks: 0, // Will be distributed across files
-        size: file.size,
-      }));
+      // Save session
+      setSessionId(uploadResponse.session_id);
+      setDocuments(uploadResponse.files.map(f => ({
+        id: f.path,
+        filename: f.filename,
+        path: f.path,
+      })));
 
-      const kb: KnowledgeBase = {
-        session_id: uploadResponse.session_id,
-        documents: processedDocs,
-        total_chunks: kbResponse.files_processed * 10, // Estimate
-        created_at: new Date().toISOString(),
-      };
+      // Add welcome message
+      setMessages([{
+        id: 'welcome',
+        type: 'system',
+        content: `✨ Ready! ${kbResponse.files_processed} document(s) processed. Ask me anything or click a suggested question.`,
+        timestamp: new Date(),
+      }]);
 
-      setKnowledgeBase(kb);
-
-      // Step 3: Get suggested questions from backend
+      // Get suggested questions for sidebar
       try {
-        const questionsResponse = await getSuggestedQuestions(uploadResponse.session_id);
-        const questions: SuggestedQuestion[] = questionsResponse.questions.map(q => ({
-          question: q.question,
-          relevant_docs: [processedDocs[0]?.filename || 'Document'],
-        }));
-        setSuggestedQuestions(questions);
-      } catch (error) {
-        console.warn('Failed to load suggested questions:', error);
-        // Use fallback questions
-        setSuggestedQuestions([
-          { question: 'What is mentioned in the uploaded documents?', relevant_docs: [processedDocs[0]?.filename] },
-        ]);
+        const suggestionsResponse = await getSuggestedQuestions(uploadResponse.session_id);
+        if (suggestionsResponse.questions.length > 0) {
+          const questionList = suggestionsResponse.questions.slice(0, 5).map(q => q.question);
+          setSuggestedQuestions(questionList);
+        }
+      } catch (e) {
+        console.log('Could not get suggestions:', e);
       }
 
-      // System message
-      const systemMessage: Message = {
-        id: Date.now().toString(),
-        type: 'system',
-        content: `✓ Knowledge base created from ${kbResponse.files_processed} document(s).\n\nI will only answer questions based on the content of your uploaded documents. If information is not in the documents, I will tell you explicitly.`,
-        timestamp: new Date(),
-        grounded: true,
-      };
-
-      setMessages([systemMessage]);
-      message.success('Documents processed successfully!');
+      message.success('Documents ready!');
     } catch (error: any) {
-      message.error('Failed to process documents: ' + error.message);
+      console.error('Processing error:', error);
+      message.error(error.message || 'Failed to process documents');
     } finally {
       setIsProcessing(false);
     }
   }, [fileList]);
 
-  // Handle sending a message
-  const handleSendMessage = useCallback(async (question?: string) => {
-    const messageText = question || currentMessage.trim();
+  // Send typed message
+  const handleSendMessage = useCallback(async () => {
+    const text = currentMessage.trim();
+    if (!text || !sessionId) return;
 
-    if (!messageText) {
-      return;
-    }
-
-    if (!knowledgeBase) {
-      message.warning('Please upload and process documents first');
-      return;
-    }
-
-    // Add user message
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: messageText,
-      timestamp: new Date(),
-      grounded: true,
-    };
-
-    setMessages(prev => [...prev, userMessage]);
     setCurrentMessage('');
-    setIsTyping(true);
+    await handleAskQuestion(text);
+  }, [currentMessage, sessionId, handleAskQuestion]);
 
-    try {
-      // Call real RAG backend
-      const chatResponse = await sendChatMessage({
-        session_id: knowledgeBase.session_id,
-        message: messageText,
-        response_style: 'detailed',
-        language: 'en',
-        show_sources: true,
-      });
-
-      // Parse citations from sources
-      const citations: Citation[] | undefined = chatResponse.message.sources?.map((source, idx) => {
-        const parts = source.split(' - Page ');
-        return {
-          source: parts[0] || source,
-          page: parts[1] ? parseInt(parts[1]) : undefined,
-          excerpt: '', // Backend doesn't return excerpt yet
-        };
-      });
-
-      // Determine if response is grounded
-      const isNotFound = chatResponse.message.content.toLowerCase().includes('cannot find') ||
-        chatResponse.message.content.toLowerCase().includes('not in the documents');
-
-      const assistantMessage: Message = {
-        id: chatResponse.message.id,
-        type: 'assistant',
-        content: chatResponse.message.content,
-        timestamp: new Date(chatResponse.message.timestamp),
-        citations: citations,
-        confidence: isNotFound ? 0 : 75, // Calculate based on citations if available
-        grounded: !isNotFound,
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (error: any) {
-      const errorMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        type: 'system',
-        content: `Error: ${error.message}`,
-        timestamp: new Date(),
-        grounded: false,
-      };
-      setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsTyping(false);
-    }
-  }, [currentMessage, knowledgeBase]);
-
-  // Handle suggested question click
-  const handleSuggestedQuestion = useCallback((question: string) => {
-    setCurrentMessage(question);
-    handleSendMessage(question);
-  }, [handleSendMessage]);
-
-  // Clear knowledge base
-  const handleClearAll = useCallback(() => {
+  // Clear all
+  const handleClear = useCallback(() => {
     setFileList([]);
-    setKnowledgeBase(null);
+    setSessionId(null);
+    setDocuments([]);
     setMessages([]);
+    setCurrentMessage('');
     setSuggestedQuestions([]);
-    message.success('All data cleared');
   }, []);
 
-  // Upload props
-  const uploadProps: UploadProps = {
-    multiple: true,
-    fileList,
-    onChange: handleFileUpload,
-    beforeUpload: () => false,
-    accept: '.pdf,.docx,.doc,.txt',
-    maxCount: 10,
-  };
+  const isReady = sessionId !== null;
 
   return (
-    <div className="study-chatbot-tab">
-      {/* Blue Header */}
+    <div className="chatbot-container">
       <PageHeader
-        title="Study ChatBot"
-        subtitle="Ask questions - get answers from your documents only"
-        icon={<BookOutlined />}
+        title="Document Chat"
+        subtitle="Ask questions about your documents"
+        icon={<FileTextOutlined />}
         actions={
-          <Space>
-            {knowledgeBase && (
-              <Button danger icon={<DeleteOutlined />} onClick={handleClearAll}>
-                Clear All
-              </Button>
-            )}
-            <Tooltip title="Answers are generated only from your uploaded documents with specific citations">
-              <Button icon={<QuestionCircleOutlined />}>Help</Button>
-            </Tooltip>
-          </Space>
+          isReady && (
+            <Button size="small" icon={<DeleteOutlined />} onClick={handleClear}>
+              Clear
+            </Button>
+          )
         }
       />
 
-      <Row gutter={16} className="chatbot-main">
-        {/* Left Sidebar - Document Upload & Info */}
-        <Col xs={24} lg={7} className="knowledge-sidebar">
-          {/* File Upload */}
-          <Card
-            title={
-              <Space>
-                <FileTextOutlined />
-                <span>Your Documents</span>
-                {knowledgeBase && <Tag color="success">Active</Tag>}
-              </Space>
-            }
-            size="small"
-            className="knowledge-card"
-          >
-            <Upload {...uploadProps}>
-              <Button icon={<UploadOutlined />} block disabled={isProcessing}>
-                Upload Documents
-              </Button>
-            </Upload>
+      <div className="chatbot-content">
+        <div className="chatbot-main">
+          {/* Sidebar */}
+          <div className="chatbot-sidebar">
+            {/* Documents Panel */}
+            <div className="chatbot-panel">
+              <div className="chatbot-panel-header">
+                <span className="chatbot-panel-title">
+                  <FileTextOutlined className="chatbot-panel-title-icon" />
+                  Documents
+                </span>
+                {isReady && <span className="chatbot-panel-badge">Ready</span>}
+              </div>
+              <div className="chatbot-panel-body">
+                {!isReady ? (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept=".pdf,.docx,.doc,.txt,.xlsx,.xls,.csv,.rtf,.md"
+                      onChange={handleFileInputChange}
+                      style={{ display: 'none' }}
+                    />
 
-            <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
-              Supported: PDF, Word, Text (Max 10 files)
-            </Text>
-
-            {fileList.length > 0 && (
-              <>
-                <Divider style={{ margin: '12px 0' }} />
-                <Space direction="vertical" style={{ width: '100%' }} size="small">
-                  <Text strong style={{ fontSize: 12 }}>{fileList.length} file(s) ready</Text>
-                  <List
-                    size="small"
-                    dataSource={fileList}
-                    renderItem={(file) => (
-                      <List.Item style={{ padding: '4px 0', border: 'none' }}>
-                        <Space size="small">
-                          <FileTextOutlined style={{ color: '#1890ff', fontSize: 12 }} />
-                          <Text ellipsis style={{ maxWidth: 180, fontSize: 11 }}>
-                            {file.name}
-                          </Text>
-                        </Space>
-                      </List.Item>
-                    )}
-                  />
-
-                  {!knowledgeBase ? (
-                    <Button
-                      type="primary"
-                      icon={<ThunderboltOutlined />}
-                      onClick={handleProcessFiles}
-                      loading={isProcessing}
-                      block
-                      style={{ marginTop: 8 }}
+                    <div
+                      className="chatbot-upload-zone"
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => {
+                        e.preventDefault();
+                        const files = e.dataTransfer.files;
+                        if (files.length > 0) {
+                          const newFiles: UploadFile[] = Array.from(files).map((file, idx) => ({
+                            uid: `${Date.now()}-${idx}`,
+                            name: file.name,
+                            size: file.size,
+                            type: file.type,
+                            status: 'done' as const,
+                            originFileObj: file as RcFile,
+                          }));
+                          setFileList(prev => [...prev, ...newFiles].slice(-10));
+                        }
+                      }}
                     >
-                      {isProcessing ? 'Processing...' : 'Process Documents'}
-                    </Button>
-                  ) : (
-                    <Button
-                      icon={<CheckCircleOutlined />}
-                      block
-                      disabled
-                      style={{ marginTop: 8, background: '#f6ffed', borderColor: '#b7eb8f' }}
-                    >
-                      Documents Processed
-                    </Button>
-                  )}
-                </Space>
-              </>
-            )}
-          </Card>
+                      <UploadOutlined className="chatbot-upload-icon" />
+                      <div className="chatbot-upload-text">Drop files or click</div>
+                      <div className="chatbot-upload-hint">PDF, Word, Text, Excel</div>
+                    </div>
 
-          {/* Knowledge Base Info */}
-          {knowledgeBase && (
-            <Card
-              title={
-                <Space>
-                  <CheckCircleOutlined style={{ color: '#52c41a' }} />
-                  <span>Knowledge Base</span>
-                </Space>
-              }
-              size="small"
-              style={{ marginTop: 16 }}
-            >
-              <Space direction="vertical" style={{ width: '100%' }} size="middle">
-                <Statistic
-                  title="Documents Processed"
-                  value={knowledgeBase.documents.length}
-                  prefix={<FileTextOutlined />}
-                  valueStyle={{ fontSize: 24, color: '#1890ff' }}
-                />
-                <Statistic
-                  title="Text Chunks"
-                  value={knowledgeBase.total_chunks}
-                  suffix="chunks"
-                  valueStyle={{ fontSize: 20, color: '#52c41a' }}
-                />
-
-                <Divider style={{ margin: '8px 0' }} />
-
-                <div>
-                  <Text strong style={{ fontSize: 12 }}>Documents:</Text>
-                  <List
-                    size="small"
-                    dataSource={knowledgeBase.documents}
-                    renderItem={(doc) => (
-                      <List.Item style={{ padding: '4px 0', border: 'none' }}>
-                        <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                          <Text style={{ fontSize: 11 }}>📄 {doc.filename}</Text>
-                          <Text type="secondary" style={{ fontSize: 10 }}>
-                            {doc.pages} pages • {doc.chunks} chunks
-                          </Text>
-                        </Space>
-                      </List.Item>
+                    {fileList.length > 0 && (
+                      <div className="chatbot-file-list" style={{ marginTop: 12 }}>
+                        {fileList.map(file => (
+                          <div key={file.uid} className="chatbot-file-item">
+                            <span className="chatbot-file-icon">{getFileIcon(file.name)}</span>
+                            <div className="chatbot-file-info">
+                              <div className="chatbot-file-name">{file.name}</div>
+                            </div>
+                            <DeleteOutlined
+                              className="chatbot-file-remove"
+                              onClick={() => handleRemoveFile(file.uid)}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  />
+
+                    <button
+                      className="chatbot-process-btn"
+                      onClick={handleProcessDocuments}
+                      disabled={fileList.length === 0 || isProcessing}
+                      style={{ marginTop: 16 }}
+                    >
+                      {isProcessing ? (
+                        <><Spin size="small" /> Processing...</>
+                      ) : (
+                        <>Start Chat</>
+                      )}
+                    </button>
+                  </>
+                ) : (
+                  <div className="chatbot-file-list">
+                    {documents.map(doc => (
+                      <div key={doc.id} className="chatbot-file-item">
+                        <span className="chatbot-file-icon">{getFileIcon(doc.filename)}</span>
+                        <div className="chatbot-file-info">
+                          <div className="chatbot-file-name">{doc.filename}</div>
+                          <div className="chatbot-file-meta">
+                            <CheckCircleOutlined style={{ color: '#16a34a', marginRight: 4 }} />
+                            Processed
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Suggested Questions Panel - Only show when ready */}
+            {isReady && suggestedQuestions.length > 0 && (
+              <div className="chatbot-panel suggestions-panel">
+                <div className="chatbot-panel-header suggestions-header">
+                  <span className="chatbot-panel-title">
+                    <BulbOutlined className="chatbot-panel-title-icon suggestions-icon" />
+                    Quick Questions
+                  </span>
                 </div>
-              </Space>
-            </Card>
-          )}
+                <div className="chatbot-panel-body suggestions-body">
+                  {suggestedQuestions.map((question, idx) => (
+                    <button
+                      key={idx}
+                      className="chatbot-suggestion-btn"
+                      style={{
+                        background: SUGGESTION_COLORS[idx % SUGGESTION_COLORS.length].bg,
+                      }}
+                      onClick={() => handleAskQuestion(question)}
+                      disabled={isTyping}
+                    >
+                      <span className="suggestion-number">{idx + 1}</span>
+                      <span className="suggestion-text">{question}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
-          {/* Suggested Questions */}
-          {suggestedQuestions.length > 0 && (
-            <Card
-              title={
-                <Space>
-                  <QuestionCircleOutlined style={{ color: '#faad14' }} />
-                  <span>Suggested Questions</span>
-                </Space>
-              }
-              size="small"
-              style={{ marginTop: 16 }}
-            >
-              <Space direction="vertical" style={{ width: '100%' }} size="small">
-                <Alert
-                  message="Questions based on your documents"
-                  type="info"
-                  showIcon
-                  style={{ fontSize: 11, padding: '4px 8px' }}
-                />
-                {suggestedQuestions.map((sq, idx) => (
-                  <Button
-                    key={idx}
-                    type="text"
-                    size="small"
-                    block
-                    style={{
-                      textAlign: 'left',
-                      height: 'auto',
-                      padding: '8px',
-                      whiteSpace: 'normal',
-                      border: '1px solid #e8e8e8'
-                    }}
-                    onClick={() => handleSuggestedQuestion(sq.question)}
-                  >
-                    <Text style={{ fontSize: 11 }}>{sq.question}</Text>
-                  </Button>
-                ))}
-              </Space>
-            </Card>
-          )}
-        </Col>
+          {/* Chat Area */}
+          <div className="chatbot-chat">
+            <div className="chatbot-chat-header">
+              <div className="chatbot-chat-title">
+                <div className="chatbot-chat-icon">
+                  <RobotOutlined />
+                </div>
+                <div>
+                  <div className="chatbot-chat-name">Document Assistant</div>
+                  {isReady && (
+                    <div className="chatbot-chat-status">
+                      {documents.length} document(s)
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
-        {/* Right Main Area - Chat Interface */}
-        <Col xs={24} lg={17} className="chat-area">
-          <Card className="chat-card" bodyStyle={{ padding: 0, height: '100%' }}>
-            {!knowledgeBase ? (
-              <div className="chat-empty-state">
-                <Empty
-                  image={<BookOutlined style={{ fontSize: 64, color: '#d9d9d9' }} />}
-                  description={
-                    <Space direction="vertical" size="small">
-                      <Title level={4}>Upload Your Documents</Title>
-                      <Paragraph type="secondary" style={{ maxWidth: 400 }}>
-                        Upload study documents (Protocol, SAP, etc.) to start asking questions.
-                        <br /><br />
-                        <strong>100% Document-Based:</strong>
-                        <br />• All answers come only from your uploaded files
-                        <br />• Every response includes specific citations
-                        <br />• No external knowledge or assumptions
-                      </Paragraph>
-                    </Space>
-                  }
-                >
-                  <Upload {...uploadProps}>
-                    <Button type="primary" icon={<UploadOutlined />} size="large">
-                      Upload Documents
-                    </Button>
-                  </Upload>
-                </Empty>
+            {!isReady ? (
+              <div className="chatbot-empty">
+                <FileTextOutlined className="chatbot-empty-icon" />
+                <div className="chatbot-empty-title">Upload Documents</div>
+                <div className="chatbot-empty-text">
+                  Upload documents and I'll answer questions about their content.
+                </div>
               </div>
             ) : (
               <>
-                <div className="chat-messages" ref={chatContainerRef}>
-                  {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`chat-message ${msg.type === 'user' ? 'user-message' :
-                        msg.type === 'system' ? 'system-message' : 'assistant-message'}`}
-                    >
-                      {msg.type !== 'system' && (
-                        <Avatar
-                          icon={msg.type === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                          style={{
-                            backgroundColor: msg.type === 'user' ? '#1890ff' : '#52c41a',
-                          }}
-                        />
-                      )}
-                      <div className="message-content">
+                <div className="chatbot-messages" ref={chatContainerRef}>
+                  {messages.map(msg => (
+                    <div key={msg.id} className={`chatbot-message ${msg.type}`}>
+                      <div className="chatbot-avatar">
+                        {msg.type === 'user' ? <UserOutlined /> : <RobotOutlined />}
+                      </div>
+                      <div className="chatbot-message-content">
                         {msg.type !== 'system' && (
-                          <div className="message-header">
-                            <Space>
-                              <Text strong>{msg.type === 'user' ? 'You' : 'Assistant'}</Text>
-                              {msg.type === 'assistant' && msg.confidence && (
-                                <Tooltip title="Confidence based on document relevance">
-                                  <Tag color={msg.confidence > 70 ? 'green' : 'orange'}>
-                                    {msg.confidence}% confident
-                                  </Tag>
-                                </Tooltip>
-                              )}
-                              {msg.type === 'assistant' && (
-                                <Tag icon={msg.grounded ? <CheckOutlined /> : <WarningOutlined />}
-                                  color={msg.grounded ? 'success' : 'warning'}>
-                                  {msg.grounded ? 'Document-grounded' : 'Not grounded'}
-                                </Tag>
-                              )}
-                            </Space>
-                            <Text type="secondary" style={{ fontSize: 11 }}>
-                              {msg.timestamp.toLocaleTimeString()}
-                            </Text>
+                          <div className="chatbot-message-header">
+                            <span className="chatbot-message-name">
+                              {msg.type === 'user' ? 'You' : 'Assistant'}
+                            </span>
+                            <span className="chatbot-message-time">
+                              {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                           </div>
                         )}
-                        <div className={`message-text ${msg.type === 'system' ? 'system-text' : ''}`}>
-                          <Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}>
-                            {msg.content}
-                          </Paragraph>
-                        </div>
-                        {msg.citations && msg.citations.length > 0 && (
-                          <div className="message-citations">
-                            <Text strong style={{ fontSize: 11 }}>📚 Citations:</Text>
-                            <List
-                              size="small"
-                              dataSource={msg.citations}
-                              renderItem={(citation, idx) => (
-                                <List.Item style={{ padding: '4px 0', border: 'none' }}>
-                                  <Space direction="vertical" size={0} style={{ width: '100%' }}>
-                                    <Text style={{ fontSize: 11 }}>
-                                      [{idx + 1}] {citation.source}
-                                      {citation.page && ` - Page ${citation.page}`}
-                                      {citation.section && ` - ${citation.section}`}
-                                    </Text>
-                                    <Text type="secondary" style={{ fontSize: 10, fontStyle: 'italic' }}>
-                                      "{citation.excerpt.substring(0, 100)}..."
-                                    </Text>
-                                  </Space>
-                                </List.Item>
-                              )}
-                            />
+
+                        <div
+                          className="chatbot-message-bubble"
+                          dangerouslySetInnerHTML={{
+                            __html: msg.content
+                              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                              .replace(/\n/g, '<br />')
+                          }}
+                        />
+
+                        {msg.sources && msg.sources.length > 0 && (
+                          <div className="chatbot-citations">
+                            <div className="chatbot-citations-header">Sources</div>
+                            {msg.sources.map((s, i) => (
+                              <div key={i} className="chatbot-citation-item">{s}</div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -604,62 +473,53 @@ export const StudyChatbotTab: React.FC = () => {
                   ))}
 
                   {isTyping && (
-                    <div className="chat-message assistant-message">
-                      <Avatar icon={<RobotOutlined />} style={{ backgroundColor: '#52c41a' }} />
-                      <div className="message-content">
-                        <Spin size="small" /> <Text type="secondary">Searching documents...</Text>
+                    <div className="chatbot-message assistant">
+                      <div className="chatbot-avatar"><RobotOutlined /></div>
+                      <div className="chatbot-message-content">
+                        <div className="chatbot-typing">
+                          <div className="chatbot-typing-dots">
+                            <div className="chatbot-typing-dot" />
+                            <div className="chatbot-typing-dot" />
+                            <div className="chatbot-typing-dot" />
+                          </div>
+                          <span className="chatbot-typing-text">Thinking...</span>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
 
-                <div className="chat-input-area">
-                  <Input.TextArea
-                    ref={inputRef}
-                    value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
-                    onPressEnter={(e) => {
-                      if (!e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    placeholder="Ask a question about your documents... (Enter to send, Shift+Enter for new line)"
-                    autoSize={{ minRows: 1, maxRows: 4 }}
-                    disabled={isTyping}
-                  />
-                  <Button
-                    type="primary"
-                    icon={<SendOutlined />}
-                    onClick={() => handleSendMessage()}
-                    loading={isTyping}
-                    disabled={!currentMessage.trim()}
-                  >
-                    Ask
-                  </Button>
+                <div className="chatbot-input-area">
+                  <div className="chatbot-input-wrapper">
+                    <textarea
+                      className="chatbot-input"
+                      value={currentMessage}
+                      onChange={e => setCurrentMessage(e.target.value)}
+                      onKeyPress={e => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      placeholder="Ask about your documents..."
+                      disabled={isTyping}
+                    />
+                    <button
+                      className="chatbot-send-btn"
+                      onClick={handleSendMessage}
+                      disabled={!currentMessage.trim() || isTyping}
+                    >
+                      <SendOutlined />
+                    </button>
+                  </div>
                 </div>
               </>
             )}
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-// Avatar component (import from antd if not already)
-const Avatar: React.FC<{ icon: React.ReactNode; style: React.CSSProperties }> = ({ icon, style }) => {
-  return (
-    <div style={{
-      width: 32,
-      height: 32,
-      borderRadius: '50%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      ...style
-    }}>
-      {icon}
-    </div>
-  );
-};
+export default StudyChatbotTab;
