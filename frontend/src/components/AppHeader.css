@@ -57,8 +57,37 @@
   letter-spacing: 0.12em;
 }
 
+.app-header-study-section {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
 .app-header-study {
   margin-left: 4px;
+}
+
+.create-study-icon-btn {
+  font-size: 18px;
+  color: #4f46e5;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.create-study-icon-btn:hover {
+  color: #4338ca;
+  background: rgba(79, 70, 229, 0.1);
+}
+
+[data-theme="dark"] .create-study-icon-btn {
+  color: #818cf8;
+}
+
+[data-theme="dark"] .create-study-icon-btn:hover {
+  color: #a5b4fc;
+  background: rgba(129, 140, 248, 0.1);
 }
 
 .app-header-right {

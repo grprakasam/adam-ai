@@ -79,10 +79,79 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     getCompletionPercentage,
   } = useProjectStore();
 
+  // Defensive: Ensure projectConfig is never undefined
+  const safeProjectConfig = projectConfig || {
+    studyId: '',
+    studyPhase: '',
+    therapeuticArea: '',
+    adamDataset: '',
+    sdtmVersion: '',
+    adamIgVersion: '',
+    medraVersion: '',
+  };
+
   // Study context integration
-  const { currentStudyId, currentStudy, getStudyConfig, loadDatasetSelections, datasetSelections } = useStudyStore();
+  const { currentStudyId, currentStudy, getStudyConfig, loadDatasetSelections, datasetSelections, documents, loadStudyDocuments } = useStudyStore();
   const studyConfig = currentStudyId ? getStudyConfig(currentStudyId) : null;
   const studyDatasets = currentStudyId ? datasetSelections[currentStudyId] || [] : [];
+
+  // Get specification file setter from project store
+  const setSpecificationFile = useProjectStore((state) => state.setSpecificationFile);
+
+  // Get study documents (specification files)
+  const studyDocuments = currentStudyId ? documents[currentStudyId] || [] : [];
+  const specificationDocuments = useMemo(() => {
+    return studyDocuments.filter(doc =>
+      doc.document_type === 'SPECIFICATION' ||
+      (doc.original_file_name?.toLowerCase().includes('spec') &&
+        (doc.original_file_name?.endsWith('.xlsx') || doc.original_file_name?.endsWith('.xls')))
+    );
+  }, [studyDocuments]);
+
+  // Auto-sync specification from study documents when component mounts or study changes
+  useEffect(() => {
+    const syncSpecFromStudy = async () => {
+      // Only sync if we have a study but no spec file
+      if (!currentStudyId) return;
+      if (specificationFile) return; // Already have a spec file
+
+      // Ensure documents are loaded first
+      if (studyDocuments.length === 0) {
+        console.log('Loading study documents for spec sync...');
+        await loadStudyDocuments(currentStudyId, false);
+        return; // Let the next effect run handle the sync after documents are loaded
+      }
+
+      // Find best specification document
+      if (specificationDocuments.length > 0) {
+        const bestSpec = specificationDocuments[0]; // Use most recent (first in list)
+        console.log('Auto-selecting specification from study documents:', bestSpec.original_file_name);
+
+        setSpecificationFile({
+          name: bestSpec.original_file_name,
+          path: bestSpec.storage_path,
+          size: bestSpec.size_bytes || 0,
+          uploadedAt: bestSpec.uploaded_at,
+          isDefault: false,
+        });
+      }
+    };
+
+    syncSpecFromStudy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStudyId, studyDocuments.length, specificationFile]);
+
+  // Handler to select a specification file from study documents
+  const handleSelectStudySpec = (doc: typeof specificationDocuments[0]) => {
+    console.log('User selected specification:', doc.original_file_name);
+    setSpecificationFile({
+      name: doc.original_file_name,
+      path: doc.storage_path,
+      size: doc.size_bytes || 0,
+      uploadedAt: doc.uploaded_at,
+      isDefault: false,
+    });
+  };
 
   const [activeCategory, setActiveCategory] = useState<string>('all'); // Default to "All Variables"
   const [error, setError] = useState<string | null>(null);
@@ -276,22 +345,22 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
   const handleDatasetSwitch = (datasetName: string) => {
     setProjectConfig({
       adamDataset: datasetName,
-      studyId: currentStudyId || projectConfig.studyId,
-      studyPhase: currentStudy?.phase || projectConfig.studyPhase,
+      studyId: currentStudyId || safeProjectConfig.studyId,
+      studyPhase: currentStudy?.phase || safeProjectConfig.studyPhase,
     });
     message.success(`Switched to ${datasetName} for pair programming`);
   };
 
   // If no dataset is set in projectConfig, default to the first available option
   useEffect(() => {
-    if (!projectConfig.adamDataset && datasetOptions.length > 0) {
+    if (!safeProjectConfig.adamDataset && datasetOptions.length > 0) {
       setProjectConfig({
         adamDataset: datasetOptions[0].value,
-        studyId: currentStudyId || projectConfig.studyId,
-        studyPhase: currentStudy?.phase || projectConfig.studyPhase,
+        studyId: currentStudyId || safeProjectConfig.studyId,
+        studyPhase: currentStudy?.phase || safeProjectConfig.studyPhase,
       });
     }
-  }, [datasetOptions, projectConfig.adamDataset, setProjectConfig, currentStudyId, currentStudy?.phase, projectConfig.studyId, projectConfig.studyPhase]);
+  }, [datasetOptions, safeProjectConfig.adamDataset, setProjectConfig, currentStudyId, currentStudy?.phase, safeProjectConfig.studyId, safeProjectConfig.studyPhase]);
 
   const handleUploadSpecCTA = () => {
     // Navigate to Enter Study Details tab
@@ -361,10 +430,10 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       return;
     }
 
-    if (specificationFile && !categorizedVariables && projectConfig.adamDataset) {
+    if (specificationFile && !categorizedVariables && safeProjectConfig.adamDataset) {
       console.log('🔄 Specification file detected - starting automatic categorization');
       console.log('📄 File:', specificationFile.name);
-      console.log('📊 Dataset:', projectConfig.adamDataset);
+      console.log('📊 Dataset:', safeProjectConfig.adamDataset);
 
       autoCategorizeAttemptedRef.current = true;
       setAutoCategorizeStatus('started');
@@ -382,14 +451,14 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [specificationFile, categorizedVariables, projectConfig.adamDataset]);
+  }, [specificationFile, categorizedVariables, safeProjectConfig.adamDataset]);
 
   // Reset auto-categorization flag when spec file or dataset changes
   useEffect(() => {
     console.log('🔄 Resetting auto-categorization flag (spec or dataset changed)');
     autoCategorizeAttemptedRef.current = false;
     setAutoCategorizeStatus('pending');
-  }, [specificationFile?.path, projectConfig.adamDataset]);
+  }, [specificationFile?.path, safeProjectConfig.adamDataset]);
 
   const formatDuration = (seconds: number) => {
     const safeSeconds = Math.max(0, Math.round(seconds));
@@ -465,7 +534,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       return;
     }
 
-    if (!projectConfig.adamDataset) {
+    if (!safeProjectConfig.adamDataset) {
       setError('Please select an ADAM dataset first');
       return;
     }
@@ -516,7 +585,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     try {
       console.log('Starting categorization...');
       console.log('Spec file path:', specificationFile.path);
-      console.log('Dataset type:', projectConfig.adamDataset);
+      console.log('Dataset type:', safeProjectConfig.adamDataset);
 
 
       let result;
@@ -529,22 +598,29 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         specificationFile.isDefault ||
         specificationFile.path?.startsWith('Content/') ||
         specificationFile.path?.startsWith('storage/') ||
-        specificationFile.path?.startsWith('storage\\');
+        specificationFile.path?.startsWith('storage\\') ||
+        specificationFile.path?.includes('app/storage') ||
+        specificationFile.path?.includes('app\\storage') ||
+        specificationFile.path?.includes('backend');
 
       if (canUseServerPath) {
-        console.log('Using server path categorization');
-        console.log('Server path:', specificationFile.path);
+        console.log('=== CATEGORIZATION API CALL ===');
+        console.log('Method: Server path categorization');
+        console.log('Spec path:', specificationFile.path);
+        console.log('Dataset:', safeProjectConfig.adamDataset);
+        console.log('Auth token exists:', !!localStorage.getItem('adam_access_token'));
+
         result = await adamApi.categorizeSpecification(
           specificationFile.path,
-          projectConfig.adamDataset,
+          safeProjectConfig.adamDataset,
           { signal: currentAbortController.signal, timeoutMs: 120000 }
         );
-        console.log('Server path categorization completed');
+        console.log('✓ Server path categorization completed successfully');
       } else if (tempSpecFile) {
         console.log('Using file upload categorization');
         result = await adamApi.categorizeSpecificationFile(
           tempSpecFile,
-          projectConfig.adamDataset,
+          safeProjectConfig.adamDataset,
           { signal: currentAbortController.signal, timeoutMs: 120000 }
         );
         console.log('File upload categorization completed');
@@ -598,6 +674,21 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         localStorage.removeItem('adam_access_token');
         localStorage.removeItem('adam_user');
         window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
+      } else if (err.response?.status === 404) {
+        // File not found - check if this is a real 404 or stale error
+        console.error('404 error details:', {
+          status: err.response?.status,
+          detail: err.response?.data?.detail,
+          url: err.config?.url,
+          method: err.config?.method
+        });
+        const detailMsg = err.response?.data?.detail || 'Specification file not found';
+        const errorMsg = `${detailMsg}\n\nPlease check:\n1. Is the specification file uploaded for this study?\n2. Is the study selected correctly?\n3. Try refreshing the page and selecting the study again.`;
+        setError(errorMsg);
+        message.error({
+          content: 'Specification file not found. Please check study documents.',
+          duration: 5,
+        });
       } else {
         const errorMsg = err.response?.data?.detail || err.message || 'Failed to categorize variables';
         setError(errorMsg);
@@ -669,13 +760,13 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     }
 
     // Use study context if available, otherwise fall back to project config
-    const effectiveStudyId = currentStudyId || projectConfig.studyId;
+    const effectiveStudyId = currentStudyId || safeProjectConfig.studyId;
     if (!effectiveStudyId || (typeof effectiveStudyId === 'string' && effectiveStudyId.trim().length < 3)) {
       message.warning('Please select or configure a valid Study in the "Enter Study Details" page');
       return;
     }
 
-    if (!projectConfig.adamDataset) {
+    if (!safeProjectConfig.adamDataset) {
       message.warning('Please select an ADAM dataset first');
       return;
     }
@@ -751,8 +842,8 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
 
         const requestPayload: any = {
           categorized_variables: categorizedVariables,
-          study_id: projectConfig.studyId,
-          dataset: projectConfig.adamDataset || 'ADSL',
+          study_id: safeProjectConfig.studyId,
+          dataset: safeProjectConfig.adamDataset || 'ADSL',
           language: programmingLanguage,
           standards: {
             sdtm_version: sdtmVersion,
@@ -1013,8 +1104,8 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
 
       // Call enhanced API endpoint
       const result = await adamApi.generateProgramWithNotes({
-        study_id: projectConfig.studyId,
-        dataset: projectConfig.adamDataset || 'ADSL',
+        study_id: safeProjectConfig.studyId,
+        dataset: safeProjectConfig.adamDataset || 'ADSL',
         language: programmingLanguage,
         categorized_variables: categorizedVariables,
         approved_variables: approvedVarNames,
@@ -1091,7 +1182,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
     );
   }, [categorizedVariables]);
 
-  const activeDataset = projectConfig.adamDataset || datasetOptions[0]?.value || 'ADSL';
+  const activeDataset = safeProjectConfig.adamDataset || datasetOptions[0]?.value || 'ADSL';
 
   // Use a stable container to prevent React from completely unmounting the component tree
   // This prevents the removeChild error by maintaining a consistent DOM structure
@@ -1124,9 +1215,9 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
       {!specificationFile && (
         <div className="variables-empty-state" key="no-spec">
           <AlertCircle size={64} className="empty-icon" />
-          <h3>No Specification File Uploaded</h3>
+          <h3>No Specification File Selected</h3>
           <p>
-            To analyze variables and generate code for <strong>{activeDataset}</strong>, please upload your ADAM specification Excel file. Click the button below to navigate to the upload section.
+            To analyze variables and generate code for <strong>{activeDataset}</strong>, please select or upload your ADAM specification Excel file.
           </p>
           <div className="empty-actions">
             <div className="empty-step-card">
@@ -1143,14 +1234,84 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
                 ))}
               </select>
             </div>
+
+            {/* Show available study specification files */}
+            {currentStudyId && specificationDocuments.length > 0 ? (
+              <div className="empty-step-card">
+                <div className="step-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileSearch size={18} style={{ color: '#10b981' }} />
+                  Step 2: Select from Study Documents ({specificationDocuments.length} available)
+                </div>
+                <div style={{ marginBottom: '1rem', color: '#10b981', fontSize: '0.875rem', fontWeight: 500 }}>
+                  ✓ Found {specificationDocuments.length} specification file(s) in this study
+                </div>
+                <div style={{
+                  maxHeight: '180px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  marginBottom: '1rem'
+                }}>
+                  {specificationDocuments.map((doc) => (
+                    <button
+                      key={doc.id}
+                      className="spec-select-button"
+                      onClick={() => handleSelectStudySpec(doc)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                        border: '1px solid #86efac',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.2s ease',
+                        width: '100%'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.2)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    >
+                      <FileSearch size={20} style={{ color: '#10b981', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, color: '#166534', fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {doc.original_file_name}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
+                          {doc.size_bytes && ` • ${(doc.size_bytes / 1024).toFixed(1)} KB`}
+                        </div>
+                      </div>
+                      <ArrowRight size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#9ca3af', textAlign: 'center' }}>
+                  Or upload a new specification file below
+                </div>
+              </div>
+            ) : (
+              <div className="empty-step-card">
+                <div className="step-title">Step 2: Upload specification</div>
+                <p style={{ marginBottom: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                  Upload your ADAM specification Excel file to analyze variables and generate code.
+                </p>
+              </div>
+            )}
+
             <div className="empty-step-card">
-              <div className="step-title">Step 2: Upload specification</div>
-              <p style={{ marginBottom: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>
-                Upload your ADAM specification Excel file to analyze variables and generate code.
-              </p>
+              <div className="step-title">{currentStudyId && specificationDocuments.length > 0 ? 'Or: Upload New Specification' : 'Step 2: Upload specification'}</div>
               <button className="categorize-button" onClick={handleUploadSpecCTA} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Upload size={18} />
-                Take me to Upload Specification
+                {currentStudyId && specificationDocuments.length > 0 ? 'Upload Different Specification' : 'Take me to Upload Specification'}
               </button>
               {currentStudyId && (
                 <div className="step-helper">
@@ -1219,10 +1380,76 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
         <div className="variables-error-state" key="error-state">
           <AlertCircle size={64} className="error-icon" />
           <h3>Categorization Failed</h3>
-          <p>{error}</p>
-          <button className="retry-button" onClick={handleCategorizeVariables}>
-            Retry Categorization
-          </button>
+          <p style={{ whiteSpace: 'pre-line', maxWidth: '600px', margin: '0 auto' }}>{error}</p>
+
+          {/* Show available specification documents if error is file not found */}
+          {error.toLowerCase().includes('not found') && specificationDocuments.length > 0 && (
+            <div style={{
+              marginTop: '20px',
+              padding: '16px',
+              background: 'rgba(59, 130, 246, 0.1)',
+              borderRadius: '8px',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              maxWidth: '500px',
+              margin: '20px auto'
+            }}>
+              <p style={{ margin: '0 0 12px 0', fontWeight: 500, color: '#3b82f6' }}>
+                Available Specification Files:
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {specificationDocuments.slice(0, 5).map(doc => (
+                  <button
+                    key={doc.id}
+                    onClick={() => {
+                      handleSelectStudySpec(doc);
+                      setError(null);
+                      message.success(`Selected: ${doc.original_file_name}`);
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'white',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseOver={(e) => {
+                      if (e.currentTarget) {
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                        e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (e.currentTarget) {
+                        e.currentTarget.style.borderColor = '#e5e7eb';
+                        e.currentTarget.style.background = 'white';
+                      }
+                    }}
+                  >
+                    <Upload size={14} color="#6b7280" />
+                    <span style={{ fontSize: '13px' }}>{doc.original_file_name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '16px' }}>
+            <button className="retry-button" onClick={handleCategorizeVariables}>
+              Retry Categorization
+            </button>
+            <button
+              className="retry-button"
+              onClick={handleUploadSpecCTA}
+              style={{ background: 'transparent', border: '1px solid #6b7280', color: '#6b7280' }}
+            >
+              Upload New Specification
+            </button>
+          </div>
         </div>
       )}
 
@@ -1276,7 +1503,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
                     <rect x="8" y="6" width="4" height="12" rx="1" fill="#ec4899" />
                     <rect x="14" y="2" width="4" height="16" rx="1" fill="#3b82f6" />
                   </svg>
-                  <span className="stat-dataset">{projectConfig.adamDataset || 'ADSL'}</span>
+                  <span className="stat-dataset">{safeProjectConfig.adamDataset || 'ADSL'}</span>
                 </div>
               </div>
             </div>
@@ -1480,7 +1707,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
             onClose={() => setShowDownloadModal(false)}
             programCode={finalProgramCode}
             language={programmingLanguage as 'R' | 'SAS'}
-            datasetName={projectConfig.adamDataset || 'ADSL'}
+            datasetName={safeProjectConfig.adamDataset || 'ADSL'}
           />
 
           {/* Enhanced Code Generation Progress Modal */}
@@ -1498,7 +1725,7 @@ export const VariablesAnalysisTab: React.FC<VariablesAnalysisTabProps> = ({
             onCancel={handleCancelBulkGeneration}
             llmProvider={llmProvider}
             language={programmingLanguage}
-            dataset={projectConfig.adamDataset || 'ADSL'}
+            dataset={safeProjectConfig.adamDataset || 'ADSL'}
           />
         </div>
       )}

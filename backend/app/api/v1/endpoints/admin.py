@@ -3,9 +3,12 @@ Admin API endpoints
 Accessible only to users with admin role
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Response, Body
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import datetime
+from pathlib import Path
+import shutil
 
 from app.models.study_models import (
     AuditLogEntry, AuditLogFilter, Template, TemplateCreate, TemplateUpdate,
@@ -22,6 +25,310 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 def get_audit_service(db: Session = Depends(get_db)) -> AuditService:
     """Dependency to get AuditService instance"""
     return AuditService(db)
+
+
+# ============================================================================
+# STUDY MANAGEMENT (Admin Only)
+# ============================================================================
+
+@router.get("/studies")
+async def list_all_studies(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    include_deleted: bool = Query(False, description="Include soft-deleted studies"),
+    search: Optional[str] = Query(None, description="Search by name or ID"),
+    current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    List all studies (admin only)
+    
+    Includes study metadata and document counts
+    """
+    try:
+        query = """
+            SELECT s.*, 
+                   (SELECT COUNT(*) FROM study_documents WHERE study_id = s.id AND is_active = TRUE) as document_count
+            FROM studies s
+            WHERE 1=1
+        """
+        params = {}
+        
+        if not include_deleted:
+            query += " AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)"
+        
+        if search:
+            query += " AND (LOWER(s.name) LIKE :search OR LOWER(s.id) LIKE :search)"
+            params["search"] = f"%{search.lower()}%"
+        
+        query += " ORDER BY s.created_at DESC LIMIT :limit OFFSET :skip"
+        params.update({"limit": limit, "skip": skip})
+        
+        result = db.execute(text(query), params)
+        studies = [dict(row._mapping) for row in result.fetchall()]
+        
+        # Get total count
+        count_query = "SELECT COUNT(*) FROM studies WHERE 1=1"
+        if not include_deleted:
+            count_query += " AND (is_deleted = FALSE OR is_deleted IS NULL)"
+        total = db.execute(text(count_query)).scalar() or 0
+        
+        return {
+            "studies": studies,
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+    except Exception as e:
+        # Fallback for SQLite
+        return {
+            "studies": [],
+            "total": 0,
+            "skip": skip,
+            "limit": limit,
+            "error": str(e)
+        }
+
+
+@router.get("/studies/trash")
+async def list_deleted_studies(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db)
+):
+    """
+    List soft-deleted studies (Trash/Recycle Bin view)
+    
+    Shows studies that can be restored or permanently deleted
+    """
+    try:
+        query = """
+            SELECT s.*, 
+                   (SELECT COUNT(*) FROM study_documents WHERE study_id = s.id) as document_count
+            FROM studies s
+            WHERE s.is_deleted = TRUE
+            ORDER BY s.deleted_at DESC NULLS LAST
+            LIMIT :limit OFFSET :skip
+        """
+        result = db.execute(text(query), {"limit": limit, "skip": skip})
+        studies = [dict(row._mapping) for row in result.fetchall()]
+        
+        count_query = "SELECT COUNT(*) FROM studies WHERE is_deleted = TRUE"
+        total = db.execute(text(count_query)).scalar() or 0
+        
+        return {
+            "studies": studies,
+            "total": total,
+            "skip": skip,
+            "limit": limit
+        }
+    except Exception as e:
+        return {"studies": [], "total": 0, "error": str(e)}
+
+
+@router.post("/studies/{study_id}/restore")
+async def restore_study(
+    study_id: str,
+    current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service)
+):
+    """Restore a soft-deleted study from trash"""
+    query = """
+        UPDATE studies 
+        SET is_deleted = FALSE, deleted_at = NULL
+        WHERE id = :study_id AND is_deleted = TRUE
+    """
+    result = db.execute(text(query), {"study_id": study_id})
+    db.commit()
+    
+    if result.rowcount == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Study not found in trash"
+        )
+    
+    # Log audit
+    audit_service.log(
+        user_id=current_admin.id,
+        action=AuditAction.STUDY_CREATED,  # Reusing as STUDY_RESTORED
+        resource_type="study",
+        resource_id=study_id,
+        details={"action": "restored_from_trash"}
+    )
+    
+    return {"success": True, "study_id": study_id, "message": "Study restored successfully"}
+
+
+@router.delete("/studies/{study_id}/hard")
+async def hard_delete_study(
+    study_id: str,
+    delete_files: bool = Query(True, description="Also delete associated files from storage"),
+    current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service)
+):
+    """
+    Permanently delete a study and all associated data
+    
+    WARNING: This action cannot be undone!
+    """
+    # Get study info first
+    study_query = "SELECT * FROM studies WHERE id = :study_id"
+    study = db.execute(text(study_query), {"study_id": study_id}).fetchone()
+    
+    if not study:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Study not found"
+        )
+    
+    study_name = study.name if hasattr(study, 'name') else study_id
+    
+    # Delete associated files if requested
+    files_deleted = 0
+    if delete_files:
+        try:
+            # Get document paths
+            docs_query = "SELECT storage_path FROM study_documents WHERE study_id = :study_id"
+            docs = db.execute(text(docs_query), {"study_id": study_id}).fetchall()
+            
+            for doc in docs:
+                if doc.storage_path:
+                    file_path = Path(doc.storage_path)
+                    if file_path.exists():
+                        file_path.unlink()
+                        files_deleted += 1
+            
+            # Delete study folder if exists
+            study_folder = Path("storage/study_documents") / study_id
+            if study_folder.exists():
+                shutil.rmtree(study_folder)
+        except Exception as e:
+            # Log but don't fail - files may already be deleted
+            pass
+    
+    # Delete in order: documents -> datasets -> access -> study
+    delete_queries = [
+        "DELETE FROM study_documents WHERE study_id = :study_id",
+        "DELETE FROM study_dataset_selections WHERE study_id = :study_id",
+        "DELETE FROM study_access WHERE study_id = :study_id",
+        "DELETE FROM studies WHERE id = :study_id"
+    ]
+    
+    for query in delete_queries:
+        try:
+            db.execute(text(query), {"study_id": study_id})
+        except Exception:
+            pass  # Table may not exist
+    
+    db.commit()
+    
+    # Log audit
+    audit_service.log(
+        user_id=current_admin.id,
+        action=AuditAction.STUDY_DELETED,
+        resource_type="study",
+        resource_id=study_id,
+        details={
+            "study_name": study_name,
+            "hard_delete": True,
+            "files_deleted": files_deleted
+        }
+    )
+    
+    return {
+        "success": True,
+        "study_id": study_id,
+        "study_name": study_name,
+        "files_deleted": files_deleted,
+        "message": "Study permanently deleted"
+    }
+
+
+@router.post("/studies/bulk-delete")
+async def bulk_delete_studies(
+    study_ids: List[str] = Body(..., embed=True),
+    hard_delete: bool = Body(False, embed=True),
+    current_admin: User = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service)
+):
+    """
+    Bulk delete multiple studies
+    
+    By default performs soft delete. Set hard_delete=true for permanent deletion.
+    """
+    if not study_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No study IDs provided"
+        )
+    
+    if len(study_ids) > 50:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Maximum 50 studies can be deleted at once"
+        )
+    
+    deleted = []
+    failed = []
+    
+    for study_id in study_ids:
+        try:
+            if hard_delete:
+                # Hard delete
+                delete_queries = [
+                    "DELETE FROM study_documents WHERE study_id = :study_id",
+                    "DELETE FROM study_dataset_selections WHERE study_id = :study_id",
+                    "DELETE FROM study_access WHERE study_id = :study_id",
+                    "DELETE FROM studies WHERE id = :study_id"
+                ]
+                for query in delete_queries:
+                    try:
+                        db.execute(text(query), {"study_id": study_id})
+                    except Exception:
+                        pass
+            else:
+                # Soft delete
+                query = """
+                    UPDATE studies 
+                    SET is_deleted = TRUE, deleted_at = :deleted_at
+                    WHERE id = :study_id
+                """
+                db.execute(text(query), {
+                    "study_id": study_id,
+                    "deleted_at": datetime.utcnow()
+                })
+            
+            deleted.append(study_id)
+        except Exception as e:
+            failed.append({"study_id": study_id, "error": str(e)})
+    
+    db.commit()
+    
+    # Log audit
+    audit_service.log(
+        user_id=current_admin.id,
+        action=AuditAction.STUDY_DELETED,
+        resource_type="study",
+        resource_id=",".join(deleted),
+        details={
+            "bulk_delete": True,
+            "hard_delete": hard_delete,
+            "count": len(deleted),
+            "failed_count": len(failed)
+        }
+    )
+    
+    return {
+        "success": len(failed) == 0,
+        "deleted": deleted,
+        "failed": failed,
+        "total_deleted": len(deleted),
+        "total_failed": len(failed)
+    }
 
 
 # ============================================================================

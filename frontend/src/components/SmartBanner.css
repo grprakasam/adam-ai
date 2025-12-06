@@ -1,0 +1,147 @@
+/* Smart Banner - Contextual Tips Component */
+
+.smart-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    margin: 8px 0;
+    animation: bannerSlideIn 0.25s ease-out;
+}
+
+@keyframes bannerSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Tip type - default */
+.smart-banner-tip {
+    background: linear-gradient(90deg, #fefce8 0%, #fef9c3 100%);
+    border: 1px solid #fde047;
+}
+
+.smart-banner-tip .smart-banner-icon {
+    color: #ca8a04;
+}
+
+.smart-banner-tip .smart-banner-message {
+    color: #854d0e;
+}
+
+/* Info type */
+.smart-banner-info {
+    background: linear-gradient(90deg, #eff6ff 0%, #dbeafe 100%);
+    border: 1px solid #93c5fd;
+}
+
+.smart-banner-info .smart-banner-icon {
+    color: #2563eb;
+}
+
+.smart-banner-info .smart-banner-message {
+    color: #1e40af;
+}
+
+/* Warning type */
+.smart-banner-warning {
+    background: linear-gradient(90deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+}
+
+.smart-banner-warning .smart-banner-icon {
+    color: #d97706;
+}
+
+.smart-banner-warning .smart-banner-message {
+    color: #92400e;
+}
+
+.smart-banner-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.smart-banner-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.smart-banner-message {
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.smart-banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.smart-banner-action {
+    font-size: 13px;
+    padding: 0;
+    height: auto;
+}
+
+.smart-banner-dismiss {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.smart-banner-dismiss:hover {
+    color: #6b7280;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* Dark Mode */
+[data-theme="dark"] .smart-banner-tip {
+    background: linear-gradient(90deg, #422006 0%, #451a03 100%);
+    border-color: #854d0e;
+}
+
+[data-theme="dark"] .smart-banner-tip .smart-banner-icon {
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .smart-banner-tip .smart-banner-message {
+    color: #fef3c7;
+}
+
+[data-theme="dark"] .smart-banner-info {
+    background: linear-gradient(90deg, #1e3a5f 0%, #172554 100%);
+    border-color: #3b82f6;
+}
+
+[data-theme="dark"] .smart-banner-info .smart-banner-icon {
+    color: #60a5fa;
+}
+
+[data-theme="dark"] .smart-banner-info .smart-banner-message {
+    color: #dbeafe;
+}
+
+[data-theme="dark"] .smart-banner-dismiss {
+    color: #6b7280;
+}
+
+[data-theme="dark"] .smart-banner-dismiss:hover {
+    color: #9ca3af;
+    background: rgba(255, 255, 255, 0.1);
+}

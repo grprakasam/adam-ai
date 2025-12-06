@@ -5,12 +5,14 @@ import {
   AuditOutlined,
   DashboardOutlined,
   FileTextOutlined,
-  SettingOutlined
+  SettingOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import { UserManagement } from '../components/admin/UserManagement';
 import { AuditLogViewer } from '../components/admin/AuditLogViewer';
 import { SystemStatistics } from '../components/admin/SystemStatistics';
 import { TemplateManagement } from '../components/admin/TemplateManagement';
+import { StudyManagement } from '../components/admin/StudyManagement';
 import './AdminPanel.css';
 
 const { TabPane } = Tabs;
@@ -45,6 +47,18 @@ export const AdminPanel: React.FC = () => {
             key="dashboard"
           >
             <SystemStatistics />
+          </TabPane>
+
+          <TabPane
+            tab={
+              <span>
+                <DatabaseOutlined />
+                Studies
+              </span>
+            }
+            key="studies"
+          >
+            <StudyManagement />
           </TabPane>
 
           <TabPane

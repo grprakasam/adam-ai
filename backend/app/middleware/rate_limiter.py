@@ -25,7 +25,10 @@ class RateLimitConfig:
     CODE_GEN_PER_MINUTE = 10
 
     # File upload requests per minute
-    FILE_UPLOAD_PER_MINUTE = 5
+    FILE_UPLOAD_PER_MINUTE = 10  # Increased from 5
+
+    # Categorization requests per minute (less restrictive - core workflow action)
+    CATEGORIZE_PER_MINUTE = 30
 
     # SDTM test data generation requests per minute (VERY restrictive due to memory usage)
     SDTM_GEN_PER_MINUTE = 5
@@ -157,8 +160,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if "/code-generation/" in path or "/generate" in path:
             return RateLimitConfig.CODE_GEN_PER_MINUTE, 60
 
+        # Categorization endpoints (core workflow - more lenient)
+        if "/categorize" in path:
+            return RateLimitConfig.CATEGORIZE_PER_MINUTE, 60  # 30 requests per minute
+
         # File upload endpoints
-        if "/upload" in path or "/categorize" in path:
+        if "/upload" in path:
             return RateLimitConfig.FILE_UPLOAD_PER_MINUTE, 60
 
         # Default rate limit
@@ -168,7 +175,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         """Process request with rate limiting"""
 
         # Skip rate limiting for certain paths
-        if request.url.path in ["/health", "/api/docs", "/api/redoc", "/api/openapi.json"]:
+        exempt_paths = [
+            "/",
+            "/health",
+            "/api/docs",
+            "/api/redoc",
+            "/api/openapi.json",
+            "/api/v1/auth/login",
+            "/api/v1/auth/refresh",
+            "/api/v1/auth/me",
+        ]
+        
+        # Also exempt read operations for studies (GET requests)
+        if request.method == "GET" and (
+            request.url.path.startswith("/api/v1/studies") or
+            request.url.path == "/" or
+            request.url.path in exempt_paths
+        ):
+            return await call_next(request)
+            
+        if request.url.path in exempt_paths:
             return await call_next(request)
 
         # Get client IP

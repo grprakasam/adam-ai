@@ -21,11 +21,24 @@ from app.modules.studies.document_processor import process_document_background
 class DocumentService:
     """Service for managing study documents"""
 
+    @staticmethod
+    def _get_backend_dir() -> Path:
+        """Get backend directory path consistently"""
+        # document_service.py -> studies -> modules -> app -> backend
+        current_file = Path(__file__).resolve()
+        return current_file.parent.parent.parent.parent
+
     def __init__(self, db: AsyncSession, current_user_id: str):
         self.db = db
         self.current_user_id = current_user_id
-        # Storage base path
-        self.storage_base = Path(os.getenv("DOCUMENT_STORAGE_PATH", "storage/study_documents"))
+        # Storage base path - resolve relative to backend directory, not CWD
+        # This ensures consistent path resolution regardless of where the app is run from
+        storage_path_env = os.getenv("DOCUMENT_STORAGE_PATH", "storage/study_documents")
+        if Path(storage_path_env).is_absolute():
+            self.storage_base = Path(storage_path_env)
+        else:
+            backend_dir = self._get_backend_dir()
+            self.storage_base = backend_dir / storage_path_env
 
     async def upload_document(
         self,
@@ -76,7 +89,17 @@ class DocumentService:
 
             # Generate download URL
             download_url = f"/api/v1/studies/{study_id}/documents/{doc_id}/download"
-            
+
+            # Store path relative to backend directory for portability
+            # This prevents issues when CWD changes (e.g., running from backend/ vs backend/app/)
+            backend_dir = self._get_backend_dir()
+            try:
+                relative_storage_path = storage_path.relative_to(backend_dir)
+                storage_path_str = str(relative_storage_path)
+            except ValueError:
+                # If path is not relative to backend_dir (e.g., absolute path elsewhere), store as-is
+                storage_path_str = str(storage_path)
+
             # Create database record
             doc_db = StudyDocumentDB(
                 id=doc_id,
@@ -84,7 +107,7 @@ class DocumentService:
                 document_type=document_type.value,
                 file_name=storage_path.name,
                 original_file_name=file.filename or "unknown",
-                storage_path=str(storage_path),
+                storage_path=storage_path_str,
                 storage_url=download_url,  # Set download URL
                 mime_type=file.content_type,
                 size_bytes=file_size,
@@ -185,8 +208,12 @@ class DocumentService:
 
         if hard_delete:
             # Remove file from storage
-            if Path(doc.storage_path).exists():
-                Path(doc.storage_path).unlink()
+            storage_path = Path(doc.storage_path)
+            # If path is relative, resolve it relative to backend directory
+            if not storage_path.is_absolute():
+                storage_path = self._get_backend_dir() / storage_path
+            if storage_path.exists():
+                storage_path.unlink()
             await self.db.delete(doc)
         else:
             # Soft delete
