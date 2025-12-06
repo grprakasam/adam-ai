@@ -32,7 +32,8 @@ class CacheManager:
         derivation: str,
         language: str,
         adam_dataset: str,
-        variable_type: str = ""
+        variable_type: str = "",
+        study_id: str = ""
     ) -> str:
         """
         Generate unique cache key for a variable
@@ -43,11 +44,14 @@ class CacheManager:
             language: Programming language
             adam_dataset: ADAM dataset name
             variable_type: Variable type
+            study_id: Study identifier (IMPORTANT for data isolation)
             
         Returns:
-            MD5 hash of the combined inputs
+            MD5 hash of the combined inputs including study_id
         """
-        content = f"{variable_name}|{derivation}|{language}|{adam_dataset}|{variable_type}"
+        # Include study_id in the cache key for proper data isolation
+        # This prevents code generated for one study being served to another
+        content = f"{study_id}|{variable_name}|{derivation}|{language}|{adam_dataset}|{variable_type}"
         return hashlib.md5(content.encode()).hexdigest()
     
     def get(self, key: str) -> Optional[Dict[str, Any]]:
