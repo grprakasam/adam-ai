@@ -25,8 +25,10 @@
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
   flex-shrink: 0;
   position: sticky;
-  top: 76px; /* Offset by workspace-header-group height (68px) + margin (8px) */
-  z-index: 150; /* Below workspace header (200) but above content (1) */
+  top: 76px;
+  /* Offset by workspace-header-group height (68px) + margin (8px) */
+  z-index: 150;
+  /* Below workspace header (200) but above content (1) */
   /* ALWAYS visible - no hiding */
   transform: translateY(0) !important;
   opacity: 1 !important;
@@ -535,6 +537,7 @@
 
 /* Touch Device Optimizations */
 @media (hover: none) and (pointer: coarse) {
+
   .traceability-header .header-actions .ant-btn-lg,
   .control-item .ant-radio-button-wrapper,
   .controls-section .ant-btn-block {
@@ -560,7 +563,7 @@
 }
 
 /* Alert Spacing */
-.traceability-main-content > .ant-alert {
+.traceability-main-content>.ant-alert {
   margin-bottom: 16px;
 }
 
@@ -606,4 +609,47 @@
 /* Progress Bar Enhancement */
 .progress-section .ant-progress-bg {
   background: linear-gradient(90deg, #10b981 0%, #059669 100%) !important;
+}
+
+/* Specification Info Section */
+.spec-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.spec-file-name {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #f6ffed 0%, #ecfdf5 100%);
+  border-radius: 8px;
+  border: 1px solid #b7eb8f;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+  min-height: 44px;
+}
+
+.spec-file-name:hover {
+  border-color: #52c41a;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.spec-info .ant-btn {
+  font-size: 13px;
+  font-weight: 600;
+  height: 36px;
+  border-radius: 6px;
+}
+
+.spec-info .ant-btn-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+}
+
+.spec-info .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }

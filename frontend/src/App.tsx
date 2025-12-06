@@ -23,8 +23,9 @@ import type { ProgrammingLanguage, GenerationResponse } from './types';
 import { SkipLink } from './components/a11y/SkipLink';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useApplyPreferences } from './hooks/useApplyPreferences';
-import { useStudyStore } from './store/studyStore';
+import { useStudyStore, StudyDocument } from './store/studyStore';
 import { setupStudyDocumentSync, syncStudySpecificationToProjectStore } from './utils/studyDocumentSync';
+import { SpecificationSelectionModal } from './components/SpecificationSelectionModal';
 import './App.css';
 
 type ViewMode =
@@ -57,6 +58,9 @@ function App() {
   const [isHelpCenterOpen, setHelpCenterOpen] = useState(false);
   const [isPreferencesOpen, setPreferencesOpen] = useState(false);
   const [isQuickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [specSelectionModalVisible, setSpecSelectionModalVisible] = useState(false);
+  const [pendingSpecDocuments, setPendingSpecDocuments] = useState<StudyDocument[]>([]);
+  const [pendingSpecStudyId, setPendingSpecStudyId] = useState<string>('');
   const mainContentRef = useRef<HTMLElement | null>(null);
 
   const undo = useWorkspaceHistory((state) => state.undo);
@@ -73,6 +77,23 @@ function App() {
   useEffect(() => {
     const cleanup = setupStudyDocumentSync();
     return cleanup;
+  }, []);
+
+  // Handle multiple specification files event
+  useEffect(() => {
+    const handleMultipleSpecs = (event: CustomEvent<{ studyId: string; specificationDocuments: StudyDocument[] }>) => {
+      const { studyId, specificationDocuments } = event.detail;
+      if (specificationDocuments && specificationDocuments.length > 1) {
+        setPendingSpecStudyId(studyId);
+        setPendingSpecDocuments(specificationDocuments);
+        setSpecSelectionModalVisible(true);
+      }
+    };
+
+    window.addEventListener('multiple-specifications-found', handleMultipleSpecs as EventListener);
+    return () => {
+      window.removeEventListener('multiple-specifications-found', handleMultipleSpecs as EventListener);
+    };
   }, []);
 
   useEffect(() => {
@@ -524,6 +545,22 @@ function App() {
 
                     <RecoverySuggestions />
                     <ApprovalProgressBar />
+
+                    {/* Specification Selection Modal - shown when study has multiple spec files */}
+                    <SpecificationSelectionModal
+                      visible={specSelectionModalVisible}
+                      studyId={pendingSpecStudyId}
+                      specificationDocuments={pendingSpecDocuments}
+                      onClose={() => {
+                        setSpecSelectionModalVisible(false);
+                        setPendingSpecDocuments([]);
+                        setPendingSpecStudyId('');
+                      }}
+                      onSelect={(documentId, sheetName) => {
+                        console.log('User selected specification:', documentId, sheetName);
+                        message.success('Specification file selected. You may need to re-categorize variables.');
+                      }}
+                    />
                   </>
                 )}
               </>

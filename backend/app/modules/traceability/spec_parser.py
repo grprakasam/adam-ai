@@ -33,24 +33,78 @@ class SpecificationParser:
         - algorithm: derivation text
         - category: CDISC category
         """
-        # Resolve specification path (support repo-relative paths)
+        logger.info(f"=== SPEC PARSER: Resolving path ===")
+        logger.info(f"Input spec_path: {spec_path}")
+        
+        # Resolve specification path (support repo-relative paths and storage paths)
         path_obj = Path(spec_path)
         
-        if not path_obj.is_absolute():
-            # Path resolution: backend/app/modules/traceability/spec_parser.py
-            # parents[0] = traceability/, parents[1] = modules/, parents[2] = app/
-            # parents[3] = backend/, parents[4] = ADAM_AI/ (project root)
-            project_root = Path(__file__).resolve().parents[4]
-            path_obj = (project_root / spec_path).resolve()
-            
-            # Fallback: try relative to current working directory
+        if path_obj.is_absolute():
+            logger.info(f"Path is absolute: {path_obj}")
+            # Fix common path issues with 'app/storage' vs 'storage'
             if not path_obj.exists():
-                cwd_relative = (Path.cwd() / spec_path).resolve()
-                if cwd_relative.exists():
-                    path_obj = cwd_relative
-                    logger.info(f"Resolved path relative to CWD: {path_obj}")
+                path_str = str(path_obj)
+                if "app" in path_str and "storage" in path_str:
+                    fixed_path_str = path_str.replace("app\\storage", "storage").replace("app/storage", "storage")
+                    fixed_path = Path(fixed_path_str)
+                    if fixed_path.exists():
+                        logger.warning(f"Auto-corrected path: {path_obj} -> {fixed_path}")
+                        path_obj = fixed_path
+        else:
+            # Get the backend directory
+            # Path: backend/app/modules/traceability/spec_parser.py
+            # parents[0] = traceability/, parents[1] = modules/, parents[2] = app/, parents[3] = backend/
+            backend_dir = Path(__file__).resolve().parents[3]
+            project_root = backend_dir.parent
+            
+            logger.info(f"Backend dir: {backend_dir}")
+            logger.info(f"Project root: {project_root}")
+            
+            # Normalize path separators
+            normalized_path = spec_path.replace('\\', '/')
+            
+            # Strategy 1: storage/ path (study documents)
+            if normalized_path.startswith('storage/'):
+                path_obj = (backend_dir / spec_path).resolve()
+                logger.info(f"Storage path: {path_obj}")
+            # Strategy 2: Content/ path (default specs)
+            elif normalized_path.startswith('Content/'):
+                path_obj = (project_root / spec_path).resolve()
+                logger.info(f"Content path: {path_obj}")
+            else:
+                # Strategy 3: Try as relative to backend first
+                path_obj = (backend_dir / spec_path).resolve()
+                logger.info(f"Backend-relative path: {path_obj}")
+                
+                if not path_obj.exists():
+                    # Strategy 4: Try as relative to project root
+                    path_obj = (project_root / spec_path).resolve()
+                    logger.info(f"Project-relative path: {path_obj}")
+                    
+                if not path_obj.exists():
+                    # Strategy 5: Try as relative to CWD
+                    cwd_relative = (Path.cwd() / spec_path).resolve()
+                    if cwd_relative.exists():
+                        path_obj = cwd_relative
+                        logger.info(f"Resolved path relative to CWD: {path_obj}")
 
-        logger.info(f"Parsing specification: {path_obj}")
+        # Final validation and more fallback strategies
+        if not path_obj.exists():
+            logger.warning(f"Path not found: {path_obj}, trying fallback strategies...")
+            
+            # Fallback: Search for file by name in study_documents
+            filename = Path(spec_path).name
+            if filename and filename.lower().endswith(('.xlsx', '.xls')):
+                backend_dir = Path(__file__).resolve().parents[3]
+                search_dir = backend_dir / "storage" / "study_documents"
+                if search_dir.exists():
+                    found_files = list(search_dir.rglob(filename))
+                    if found_files:
+                        path_obj = found_files[0]
+                        logger.warning(f"Found file by name search: {path_obj}")
+
+        logger.info(f"Final resolved path: {path_obj}")
+        logger.info(f"Path exists: {path_obj.exists()}")
 
         if not path_obj.exists():
             raise FileNotFoundError(

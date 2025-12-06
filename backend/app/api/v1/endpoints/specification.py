@@ -383,3 +383,97 @@ async def get_variable_category(variable_name: str):
             detail=f"Error retrieving category: {str(e)}",
         )
 
+
+@router.get("/sheets")
+async def get_specification_sheets(path: str):
+    """
+    Get sheet names from a specification Excel file
+    
+    Args:
+        path: Path to the Excel specification file
+        
+    Returns:
+        List of sheet names with optional variable count estimates
+    """
+    import openpyxl
+    
+    logger.info(f"Getting sheets for specification file: {path}")
+    
+    # Get the backend directory
+    current_file = Path(__file__).resolve()
+    backend_dir = current_file.parent.parent.parent.parent.parent
+    project_root = backend_dir.parent
+    
+    # Resolve the path
+    spec_path = Path(path)
+    
+    if not spec_path.is_absolute():
+        normalized_path = path.replace('\\', '/')
+        if normalized_path.startswith('storage/'):
+            spec_path = backend_dir / path
+        elif normalized_path.startswith('Content/'):
+            spec_path = project_root / path
+        else:
+            # Try as backend-relative
+            spec_path = backend_dir / path
+    
+    # Try to fix common path issues
+    if not spec_path.exists():
+        path_str = str(spec_path)
+        if "app" in path_str and "storage" in path_str:
+            fixed_path_str = path_str.replace("app\\storage", "storage").replace("app/storage", "storage")
+            fixed_path = Path(fixed_path_str)
+            if fixed_path.exists():
+                spec_path = fixed_path
+
+    if not spec_path.exists():
+        logger.error(f"Specification file not found: {spec_path}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Specification file not found: {path}"
+        )
+    
+    try:
+        # Load the workbook to get sheet names
+        workbook = openpyxl.load_workbook(str(spec_path), read_only=True, data_only=True)
+        
+        sheets = []
+        for sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+            
+            # Try to estimate the number of rows (variables)
+            # Most spec files have variables in a column, often column A or B
+            try:
+                # Get a rough count of non-empty rows (excluding header)
+                row_count = 0
+                max_check = 1000  # Don't check more than 1000 rows for performance
+                for i, row in enumerate(sheet.iter_rows(min_row=2, max_row=max_check, max_col=5)):
+                    if any(cell.value for cell in row):
+                        row_count += 1
+                    else:
+                        # Stop at first empty row
+                        break
+                        
+                sheets.append({
+                    "name": sheet_name,
+                    "variables_count": row_count if row_count > 0 else None
+                })
+            except Exception as e:
+                logger.warning(f"Could not count rows in sheet {sheet_name}: {e}")
+                sheets.append({
+                    "name": sheet_name,
+                    "variables_count": None
+                })
+        
+        workbook.close()
+        
+        logger.info(f"Found {len(sheets)} sheets in specification file")
+        
+        return {"sheets": sheets}
+        
+    except Exception as e:
+        logger.error(f"Error reading specification file: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading specification file: {str(e)}"
+        )
