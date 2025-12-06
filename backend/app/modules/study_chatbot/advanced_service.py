@@ -34,6 +34,7 @@ from .schemas import (
     ChatMessage,
     SuggestedQuestion,
     SuggestedQuestionsResponse,
+    SourceSnippet,
 )
 from ..llm_integration.service import get_llm_service
 
@@ -249,6 +250,13 @@ class AdvancedStudyChatbotService:
                 chunks = self._chunk_pdf_file(file_path)
             elif ext in ['.docx', '.doc']:
                 chunks = self._chunk_docx_file(file_path)
+            elif ext in ['.xlsx', '.xls']:
+                chunks = self._chunk_excel_file(file_path)
+            elif ext == '.csv':
+                chunks = self._chunk_csv_file(file_path)
+            elif ext in ['.md', '.rtf']:
+                # Treat as text files
+                chunks = self._chunk_txt_file(file_path)
 
             # Enrich chunks with entities and keywords
             chunks = self._enrich_chunk_metadata(chunks)
@@ -449,6 +457,408 @@ class AdvancedStudyChatbotService:
             logger.error(f"DOCX chunking failed: {e}")
             return []
 
+    def _chunk_excel_file(self, file_path: str) -> List[DocumentChunk]:
+        """
+        Enterprise-grade Excel chunking for specification analysis.
+        
+        Strategy:
+        1. Schema chunk - column definitions and structure
+        2. Column-wise chunks - unique values & patterns per column
+        3. Row-wise chunks - ALL rows indexed with full context
+        4. Summary chunk - statistics and overview
+        
+        Optimized for specifications with 20+ columns and 100+ rows.
+        """
+        chunks = []
+        path = Path(file_path)
+
+        try:
+            import pandas as pd
+            import numpy as np
+
+            # Try multiple engines for robustness
+            df = None
+            engines = ['openpyxl', 'xlrd', None]
+            
+            for engine in engines:
+                try:
+                    if engine:
+                        excel_file = pd.ExcelFile(file_path, engine=engine)
+                    else:
+                        excel_file = pd.ExcelFile(file_path)
+                    break
+                except Exception as e:
+                    logger.debug(f"Engine {engine} failed: {e}")
+                    continue
+            
+            if excel_file is None:
+                logger.error(f"Could not open Excel file: {file_path}")
+                return []
+
+            for sheet_name in excel_file.sheet_names:
+                try:
+                    df = pd.read_excel(excel_file, sheet_name=sheet_name)
+                except Exception as e:
+                    logger.warning(f"Could not read sheet {sheet_name}: {e}")
+                    continue
+                
+                if df.empty:
+                    continue
+
+                # Clean column names
+                df.columns = [str(c).strip() for c in df.columns]
+                columns = df.columns.tolist()
+                n_rows = len(df)
+                n_cols = len(columns)
+
+                logger.info(f"Processing sheet '{sheet_name}': {n_rows} rows x {n_cols} columns")
+
+                # ========================================
+                # CHUNK 1: SCHEMA DEFINITION
+                # ========================================
+                schema_text = f"=== EXCEL SCHEMA: {path.name} - Sheet: {sheet_name} ===\n\n"
+                schema_text += f"Structure: {n_rows} rows × {n_cols} columns\n\n"
+                schema_text += "COLUMN DEFINITIONS:\n"
+                
+                for i, col in enumerate(columns, 1):
+                    col_data = df[col]
+                    dtype = str(col_data.dtype)
+                    non_null = col_data.notna().sum()
+                    null_pct = (1 - non_null/n_rows) * 100 if n_rows > 0 else 0
+                    
+                    # Detect data type
+                    if pd.api.types.is_numeric_dtype(col_data):
+                        data_type = "Numeric"
+                    elif pd.api.types.is_datetime64_any_dtype(col_data):
+                        data_type = "Date/Time"
+                    else:
+                        data_type = "Text"
+                    
+                    schema_text += f"  {i}. {col}\n"
+                    schema_text += f"     - Type: {data_type} ({dtype})\n"
+                    schema_text += f"     - Non-null: {non_null}/{n_rows} ({100-null_pct:.1f}% complete)\n"
+                
+                chunks.append(DocumentChunk(
+                    content=schema_text,
+                    embedding=None,
+                    metadata=ChunkMetadata(
+                        source=path.name,
+                        page=1,
+                        section=f"Schema: {sheet_name}",
+                        chunk_index=len(chunks),
+                        chunk_id=f"{path.name}_{sheet_name}_schema"
+                    )
+                ))
+
+                # ========================================
+                # CHUNK 2-N: COLUMN ANALYSIS (for each column)
+                # ========================================
+                for col in columns:
+                    col_data = df[col].dropna()
+                    
+                    if len(col_data) == 0:
+                        continue
+                    
+                    col_text = f"=== COLUMN ANALYSIS: {col} ===\n"
+                    col_text += f"Source: {path.name} - Sheet: {sheet_name}\n\n"
+                    
+                    if pd.api.types.is_numeric_dtype(col_data):
+                        # Numeric column analysis
+                        col_text += f"Type: Numeric\n"
+                        col_text += f"Count: {len(col_data)} values\n"
+                        col_text += f"Range: {col_data.min()} to {col_data.max()}\n"
+                        col_text += f"Mean: {col_data.mean():.4f}\n"
+                        col_text += f"Median: {col_data.median():.4f}\n"
+                        col_text += f"Std Dev: {col_data.std():.4f}\n"
+                        
+                        # Sample values
+                        samples = col_data.head(10).tolist()
+                        col_text += f"\nSample values: {samples}\n"
+                        
+                    else:
+                        # Text/categorical column analysis
+                        unique_vals = col_data.astype(str).unique()
+                        n_unique = len(unique_vals)
+                        
+                        col_text += f"Type: Text/Categorical\n"
+                        col_text += f"Count: {len(col_data)} values\n"
+                        col_text += f"Unique values: {n_unique}\n"
+                        
+                        # Show all unique values if reasonable, else top 20
+                        if n_unique <= 50:
+                            col_text += f"\nAll unique values:\n"
+                            for val in sorted(unique_vals, key=str):
+                                count = (col_data.astype(str) == str(val)).sum()
+                                col_text += f"  • {val} (count: {count})\n"
+                        else:
+                            col_text += f"\nTop 20 most common values:\n"
+                            value_counts = col_data.astype(str).value_counts().head(20)
+                            for val, count in value_counts.items():
+                                col_text += f"  • {val} (count: {count})\n"
+                    
+                    chunks.append(DocumentChunk(
+                        content=col_text,
+                        embedding=None,
+                        metadata=ChunkMetadata(
+                            source=path.name,
+                            page=1,
+                            section=f"Column: {col}",
+                            chunk_index=len(chunks),
+                            chunk_id=f"{path.name}_{sheet_name}_col_{col[:20]}"
+                        )
+                    ))
+
+                # ========================================
+                # CHUNK N+1 to M: ALL ROWS (in batches)
+                # ========================================
+                # Process ALL rows, not just first 100
+                batch_size = 15  # Rows per chunk for better context
+                
+                for batch_start in range(0, n_rows, batch_size):
+                    batch_end = min(batch_start + batch_size, n_rows)
+                    batch_df = df.iloc[batch_start:batch_end]
+                    
+                    row_text = f"=== DATA ROWS {batch_start + 1} to {batch_end} ===\n"
+                    row_text += f"Source: {path.name} - Sheet: {sheet_name}\n"
+                    row_text += f"Columns: {', '.join(columns)}\n\n"
+                    
+                    for idx, (row_idx, row) in enumerate(batch_df.iterrows(), batch_start + 1):
+                        row_text += f"--- Row {idx} ---\n"
+                        for col in columns:
+                            val = row[col]
+                            if pd.notna(val):
+                                # Truncate very long values
+                                val_str = str(val)
+                                if len(val_str) > 200:
+                                    val_str = val_str[:200] + "..."
+                                row_text += f"  {col}: {val_str}\n"
+                        row_text += "\n"
+                    
+                    chunks.append(DocumentChunk(
+                        content=row_text,
+                        embedding=None,
+                        metadata=ChunkMetadata(
+                            source=path.name,
+                            page=batch_start // batch_size + 1,
+                            section=f"Rows {batch_start + 1}-{batch_end}",
+                            chunk_index=len(chunks),
+                            chunk_id=f"{path.name}_{sheet_name}_rows_{batch_start}_{batch_end}"
+                        )
+                    ))
+
+                # ========================================
+                # FINAL CHUNK: COMPREHENSIVE SUMMARY
+                # ========================================
+                summary_text = f"=== COMPREHENSIVE SUMMARY ===\n"
+                summary_text += f"File: {path.name}\n"
+                summary_text += f"Sheet: {sheet_name}\n"
+                summary_text += f"Total: {n_rows} rows × {n_cols} columns\n\n"
+                
+                summary_text += "COLUMN OVERVIEW:\n"
+                for col in columns:
+                    col_data = df[col]
+                    non_null = col_data.notna().sum()
+                    
+                    if pd.api.types.is_numeric_dtype(col_data):
+                        summary_text += f"  • {col}: Numeric, range {col_data.min()}-{col_data.max()}\n"
+                    else:
+                        n_unique = col_data.dropna().astype(str).nunique()
+                        summary_text += f"  • {col}: Text, {n_unique} unique values\n"
+                
+                # Data completeness
+                total_cells = n_rows * n_cols
+                filled_cells = df.notna().sum().sum()
+                completeness = (filled_cells / total_cells) * 100 if total_cells > 0 else 0
+                
+                summary_text += f"\nDATA QUALITY:\n"
+                summary_text += f"  • Completeness: {completeness:.1f}% ({filled_cells}/{total_cells} cells filled)\n"
+                summary_text += f"  • Columns with missing data: {(df.isna().any()).sum()}\n"
+                
+                chunks.append(DocumentChunk(
+                    content=summary_text,
+                    embedding=None,
+                    metadata=ChunkMetadata(
+                        source=path.name,
+                        page=1,
+                        section=f"Summary: {sheet_name}",
+                        chunk_index=len(chunks),
+                        chunk_id=f"{path.name}_{sheet_name}_summary"
+                    )
+                ))
+
+            logger.info(f"Excel file processed: {path.name}, sheets: {len(excel_file.sheet_names)}, chunks: {len(chunks)}")
+            return chunks
+
+        except ImportError as e:
+            logger.error(f"Required package not installed: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"Excel processing failed: {e}", exc_info=True)
+            return []
+
+    def _chunk_csv_file(self, file_path: str) -> List[DocumentChunk]:
+        """
+        Enterprise-grade CSV chunking using same approach as Excel.
+        """
+        chunks = []
+        path = Path(file_path)
+
+        try:
+            import pandas as pd
+
+            # Try multiple encodings and separators
+            df = None
+            encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
+            separators = [',', ';', '\t', '|']
+            
+            for encoding in encodings:
+                for sep in separators:
+                    try:
+                        df = pd.read_csv(file_path, encoding=encoding, sep=sep)
+                        # Check if we got meaningful columns
+                        if len(df.columns) > 1 or (len(df.columns) == 1 and len(df) > 0):
+                            break
+                    except Exception:
+                        continue
+                if df is not None and len(df.columns) > 1:
+                    break
+            
+            if df is None or df.empty:
+                logger.warning(f"Could not read CSV file: {file_path}")
+                return []
+
+            # Clean column names
+            df.columns = [str(c).strip() for c in df.columns]
+            columns = df.columns.tolist()
+            n_rows = len(df)
+            n_cols = len(columns)
+
+            logger.info(f"Processing CSV: {path.name}, {n_rows} rows x {n_cols} columns")
+
+            # Use same chunking strategy as Excel
+            # SCHEMA CHUNK
+            schema_text = f"=== CSV SCHEMA: {path.name} ===\n\n"
+            schema_text += f"Structure: {n_rows} rows × {n_cols} columns\n\n"
+            schema_text += "COLUMN DEFINITIONS:\n"
+            
+            for i, col in enumerate(columns, 1):
+                col_data = df[col]
+                non_null = col_data.notna().sum()
+                null_pct = (1 - non_null/n_rows) * 100 if n_rows > 0 else 0
+                
+                if pd.api.types.is_numeric_dtype(col_data):
+                    data_type = "Numeric"
+                else:
+                    data_type = "Text"
+                
+                schema_text += f"  {i}. {col}: {data_type} ({100-null_pct:.1f}% complete)\n"
+            
+            chunks.append(DocumentChunk(
+                content=schema_text,
+                embedding=None,
+                metadata=ChunkMetadata(
+                    source=path.name,
+                    page=1,
+                    section="Schema",
+                    chunk_index=len(chunks),
+                    chunk_id=f"{path.name}_schema"
+                )
+            ))
+
+            # COLUMN ANALYSIS CHUNKS
+            for col in columns:
+                col_data = df[col].dropna()
+                if len(col_data) == 0:
+                    continue
+                
+                col_text = f"=== COLUMN: {col} ===\n"
+                col_text += f"Source: {path.name}\n\n"
+                
+                if pd.api.types.is_numeric_dtype(col_data):
+                    col_text += f"Type: Numeric\n"
+                    col_text += f"Range: {col_data.min()} to {col_data.max()}\n"
+                    col_text += f"Mean: {col_data.mean():.4f}\n"
+                else:
+                    unique_vals = col_data.astype(str).unique()
+                    n_unique = len(unique_vals)
+                    col_text += f"Type: Text ({n_unique} unique values)\n"
+                    
+                    if n_unique <= 30:
+                        col_text += "Values: " + ", ".join(sorted(set(str(v) for v in unique_vals))) + "\n"
+                    else:
+                        top_vals = col_data.astype(str).value_counts().head(15)
+                        col_text += "Top values: " + ", ".join(f"{v}({c})" for v, c in top_vals.items()) + "\n"
+                
+                chunks.append(DocumentChunk(
+                    content=col_text,
+                    embedding=None,
+                    metadata=ChunkMetadata(
+                        source=path.name,
+                        page=1,
+                        section=f"Column: {col}",
+                        chunk_index=len(chunks),
+                        chunk_id=f"{path.name}_col_{col[:20]}"
+                    )
+                ))
+
+            # ROW DATA CHUNKS - ALL ROWS
+            batch_size = 15
+            for batch_start in range(0, n_rows, batch_size):
+                batch_end = min(batch_start + batch_size, n_rows)
+                batch_df = df.iloc[batch_start:batch_end]
+                
+                row_text = f"=== ROWS {batch_start + 1} to {batch_end} ===\n"
+                row_text += f"Source: {path.name}\n\n"
+                
+                for idx, (row_idx, row) in enumerate(batch_df.iterrows(), batch_start + 1):
+                    row_text += f"Row {idx}: "
+                    row_parts = []
+                    for col in columns:
+                        val = row[col]
+                        if pd.notna(val):
+                            val_str = str(val)[:100]
+                            row_parts.append(f"{col}={val_str}")
+                    row_text += " | ".join(row_parts) + "\n"
+                
+                chunks.append(DocumentChunk(
+                    content=row_text,
+                    embedding=None,
+                    metadata=ChunkMetadata(
+                        source=path.name,
+                        page=batch_start // batch_size + 1,
+                        section=f"Rows {batch_start + 1}-{batch_end}",
+                        chunk_index=len(chunks),
+                        chunk_id=f"{path.name}_rows_{batch_start}_{batch_end}"
+                    )
+                ))
+
+            # SUMMARY CHUNK
+            summary_text = f"=== CSV SUMMARY: {path.name} ===\n"
+            summary_text += f"Total: {n_rows} rows × {n_cols} columns\n"
+            summary_text += f"Columns: {', '.join(columns)}\n"
+            
+            chunks.append(DocumentChunk(
+                content=summary_text,
+                embedding=None,
+                metadata=ChunkMetadata(
+                    source=path.name,
+                    page=1,
+                    section="Summary",
+                    chunk_index=len(chunks),
+                    chunk_id=f"{path.name}_summary"
+                )
+            ))
+
+            logger.info(f"CSV processed: {path.name}, {n_rows} rows, {len(chunks)} chunks")
+            return chunks
+
+        except ImportError:
+            logger.error("pandas not installed")
+            return []
+        except Exception as e:
+            logger.error(f"CSV processing failed: {e}", exc_info=True)
+            return []
+
     def _detect_sections(self, text: str) -> List[Tuple[str, str]]:
         """Detect sections based on headers (lines in ALL CAPS or with specific patterns)"""
         lines = text.split('\n')
@@ -566,6 +976,7 @@ class AdvancedStudyChatbotService:
         4. Generate answer with strict grounding
         5. Verify answer and calculate grounding score
         6. Extract and validate citations
+        7. Build rich source snippets with content previews
         """
         start_time = time.time()
 
@@ -603,13 +1014,23 @@ class AdvancedStudyChatbotService:
             # Step 6: Extract citations
             citations = self._extract_and_validate_citations(answer, retrieval_result.chunks)
 
+            # Step 7: Build rich source snippets with content previews
+            source_snippets = None
+            if request.show_sources:
+                source_snippets = self._build_source_snippets(
+                    chunks=retrieval_result.chunks,
+                    scores=retrieval_result.scores,
+                    query=request.message
+                )
+
             # Build response
             message = ChatMessage(
                 id=hashlib.md5(f"{request.session_id}{time.time()}".encode()).hexdigest(),
                 type="assistant",
                 content=answer,
                 timestamp=datetime.now(),
-                sources=citations if request.show_sources else None
+                sources=citations if request.show_sources else None,
+                source_snippets=source_snippets
             )
 
             processing_time_ms = int((time.time() - start_time) * 1000)
@@ -618,6 +1039,7 @@ class AdvancedStudyChatbotService:
                 f"Chat response: session={request.session_id}, "
                 f"grounding={verification.grounding_score:.2f}, "
                 f"confidence={verification.confidence_level}, "
+                f"snippets={len(source_snippets) if source_snippets else 0}, "
                 f"time={processing_time_ms}ms"
             )
 
@@ -899,6 +1321,70 @@ YOUR ANSWER (strictly from context above):"""
                     citations.append(citation)
 
         return citations
+
+    def _build_source_snippets(
+        self,
+        chunks: List[DocumentChunk],
+        scores: List[float],
+        query: str
+    ) -> List[SourceSnippet]:
+        """
+        Build rich source snippets with actual content previews.
+        
+        Creates detailed source information for each chunk used in the response,
+        including:
+        - Actual content excerpt
+        - Section/page information
+        - Relevance score
+        - Highlighted query terms
+        """
+        snippets = []
+        
+        # Extract query keywords for highlighting
+        query_terms = set(query.lower().split())
+        stop_words = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'what', 'how', 'why', 'when', 'where', 'which', 'who', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'}
+        query_terms = query_terms - stop_words
+        
+        for i, chunk in enumerate(chunks):
+            score = scores[i] if i < len(scores) else 0.5
+            
+            # Normalize score to 0-1 range
+            if score > 1:
+                score = min(1.0, score / 10)
+            
+            # Extract content preview (first 500 chars for preview, keep full for modal)
+            content = chunk.content.strip()
+            
+            # Find highlight text - sentence containing query terms
+            highlight_text = None
+            sentences = re.split(r'[.!?\n]+', content)
+            for sentence in sentences:
+                sentence_lower = sentence.lower()
+                matching_terms = [t for t in query_terms if t in sentence_lower]
+                if len(matching_terms) >= 1:
+                    highlight_text = sentence.strip()[:200]
+                    break
+            
+            # Create unique ID
+            snippet_id = hashlib.md5(f"{chunk.metadata.chunk_id}{i}".encode()).hexdigest()[:12]
+            
+            snippet = SourceSnippet(
+                id=snippet_id,
+                filename=chunk.metadata.source,
+                section=chunk.metadata.section,
+                page=chunk.metadata.page,
+                content=content,  # Full content for modal display
+                relevance_score=round(score, 3),
+                highlight_text=highlight_text
+            )
+            
+            snippets.append(snippet)
+        
+        # Sort by relevance score
+        snippets.sort(key=lambda x: x.relevance_score, reverse=True)
+        
+        # Limit to top 5 most relevant
+        return snippets[:5]
 
     def _create_not_found_response(self, session_id: str, start_time: float) -> ChatResponse:
         """Create response when no relevant information found"""

@@ -120,12 +120,23 @@ export interface ChatRequest {
   show_sources?: boolean;
 }
 
+export interface SourceSnippet {
+  id: string;
+  filename: string;
+  section: string;
+  page: number;
+  content: string;
+  relevance_score: number;
+  highlight_text?: string;
+}
+
 export interface ChatMessage {
   id: string;
   type: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
   sources?: string[];
+  source_snippets?: SourceSnippet[];
 }
 
 export interface ChatResponse {
@@ -719,6 +730,20 @@ export const adamApi = {
   exportReviewPDF: async (params: any) => {
     console.warn('adamApi.exportReviewPDF not yet implemented');
     return { status: 'pending', file_path: '' };
+  },
+
+  // Generic HTTP methods compatible with Axios interface
+  get: async <T = any>(url: string, config?: any) => {
+    return axios.get<T>(buildApiUrl(url), config);
+  },
+  post: async <T = any>(url: string, data?: any, config?: any) => {
+    return axios.post<T>(buildApiUrl(url), data, config);
+  },
+  put: async <T = any>(url: string, data?: any, config?: any) => {
+    return axios.put<T>(buildApiUrl(url), data, config);
+  },
+  delete: async <T = any>(url: string, config?: any) => {
+    return axios.delete<T>(buildApiUrl(url), config);
   },
 };
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Tabs } from 'antd';
+import type { TabsProps } from 'antd';
 import {
   UserOutlined,
   AuditOutlined,
@@ -15,10 +16,61 @@ import { TemplateManagement } from '../components/admin/TemplateManagement';
 import { StudyManagement } from '../components/admin/StudyManagement';
 import './AdminPanel.css';
 
-const { TabPane } = Tabs;
-
 export const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  const tabItems: TabsProps['items'] = [
+    {
+      key: 'dashboard',
+      label: (
+        <span>
+          <DashboardOutlined />
+          Dashboard
+        </span>
+      ),
+      children: <SystemStatistics />,
+    },
+    {
+      key: 'studies',
+      label: (
+        <span>
+          <DatabaseOutlined />
+          Studies
+        </span>
+      ),
+      children: <StudyManagement />,
+    },
+    {
+      key: 'users',
+      label: (
+        <span>
+          <UserOutlined />
+          User Management
+        </span>
+      ),
+      children: <UserManagement />,
+    },
+    {
+      key: 'audit',
+      label: (
+        <span>
+          <AuditOutlined />
+          Audit Logs
+        </span>
+      ),
+      children: <AuditLogViewer />,
+    },
+    {
+      key: 'templates',
+      label: (
+        <span>
+          <FileTextOutlined />
+          Templates
+        </span>
+      ),
+      children: <TemplateManagement />,
+    },
+  ];
 
   return (
     <div className="admin-panel">
@@ -36,67 +88,8 @@ export const AdminPanel: React.FC = () => {
           onChange={setActiveTab}
           type="card"
           size="large"
-        >
-          <TabPane
-            tab={
-              <span>
-                <DashboardOutlined />
-                Dashboard
-              </span>
-            }
-            key="dashboard"
-          >
-            <SystemStatistics />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                <DatabaseOutlined />
-                Studies
-              </span>
-            }
-            key="studies"
-          >
-            <StudyManagement />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                <UserOutlined />
-                User Management
-              </span>
-            }
-            key="users"
-          >
-            <UserManagement />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                <AuditOutlined />
-                Audit Logs
-              </span>
-            }
-            key="audit"
-          >
-            <AuditLogViewer />
-          </TabPane>
-
-          <TabPane
-            tab={
-              <span>
-                <FileTextOutlined />
-                Templates
-              </span>
-            }
-            key="templates"
-          >
-            <TemplateManagement />
-          </TabPane>
-        </Tabs>
+          items={tabItems}
+        />
       </Card>
     </div>
   );

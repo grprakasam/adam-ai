@@ -67,13 +67,28 @@ class ChatRequest(BaseModel):
     show_sources: bool = Field(True, description="Include source references")
 
 
+class SourceSnippet(BaseModel):
+    """A source snippet with content preview for citations"""
+    id: str = Field(..., description="Unique snippet identifier")
+    filename: str = Field(..., description="Source file name")
+    section: str = Field(..., description="Section or sheet name")
+    page: int = Field(1, description="Page or chunk number")
+    content: str = Field(..., description="Actual content excerpt")
+    relevance_score: float = Field(0.0, ge=0, le=1, description="Relevance to query")
+    highlight_text: Optional[str] = Field(None, description="Text to highlight in preview")
+
+
 class ChatMessage(BaseModel):
-    """A single chat message"""
+    """A single chat message with rich source information"""
     id: str
     type: Literal["user", "assistant", "system"]
     content: str
     timestamp: datetime
     sources: Optional[List[str]] = None
+    source_snippets: Optional[List[SourceSnippet]] = Field(
+        None, 
+        description="Detailed source snippets with content previews"
+    )
 
 
 class ChatResponse(BaseModel):
@@ -82,3 +97,4 @@ class ChatResponse(BaseModel):
     message: ChatMessage
     processing_time_ms: int
     tokens_used: Optional[int] = None
+

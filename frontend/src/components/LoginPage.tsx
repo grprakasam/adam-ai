@@ -77,13 +77,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       let data: any;
 
       try {
-        // First try via the frontend proxy (/api -> backend on 8002)
+        // First try via the frontend proxy (/api -> backend on 8000)
         data = await performLoginRequest('/api/v1/auth/login', controller.signal);
       } catch (primaryError: any) {
         // Only attempt a direct backend fallback for network-style errors
         if (primaryError?.name === 'AbortError' || primaryError instanceof TypeError) {
           try {
-            data = await performLoginRequest('http://localhost:8002/api/v1/auth/login', controller.signal);
+            data = await performLoginRequest('http://localhost:8000/api/v1/auth/login', controller.signal);
           } catch (fallbackError) {
             throw fallbackError;
           }

@@ -1,12 +1,101 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, FileText, Loader2 } from 'lucide-react';
-import { useStudyStore } from '../store/studyStore';
+import { Send, FileText, Loader2, Eye, X, BookOpen, File, FileSpreadsheet } from 'lucide-react';
+import { useStudyStore, Citation } from '../store/studyStore';
 import './StudyChatbotPanel.css';
 
 interface StudyChatbotPanelProps {
   studyId: string;
   compact?: boolean;
 }
+
+// Helper to get file icon based on document name
+const getDocumentIcon = (docName: string) => {
+  const lower = docName.toLowerCase();
+  if (lower.includes('.xlsx') || lower.includes('.xls') || lower.includes('.csv')) {
+    return <FileSpreadsheet size={16} className="source-icon excel" />;
+  }
+  if (lower.includes('.pdf')) {
+    return <File size={16} className="source-icon pdf" />;
+  }
+  if (lower.includes('.docx') || lower.includes('.doc')) {
+    return <FileText size={16} className="source-icon word" />;
+  }
+  return <BookOpen size={16} className="source-icon" />;
+};
+
+// Source Preview Modal Component
+interface SourcePreviewModalProps {
+  citation: Citation | null;
+  onClose: () => void;
+}
+
+const SourcePreviewModal: React.FC<SourcePreviewModalProps> = ({ citation, onClose }) => {
+  if (!citation) return null;
+
+  return (
+    <div className="source-modal-overlay" onClick={onClose}>
+      <div className="source-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="source-modal-header">
+          <div className="source-modal-title">
+            {getDocumentIcon(citation.document_name)}
+            <span>{citation.document_name}</span>
+          </div>
+          <button className="source-modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="source-modal-meta">
+          {citation.section && (
+            <span className="source-meta-item">
+              📁 {citation.section}
+            </span>
+          )}
+          {citation.page_number && (
+            <span className="source-meta-item">
+              📄 Page {citation.page_number}
+            </span>
+          )}
+        </div>
+
+        <div className="source-modal-content">
+          <div className="source-content-label">Source Content</div>
+          <pre className="source-content-text">
+            {citation.chunk_text || 'No content preview available.'}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Source Card Component
+interface SourceCardProps {
+  citation: Citation;
+  index: number;
+  onViewClick: (citation: Citation) => void;
+}
+
+const SourceCard: React.FC<SourceCardProps> = ({ citation, onViewClick }) => {
+  return (
+    <div className="source-card" onClick={() => onViewClick(citation)}>
+      <div className="source-card-left">
+        {getDocumentIcon(citation.document_name)}
+        <div className="source-card-info">
+          <div className="source-card-name">{citation.document_name}</div>
+          <div className="source-card-meta">
+            {citation.section && <span>{citation.section}</span>}
+            {citation.page_number && <span>Page {citation.page_number}</span>}
+          </div>
+        </div>
+      </div>
+      <div className="source-card-view">
+        <Eye size={14} />
+        <span>View</span>
+      </div>
+    </div>
+  );
+};
 
 export const StudyChatbotPanel: React.FC<StudyChatbotPanelProps> = ({
   studyId,
@@ -23,6 +112,7 @@ export const StudyChatbotPanel: React.FC<StudyChatbotPanelProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -67,6 +157,10 @@ export const StudyChatbotPanel: React.FC<StudyChatbotPanelProps> = ({
     }
   };
 
+  const handleViewSource = (citation: Citation) => {
+    setSelectedCitation(citation);
+  };
+
   const currentMessages = activeChatSession ? (chatMessages[activeChatSession] || []) : [];
 
   if (compact) {
@@ -79,10 +173,10 @@ export const StudyChatbotPanel: React.FC<StudyChatbotPanelProps> = ({
             currentMessages.map((msg, idx) => (
               <div key={idx} className={`chat-message-compact ${msg.role}`}>
                 <div className="message-content">{msg.content}</div>
-                {msg.source_document_ids && msg.source_document_ids.length > 0 && (
-                  <div className="message-sources">
+                {msg.citations && msg.citations.length > 0 && (
+                  <div className="message-sources-compact">
                     <FileText size={12} />
-                    {msg.source_document_ids.length} source(s)
+                    <span>{msg.citations.length} source(s) - click to view</span>
                   </div>
                 )}
               </div>
@@ -148,12 +242,40 @@ export const StudyChatbotPanel: React.FC<StudyChatbotPanelProps> = ({
                 </span>
               </div>
               <div className="message-content">{msg.content}</div>
-              {msg.source_document_ids && msg.source_document_ids.length > 0 && (
-                <div className="message-sources">
-                  <FileText size={14} />
-                  <span>Based on {msg.source_document_ids.length} document(s)</span>
+
+              {/* Source Cards with View Button */}
+              {(() => {
+                if (msg.role === 'assistant' && msg.citations) {
+                  console.log(`Msg citations debug:`, msg.citations);
+                }
+                return null;
+              })()}
+
+              {msg.citations && msg.citations.length > 0 && (
+                <div className="message-source-cards">
+                  <div className="source-cards-header">
+                    <BookOpen size={14} />
+                    <span>Click to view source content</span>
+                  </div>
+                  {msg.citations.map((citation, cidx) => (
+                    <SourceCard
+                      key={cidx}
+                      citation={citation}
+                      index={cidx}
+                      onViewClick={handleViewSource}
+                    />
+                  ))}
                 </div>
               )}
+
+              {/* Fallback: Show simple source indicator if no citations but has document_ids */}
+              {(!msg.citations || msg.citations.length === 0) &&
+                msg.source_document_ids && msg.source_document_ids.length > 0 && (
+                  <div className="message-sources">
+                    <FileText size={14} />
+                    <span>Based on {msg.source_document_ids.length} document(s)</span>
+                  </div>
+                )}
             </div>
           ))
         )}
@@ -192,10 +314,12 @@ export const StudyChatbotPanel: React.FC<StudyChatbotPanelProps> = ({
           {isLoading ? <Loader2 className="spinner" size={20} /> : <Send size={20} />}
         </button>
       </div>
+
+      {/* Source Preview Modal */}
+      <SourcePreviewModal
+        citation={selectedCitation}
+        onClose={() => setSelectedCitation(null)}
+      />
     </div>
   );
 };
-
-
-
-

@@ -3,9 +3,10 @@ Retrieval-Augmented Generation (RAG) service for study chatbot
 Retrieves relevant document chunks and generates answers using LLM
 """
 import os
+import re
 import uuid
 import numpy as np
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
@@ -22,11 +23,58 @@ class RAGService:
     Retrieval-Augmented Generation service for study chatbot
     """
 
+    # Generic query patterns that need expansion
+    GENERIC_QUERY_PATTERNS = [
+        r'\b(summarize|summarise|summary)\b',
+        r'\b(explain|describe|overview)\b',
+        r'\b(what is this|tell me about)\b',
+        r'\b(document|file|content)\b.*\b(about|contain|describe)\b',
+        r'^(what|explain|describe|summarize|summarise)\s+(this|the)\s+(document|file|study)',
+    ]
+
     def __init__(self, db: Session, current_user_id: str):
         self.db = db
         self.current_user_id = current_user_id
         self.embedding_service = EmbeddingService()
         self.llm_service = LLMIntegrationService()
+
+    def _is_generic_query(self, query: str) -> bool:
+        """Check if query is a generic document overview request"""
+        query_lower = query.lower().strip()
+        for pattern in self.GENERIC_QUERY_PATTERNS:
+            if re.search(pattern, query_lower, re.IGNORECASE):
+                return True
+        return False
+
+    def _preprocess_query(self, query: str) -> str:
+        """
+        Preprocess query for better retrieval.
+        Expands generic queries with keywords that match document content better.
+        """
+        if self._is_generic_query(query):
+            # Expand generic query with common document content keywords
+            expansion_terms = [
+                "study overview",
+                "protocol",
+                "design",
+                "objective",
+                "endpoint",
+                "population",
+                "subject",
+                "patient",
+                "treatment",
+                "analysis",
+                "variable",
+                "dataset",
+                "specification",
+                "criteria",
+                "schedule",
+                "visit"
+            ]
+            expanded = f"{query} {' '.join(expansion_terms)}"
+            logger.info(f"Generic query detected. Expanded: '{query}' -> '{expanded[:100]}...'")
+            return expanded
+        return query
 
     async def retrieve_relevant_chunks(
         self,
@@ -46,8 +94,14 @@ class RAGService:
             List of relevant chunks with metadata
         """
         try:
-            # Generate embedding for question
-            question_embedding = self.embedding_service.generate_embedding(question)
+            # Check if this is a generic query
+            is_generic = self._is_generic_query(question)
+            
+            # Preprocess query for better retrieval
+            processed_query = self._preprocess_query(question)
+            
+            # Generate embedding for processed question
+            question_embedding = self.embedding_service.generate_embedding(processed_query)
 
             # Get all document embeddings for this study
             # First, get all active documents for the study
@@ -87,7 +141,24 @@ class RAGService:
 
             # Sort by similarity and get top_k
             similarities.sort(key=lambda x: x["similarity"], reverse=True)
-            top_chunks = similarities[:top_k]
+            
+            # For generic queries, always return top chunks regardless of similarity score
+            # For specific queries, use a minimum threshold but still return something
+            if is_generic:
+                # Return more chunks for generic/overview queries
+                top_chunks = similarities[:min(top_k + 3, len(similarities))]
+                logger.info(f"Generic query: returning top {len(top_chunks)} chunks without threshold")
+            else:
+                # For specific queries, prefer higher similarity but still return something
+                # Use a very low threshold (0.1) to ensure we always have context
+                MIN_SIMILARITY = 0.1
+                top_chunks = [s for s in similarities[:top_k * 2] if s["similarity"] >= MIN_SIMILARITY]
+                if not top_chunks and similarities:
+                    # Fallback: return top chunks anyway
+                    top_chunks = similarities[:top_k]
+                    logger.info(f"Low similarity scores, returning top {len(top_chunks)} chunks as fallback")
+                else:
+                    top_chunks = top_chunks[:top_k]
 
             # Build result with document references
             results = []
@@ -111,7 +182,7 @@ class RAGService:
                         "metadata": embedding_db.metadata or {}
                     })
 
-            logger.info(f"Retrieved {len(results)} relevant chunks for question")
+            logger.info(f"Retrieved {len(results)} relevant chunks for question (generic={is_generic})")
             return results
 
         except Exception as e:
@@ -140,14 +211,9 @@ class RAGService:
             ChatResponse with answer and citations
         """
         try:
-            # Build system prompt with strict guardrails
-            system_prompt = """You are a study assistant for ADaM programmers. 
-Answer questions STRICTLY based on the provided study documents.
-If the answer is not present in the documents, say "I don't know based on the available documents."
-Do not provide generic or sample answers.
-Always cite which document and section you used.
-Be concise and accurate."""
-
+            # Check if this is a generic/summary query
+            is_generic = self._is_generic_query(question)
+            
             # Build context from chunks
             context_parts = []
             for chunk in context_chunks:
@@ -157,8 +223,25 @@ Be concise and accurate."""
 
             context = "\n\n---\n\n".join(context_parts)
 
-            # Build user prompt
-            user_prompt = f"""Based on the following study documents, answer this question:
+            if is_generic:
+                # For generic/overview queries, use a summary-focused prompt
+                user_prompt = f"""Based on the following study document excerpts, provide a comprehensive summary/overview.
+
+Question: {question}
+
+Document Excerpts:
+{context}
+
+Instructions:
+- Provide a structured summary of the key information found in the documents
+- Organize the response with clear sections if applicable
+- Include any specific details mentioned (study design, endpoints, populations, criteria, etc.)
+- Cite the document name when referencing specific information
+- If the documents are technical specifications, summarize the structure and key variables
+- Provide a useful overview even if the excerpts cover different aspects of the study"""
+            else:
+                # For specific queries, use the standard prompt
+                user_prompt = f"""Based on the following study documents, answer this question:
 
 Question: {question}
 
@@ -176,22 +259,25 @@ Instructions:
                 prompt=user_prompt,
                 provider="google",  # Use Google Gemini
                 temperature=temperature,
-                max_tokens=1000
+                max_tokens=1500 if is_generic else 1000  # More tokens for summaries
             )
 
             answer = llm_response.get("content", "I don't know based on the available documents.")
+
 
             # Build citations
             citations = []
             source_document_ids = []
             for chunk in context_chunks:
-                citations.append(Citation(
+                citation = Citation(
                     document_id=chunk["document_id"],
                     document_name=chunk["document_name"],
                     page_number=chunk.get("metadata", {}).get("page_number"),
                     section=chunk.get("metadata", {}).get("section"),
-                    chunk_text=chunk["chunk_text"][:200]  # First 200 chars
-                ))
+                    chunk_text=chunk["chunk_text"]  # Full chunk text for source cards
+                )
+                citations.append(citation)
+                logger.info(f"Created citation: doc={citation.document_name}, page={citation.page_number}, section={citation.section}, chunk_len={len(citation.chunk_text or '')}")
                 if chunk["document_id"] not in source_document_ids:
                     source_document_ids.append(chunk["document_id"])
 
@@ -204,17 +290,20 @@ Instructions:
                 question=question,
                 answer=answer,
                 source_document_ids=source_document_ids,
+                citations=[c.dict() for c in citations],
                 model_used=llm_response.get("model"),
                 tokens_used=llm_response.get("usage", {}).get("total_tokens")
             )
 
-            return ChatResponse(
+            response = ChatResponse(
                 answer=answer,
                 citations=citations,
                 source_document_ids=source_document_ids,
                 session_id=session_id,
                 message_id=message_id
             )
+            logger.info(f"Returning ChatResponse with {len(citations)} citations, {len(source_document_ids)} source docs")
+            return response
 
         except Exception as e:
             logger.error(f"Error generating answer: {e}", exc_info=True)
@@ -251,6 +340,7 @@ Instructions:
         question: str,
         answer: str,
         source_document_ids: List[str],
+        citations: Optional[List[Dict[str, Any]]] = None,
         model_used: Optional[str] = None,
         tokens_used: Optional[int] = None
     ) -> str:
@@ -275,6 +365,7 @@ Instructions:
             content=answer,
             timestamp=datetime.utcnow(),
             source_document_ids=source_document_ids,
+            citations=citations,
             model_used=model_used,
             tokens_used=tokens_used
         )

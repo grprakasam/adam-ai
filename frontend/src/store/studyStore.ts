@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import axios from 'axios';
 
 // Use relative URL in development (via Vite proxy) or absolute URL if VITE_API_URL is set
-const API_BASE_URL = import.meta.env.VITE_API_URL?.trim() 
+const API_BASE_URL = import.meta.env.VITE_API_URL?.trim()
   ? import.meta.env.VITE_API_URL.trim().replace(/\/$/, '')
   : ''; // Empty string = relative URL (uses Vite proxy)
 
@@ -94,12 +94,21 @@ export interface StudyDatasetSelection {
   updated_at: string;
 }
 
+export interface Citation {
+  document_id: string;
+  document_name: string;
+  page_number?: number;
+  section?: string;
+  chunk_text?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
   source_document_ids?: string[];
+  citations?: Citation[];
   model_used?: string;
   tokens_used?: number;
 }
@@ -131,24 +140,24 @@ export interface StudyStore {
   // Current study context
   currentStudyId: string | null;
   currentStudy: Study | null;
-  
+
   // Study list cache
   studies: StudyListItem[];
   studiesLoadedAt: number | null;
   studiesLoading: boolean;
-  
+
   // Study documents cache
   documents: Record<string, StudyDocument[]>; // keyed by study_id
   documentsLoading: Record<string, boolean>;
-  
+
   // Dataset selections cache
   datasetSelections: Record<string, StudyDatasetSelection[]>; // keyed by study_id
-  
+
   // Chatbot state
   chatSessions: Record<string, ChatSession[]>; // keyed by study_id
   activeChatSession: string | null;
   chatMessages: Record<string, ChatMessage[]>; // keyed by session_id
-  
+
   // Actions
   setCurrentStudy: (studyId: string) => Promise<void>;
   loadStudies: (force?: boolean) => Promise<void>;
@@ -179,7 +188,7 @@ export interface StudyStore {
   ) => Promise<ChatResponse>;
   loadChatSessions: (studyId: string) => Promise<void>;
   loadChatMessages: (studyId: string, sessionId: string) => Promise<void>;
-  
+
   // Computed
   getStudyDocuments: (studyId: string, type?: string) => StudyDocument[];
   getStudyConfig: (studyId: string) => {
@@ -213,7 +222,7 @@ export const useStudyStore = create<StudyStore>()(
         set({ currentStudy: study });
         // Broadcast change
         window.dispatchEvent(new CustomEvent('study-changed', { detail: { studyId } }));
-        
+
         // Also load study documents and dataset selections so they're available
         // This ensures specification files and datasets are loaded when study is selected
         try {
@@ -234,15 +243,15 @@ export const useStudyStore = create<StudyStore>()(
         const now = Date.now();
         // Reduced cache time from 30s to 5s for more responsive updates
         const CACHE_TIME_MS = 5000; // 5 seconds
-        
+
         if (!force && (studiesLoading || (studiesLoadedAt && now - studiesLoadedAt < CACHE_TIME_MS))) {
           console.log('Skipping loadStudies - cache still valid or already loading');
           return;
         }
-        
+
         console.log('Loading studies...', { force, API_BASE_URL, hasToken: !!localStorage.getItem('adam_access_token') });
         set({ studiesLoading: true });
-        
+
         try {
           const token = localStorage.getItem('adam_access_token');
           if (!token) {
@@ -256,33 +265,33 @@ export const useStudyStore = create<StudyStore>()(
           const apiUrl = buildApiUrl('/api/v1/studies');
           console.log('Making request to:', apiUrl);
           console.log('Headers:', { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : 'none' });
-          
+
           const response = await axios.get<StudyListItem[]>(
             apiUrl,
-            { 
+            {
               headers,
               timeout: 10000 // 10 second timeout
             }
           );
-          
+
           console.log('Studies loaded successfully:', response.data.length, 'studies');
           set({ studies: response.data, studiesLoadedAt: Date.now() });
-          
+
           // Broadcast update event for components to react
-          window.dispatchEvent(new CustomEvent('study-store-updated', { 
-            detail: { 
+          window.dispatchEvent(new CustomEvent('study-store-updated', {
+            detail: {
               studies: response.data,
               count: response.data.length,
               timestamp: Date.now()
-            } 
+            }
           }));
         } catch (error) {
           console.error('Error loading studies:', error);
-          
+
           if (axios.isAxiosError(error)) {
             const status = error.response?.status;
             const message = error.message;
-            
+
             console.error('Axios error details:', {
               status,
               message,
@@ -290,7 +299,7 @@ export const useStudyStore = create<StudyStore>()(
               response: error.response?.data,
               url: error.config?.url
             });
-            
+
             if (status === 401 || status === 403) {
               console.warn('Authentication failed. Clearing tokens and redirecting to login.');
               // Clear stale auth and ask app to redirect to login
@@ -309,7 +318,7 @@ export const useStudyStore = create<StudyStore>()(
               });
             }
           }
-          
+
           // Don't clear studies on error - keep existing ones if any
           // set({ studies: [] }); // Commented out to preserve existing studies
         } finally {
@@ -324,18 +333,18 @@ export const useStudyStore = create<StudyStore>()(
         if (!currentStudies.find(s => s.id === study.id)) {
           const updatedStudies = [...currentStudies, study];
           set({ studies: updatedStudies });
-          
+
           // Broadcast update event
-          window.dispatchEvent(new CustomEvent('study-store-updated', { 
-            detail: { 
+          window.dispatchEvent(new CustomEvent('study-store-updated', {
+            detail: {
               studies: updatedStudies,
               count: updatedStudies.length,
               timestamp: Date.now(),
               action: 'added',
               studyId: study.id
-            } 
+            }
           }));
-          
+
           console.log('Study added to store optimistically:', study.id, study.name);
         }
       },
@@ -361,12 +370,12 @@ export const useStudyStore = create<StudyStore>()(
         if (!force && get().documentsLoading[studyId]) {
           return;
         }
-        
+
         set({ documentsLoading: { ...get().documentsLoading, [studyId]: true } });
         try {
           const response = await axios.get<StudyDocument[]>(
             buildApiUrl(`/api/v1/studies/${studyId}/documents`),
-            { 
+            {
               headers: authHeaders(),
               params: {
                 active_only: true,  // Only load active documents
@@ -374,18 +383,18 @@ export const useStudyStore = create<StudyStore>()(
               }
             }
           );
-          
+
           // Ensure storage_url is set for all documents (fallback to download endpoint)
           const documentsWithUrls = response.data.map(doc => ({
             ...doc,
             storage_url: doc.storage_url || `/api/v1/studies/${studyId}/documents/${doc.id}/download`
           }));
-          
+
           set({
             documents: { ...get().documents, [studyId]: documentsWithUrls },
             documentsLoading: { ...get().documentsLoading, [studyId]: false }
           });
-          
+
           console.log(`Loaded ${documentsWithUrls.length} documents for study ${studyId}`);
         } catch (error: any) {
           console.error('=== ERROR LOADING STUDY DOCUMENTS ===');
@@ -471,14 +480,14 @@ export const useStudyStore = create<StudyStore>()(
           const response = await axios.post<Study>(
             createApiUrl,
             data,
-            { 
+            {
               headers: { ...authHeaders(), 'Content-Type': 'application/json' },
               timeout: 30000 // 30 second timeout
             }
           );
-          
+
           console.log('Study created successfully:', response.data.id, response.data.name);
-          
+
           // OPTIMISTIC UPDATE: Add study to store immediately
           const studyListItem: StudyListItem = {
             id: response.data.id,
@@ -495,35 +504,35 @@ export const useStudyStore = create<StudyStore>()(
             datasets_count: 0, // Will be updated when datasets are loaded
             my_permission: 'admin' // Creator gets admin access
           };
-          
+
           // Add to store immediately (optimistic update)
           get().addStudyToStore(studyListItem);
-          
+
           // Clear cache to force refresh on next load
           set({ studiesLoadedAt: null });
-          
+
           // Background sync: Reload from API to ensure consistency
           // Don't await - let it happen in background
           get().loadStudies(true).catch(err => {
             console.warn('Background study reload failed, but study is already in store:', err);
           });
-          
+
           // Set as current study
           console.log('Setting current study to:', response.data.id);
           await get().setCurrentStudy(response.data.id);
-          
+
           // Broadcast study created event
-          window.dispatchEvent(new CustomEvent('study-created', { 
-            detail: { 
+          window.dispatchEvent(new CustomEvent('study-created', {
+            detail: {
               study: response.data,
               studyId: response.data.id
-            } 
+            }
           }));
-          
+
           return response.data;
         } catch (error) {
           console.error('Error creating study:', error);
-          
+
           // Handle authentication errors
           if (axios.isAxiosError(error)) {
             if (error.response?.status === 401 || error.response?.status === 403) {
@@ -535,7 +544,7 @@ export const useStudyStore = create<StudyStore>()(
               authError.isAuthError = true;
               throw authError;
             }
-            
+
             if (!error.response) {
               // Network error - check if it's actually a CORS/auth issue
               const networkError: any = new Error(
@@ -548,7 +557,7 @@ export const useStudyStore = create<StudyStore>()(
               throw networkError;
             }
           }
-          
+
           throw error;
         }
       },
@@ -601,12 +610,12 @@ export const useStudyStore = create<StudyStore>()(
 
           // Reload documents - force reload to ensure we get the newly uploaded document
           await get().loadStudyDocuments(studyId, true);
-          
+
           // Dispatch event to notify components
-          window.dispatchEvent(new CustomEvent('study-documents-updated', { 
-            detail: { studyId } 
+          window.dispatchEvent(new CustomEvent('study-documents-updated', {
+            detail: { studyId }
           }));
-        
+
           return response.data;
         } catch (error) {
           console.error('Error uploading document:', error);
@@ -665,7 +674,8 @@ export const useStudyStore = create<StudyStore>()(
                   content: response.data.answer,
                   timestamp: new Date().toISOString(),
                   id: response.data.message_id,
-                  source_document_ids: response.data.source_document_ids
+                  source_document_ids: response.data.source_document_ids,
+                  citations: response.data.citations
                 }
               ]
             },
