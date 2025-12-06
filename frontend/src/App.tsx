@@ -409,6 +409,7 @@ function App() {
                   onStudyChange={handleStudyChange}
                   onCreateStudy={() => setQuickCreateOpen(true)}
                   isOnLandingPage={viewMode === 'landing'}
+                  onNavigateToUtility={handleOpenUtility}
                 />
 
                 {/* Quick Create Study Modal */}
@@ -510,6 +511,7 @@ function App() {
 
                     <div className="main-content" role="region" aria-label="Workspace canvas">
                       <RightPanel
+                        key={storeCurrentStudyId || 'default-workspace'}
                         generationResult={generationResult}
                         language={language}
                         isUnlocked={isRightPanelUnlocked}

@@ -19,6 +19,15 @@
   gap: 24px;
 }
 
+.app-header-nav-row {
+  padding: 10px 24px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #f8fafc;
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+}
+
 .app-header-left {
   display: flex;
   align-items: center;
@@ -28,185 +37,282 @@
   z-index: 10;
 }
 
-/* Center Section - Flex Managed */
+/* Center Section - Hero Toggle */
 .app-header-center {
   flex: 1;
-  /* Take up available space */
   display: flex;
   justify-content: center;
-  /* Center content in that space */
   align-items: center;
-  z-index: 100;
-  position: static;
-  transform: none;
-  min-width: 0;
-  /* Allow shrinking if absolutely needed */
 }
 
-.study-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
-  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-  color: #0369a1;
-  border-radius: 30px;
-  /* More rounded pill */
-  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.15);
-  border: 1px solid #7dd3fc;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.study-badge:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(3, 105, 161, 0.2);
-}
-
-.study-badge-label {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0369a1;
-  opacity: 0.9;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.study-badge-value {
-  font-size: 18px;
-  /* Bigger font as requested */
-  font-weight: 800;
-  color: #0c4a6e;
-}
-
-.back-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #595959;
-}
-
-.back-button:hover {
-  color: #1890ff;
-}
-
-.app-brand {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.app-brand-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: #111827;
-  letter-spacing: -0.25px;
-}
-
-.app-brand-subtitle {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-}
-
-.app-header-study-section {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 8px;
-}
-
-.app-header-study {
-  margin-left: 4px;
-}
-
-.create-study-icon-btn {
-  font-size: 18px;
-  color: #4f46e5;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-}
-
-.create-study-icon-btn:hover {
-  color: #4338ca;
-  background: rgba(79, 70, 229, 0.1);
-}
-
-[data-theme="dark"] .create-study-icon-btn {
-  color: #818cf8;
-}
-
-[data-theme="dark"] .create-study-icon-btn:hover {
-  color: #a5b4fc;
-  background: rgba(129, 140, 248, 0.1);
-}
-
-.app-header-right {
-  display: flex;
-  align-items: center;
-  overflow: visible;
-  gap: 12px;
-  z-index: 1;
-  justify-content: flex-end;
-  flex: 0 0 auto;
-}
-
-.app-header-identity {
+/* Main Center Panel Wrapper */
+.app-center-panel {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.app-header-identity .identity-line {
-  font-size: 12px;
-  color: #4b5563;
+.hero-toggle-container {
+  display: flex;
+  align-items: center;
+  background: #f8fafc;
+  border-radius: 99px;
+  padding: 4px;
+  /* Padding for the inner floating pill */
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+  /* Border removed here as it moved to parent */
+}
+
+.ai-config-trigger-btn {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  box-shadow: none;
+  transition: all 0.2s;
+}
+
+.ai-config-trigger-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* Header Status Badge */
+.header-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
   white-space: nowrap;
 }
 
-/* Dark Mode */
-[data-theme="dark"] .app-header {
-  background: #1f1f1f;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+.badge-secure,
+.badge-connected {
+  background-color: #ecfdf5;
+  color: #059669;
+  border: 1px solid #6ee7b7;
 }
 
-[data-theme="dark"] .app-header-top {
-  border-bottom-color: #333;
+.badge-cloud {
+  background-color: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #93c5fd;
 }
 
-[data-theme="dark"] .app-brand-title {
-  color: #e5e7eb;
+.badge-error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
 }
 
-[data-theme="dark"] .app-brand-subtitle {
-  color: #9ca3af;
+.badge-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
-[data-theme="dark"] .back-button {
-  color: #a0a0a0;
+.dot-green {
+  background-color: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: badge-pulse-green 2s infinite;
 }
 
-[data-theme="dark"] .back-button:hover {
-  color: #4dabf7;
+.dot-blue {
+  background-color: #3b82f6;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  animation: badge-pulse-blue 2s infinite;
 }
 
-[data-theme="dark"] .study-badge {
-  background: linear-gradient(135deg, #0c4a6e 0%, #075985 100%);
-  color: #bae6fd;
-  border-color: #0ea5e9;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+.dot-red {
+  background-color: #ef4444;
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  animation: badge-pulse-red 2s infinite;
 }
 
-[data-theme="dark"] .study-badge-label {
-  color: #7dd3fc;
+@keyframes badge-pulse-green {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
 }
 
-[data-theme="dark"] .study-badge-value {
-  color: #e0f2fe;
+@keyframes badge-pulse-blue {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+@keyframes badge-pulse-red {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.model-select-dropdown .ant-select-selector {
+  background-color: #f1f5f9 !important;
+  border-radius: 99px !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding: 0 16px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid #e2e8f0 !important;
+  transition: all 0.2s !important;
+}
+
+.model-select-dropdown:hover .ant-select-selector {
+  background-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.header-model-selector {
+  min-width: 150px;
+}
+
+.hero-toggle-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #64748b;
+  min-width: 130px;
+}
+
+.hero-toggle-option:hover {
+  color: #334155;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* Active States - Floating Pill Effect */
+.hero-toggle-option.active-cloud {
+  background: #2563eb;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2), 0 2px 4px -1px rgba(37, 99, 235, 0.1);
+}
+
+.hero-toggle-option.active-cloud:hover {
+  background: #1d4ed8;
+}
+
+.hero-toggle-option.active-offline {
+  background: #10b981;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2), 0 2px 4px -1px rgba(16, 185, 129, 0.1);
+}
+
+.hero-toggle-option.active-offline:hover {
+  background: #059669;
+}
+
+.hero-icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+/* Study Selector in Left Section */
+.simple-study-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  margin-left: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  color: #334155;
+  height: 36px;
+}
+
+.simple-study-selector:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.simple-study-selector .study-id {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Right Header Adjustments */
+.app-header-right {
+  gap: 16px;
+}
+
+.user-profile-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 99px;
+  transition: background 0.2s;
+}
+
+.user-profile-pill:hover {
+  background: #f1f5f9;
+}
+
+.user-name-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
 }
 
 
@@ -332,4 +438,64 @@ body[data-layout-mode="desktop"] .mobile-menu-btn {
   .app-brand-title {
     font-size: 18px;
   }
+}
+
+/* Study Selector Wrapper in Header */
+.header-study-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  padding: 4px 6px 4px 12px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-left: 16px;
+}
+
+.study-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+/* Ensure Compact Study Selector fits nicely */
+.header-study-selector-wrapper .study-selector-compact {
+  margin: 0;
+}
+
+.header-study-selector-wrapper .study-selector-trigger-compact {
+  border: none;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+  color: #334155;
+}
+
+
+/* Enhanced Brand Title */
+.app-brand-title {
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding: 4px 0;
+  cursor: default;
+  transition: transform 0.3s ease, filter 0.3s ease;
+}
+
+.app-brand-title:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+/* Dark Mode Adjustment for Brand Title */
+[data-theme='dark'] .app-brand-title {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

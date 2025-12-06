@@ -195,16 +195,31 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
                   </button>
                 ))
               )}
-              {showCreateButton && (
-                <button
-                  className="study-selector-create"
-                  onClick={handleCreateStudy}
-                  disabled={isCreating}
-                >
-                  <Plus size={16} />
-                  {isCreating ? 'Creating...' : 'Create New Study'}
-                </button>
-              )}
+            </div>
+            {showCreateButton && (
+              <button
+                className="study-selector-create"
+                onClick={handleCreateStudy}
+                disabled={isCreating}
+                style={{ borderTop: '1px solid #e2e8f0', borderBottom: 'none', borderLeft: 'none', borderRight: 'none' }}
+              >
+                <Plus size={16} />
+                {isCreating ? 'Creating...' : 'Create New Study'}
+              </button>
+            )}
+            <div className="study-details-link-wrapper" style={{ padding: '8px', textAlign: 'center', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
+              <a
+                href="/enter-study-details"
+                className="study-details-link"
+                style={{ fontSize: '12px', color: '#64748b' }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.history.pushState({}, '', '/enter-study-details');
+                  window.dispatchEvent(new Event('popstate'));
+                }}
+              >
+                Go to Study Details Page
+              </a>
             </div>
           </div>
         )}

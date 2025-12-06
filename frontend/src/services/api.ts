@@ -224,15 +224,15 @@ export interface AdamAnalyticsInsightItem {
   title: string;
   text: string;
   category:
-    | 'about'
-    | 'variables'
-    | 'insights'
-    | 'trends'
-    | 'outliers'
-    | 'correlations'
-    | 'patterns'
-    | 'anomalies'
-    | 'recommendations';
+  | 'about'
+  | 'variables'
+  | 'insights'
+  | 'trends'
+  | 'outliers'
+  | 'correlations'
+  | 'patterns'
+  | 'anomalies'
+  | 'recommendations';
   citations: string[];
 }
 
@@ -374,7 +374,7 @@ export const categorizeSpecification = async (
 
   // Include auth header if token is present
   const token = localStorage.getItem('adam_access_token');
-  
+
   try {
     const response = await axios.post(
       apiUrl,
@@ -530,6 +530,16 @@ export const adamApi = {
   getAdamAnalyticsOutliers,
   getAdamAnalyticsCorrelations,
 
+  getOpenRouterModels: async () => {
+    try {
+      const response = await axios.get(buildApiUrl('/api/v1/llm-models/openrouter/models'));
+      return response.data;
+    } catch (error: any) {
+      console.error('Failed to fetch OpenRouter models:', error);
+      throw error;
+    }
+  },
+
   // LLM Connection Testing
   testLLMConnection: async (provider: string, model?: string) => {
     try {
@@ -645,67 +655,67 @@ export const adamApi = {
     console.warn('adamApi.getSubmissionReadiness not yet implemented');
     return { overall: 0, components: {}, recommendations: [], last_updated: new Date().toISOString() };
   },
-  
+
   runAllValidations: async (params: any) => {
     console.warn('adamApi.runAllValidations not yet implemented');
     return { status: 'pending', results: [] };
   },
-  
+
   runPreflightValidation: async (params: any) => {
     console.warn('adamApi.runPreflightValidation not yet implemented');
     return { status: 'pending', results: [] };
   },
-  
+
   runCTValidation: async (params: any) => {
     console.warn('adamApi.runCTValidation not yet implemented');
     return { status: 'pending', results: [] };
   },
-  
+
   runP21Validation: async (params: any) => {
     console.warn('adamApi.runP21Validation not yet implemented');
     return { status: 'pending', results: [] };
   },
-  
+
   generateDefineXml: async (params: any) => {
     console.warn('adamApi.generateDefineXml not yet implemented');
     return { status: 'pending', file_path: '' };
   },
-  
+
   generateADRG: async (params: any) => {
     console.warn('adamApi.generateADRG not yet implemented');
     return { status: 'pending', file_path: '' };
   },
-  
+
   generateSDRG: async (params: any) => {
     console.warn('adamApi.generateSDRG not yet implemented');
     return { status: 'pending', file_path: '' };
   },
-  
+
   createECTDPackage: async (params: any) => {
     console.warn('adamApi.createECTDPackage not yet implemented');
     return { status: 'pending', package_path: '' };
   },
-  
+
   getOrCreateReviewSession: async (params: any) => {
     console.warn('adamApi.getOrCreateReviewSession not yet implemented');
     return { id: 'temp-session', status: 'in_progress', created_at: new Date().toISOString() };
   },
-  
+
   listReviewComments: async (sessionId: string) => {
     console.warn('adamApi.listReviewComments not yet implemented');
     return [];
   },
-  
+
   updateReviewSessionStatus: async (sessionId: string, status: string) => {
     console.warn('adamApi.updateReviewSessionStatus not yet implemented');
     return { id: sessionId, status };
   },
-  
+
   createReviewComment: async (params: any) => {
     console.warn('adamApi.createReviewComment not yet implemented');
     return { id: 'temp-comment', ...params, created_at: new Date().toISOString() };
   },
-  
+
   exportReviewPDF: async (params: any) => {
     console.warn('adamApi.exportReviewPDF not yet implemented');
     return { status: 'pending', file_path: '' };

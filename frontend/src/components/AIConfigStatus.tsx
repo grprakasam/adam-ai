@@ -70,6 +70,14 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
   const [loadingModels, setLoadingModels] = useState(false);
   const [, setModelError] = useState<string | null>(null);
 
+  // State to track successful connection details for the UI card
+  const [activeConnectionDetails, setActiveConnectionDetails] = useState<{
+    connected: boolean;
+    provider?: string;
+    model?: string;
+    isOffline: boolean;
+  } | null>(null);
+
   // Check Ollama connection
   const checkOllamaConnection = useCallback(async () => {
     setOllamaStatus('checking');
@@ -109,16 +117,26 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
   const handleModeChange = (mode: AIMode) => {
     setAiMode(mode);
     setExecutionMode(mode === 'cloud' ? 'api' : 'local');
+    setActiveConnectionDetails(null); // Reset status card on mode switch
 
     if (mode === 'offline') {
       setLlmProvider('ollama' as any);
+      setSelectedModel(selectedOllamaModel); // Sync current ollama model to store
       checkOllamaConnection();
     } else {
+      setSelectedModel(''); // Clear model when switching back to cloud initially
       if (llmProvider === 'ollama') {
         setLlmProvider('groq' as any);
       }
     }
   };
+
+  // Sync Ollama model selection to global store
+  useEffect(() => {
+    if (aiMode === 'offline') {
+      setSelectedModel(selectedOllamaModel);
+    }
+  }, [selectedOllamaModel, aiMode, setSelectedModel]);
 
   // Fetch OpenRouter models when selected
   useEffect(() => {
@@ -178,6 +196,8 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
 
   const handleProviderChange = (value: string) => {
     setLlmProvider(value as any);
+    setSelectedModel(''); // Clear selected model when provider changes to prevent stale data
+    setActiveConnectionDetails(null);
     if (value !== 'openrouter') {
       setModelError(null);
     }
@@ -187,6 +207,11 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
     if (aiMode === 'offline') {
       const connected = await checkOllamaConnection();
       if (connected) {
+        setActiveConnectionDetails({
+          connected: true,
+          model: selectedOllamaModel,
+          isOffline: true
+        });
         message.success({
           content: (
             <span>
@@ -197,6 +222,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
           duration: 3,
         });
       } else {
+        setActiveConnectionDetails(null);
         message.error({
           content: (
             <span>
@@ -220,6 +246,12 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
 
       if (result.success) {
         setLlmConnectionStatus('connected', result.message);
+        setActiveConnectionDetails({
+          connected: true,
+          provider: llmProvider,
+          model: llmProvider === 'openrouter' ? selectedModel : undefined,
+          isOffline: false
+        });
         message.success({
           content: (
             <span>
@@ -231,6 +263,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
         });
       } else {
         setLlmConnectionStatus('failed', result.message);
+        setActiveConnectionDetails(null);
         message.error({
           content: (
             <span>
@@ -244,6 +277,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
     } catch (error: any) {
       const errorMsg = error.response?.data?.detail || error.message || 'Failed to connect';
       setLlmConnectionStatus('failed', errorMsg);
+      setActiveConnectionDetails(null);
       message.error({
         content: (
           <span>
@@ -272,8 +306,6 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
     <div
       className={`ai-config-wrapper ${aiMode === 'offline' ? 'ai-config-offline-active' : ''} ${className || ''}`}
     >
-      {/* Main Container */}
-      {/* Main Container */}
       <div className={`ai-config-status ${aiMode === 'offline' ? 'ai-config-offline-mode' : ''}`}>
 
         {/* Row 1: Title and Modes */}
@@ -288,7 +320,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
                 <CloudOutlined />
                 <ThunderboltOutlined className="ai-mode-accent" />
               </div>
-              <span className="ai-mode-btn-label">Cloud API</span>
+              <span className="ai-mode-btn-label">Cloud AI</span>
               {aiMode === 'cloud' && <div className="ai-mode-active-indicator" />}
             </button>
             <div className="ai-mode-divider"><span>or</span></div>
@@ -304,7 +336,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
               </div>
               <div className="ai-mode-btn-icon ai-mode-secure-icon"><LockFilled /></div>
               <div className="ai-mode-secure-content">
-                <span className="ai-mode-btn-label">Secure Offline</span>
+                <span className="ai-mode-btn-label">Secure Offline AI</span>
                 <span className="ai-mode-secure-tag"><EyeInvisibleOutlined /> 100% Private</span>
               </div>
               {aiMode === 'offline' && <div className="ai-mode-active-indicator ai-mode-secure-indicator" />}
@@ -344,6 +376,7 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
                     placeholder="Model"
                     optionFilterProp="label"
                     size="small"
+                    dropdownMatchSelectWidth={350}
                     suffixIcon={<DownOutlined style={{ fontSize: 10, color: '#64748b' }} />}
                   >
                     {availableModels.map((model) => (
@@ -403,26 +436,6 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
             )}
           </div>
 
-          {/* USP Security Showcase Section - Only in Offline Mode */}
-          {aiMode === 'offline' && (
-            <>
-              <div className="ai-usp-showcase">
-                {/* Animated Security Vault */}
-                <div className="ai-security-vault">
-                  <div className="ai-vault-inner">
-                    <SecurityScanOutlined className="ai-vault-scan-icon" />
-                    <div className="ai-vault-scan-line" />
-                  </div>
-                  <div className="ai-vault-text">
-                    <span className="ai-vault-headline">DATA VAULT</span>
-                    <span className="ai-vault-subtext">Zero External Calls</span>
-                  </div>
-                </div>
-
-              </div>
-            </>
-          )}
-
           {/* Connection Status */}
           <div className="ai-status-section">
             <Tooltip title={
@@ -447,9 +460,27 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
               />
             </Tooltip>
             {isConnected && (
-              <div className={`ai-connected-badge ${aiMode === 'offline' ? 'ai-connected-secure' : ''}`}>
-                <CheckCircleFilled />
-                {aiMode === 'cloud' && <span>Ready</span>}
+              <div
+                className={`header-status-badge ${aiMode === 'offline' ? 'ai-connected-badge ai-connected-secure badge-connected' : ''}`}
+                style={aiMode === 'cloud' ? {
+                  margin: 0,
+                  padding: '0 8px',
+                  background: 'transparent',
+                  border: 'none',
+                  boxShadow: 'none',
+                  fontSize: '11px',
+                  color: '#8c8c8c'
+                } : { margin: 0 }}
+              >
+                <CheckCircleFilled style={{ color: '#52c41a', fontSize: '14px' }} />
+                {aiMode === 'cloud' && (
+                  <span style={{ color: '#8c8c8c', fontWeight: 500, fontSize: '11px' }}>
+                    Connected to {llmProvider ? llmProvider.toUpperCase() : 'AI'} AI Service
+                    {selectedModel ? ` (${selectedModel})` : ''}
+                  </span>
+                )}
+                {/* Green glowing indicator */}
+                {aiMode === 'cloud' && <span className="badge-dot dot-green" style={{ marginLeft: 6, boxShadow: '0 0 6px #52c41a', width: '6px', height: '6px' }}></span>}
               </div>
             )}
             {isFailed && aiMode === 'offline' && (
@@ -463,9 +494,42 @@ export const AIConfigStatus: React.FC<AIConfigStatusProps> = ({ className }) => 
           </div>
         </div>
 
+        {/* Row 3: Live Connection Status Card (Appears after connection) */}
+        {activeConnectionDetails && activeConnectionDetails.connected && (
+          <div className={`ai-active-status-card ${activeConnectionDetails.isOffline ? 'status-card-secure' : 'status-card-cloud'}`}>
+            <div className="status-card-icon">
+              {activeConnectionDetails.isOffline ? (
+                <SafetyCertificateOutlined style={{ fontSize: '24px', color: '#10b981' }} />
+              ) : (
+                <CheckCircleFilled style={{ fontSize: '24px', color: '#3b82f6' }} />
+              )}
+            </div>
+            <div className="status-card-content">
+              <div className="status-card-title">
+                {activeConnectionDetails.isOffline ? 'Local AI Engine Active' : 'Cloud Connection Established'}
+              </div>
+              <div className="status-card-message">
+                {activeConnectionDetails.isOffline ? (
+                  <span>
+                    Data Vault Secured. <span style={{ fontWeight: 700, color: '#10b981' }}>0% External Traffic.</span>
+                    <br />Running {activeConnectionDetails.model} locally.
+                  </span>
+                ) : (
+                  <span>
+                    Connected to <span style={{ fontWeight: 600 }}>{(activeConnectionDetails.provider || 'AI Provider').toUpperCase()}</span>.
+                    <br />Ready to process requests securely.
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="status-pulse-indicator">
+              <span className="pulse-dot"></span>
+              <span className="pulse-ring"></span>
+            </div>
+          </div>
+        )}
+
       </div>
-
-
     </div>
   );
 };
