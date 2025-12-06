@@ -3,6 +3,7 @@ Traceability Service - Main orchestrator for traceability generation
 """
 
 import asyncio
+import hashlib
 from typing import Dict, List, Optional
 from loguru import logger
 from .models import (
@@ -54,7 +55,17 @@ class TraceabilityService:
         8. Cache result
         """
 
-        cache_key = f"traceability:{study_id}:{dataset}"
+        # Create cache key that includes spec_path to ensure different specs get fresh results
+        # Hash the spec_path to avoid excessively long cache keys
+        spec_path_hash = hashlib.md5(spec_path.encode()).hexdigest()[:12]
+        cache_key = f"traceability:{study_id}:{dataset}:{spec_path_hash}"
+        
+        logger.info(f"=== TRACEABILITY GENERATION ===")
+        logger.info(f"Study ID: {study_id}")
+        logger.info(f"Dataset: {dataset}")
+        logger.info(f"Spec Path: {spec_path}")
+        logger.info(f"Cache Key: {cache_key}")
+        logger.info(f"Force Refresh: {force_refresh}")
 
         # Check cache
         if not force_refresh:
@@ -62,8 +73,10 @@ class TraceabilityService:
             if cached:
                 logger.info(f"Cache hit for {cache_key}")
                 return TraceabilityMatrix(**cached)
+            else:
+                logger.info(f"Cache miss for {cache_key}, generating fresh traceability")
 
-        logger.info(f"Generating traceability for {study_id} - {dataset}")
+        logger.info(f"Generating traceability for {study_id} - {dataset} using spec: {spec_path}")
 
         # Step 1: Parse specification
         spec_data = await self.spec_parser.parse(spec_path, dataset)

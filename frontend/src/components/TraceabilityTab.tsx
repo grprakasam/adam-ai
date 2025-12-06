@@ -14,14 +14,19 @@ import {
   DownloadOutlined,
   LinkOutlined,
   FileTextOutlined,
-  SettingOutlined
+  SettingOutlined,
+  FileExcelOutlined,
+  SwapOutlined
 } from '@ant-design/icons';
 import { Network } from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
+import { useStudyStore } from '../store/studyStore';
 import { LineageGraph } from './LineageGraph';
 import { TraceabilityMatrix } from './TraceabilityMatrix';
 import { TraceabilityDetailDrawer } from './TraceabilityDetailDrawer';
 import { TraceabilityExportModal } from './TraceabilityExportModal';
+import { SpecificationSelectionModal } from './SpecificationSelectionModal';
+import { findAllSpecificationDocuments } from '../utils/studyDocumentSync';
 import { PageHeader } from './PageHeader';
 import './TraceabilityTab.css';
 
@@ -41,6 +46,14 @@ export const TraceabilityTab: React.FC = () => {
   const [showGraph, setShowGraph] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
+  const [specModalVisible, setSpecModalVisible] = useState(false);
+
+  // Get study documents for specification selection
+  const currentStudyId = useStudyStore((state) => state.currentStudyId);
+  const documents = useStudyStore((state) => state.documents);
+  const specificationDocuments = currentStudyId
+    ? findAllSpecificationDocuments(documents[currentStudyId] || [])
+    : [];
 
   // Auto-generate on mount if snippets are ready
   useEffect(() => {
@@ -122,6 +135,50 @@ export const TraceabilityTab: React.FC = () => {
                   <FileTextOutlined /> Matrix
                 </Radio.Button>
               </Radio.Group>
+            </div>
+          </div>
+
+          {/* Specification Section */}
+          <div className="controls-section">
+            <div className="section-header">
+              <FileExcelOutlined />
+              <span>Specification</span>
+            </div>
+            <div className="spec-info">
+              {specificationFile ? (
+                <>
+                  <div className="spec-file-name" title={specificationFile.name}>
+                    <FileExcelOutlined style={{ color: '#52c41a', marginRight: 8 }} />
+                    <span style={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '180px',
+                      display: 'inline-block'
+                    }}>
+                      {specificationFile.name}
+                    </span>
+                  </div>
+                  <Button
+                    icon={<SwapOutlined />}
+                    size="small"
+                    onClick={() => setSpecModalVisible(true)}
+                    style={{ marginTop: 8 }}
+                    block
+                  >
+                    Change Specification
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="primary"
+                  icon={<FileExcelOutlined />}
+                  onClick={() => setSpecModalVisible(true)}
+                  block
+                >
+                  Select Specification
+                </Button>
+              )}
             </div>
           </div>
 
@@ -286,6 +343,17 @@ export const TraceabilityTab: React.FC = () => {
         visible={exportModalVisible}
         matrix={traceabilityMatrix}
         onClose={() => setExportModalVisible(false)}
+      />
+
+      {/* Specification Selection Modal */}
+      <SpecificationSelectionModal
+        visible={specModalVisible}
+        studyId={currentStudyId || ''}
+        specificationDocuments={specificationDocuments}
+        onClose={() => setSpecModalVisible(false)}
+        onSelect={(documentId, sheetName) => {
+          console.log('Specification selected:', documentId, sheetName);
+        }}
       />
     </div>
   );

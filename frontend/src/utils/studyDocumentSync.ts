@@ -2,98 +2,213 @@
  * Utility to sync study specification documents with the projectStore.
  * When a study is selected, this finds the SPECIFICATION document and sets it
  * as the active specification file for pair programming.
+ * 
+ * If multiple specification files exist, it dispatches an event to prompt the user
+ * to select which file/sheet to use.
  */
 
 import { useStudyStore, StudyDocument } from '../store/studyStore';
 import { useProjectStore } from '../store/projectStore';
 
 /**
- * Find the specification document from a list of study documents.
- * Prioritizes documents with document_type = 'SPECIFICATION' and Excel files.
+ * Find all specification documents from a list of study documents.
+ * Returns an array of potential specification files.
  */
-export function findSpecificationDocument(documents: StudyDocument[]): StudyDocument | null {
+export function findAllSpecificationDocuments(documents: StudyDocument[]): StudyDocument[] {
     if (!documents || documents.length === 0) {
-        return null;
+        return [];
     }
 
+    const specDocs: StudyDocument[] = [];
+
     // First, look for documents explicitly marked as SPECIFICATION
-    const specDocs = documents.filter(doc =>
+    const explicitSpecs = documents.filter(doc =>
         doc.document_type === 'SPECIFICATION' &&
         doc.is_active !== false
     );
+    specDocs.push(...explicitSpecs);
 
-    if (specDocs.length > 0) {
-        // Prefer Excel files
-        const excelSpec = specDocs.find(doc =>
-            doc.original_file_name?.endsWith('.xlsx') ||
-            doc.original_file_name?.endsWith('.xls')
-        );
-        if (excelSpec) return excelSpec;
-        return specDocs[0];
-    }
-
-    // If no SPECIFICATION type, look for Excel files that might be specs
+    // Also look for Excel files that might be specs (by name)
     const excelDocs = documents.filter(doc =>
         doc.is_active !== false &&
+        !explicitSpecs.some(s => s.id === doc.id) && // Not already added
         (doc.original_file_name?.toLowerCase().includes('spec') ||
             doc.original_file_name?.toLowerCase().includes('adam')) &&
         (doc.original_file_name?.endsWith('.xlsx') || doc.original_file_name?.endsWith('.xls'))
     );
+    specDocs.push(...excelDocs);
 
-    if (excelDocs.length > 0) {
-        return excelDocs[0];
-    }
-
-    // Last resort: any Excel file
-    const anyExcel = documents.find(doc =>
+    // Also include any Excel files not already added
+    const otherExcel = documents.filter(doc =>
         doc.is_active !== false &&
+        !specDocs.some(s => s.id === doc.id) && // Not already added
         (doc.original_file_name?.endsWith('.xlsx') || doc.original_file_name?.endsWith('.xls'))
     );
+    specDocs.push(...otherExcel);
 
-    return anyExcel || null;
+    return specDocs;
+}
+
+/**
+ * Find the specification document from a list of study documents.
+ * Prioritizes documents with document_type = 'SPECIFICATION' and Excel files.
+ */
+export function findSpecificationDocument(documents: StudyDocument[]): StudyDocument | null {
+    const allSpecs = findAllSpecificationDocuments(documents);
+
+    if (allSpecs.length === 0) {
+        return null;
+    }
+
+    // Return the first one (prioritized by the order in findAllSpecificationDocuments)
+    return allSpecs[0];
+}
+
+/**
+ * Clear all study-specific AI-generated data from the projectStore.
+ * This should be called when switching studies to prevent stale data.
+ */
+export function clearStudySpecificData(): void {
+    const projectStore = useProjectStore.getState();
+
+    console.log('[studyDocumentSync] Clearing study-specific data...');
+
+    // Clear the traceability matrix
+    if (typeof projectStore.clearTraceability === 'function') {
+        projectStore.clearTraceability();
+    } else {
+        // Fallback if method doesn't exist
+        projectStore.setTraceabilityMatrix?.(null);
+        projectStore.setTraceabilityError?.(null);
+    }
+
+    // Clear categorized variables
+    projectStore.setCategorizedVariables(null);
+
+    // Clear pair programming snippets
+    projectStore.clearAllAIResults?.();
+
+    // Clear consolidated code
+    projectStore.resetConsolidated?.();
+
+    // Clear specification file (will be set again from new study)
+    projectStore.setSpecificationFile(null);
+
+    console.log('[studyDocumentSync] Study-specific data cleared');
 }
 
 /**
  * Sync the study's specification document to the projectStore.
  * This should be called when a study is selected or when documents are loaded.
+ * 
+ * If multiple specification files are found, it dispatches an event to prompt
+ * the user to select which file to use.
+ * 
+ * @returns true if a specification was synced, false otherwise
  */
 export function syncStudySpecificationToProjectStore(studyId: string): boolean {
     const studyStore = useStudyStore.getState();
     const projectStore = useProjectStore.getState();
 
     const documents = studyStore.documents[studyId] || [];
-    const specDoc = findSpecificationDocument(documents);
+    const allSpecDocs = findAllSpecificationDocuments(documents);
 
-    if (specDoc) {
-        console.log('Found specification document for study:', studyId, specDoc.original_file_name);
+    console.log(`[studyDocumentSync] Found ${allSpecDocs.length} potential specification documents for study ${studyId}`);
 
-        // Set the specification file in projectStore
-        projectStore.setSpecificationFile({
-            name: specDoc.original_file_name,
-            path: specDoc.storage_path,
-            size: specDoc.size_bytes || 0,
-            uploadedAt: specDoc.uploaded_at,
-            isDefault: false, // Not a default - it's from the study
-        });
-
-        // Also update project config with study context
-        const study = studyStore.currentStudy;
-        if (study) {
-            projectStore.setProjectConfig({
-                studyId: study.id,
-                studyName: study.name,
-                studyPhase: study.phase,
-                // Default to ADSL if no dataset is set
-                adamDataset: projectStore.projectConfig.adamDataset || 'ADSL',
-            } as any);
-        }
-
-        console.log('Specification file synced to projectStore:', specDoc.storage_path);
-        return true;
-    } else {
-        console.log('No specification document found for study:', studyId);
+    if (allSpecDocs.length === 0) {
+        console.log('[studyDocumentSync] No specification document found for study:', studyId);
         return false;
     }
+
+    // If multiple spec documents exist, dispatch an event to prompt user selection
+    if (allSpecDocs.length > 1) {
+        console.log('[studyDocumentSync] Multiple specification files found, prompting user to select');
+        window.dispatchEvent(new CustomEvent('multiple-specifications-found', {
+            detail: {
+                studyId,
+                specificationDocuments: allSpecDocs,
+                message: `Found ${allSpecDocs.length} potential specification files. Please select which one to use.`
+            }
+        }));
+
+        // Still set the first one as default, user can change later
+        console.log('[studyDocumentSync] Setting first specification as default:', allSpecDocs[0].original_file_name);
+    }
+
+    const specDoc = allSpecDocs[0];
+
+    console.log('[studyDocumentSync] Found specification document for study:', studyId, specDoc.original_file_name);
+
+    // Set the specification file in projectStore
+    projectStore.setSpecificationFile({
+        name: specDoc.original_file_name,
+        path: specDoc.storage_path,
+        size: specDoc.size_bytes || 0,
+        uploadedAt: specDoc.uploaded_at,
+        isDefault: false, // Not a default - it's from the study
+    });
+
+    // Also update project config with study context
+    const study = studyStore.currentStudy;
+    if (study) {
+        projectStore.setProjectConfig({
+            studyId: study.id,
+            studyName: study.name,
+            studyPhase: study.phase,
+            // Reset the adamDataset when switching studies to avoid stale selection
+            adamDataset: 'ADSL', // Default to ADSL for new study
+        } as any);
+    }
+
+    console.log('[studyDocumentSync] Specification file synced to projectStore:', specDoc.storage_path);
+    return true;
+}
+
+/**
+ * Select a specific specification document and sync it to the projectStore.
+ * This is used when the user manually selects a specification file.
+ */
+export function selectSpecificationDocument(documentId: string): boolean {
+    const studyStore = useStudyStore.getState();
+    const projectStore = useProjectStore.getState();
+    const studyId = studyStore.currentStudyId;
+
+    if (!studyId) {
+        console.error('[studyDocumentSync] No study selected');
+        return false;
+    }
+
+    const documents = studyStore.documents[studyId] || [];
+    const specDoc = documents.find(d => d.id === documentId);
+
+    if (!specDoc) {
+        console.error('[studyDocumentSync] Document not found:', documentId);
+        return false;
+    }
+
+    // Clear old study-specific data before setting new specification
+    clearStudySpecificData();
+
+    // Set the specification file in projectStore
+    projectStore.setSpecificationFile({
+        name: specDoc.original_file_name,
+        path: specDoc.storage_path,
+        size: specDoc.size_bytes || 0,
+        uploadedAt: specDoc.uploaded_at,
+        isDefault: false,
+    });
+
+    console.log('[studyDocumentSync] Specification document selected:', specDoc.original_file_name);
+
+    // Dispatch event to notify components
+    window.dispatchEvent(new CustomEvent('specification-selected', {
+        detail: {
+            studyId,
+            document: specDoc
+        }
+    }));
+
+    return true;
 }
 
 /**
@@ -103,7 +218,10 @@ export function syncStudySpecificationToProjectStore(studyId: string): boolean {
 export function setupStudyDocumentSync(): () => void {
     const handleStudyChanged = (event: CustomEvent<{ studyId: string }>) => {
         const { studyId } = event.detail;
-        console.log('Study changed event received:', studyId);
+        console.log('[studyDocumentSync] Study changed event received:', studyId);
+
+        // Clear old study-specific data immediately
+        clearStudySpecificData();
 
         // Wait a short time for documents to be loaded
         setTimeout(() => {
@@ -113,7 +231,7 @@ export function setupStudyDocumentSync(): () => void {
 
     const handleDocumentsUpdated = (event: CustomEvent<{ studyId: string }>) => {
         const { studyId } = event.detail;
-        console.log('Study documents updated event received:', studyId);
+        console.log('[studyDocumentSync] Study documents updated event received:', studyId);
 
         // Only sync if this is the current study
         const currentStudyId = useStudyStore.getState().currentStudyId;
@@ -124,7 +242,7 @@ export function setupStudyDocumentSync(): () => void {
 
     const handleDocumentsReady = (event: CustomEvent<{ studyId: string; documents: StudyDocument[] }>) => {
         const { studyId, documents } = event.detail;
-        console.log('Study documents ready event received:', studyId, 'with', documents?.length || 0, 'documents');
+        console.log('[studyDocumentSync] Study documents ready event received:', studyId, 'with', documents?.length || 0, 'documents');
 
         // Sync immediately
         syncStudySpecificationToProjectStore(studyId);
@@ -135,7 +253,7 @@ export function setupStudyDocumentSync(): () => void {
     window.addEventListener('study-documents-updated', handleDocumentsUpdated as EventListener);
     window.addEventListener('study-documents-ready', handleDocumentsReady as EventListener);
 
-    console.log('Study document sync listeners set up');
+    console.log('[studyDocumentSync] Study document sync listeners set up');
 
     // Return cleanup function
     return () => {

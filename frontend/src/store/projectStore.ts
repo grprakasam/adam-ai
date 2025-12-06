@@ -769,7 +769,14 @@ export const useProjectStore = create<ProjectStore>()(
               }
             });
 
-            // Call API
+            // Call API - always use force_refresh=true to ensure we get fresh results for the current spec
+            console.log('[generateTraceability] Calling API with:', {
+              study_id: state.projectConfig.studyId,
+              dataset: state.projectConfig.adamDataset,
+              specification_path: state.specificationFile.path,
+              code_snippets_count: Object.keys(codeSnippets).length,
+            });
+
             const response = await fetch('/api/v1/traceability/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -779,7 +786,7 @@ export const useProjectStore = create<ProjectStore>()(
                 specification_path: state.specificationFile.path,
                 code_snippets: codeSnippets,
                 include_ai_insights: true,
-                force_refresh: false,
+                force_refresh: true, // Always refresh to use the current specification file
               }),
             });
 
