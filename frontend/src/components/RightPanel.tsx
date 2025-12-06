@@ -28,7 +28,6 @@ import ESubmissionCheckerTab from './ESubmissionCheckerTab';
 import FDAReviewerPreviewTab from './FDAReviewerPreviewTab';
 import EnterStudyDetailsPage from './EnterStudyDetailsPage';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
-import { WorkspaceNavigation } from './WorkspaceNavigation';
 import { notifyUserError } from '../utils/errorNotifications';
 import './RightPanel.css';
 
@@ -612,23 +611,7 @@ const RightPanel = ({
           aria-label="Workspace tools"
         >
           {/* Unified Workspace Header Group - Combined Sections - ALWAYS VISIBLE */}
-          <div className="workspace-header-group">
-            <div className="workspace-navigation-section">
-              <WorkspaceNavigation
-                activeTab={activeWorkspaceTab}
-                onTabChange={(tab) => {
-                  // Find which group this tab belongs to and set active group
-                  for (const [group, tabs] of Object.entries(GROUP_TABS)) {
-                    if (tabs.includes(tab as WorkspaceTabKey)) {
-                      setActiveGroup(group as WorkspaceGroup);
-                      break;
-                    }
-                  }
-                  setActiveWorkspaceTab(tab as WorkspaceTabKey);
-                }}
-              />
-            </div>
-          </div>
+
           <div
             ref={workspaceContentRef}
             className="workspace-content"

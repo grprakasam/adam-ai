@@ -6,7 +6,8 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px 16px 16px 16px;
-  padding-bottom: 70px; /* Add padding for bottom action area */
+  padding-bottom: 70px;
+  /* Add padding for bottom action area */
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -27,23 +28,24 @@
   position: sticky;
   top: 0;
   /* Very high z-index to ensure it stays above all content when scrolling */
-  z-index: 999; /* Just below app-header (1000) but above all content */
+  z-index: 999;
+  /* Just below app-header (1000) but above all content */
   margin-bottom: 12px;
   /* Ensure it stays at the top of the scrollable container */
   align-self: flex-start;
   width: 100%;
   /* Vibrant gradient background - modern and professional */
-  background: linear-gradient(135deg, 
-    #667eea 0%, 
-    #764ba2 25%, 
-    #f093fb 50%, 
-    #4facfe 75%, 
-    #00f2fe 100%);
+  background: linear-gradient(135deg,
+      #667eea 0%,
+      #764ba2 25%,
+      #f093fb 50%,
+      #4facfe 75%,
+      #00f2fe 100%);
   background-size: 200% 200%;
   animation: gradientShift 8s ease infinite;
   border-radius: 16px;
   /* Enhanced shadow with color tint */
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(102, 126, 234, 0.25),
     0 4px 16px rgba(118, 75, 162, 0.2),
     0 2px 8px rgba(0, 0, 0, 0.1),
@@ -57,9 +59,12 @@
   visibility: visible !important;
   display: flex;
   flex-direction: column;
-  min-height: 120px; /* 36px utilities + 80px+ navigation */
-  max-height: none; /* Allow to expand for navigation */
-  flex-shrink: 0; /* Never shrink */
+  min-height: 120px;
+  /* 36px utilities + 80px+ navigation */
+  max-height: none;
+  /* Allow to expand for navigation */
+  flex-shrink: 0;
+  /* Never shrink */
   /* Smooth transitions for all interactions */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   /* Add subtle backdrop blur for modern glass effect */
@@ -72,9 +77,11 @@
   0% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
@@ -82,7 +89,7 @@
 
 /* Hover effect for interactivity */
 .right-panel .workspace-header-group:hover {
-  box-shadow: 
+  box-shadow:
     0 12px 40px rgba(102, 126, 234, 0.35),
     0 6px 20px rgba(118, 75, 162, 0.25),
     0 4px 12px rgba(0, 0, 0, 0.15),
@@ -136,11 +143,9 @@
 /* Workspace navigation section within the grouped section - Expanded for visibility */
 .right-panel .workspace-header-group .workspace-navigation-section {
   /* Semi-transparent overlay with subtle gradient */
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.05) 100%
-  );
+  background: linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.05) 100%);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 0;
@@ -151,7 +156,8 @@
   z-index: 1;
   margin-bottom: 0;
   overflow-x: auto;
-  overflow-y: visible; /* Changed from hidden to visible */
+  overflow-y: visible;
+  /* Changed from hidden to visible */
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
@@ -159,7 +165,8 @@
   /* Expanded height to show section buttons */
   height: auto;
   min-height: 80px;
-  max-height: none; /* Remove height restriction */
+  max-height: none;
+  /* Remove height restriction */
   display: flex;
   align-items: center;
   transition: all 0.3s ease;
@@ -406,57 +413,6 @@
 }
 
 .sequence-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sequence-item {
-  display: flex;
-  align-items: start;
-  padding: 12px;
-  background: #fafafa;
-  border-left: 3px solid #4f46e5;
-  border-radius: 4px;
-}
-
-.sequence-number {
-  background: #4f46e5;
-  color: white;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  margin-right: 12px;
-  font-size: 12px;
-}
-
-.sequence-details {
-  flex: 1;
-}
-
-.sequence-var {
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 3px;
-  font-size: 13px;
-}
-
-.sequence-deps {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-@media (max-width: 1024px) {
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -479,7 +435,7 @@
 
 .metric-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .metric-label {
@@ -614,15 +570,15 @@
 
 /* Dark Mode Support for Workspace Header Group */
 [data-theme="dark"] .right-panel .workspace-header-group {
-  background: linear-gradient(135deg, 
-    #4c1d95 0%, 
-    #6b21a8 25%, 
-    #7c3aed 50%, 
-    #6366f1 75%, 
-    #3b82f6 100%);
+  background: linear-gradient(135deg,
+      #4c1d95 0%,
+      #6b21a8 25%,
+      #7c3aed 50%,
+      #6366f1 75%,
+      #3b82f6 100%);
   background-size: 200% 200%;
   border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(79, 70, 229, 0.4),
     0 4px 16px rgba(99, 102, 241, 0.3),
     0 2px 8px rgba(0, 0, 0, 0.3),
@@ -630,7 +586,7 @@
 }
 
 [data-theme="dark"] .right-panel .workspace-header-group:hover {
-  box-shadow: 
+  box-shadow:
     0 12px 40px rgba(79, 70, 229, 0.5),
     0 6px 20px rgba(99, 102, 241, 0.4),
     0 4px 12px rgba(0, 0, 0, 0.4),
@@ -643,11 +599,9 @@
 }
 
 [data-theme="dark"] .right-panel .workspace-header-group .workspace-navigation-section {
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.15) 0%,
-    rgba(0, 0, 0, 0.1) 100%
-  );
+  background: linear-gradient(to bottom,
+      rgba(0, 0, 0, 0.15) 0%,
+      rgba(0, 0, 0, 0.1) 100%);
 }
 
 [data-theme="dark"] .right-panel {
