@@ -22,6 +22,7 @@ import { LineageGraph } from './LineageGraph';
 import { TraceabilityMatrix } from './TraceabilityMatrix';
 import { TraceabilityDetailDrawer } from './TraceabilityDetailDrawer';
 import { TraceabilityExportModal } from './TraceabilityExportModal';
+import { PageHeader } from './PageHeader';
 import './TraceabilityTab.css';
 
 export const TraceabilityTab: React.FC = () => {
@@ -65,9 +66,9 @@ export const TraceabilityTab: React.FC = () => {
 
   // Calculate metrics
   const totalCount = traceabilityMatrix?.total_variables || 0;
-  
+
   // Calculate percentage of variables with dataset references
-  const variablesWithDatasets = traceabilityMatrix?.variables?.filter(v => 
+  const variablesWithDatasets = traceabilityMatrix?.variables?.filter(v =>
     v.source_datasets && v.source_datasets.length > 0
   ).length || 0;
   const datasetMappingPercentage = totalCount > 0 ? (variablesWithDatasets / totalCount) * 100 : 0;
@@ -76,16 +77,12 @@ export const TraceabilityTab: React.FC = () => {
 
   return (
     <div className="traceability-tab">
-      {/* Header with gradient - matching Pair Programming style */}
-      <div className="traceability-header">
-        <div className="header-info">
-          <Network size={20} />
-          <span className="header-title">Traceability Intelligence</span>
-          <span className="header-subtitle">
-            {totalCount} variables • {traceabilityMatrix ? 'Generated' : 'Ready'}
-          </span>
-        </div>
-        <div className="header-actions">
+      {/* Blue Header */}
+      <PageHeader
+        title="Traceability Intelligence"
+        subtitle={`${totalCount} variables • ${traceabilityMatrix ? 'Generated' : 'Ready'}`}
+        icon={<LinkOutlined />}
+        actions={
           <Button
             type="primary"
             icon={<SyncOutlined spin={isGeneratingTraceability} />}
@@ -96,8 +93,8 @@ export const TraceabilityTab: React.FC = () => {
           >
             {isGeneratingTraceability ? 'Generating...' : 'Generate Traceability'}
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Split layout: Controls Panel + Main Content */}
       <div className="traceability-layout">
@@ -146,8 +143,8 @@ export const TraceabilityTab: React.FC = () => {
               <div className="info-item" style={{ gridColumn: '1 / -1' }}>
                 <span className="info-label">Mapping Coverage</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
-                  <Progress 
-                    percent={datasetMappingPercentage} 
+                  <Progress
+                    percent={datasetMappingPercentage}
                     strokeColor={{
                       '0%': '#10b981',
                       '100%': '#059669',

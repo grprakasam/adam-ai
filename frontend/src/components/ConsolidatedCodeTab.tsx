@@ -20,6 +20,7 @@ import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
 import { triggerDownload } from '../utils/downloadHelpers';
 import type { ConsolidatedCodeRequest, ConsolidatedCodeData, ConsolidatedVariable } from '../types';
+import { PageHeader } from './PageHeader';
 import './ConsolidatedCodeTab.css';
 
 export const ConsolidatedCodeTab: React.FC = () => {
@@ -45,7 +46,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
   const [activeLanguage, setActiveLanguage] = useState<'R' | 'SAS'>(programmingLanguage);
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [, setAbortController] = useState<AbortController | null>(null);
-  
+
   // Additional ADAM-specific settings
   const [includeMetadata, setIncludeMetadata] = useState<boolean>(true);
   const [includeTraceability, setIncludeTraceability] = useState<boolean>(true);
@@ -105,7 +106,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
             name: snippet.variable, // Required field
             type: meta.meta.type || 'text', // Required field
           };
-          
+
           // Handle optional fields with proper type conversion
           if (meta.meta.length) {
             const lengthValue = typeof meta.meta.length === 'string' ? parseInt(meta.meta.length, 10) : meta.meta.length;
@@ -113,11 +114,11 @@ export const ConsolidatedCodeTab: React.FC = () => {
               metadataObj.length = lengthValue;
             }
           }
-          
+
           if (meta.meta.format) {
             metadataObj.format = meta.meta.format;
           }
-          
+
           if (meta.meta.label) {
             metadataObj.label = meta.meta.label;
           }
@@ -127,10 +128,10 @@ export const ConsolidatedCodeTab: React.FC = () => {
           if (isRequired) {
             metadataObj.required = true;
           }
-          
+
           transformedMetadata = metadataObj;
         }
-        
+
         return {
           name: snippet.variable,
           category: meta?.category || 'Other Category',
@@ -163,7 +164,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
             showIcon
             style={{ marginBottom: 16 }}
           />
-          
+
           <Descriptions column={2} size="small" bordered>
             <Descriptions.Item label="Total Variables">{approvedVariables.length}</Descriptions.Item>
             <Descriptions.Item label="Categories">{variablesByCategory.size}</Descriptions.Item>
@@ -171,13 +172,13 @@ export const ConsolidatedCodeTab: React.FC = () => {
             <Descriptions.Item label="Comment Level">{commentVerbosity}</Descriptions.Item>
             <Descriptions.Item label="Dataset" span={2}>{projectConfig.adamDataset || 'ADSL'}</Descriptions.Item>
             <Descriptions.Item label="Metadata" span={2}>
-              {includeMetadata ? '✓' : '✗'} Headers, 
-              {includeTraceability ? ' ✓' : ' ✗'} Traceability, 
-              {includeValidation ? ' ✓' : ' ✗'} Validation, 
+              {includeMetadata ? '✓' : '✗'} Headers,
+              {includeTraceability ? ' ✓' : ' ✗'} Traceability,
+              {includeValidation ? ' ✓' : ' ✗'} Validation,
               {sortVariables ? ' ✓' : ' ✗'} Sorted
             </Descriptions.Item>
           </Descriptions>
-          
+
           <Divider style={{ margin: '12px 0' }}>Variables by Category</Divider>
           <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
             {Array.from(variablesByCategory).map(([category, vars]) => (
@@ -189,7 +190,7 @@ export const ConsolidatedCodeTab: React.FC = () => {
               </div>
             ))}
           </div>
-          
+
           <Alert
             message="Estimated time: 30-60 seconds"
             type="warning"
@@ -324,16 +325,12 @@ export const ConsolidatedCodeTab: React.FC = () => {
 
   return (
     <div className="consolidated-tab">
-      {/* Header with gradient - matching Pair Programming style */}
-      <div className="consolidated-header">
-        <div className="header-info">
-          <Code2 size={20} />
-          <span className="header-title">Consolidated ADAM Code</span>
-          <span className="header-subtitle">
-            {variablesWithCode} variables with code • {consolidatedCode ? 'Generated' : 'Ready'}
-          </span>
-        </div>
-        <div className="header-actions">
+      {/* Blue Header */}
+      <PageHeader
+        title="Consolidated ADAM Code"
+        subtitle={`${variablesWithCode} variables with code • ${consolidatedCode ? 'Generated' : 'Ready'}`}
+        icon={<FileDoneOutlined />}
+        actions={
           <Button
             type="primary"
             icon={<FileDoneOutlined />}
@@ -344,8 +341,8 @@ export const ConsolidatedCodeTab: React.FC = () => {
           >
             {isGeneratingConsolidated ? 'Generating...' : 'Generate Code'}
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* Code Review Status Banner (warning only, generation still allowed) */}
       {showReviewWarning && (
@@ -415,8 +412,8 @@ export const ConsolidatedCodeTab: React.FC = () => {
             <div className="control-item switch-item">
               <div className="switch-row">
                 <label className="switch-label">Include Metadata Headers</label>
-                <Switch 
-                  checked={includeMetadata} 
+                <Switch
+                  checked={includeMetadata}
                   onChange={setIncludeMetadata}
                   size="small"
                 />
@@ -427,8 +424,8 @@ export const ConsolidatedCodeTab: React.FC = () => {
             <div className="control-item switch-item">
               <div className="switch-row">
                 <label className="switch-label">Include Traceability</label>
-                <Switch 
-                  checked={includeTraceability} 
+                <Switch
+                  checked={includeTraceability}
                   onChange={setIncludeTraceability}
                   size="small"
                 />
@@ -439,8 +436,8 @@ export const ConsolidatedCodeTab: React.FC = () => {
             <div className="control-item switch-item">
               <div className="switch-row">
                 <label className="switch-label">Add Data Validation</label>
-                <Switch 
-                  checked={includeValidation} 
+                <Switch
+                  checked={includeValidation}
                   onChange={setIncludeValidation}
                   size="small"
                 />
@@ -451,8 +448,8 @@ export const ConsolidatedCodeTab: React.FC = () => {
             <div className="control-item switch-item">
               <div className="switch-row">
                 <label className="switch-label">Sort Variables by Order</label>
-                <Switch 
-                  checked={sortVariables} 
+                <Switch
+                  checked={sortVariables}
                   onChange={setSortVariables}
                   size="small"
                 />

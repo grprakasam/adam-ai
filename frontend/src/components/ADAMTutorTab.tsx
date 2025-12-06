@@ -1,5 +1,6 @@
 import { Card, Typography } from 'antd';
 import { BookOutlined } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './ADAMTutorTab.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -7,16 +8,12 @@ const { Title, Text, Paragraph } = Typography;
 export const ADAMTutorTab = () => {
     return (
         <div className="adam-tutor-container">
-            {/* Header */}
-            <div className="tutor-header">
-                <div className="tutor-icon-wrapper">
-                    <BookOutlined className="tutor-icon" />
-                </div>
-                <div>
-                    <Title level={2} style={{ margin: 0 }}>ADAM Tutor</Title>
-                    <Text type="secondary">Learn ADAM programming with interactive tutorials</Text>
-                </div>
-            </div>
+            {/* Blue Header */}
+            <PageHeader
+                title="ADAM Tutor"
+                subtitle="Learn ADAM programming with interactive tutorials"
+                icon={<BookOutlined />}
+            />
 
             {/* Coming Soon Content */}
             <Card className="tutor-coming-soon-card">

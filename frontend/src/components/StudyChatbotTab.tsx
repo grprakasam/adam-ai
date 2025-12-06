@@ -52,6 +52,7 @@ import {
   CloseOutlined,
 } from '@ant-design/icons';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
+import { PageHeader } from './PageHeader';
 import './StudyChatbotTab.css';
 import {
   uploadStudyFiles,
@@ -266,7 +267,7 @@ export const StudyChatbotTab: React.FC = () => {
 
       // Determine if response is grounded
       const isNotFound = chatResponse.message.content.toLowerCase().includes('cannot find') ||
-                        chatResponse.message.content.toLowerCase().includes('not in the documents');
+        chatResponse.message.content.toLowerCase().includes('not in the documents');
 
       const assistantMessage: Message = {
         id: chatResponse.message.id,
@@ -320,26 +321,24 @@ export const StudyChatbotTab: React.FC = () => {
 
   return (
     <div className="study-chatbot-tab">
-      {/* Header */}
-      <div className="chatbot-header">
-        <div>
-          <Title level={3} style={{ margin: 0 }}>
-            <BookOutlined style={{ marginRight: 8, color: '#1890ff' }} />
-            Document Q&A Assistant
-          </Title>
-          <Text type="secondary">Ask questions - get answers from your documents only</Text>
-        </div>
-        <Space>
-          {knowledgeBase && (
-            <Button danger icon={<DeleteOutlined />} onClick={handleClearAll}>
-              Clear All
-            </Button>
-          )}
-          <Tooltip title="Answers are generated only from your uploaded documents with specific citations">
-            <Button icon={<QuestionCircleOutlined />}>Help</Button>
-          </Tooltip>
-        </Space>
-      </div>
+      {/* Blue Header */}
+      <PageHeader
+        title="Study ChatBot"
+        subtitle="Ask questions - get answers from your documents only"
+        icon={<BookOutlined />}
+        actions={
+          <Space>
+            {knowledgeBase && (
+              <Button danger icon={<DeleteOutlined />} onClick={handleClearAll}>
+                Clear All
+              </Button>
+            )}
+            <Tooltip title="Answers are generated only from your uploaded documents with specific citations">
+              <Button icon={<QuestionCircleOutlined />}>Help</Button>
+            </Tooltip>
+          </Space>
+        }
+      />
 
       <Row gutter={16} className="chatbot-main">
         {/* Left Sidebar - Document Upload & Info */}
@@ -562,7 +561,7 @@ export const StudyChatbotTab: React.FC = () => {
                               )}
                               {msg.type === 'assistant' && (
                                 <Tag icon={msg.grounded ? <CheckOutlined /> : <WarningOutlined />}
-                                     color={msg.grounded ? 'success' : 'warning'}>
+                                  color={msg.grounded ? 'success' : 'warning'}>
                                   {msg.grounded ? 'Document-grounded' : 'Not grounded'}
                                 </Tag>
                               )}

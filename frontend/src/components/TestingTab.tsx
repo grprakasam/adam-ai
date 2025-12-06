@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import { useProjectStore } from '../store/projectStore';
 import { adamApi } from '../services/api';
+import { PageHeader } from './PageHeader';
 import './TestingTab.css';
 
 const { Title, Text, Paragraph } = Typography;
@@ -235,19 +236,12 @@ export const TestingTab: React.FC = () => {
 
   return (
     <div className="testing-tab">
-      {/* Header */}
-      <Card className="testing-header" bordered={false}>
-        <Space direction="vertical" size={8} style={{ width: '100%' }}>
-          <div className="header-title">
-            <BugOutlined className="header-icon" />
-            <Title level={3}>Test Data Generation & Validation</Title>
-          </div>
-          <Paragraph type="secondary">
-            Automatically generate test data, execute ADAM code, and validate outputs.
-            Catch 80% of bugs before QC review!
-          </Paragraph>
-        </Space>
-      </Card>
+      {/* Blue Header */}
+      <PageHeader
+        title="Test Data Generation"
+        subtitle="Generate test data, execute ADAM code, and validate outputs"
+        icon={<BugOutlined />}
+      />
 
       {/* Main Content */}
       <Card className="testing-content" bordered={false}>

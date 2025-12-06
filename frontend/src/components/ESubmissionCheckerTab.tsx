@@ -7,6 +7,7 @@ import {
     FileTextOutlined,
     SafetyOutlined,
 } from '@ant-design/icons';
+import { PageHeader } from './PageHeader';
 import './PlaceholderFeature.css';
 
 const { Title, Text } = Typography;
@@ -14,21 +15,12 @@ const { Title, Text } = Typography;
 const ESubmissionCheckerTab = () => {
     return (
         <div className="placeholder-feature-container">
-            <div className="placeholder-feature-header">
-                <div className="placeholder-feature-icon submission-ai">
-                    <AuditOutlined />
-                </div>
-                <Title level={2} className="placeholder-feature-title">
-                    eSubmission Readiness Checker
-                </Title>
-                <Text className="placeholder-feature-tagline">
-                    One-click FDA eSubmission conformance scan
-                </Text>
-                <div className="placeholder-feature-status">
-                    <ClockCircleOutlined />
-                    Coming Soon - Preview Mode
-                </div>
-            </div>
+            {/* Blue Header */}
+            <PageHeader
+                title="eSubmission Checker"
+                subtitle="One-click FDA eSubmission conformance scan"
+                icon={<AuditOutlined />}
+            />
 
             <div className="placeholder-feature-content">
                 <div className="placeholder-feature-section">
