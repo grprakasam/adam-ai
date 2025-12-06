@@ -46,6 +46,7 @@ const STORAGE_KEYS = {
 
 // Highlight pseudo-code keywords for domain expert clarity
 const highlightPseudoCode = (pseudoCode: string): string => {
+  if (!pseudoCode || typeof pseudoCode !== 'string') return '';
   let highlighted = pseudoCode;
 
   // Escape HTML
@@ -70,6 +71,7 @@ const highlightPseudoCode = (pseudoCode: string): string => {
 
 // Simple syntax highlighting function for R and SAS
 const highlightCode = (code: string, language: string): string => {
+  if (!code || typeof code !== 'string') return '';
   let highlighted = code;
 
   // Escape HTML
@@ -145,7 +147,7 @@ const PairProgrammingAreaComponent: React.FC<PairProgrammingAreaProps> = ({
   categoryName,
 }) => {
   const {
-    pairProgramming,
+    pairProgramming: rawPairProgramming,
     setPairProgrammingNotes,
     setPairProgrammingAcceptance,
     setPairProgrammingSnippet,
@@ -154,6 +156,14 @@ const PairProgrammingAreaComponent: React.FC<PairProgrammingAreaProps> = ({
     projectConfig,
     specificationFile
   } = useProjectStore();
+
+  // Defensive: Ensure pairProgramming always has the required structure
+  const pairProgramming = {
+    snippets: rawPairProgramming?.snippets || {},
+    isGenerating: rawPairProgramming?.isGenerating || {},
+    notes: rawPairProgramming?.notes,
+    acceptance: rawPairProgramming?.acceptance,
+  };
 
   // Get ALL variables from all categories for accurate counts
   const allVariables = useMemo(() => {
@@ -187,12 +197,18 @@ const PairProgrammingAreaComponent: React.FC<PairProgrammingAreaProps> = ({
 
   // Debug logging
   React.useEffect(() => {
+    // Defensive check to prevent errors if pairProgramming is undefined
+    if (!pairProgramming || !pairProgramming.snippets) {
+      console.log('[PairProgrammingArea] pairProgramming state not initialized');
+      return;
+    }
+
     console.log('[PairProgrammingArea] Snippets updated:', {
       totalSnippets: Object.keys(pairProgramming.snippets).length,
       snippetKeys: Object.keys(pairProgramming.snippets),
       sampleSnippet: Object.values(pairProgramming.snippets)[0]
     });
-  }, [pairProgramming.snippets]);
+  }, [pairProgramming]);
 
   // Auto-detect derivation column from spec, with fallbacks for common column names
   const getDerivationText = (variable: VariableInfo): string => {
@@ -391,6 +407,25 @@ const PairProgrammingAreaComponent: React.FC<PairProgrammingAreaProps> = ({
   // Filter and search variables
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'to-be-modified'>('all');
+
+  const filteredVariables = useMemo(() => {
+    // Always use variables from the selected sidebar category
+    // Filter buttons filter within the selected category
+    return variables.filter(variable => {
+      const matchesSearch =
+        variable.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (variable.label && variable.label.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      // Filter by modification status
+      if (filterStatus === 'to-be-modified') {
+        const snippet = pairProgramming.snippets[variable.name];
+        return matchesSearch && snippet?.accepted === 'modify';
+      }
+
+      // 'all' shows everything
+      return matchesSearch;
+    });
+  }, [variables, pairProgramming.snippets, searchQuery, filterStatus]);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const [selectedVariable, setSelectedVariable] = useState<string | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState<boolean>(false);
@@ -531,24 +566,7 @@ const PairProgrammingAreaComponent: React.FC<PairProgrammingAreaProps> = ({
     return visibleFields.has(fieldId);
   };
 
-  const filteredVariables = useMemo(() => {
-    // Always use variables from the selected sidebar category
-    // Filter buttons filter within the selected category
-    return variables.filter(variable => {
-      const matchesSearch =
-        variable.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (variable.label && variable.label.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      // Filter by modification status
-      if (filterStatus === 'to-be-modified') {
-        const snippet = pairProgramming.snippets[variable.name];
-        return matchesSearch && snippet?.accepted === 'modify';
-      }
-
-      // 'all' shows everything
-      return matchesSearch;
-    });
-  }, [variables, pairProgramming.snippets, searchQuery, filterStatus]);
 
   // If filtering removes the selected variable, close the AI panel to keep DOM stable
   useEffect(() => {
@@ -1032,7 +1050,7 @@ const PairProgrammingAreaComponent: React.FC<PairProgrammingAreaProps> = ({
                           )}
                         </div>
                         {pseudoContent ? (
-                          <div className="ai-readonly-content ai-code-content" key={`pseudo-${variable.name}`}>
+                          <div className="ai-readonly-content ai-code-content" key={`pseudo-${selectedVar.name}`}>
                             <pre><code dangerouslySetInnerHTML={{ __html: highlightPseudoCode(pseudoContent) }} /></pre>
                           </div>
                         ) : (
@@ -1064,7 +1082,7 @@ const PairProgrammingAreaComponent: React.FC<PairProgrammingAreaProps> = ({
                           </div>
                         ) : snippet?.codeSnippet ? (
                           <>
-                            <div className="ai-readonly-content ai-code-content" key={`code-${variable.name}-${programmingLanguage}`}>
+                            <div className="ai-readonly-content ai-code-content" key={`code-${selectedVar.name}-${programmingLanguage}`}>
                               <pre><code dangerouslySetInnerHTML={{ __html: highlightCode(snippet.codeSnippet, programmingLanguage) }} /></pre>
                             </div>
                             {snippet?.metadata?.user_note_applied && (

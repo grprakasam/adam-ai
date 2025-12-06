@@ -142,8 +142,15 @@ async def download_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found"
         )
-    
+
     file_path = Path(document.storage_path)
+    # If path is relative, resolve it relative to backend directory
+    if not file_path.is_absolute():
+        # Get backend directory (study_documents.py -> endpoints -> v1 -> api -> app -> backend)
+        current_file = Path(__file__).resolve()
+        backend_dir = current_file.parent.parent.parent.parent.parent
+        file_path = backend_dir / file_path
+
     if not file_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -172,3 +179,93 @@ async def delete_document(
     await document_service.delete_document(study_id, document_id, hard_delete=hard_delete)
     return None
 
+
+@router.post("/check-duplicate")
+async def check_duplicate(
+    study_id: str,
+    filename: str = Form(...),
+    file_size: int = Form(0),
+    file_hash: Optional[str] = Form(None),
+    document_service: DocumentService = Depends(get_document_service)
+):
+    """
+    Check if a file might be a duplicate before uploading
+    
+    Returns duplicate candidates with confidence scores
+    """
+    import hashlib
+    from difflib import SequenceMatcher
+    
+    # Get existing documents for this study
+    existing_docs = await document_service.list_documents(
+        study_id=study_id,
+        active_only=True,
+        skip=0,
+        limit=100
+    )
+    
+    duplicates = []
+    
+    for doc in existing_docs:
+        confidence = 0
+        match_type = None
+        
+        # Check 1: Exact filename match (case-insensitive)
+        if doc.original_file_name.lower() == filename.lower():
+            confidence = 90
+            match_type = "exact_name"
+        
+        # Check 2: Similar filename (Levenshtein-like)
+        elif doc.original_file_name and filename:
+            similarity = SequenceMatcher(
+                None, 
+                doc.original_file_name.lower(), 
+                filename.lower()
+            ).ratio()
+            
+            if similarity >= 0.8:  # 80% similar
+                confidence = int(similarity * 100)
+                match_type = "similar_name"
+        
+        # Check 3: Same file size and extension (might be renamed duplicate)
+        if not match_type and file_size > 0:
+            doc_ext = doc.original_file_name.rsplit('.', 1)[-1].lower() if '.' in doc.original_file_name else ''
+            new_ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            
+            if doc_ext == new_ext and doc.size_bytes:
+                size_diff = abs(doc.size_bytes - file_size) / max(doc.size_bytes, file_size, 1)
+                if size_diff < 0.05:  # Within 5% size difference
+                    confidence = 60
+                    match_type = "same_size_type"
+        
+        if match_type and confidence >= 50:
+            duplicates.append({
+                "document_id": doc.id,
+                "filename": doc.original_file_name,
+                "uploaded_at": doc.uploaded_at.isoformat() if doc.uploaded_at else None,
+                "match_type": match_type,
+                "confidence": confidence,
+                "size_bytes": doc.size_bytes,
+                "document_type": doc.document_type.value if doc.document_type else None
+            })
+    
+    # Sort by confidence (highest first)
+    duplicates.sort(key=lambda x: x["confidence"], reverse=True)
+    
+    # Determine recommended action
+    recommended_action = "upload"
+    if duplicates:
+        top_confidence = duplicates[0]["confidence"]
+        if top_confidence >= 90:
+            recommended_action = "replace"
+        elif top_confidence >= 70:
+            recommended_action = "review"
+        else:
+            recommended_action = "keep_both"
+    
+    return {
+        "has_duplicates": len(duplicates) > 0,
+        "duplicates": duplicates[:5],  # Return top 5
+        "recommended_action": recommended_action,
+        "message": f"Found {len(duplicates)} potential duplicate(s)" if duplicates else "No duplicates found"
+    }

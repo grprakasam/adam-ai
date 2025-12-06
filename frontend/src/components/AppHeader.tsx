@@ -1,6 +1,6 @@
 import React from 'react';
-import { Button, Space } from 'antd';
-import { HomeOutlined, MenuOutlined } from '@ant-design/icons';
+import { Button, Space, Tooltip } from 'antd';
+import { HomeOutlined, MenuOutlined, PlusCircleOutlined } from '@ant-design/icons';
 import { NotificationBell } from './NotificationBell';
 import { SearchButton } from './SearchButton';
 import { DarkModeToggle } from './DarkModeToggle';
@@ -33,6 +33,8 @@ interface AppHeaderProps {
   onStudyChange?: (studyId: string) => void;
   onToggleMobileMenu?: () => void;
   onSwitchProject?: () => void;
+  onCreateStudy?: () => void;
+  isOnLandingPage?: boolean;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -44,7 +46,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   currentStudyId,
   onStudyChange,
   onToggleMobileMenu,
-  onSwitchProject
+  onSwitchProject,
+  onCreateStudy,
+  isOnLandingPage = false
 }) => {
   const getCompletionPercentage = useProjectStore((state) => state.getCompletionPercentage);
   const resetWorkspace = useProjectStore((state) => state.resetWorkspace);
@@ -55,8 +59,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const displayStudyId = currentStudyId || globalStudyId || '';
 
   // Determine if we should show mobile menu button
-  const showMobileMenu = 
-    layoutMode === 'mobile' || 
+  const showMobileMenu =
+    layoutMode === 'mobile' ||
     (layoutMode === 'auto' && window.innerWidth <= 768);
 
   const handleBackToLanding = async () => {
@@ -120,15 +124,32 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           <div className="app-brand">
             <div className="app-brand-title">ADAM AI</div>
-            <div className="app-brand-subtitle hide-mobile">Workspace</div>
+            <div className="app-brand-subtitle hide-mobile">{isOnLandingPage ? 'Workspace' : 'Workspace'}</div>
           </div>
 
-          {showWorkspaceControls && showStudySelector && onStudyChange && (
-            <div className="app-header-study hide-mobile">
-              <StudySelector
-                value={currentStudyId}
-                onChange={onStudyChange}
-              />
+          {/* Study Section - Always visible when showStudySelector is true */}
+          {showStudySelector && (
+            <div className="app-header-study-section hide-mobile">
+              {onStudyChange && (
+                <StudySelector
+                  value={currentStudyId}
+                  onChange={onStudyChange}
+                  showCreateButton={false}
+                  compact={isOnLandingPage}
+                />
+              )}
+              {onCreateStudy && (
+                <Tooltip title="Create New Study">
+                  <Button
+                    className="create-study-icon-btn"
+                    icon={<PlusCircleOutlined />}
+                    onClick={onCreateStudy}
+                    type="text"
+                    size="middle"
+                    aria-label="Create new study"
+                  />
+                </Tooltip>
+              )}
             </div>
           )}
 

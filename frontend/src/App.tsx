@@ -15,6 +15,7 @@ import { useProjectStore } from './store/projectStore';
 import { RecoverySuggestions } from './components/RecoverySuggestions';
 import { HelpCenterDrawer } from './components/HelpCenterDrawer';
 import { PreferencesDrawer } from './components/PreferencesDrawer';
+import { QuickCreateStudy } from './components/QuickCreateStudy';
 import { useWorkspaceHistory } from './store/historyStore';
 import { notifyUserError } from './utils/errorNotifications';
 import { clearStaleAuthTokens } from './utils/clearAuth';
@@ -23,6 +24,7 @@ import { SkipLink } from './components/a11y/SkipLink';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useApplyPreferences } from './hooks/useApplyPreferences';
 import { useStudyStore } from './store/studyStore';
+import { setupStudyDocumentSync, syncStudySpecificationToProjectStore } from './utils/studyDocumentSync';
 import './App.css';
 
 type ViewMode =
@@ -35,6 +37,16 @@ type ViewMode =
   | 'enter-study-details'
   | 'admin';
 
+const WORKSPACE_ROUTES = [
+  '/workspace', '/pair-programming', '/code-review', '/consolidated-code',
+  '/generation-history', '/traceability', '/test-with-data', '/adam-generator',
+  '/adam-dataset-comparer', '/submission-dashboard', '/submission-package',
+  '/code-validator', '/validation-reports', '/r-frontend', '/adam-data-analytics',
+  '/study-chatbot', '/code-comparer', '/tlf-generator', '/adam-tutor',
+  '/agentic-ai', '/ai-code-debugger', '/code-refactorer', '/missing-spec-detector',
+  '/spec-comparison', '/esubmission-checker', '/fda-reviewer-preview'
+];
+
 function App() {
   const [viewMode, setViewMode] = useState<ViewMode>('login');
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -44,6 +56,7 @@ function App() {
   const [isRightPanelUnlocked, setIsRightPanelUnlocked] = useState(true);
   const [isHelpCenterOpen, setHelpCenterOpen] = useState(false);
   const [isPreferencesOpen, setPreferencesOpen] = useState(false);
+  const [isQuickCreateOpen, setQuickCreateOpen] = useState(false);
   const mainContentRef = useRef<HTMLElement | null>(null);
 
   const undo = useWorkspaceHistory((state) => state.undo);
@@ -54,6 +67,12 @@ function App() {
 
   useEffect(() => {
     clearStaleAuthTokens();
+  }, []);
+
+  // Set up study document sync - automatically loads specification files when study is selected
+  useEffect(() => {
+    const cleanup = setupStudyDocumentSync();
+    return cleanup;
   }, []);
 
   useEffect(() => {
@@ -88,15 +107,7 @@ function App() {
 
         const path = window.location.pathname || '/';
 
-        const workspaceRoutes = [
-          '/workspace', '/pair-programming', '/code-review', '/consolidated-code',
-          '/generation-history', '/traceability', '/test-with-data', '/adam-generator',
-          '/adam-dataset-comparer', '/submission-dashboard', '/submission-package',
-          '/code-validator', '/validation-reports', '/r-frontend', '/adam-data-analytics',
-          '/study-chatbot', '/code-comparer', '/tlf-generator', '/adam-tutor',
-          '/agentic-ai', '/ai-code-debugger', '/code-refactorer', '/missing-spec-detector',
-          '/spec-comparison', '/esubmission-checker', '/fda-reviewer-preview'
-        ];
+
 
         if (path.startsWith('/admin')) {
           setViewMode('admin');
@@ -106,7 +117,7 @@ function App() {
           setViewMode('migration');
         } else if (path.startsWith('/projects')) {
           setViewMode('projects');
-        } else if (workspaceRoutes.some(route => path.startsWith(route))) {
+        } else if (WORKSPACE_ROUTES.some(route => path.startsWith(route))) {
           setViewMode('workspace');
         } else {
           setViewMode('landing');
@@ -131,11 +142,40 @@ function App() {
     return () => window.removeEventListener('adam-ai:auth-required', handleAuthRequired);
   }, []);
 
+  // Handle navigation events (popstate, locationchange)
+  useEffect(() => {
+    const handleNavigation = () => {
+      const path = window.location.pathname || '/';
+
+      if (path.startsWith('/admin')) {
+        setViewMode('admin');
+      } else if (path.startsWith('/enter-study-details')) {
+        setViewMode('enter-study-details');
+      } else if (path.startsWith('/migration')) {
+        setViewMode('migration');
+      } else if (path.startsWith('/projects')) {
+        setViewMode('projects');
+      } else if (WORKSPACE_ROUTES.some(route => path.startsWith(route))) {
+        setViewMode('workspace');
+      } else if (path === '/' || path === '/landing') {
+        setViewMode('landing');
+      }
+    };
+
+    window.addEventListener('popstate', handleNavigation);
+    window.addEventListener('locationchange', handleNavigation);
+
+    return () => {
+      window.removeEventListener('popstate', handleNavigation);
+      window.removeEventListener('locationchange', handleNavigation);
+    };
+  }, []);
+
   useEffect(() => {
     mainContentRef.current?.focus();
   }, [viewMode]);
 
-  const toggleLeftPanel = useCallback(() => {}, []);
+  const toggleLeftPanel = useCallback(() => { }, []);
 
   const focusMainContent = useCallback(() => {
     mainContentRef.current?.focus();
@@ -222,6 +262,9 @@ function App() {
     if (!projectConfig.adamDataset) {
       setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
     }
+
+    // Try to sync specification from study documents
+    syncStudySpecificationToProjectStore(studyId);
   };
 
   const handleOpenMigration = () => {
@@ -260,7 +303,12 @@ function App() {
       setProjectConfig({ studyId, adamDataset: 'ADSL' } as any);
     }
 
-    if (!specificationFile) {
+    // Try to sync specification from study documents first
+    // The study-documents-ready event will trigger auto-sync, but we also try manually
+    const synced = syncStudySpecificationToProjectStore(studyId);
+
+    if (!synced && !specificationFile) {
+      // Only fall back to default if no study spec found and no existing spec
       const defaultSpecPath = 'Content/UserInputs/ADAMSpecifications/ADSLSpec.xlsx';
       const defaultSpecName = 'ADSLSpec.xlsx';
       setSpecificationFile({
@@ -270,21 +318,22 @@ function App() {
         uploadedAt: new Date().toISOString(),
         isDefault: true,
       } as any);
+      message.info({ content: 'Using default specification. Upload a study-specific spec in Enter Study Details.', duration: 3 });
+    } else if (synced) {
+      message.success({ content: 'Study specification loaded from documents!', duration: 2 });
     }
 
     message.success({ content: 'Workspace initialized! Configure your project to generate code.', duration: 2 });
   };
 
   const handleOpenUtility = async (path: string) => {
-    if (!storeCurrentStudyId) {
-      message.info('Please create or select a study first.');
-      setViewMode('enter-study-details');
-      window.history.pushState({}, '', '/enter-study-details');
-      return;
-    }
-
+    // Allow access to all modules without mandatory study
+    // Study context is optional - modules will adapt gracefully
     setViewMode('workspace');
     setIsRightPanelUnlocked(true);
+
+    // If study is selected, it's already in the store
+    // Modules can check storeCurrentStudyId and adapt accordingly
 
     window.setTimeout(() => {
       window.dispatchEvent(
@@ -347,20 +396,34 @@ function App() {
             )}
             {viewMode !== 'login' && (
               <>
-                {viewMode !== 'landing' && (
-                  <AppHeader
-                    onBackToLanding={() => {
-                      setViewMode('landing');
-                      window.history.pushState({}, '', '/');
-                    }}
-                    currentUser={currentUser}
-                    onLogout={handleLogout}
-                    showStudySelector={true}
-                    showWorkspaceControls={true}
-                    currentStudyId={storeCurrentStudyId || undefined}
-                    onStudyChange={handleStudyChange}
-                  />
-                )}
+                <AppHeader
+                  onBackToLanding={viewMode !== 'landing' ? () => {
+                    setViewMode('landing');
+                    window.history.pushState({}, '', '/');
+                  } : undefined}
+                  currentUser={currentUser}
+                  onLogout={handleLogout}
+                  showStudySelector={true}
+                  showWorkspaceControls={viewMode !== 'landing'}
+                  currentStudyId={storeCurrentStudyId || undefined}
+                  onStudyChange={handleStudyChange}
+                  onCreateStudy={() => setQuickCreateOpen(true)}
+                  isOnLandingPage={viewMode === 'landing'}
+                />
+
+                {/* Quick Create Study Modal */}
+                <QuickCreateStudy
+                  visible={isQuickCreateOpen}
+                  onClose={() => setQuickCreateOpen(false)}
+                  onStudyCreated={(studyId) => {
+                    setProjectConfig({ studyId } as any);
+                    message.success('Study created! You can now work with study context.');
+                  }}
+                  onAdvancedOptions={() => {
+                    setViewMode('enter-study-details');
+                    window.history.pushState({}, '', '/enter-study-details');
+                  }}
+                />
 
                 {viewMode === 'landing' && (
                   <LandingPage

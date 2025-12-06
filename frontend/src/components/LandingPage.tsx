@@ -324,7 +324,10 @@ const LandingPage = ({ onStartProject, onOpenMigration, onNavigateToUtility }: L
 
   const handleUtilityLaunch = (path: string, key?: string) => {
     if (key === 'pair-programmer') {
-      onStartProject();
+      // Navigate directly to pair programming workspace
+      if (onNavigateToUtility) {
+        onNavigateToUtility('/pair-programming');
+      }
       return;
     }
 

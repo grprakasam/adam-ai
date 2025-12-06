@@ -213,6 +213,19 @@ export const useStudyStore = create<StudyStore>()(
         set({ currentStudy: study });
         // Broadcast change
         window.dispatchEvent(new CustomEvent('study-changed', { detail: { studyId } }));
+        
+        // Also load study documents and dataset selections so they're available
+        // This ensures specification files and datasets are loaded when study is selected
+        try {
+          await Promise.all([
+            get().loadStudyDocuments(studyId, true), // Force reload
+            get().loadDatasetSelections(studyId)
+          ]);
+          console.log('Study documents and datasets loaded for study:', studyId);
+          window.dispatchEvent(new CustomEvent('study-documents-ready', { detail: { studyId, study, documents: get().documents[studyId] || [], datasets: get().datasetSelections[studyId] || [] } }));
+        } catch (error) {
+          console.warn('Failed to load study documents/datasets:', error);
+        }
       },
 
       // Load studies list
@@ -375,17 +388,23 @@ export const useStudyStore = create<StudyStore>()(
           
           console.log(`Loaded ${documentsWithUrls.length} documents for study ${studyId}`);
         } catch (error: any) {
-          console.error('Error loading documents:', error);
-          
+          console.error('=== ERROR LOADING STUDY DOCUMENTS ===');
+          console.error('Study ID:', studyId);
+          console.error('Status:', error?.response?.status);
+          console.error('Detail:', error?.response?.data?.detail);
+          console.error('Auth token exists:', !!localStorage.getItem('adam_access_token'));
+          console.error('Full error:', error);
+
           // Check for authentication errors
           if (error?.response?.status === 401 || error?.response?.status === 403) {
+            console.warn('Authentication required - clearing tokens');
             localStorage.removeItem('adam_access_token');
             localStorage.removeItem('adam_user');
             window.dispatchEvent(new CustomEvent('adam-ai:auth-required'));
           }
-          
+
           set({ documentsLoading: { ...get().documentsLoading, [studyId]: false } });
-          
+
           // Set empty array on error to prevent retry loops
           set({
             documents: { ...get().documents, [studyId]: [] }

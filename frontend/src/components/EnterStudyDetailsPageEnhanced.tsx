@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Upload, FileText, MessageSquare, Settings, Database, CheckCircle2, Loader2, Save, Plus } from 'lucide-react';
+import { Upload, FileText, MessageSquare, Settings, Database, Loader2, Save, Trash2 } from 'lucide-react';
 import { StudyChatbotPanel } from './StudyChatbotPanel';
 import { useStudyStore, Study } from '../store/studyStore';
 import { useProjectStore } from '../store/projectStore';
-import { message } from 'antd';
+import { message, Popconfirm } from 'antd';
 import { FormBlock } from './FormBlock';
 import { TextField } from './TextField';
 import { SelectField } from './SelectField';
@@ -31,7 +31,7 @@ interface NewStudyFormData {
   selectedDatasets: string[];
 }
 
-const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps> = ({ onBack, onStudyCreated }) => {
+const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps> = ({ onStudyCreated }) => {
   const {
     currentStudyId,
     currentStudy,
@@ -43,7 +43,7 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
     loadDatasetSelections,
     updateStudy,
     uploadDocument,
-    setCurrentStudy,
+    deleteDocument,
     createStudy,
     loadStudies,
     updateDatasetSelections
@@ -56,10 +56,10 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Local state for form fields to enable immediate UI updates
   const [localStudyData, setLocalStudyData] = useState<Partial<Study> | null>(null);
-  
+
   // New study form state with default values
   const [newStudyForm, setNewStudyForm] = useState<NewStudyFormData>({
     name: '',
@@ -111,7 +111,7 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
 
     // Initialize localStudyData if it doesn't exist
     const currentData = localStudyData || { id: currentStudyId } as Partial<Study>;
-    
+
     // Immediately update local state for instant UI feedback
     const updatedData = { ...currentData, [field]: value };
     setLocalStudyData(updatedData);
@@ -333,7 +333,7 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
 
     try {
       await updateDatasetSelections(currentStudyId, datasets);
-        await loadDatasetSelections(currentStudyId);
+      await loadDatasetSelections(currentStudyId);
     } catch (error) {
       console.error('Error updating datasets:', error);
       message.error('Failed to update dataset selections. Please try again.');
@@ -408,13 +408,13 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
   // Validate new study form
   const validateNewStudyForm = (): boolean => {
     const errors: Record<string, string> = {};
-    
+
     if (!newStudyForm.name.trim()) {
       errors.name = 'Study name is required';
     }
-    
+
     // Optional: validate other fields if needed
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -479,7 +479,7 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
 
       // Success message
       message.success(`Study "${createdStudy.name}" has been created successfully.`);
-      
+
       // Navigate to workspace if callback provided
       if (onStudyCreated && createdStudy.id) {
         // Small delay to ensure study is fully loaded
@@ -758,7 +758,7 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
               <TextField
                 label="Study ID"
                 value={localStudyData?.id || currentStudy?.id || ''}
-                onChange={() => {}}
+                onChange={() => { }}
                 placeholder="Auto-generated"
                 disabled
                 readOnly
@@ -924,21 +924,77 @@ const EnterStudyDetailsPageEnhanced: React.FC<EnterStudyDetailsPageEnhancedProps
                 ) : studyDocuments.length === 0 ? (
                   <div className="empty-state">No documents uploaded yet</div>
                 ) : (
-                  studyDocuments.map((doc) => (
-                    <div key={doc.id} className="document-item">
-                      <FileText size={20} />
-                      <div className="document-info">
-                        <div className="document-name">{doc.original_file_name}</div>
-                        <div className="document-meta">
-                          <span>{doc.document_type}</span>
-                          {doc.size_bytes && <span>{(doc.size_bytes / 1024).toFixed(1)} KB</span>}
-                          <span className={`status status-${doc.processing_status}`}>
-                            {doc.processing_status}
-                          </span>
+                  studyDocuments.map((doc) => {
+                    const isActiveSpec = doc.document_type === 'SPECIFICATION';
+
+                    const handleDeleteDocument = async () => {
+                      try {
+                        await deleteDocument(currentStudyId, doc.id);
+                        message.success(`Document "${doc.original_file_name}" deleted`);
+                        // Reload documents
+                        await loadStudyDocuments(currentStudyId, true);
+                      } catch (error: any) {
+                        message.error(error?.message || 'Failed to delete document');
+                      }
+                    };
+
+                    return (
+                      <div key={doc.id} className="document-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                          <FileText size={20} />
+                          <div className="document-info">
+                            <div className="document-name">{doc.original_file_name}</div>
+                            <div className="document-meta">
+                              <span>{doc.document_type}</span>
+                              {doc.size_bytes && <span>{(doc.size_bytes / 1024).toFixed(1)} KB</span>}
+                              <span className={`status status-${doc.processing_status}`}>
+                                {doc.processing_status}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                        <Popconfirm
+                          title={isActiveSpec ? "Delete Specification File?" : "Delete this document?"}
+                          description={
+                            isActiveSpec
+                              ? "This is an active specification file. Deleting it may affect pair programming. Continue?"
+                              : `Are you sure you want to delete "${doc.original_file_name}"?`
+                          }
+                          onConfirm={handleDeleteDocument}
+                          okText="Delete"
+                          cancelText="Cancel"
+                          okButtonProps={{ danger: true }}
+                        >
+                          <button
+                            type="button"
+                            className="btn btn-icon btn-danger-subtle"
+                            title="Delete document"
+                            style={{
+                              padding: '0.5rem',
+                              background: 'transparent',
+                              border: '1px solid transparent',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              color: '#6b7280',
+                              transition: 'all 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#fee2e2';
+                              e.currentTarget.style.color = '#dc2626';
+                              e.currentTarget.style.borderColor = '#fecaca';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.color = '#6b7280';
+                              e.currentTarget.style.borderColor = 'transparent';
+                            }}
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </Popconfirm>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </FormBlock>

@@ -1,0 +1,222 @@
+/* Study Context Prompt - Progressive Disclosure Component */
+
+.study-context-prompt {
+    position: relative;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.study-context-prompt.compact {
+    padding: 12px 16px;
+    margin: 8px 0;
+    border-radius: 8px;
+    background: #fefce8;
+    border-color: #fef08a;
+}
+
+.study-context-prompt.compact .study-prompt-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.study-context-prompt.compact .study-prompt-text {
+    font-size: 13px;
+    color: #854d0e;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.study-context-prompt.compact .study-prompt-actions {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+}
+
+.study-prompt-dismiss {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.study-prompt-dismiss:hover {
+    color: #64748b;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.study-prompt-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.study-prompt-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.study-prompt-title-area {
+    flex: 1;
+}
+
+.study-prompt-title {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.study-prompt-description {
+    margin: 0;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.study-prompt-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+}
+
+.study-prompt-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.study-prompt-btn.primary {
+    background: #4f46e5;
+    border-color: #4f46e5;
+}
+
+.study-prompt-btn.primary:hover {
+    background: #4338ca;
+    border-color: #4338ca;
+}
+
+.study-prompt-upload-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.study-prompt-upload-btn:hover {
+    border-color: #4f46e5;
+    color: #4f46e5;
+    background: #f5f3ff;
+}
+
+.study-prompt-tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(79, 70, 229, 0.05);
+    border-radius: 8px;
+    font-size: 13px;
+    color: #4f46e5;
+}
+
+.study-prompt-tip .anticon {
+    margin-top: 2px;
+}
+
+/* Dark Mode */
+[data-theme="dark"] .study-context-prompt {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-color: #334155;
+}
+
+[data-theme="dark"] .study-context-prompt.compact {
+    background: #422006;
+    border-color: #854d0e;
+}
+
+[data-theme="dark"] .study-context-prompt.compact .study-prompt-text {
+    color: #fef08a;
+}
+
+[data-theme="dark"] .study-prompt-dismiss {
+    color: #64748b;
+}
+
+[data-theme="dark"] .study-prompt-dismiss:hover {
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .study-prompt-title {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .study-prompt-description {
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .study-prompt-actions {
+    border-top-color: #334155;
+}
+
+[data-theme="dark"] .study-prompt-upload-btn {
+    background: #1e293b;
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .study-prompt-upload-btn:hover {
+    border-color: #818cf8;
+    color: #818cf8;
+    background: #1e1b4b;
+}
+
+[data-theme="dark"] .study-prompt-tip {
+    background: rgba(129, 140, 248, 0.1);
+    color: #a5b4fc;
+}

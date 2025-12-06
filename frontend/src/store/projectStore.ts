@@ -157,11 +157,11 @@ export interface ProjectStore {
   // UI State
   isGenerating: boolean;
   setIsGenerating: (generating: boolean) => void;
-  
+
   // Workspace Layout
   workspaceLayoutPreset: 'balanced' | 'focused' | 'immersive' | 'ultra';
   setWorkspaceLayoutPreset: (preset: 'balanced' | 'focused' | 'immersive' | 'ultra') => void;
-  
+
   // Workspace Initialization
   isWorkspaceInitialized: boolean;
   initializeWorkspace: () => void;
@@ -308,1125 +308,1180 @@ export const useProjectStore = create<ProjectStore>()(
   subscribeWithSelector(
     persist(
       (set, get) => ({
-      ...initialState,
+        ...initialState,
 
-      setProjectConfig: (config) =>
-        set((state) => ({
-          projectConfig: { ...state.projectConfig, ...config },
-        })),
+        setProjectConfig: (config) =>
+          set((state) => ({
+            projectConfig: { ...state.projectConfig, ...config },
+          })),
 
-      setStudyMetadata: (metadata) =>
-        set((state) => ({
-          studyMetadata: { ...state.studyMetadata, ...metadata },
-        })),
+        setStudyMetadata: (metadata) =>
+          set((state) => ({
+            studyMetadata: { ...state.studyMetadata, ...metadata },
+          })),
 
-      setStandards: (standards) =>
-        set((state) => ({
-          sdtmVersion: standards.sdtmVersion || state.sdtmVersion,
-          adamIgVersion: standards.adamIgVersion || state.adamIgVersion,
-          medraVersion: standards.medraVersion || state.medraVersion,
-        })),
+        setStandards: (standards) =>
+          set((state) => ({
+            sdtmVersion: standards.sdtmVersion || state.sdtmVersion,
+            adamIgVersion: standards.adamIgVersion || state.adamIgVersion,
+            medraVersion: standards.medraVersion || state.medraVersion,
+          })),
 
-      addRule: (rule) =>
-        set((state) => ({
-          rules: [...state.rules, rule],
-        })),
+        addRule: (rule) =>
+          set((state) => ({
+            rules: [...state.rules, rule],
+          })),
 
-      updateRule: (id, updates) =>
-        set((state) => ({
-          rules: state.rules.map((rule) =>
-            rule.id === id ? { ...rule, ...updates } : rule
-          ),
-        })),
+        updateRule: (id, updates) =>
+          set((state) => ({
+            rules: state.rules.map((rule) =>
+              rule.id === id ? { ...rule, ...updates } : rule
+            ),
+          })),
 
-      deleteRule: (id) =>
-        set((state) => ({
-          rules: state.rules.filter((rule) => rule.id !== id),
-        })),
+        deleteRule: (id) =>
+          set((state) => ({
+            rules: state.rules.filter((rule) => rule.id !== id),
+          })),
 
-      setSpecificationFile: (file) =>
-        set({ specificationFile: file }),
+        setSpecificationFile: (file) => {
+          // Sanitize the path to prevent corrupted paths from being stored
+          if (file?.path) {
+            let sanitizedPath = file.path;
 
-      setTempSpecFile: (file) => set({ tempSpecFile: file }),
+            // Remove 'app/' prefix if present in storage paths
+            if (sanitizedPath.includes('app/storage') || sanitizedPath.includes('app\\storage')) {
+              sanitizedPath = sanitizedPath.replace(/app[/\\]storage/g, 'storage');
+              console.log('[setSpecificationFile] Sanitized path:', file.path, '->', sanitizedPath);
+            }
 
-      setCategorizedVariables: (result) =>
-        set({ categorizedVariables: result }),
+            // Normalize path separators for consistency
+            sanitizedPath = sanitizedPath.replace(/\\/g, '/');
 
-      setIsCategorizingVariables: (categorizing) =>
-        set({ isCategorizingVariables: categorizing }),
+            file = { ...file, path: sanitizedPath };
+          }
+          set({ specificationFile: file });
+        },
 
-      // Pair Programming Actions
-      setProgrammingLanguage: (language) =>
-        set({ programmingLanguage: language }),
+        setTempSpecFile: (file) => set({ tempSpecFile: file }),
 
-      setLlmProvider: (provider) =>
-        set({ llmProvider: provider, llmConnectionStatus: 'untested', llmConnectionMessage: null }),
+        setCategorizedVariables: (result) =>
+          set({ categorizedVariables: result }),
 
-      setSelectedModel: (modelId) =>
-        set({ selectedModel: modelId }),
+        setIsCategorizingVariables: (categorizing) =>
+          set({ isCategorizingVariables: categorizing }),
 
-      setAvailableModels: (models) =>
-        set({ availableModels: models }),
+        // Pair Programming Actions
+        setProgrammingLanguage: (language) =>
+          set({ programmingLanguage: language }),
 
-      setLlmConnectionStatus: (status, message = null) =>
-        set({ llmConnectionStatus: status, llmConnectionMessage: message }),
+        setLlmProvider: (provider) =>
+          set({ llmProvider: provider, llmConnectionStatus: 'untested', llmConnectionMessage: null }),
 
-      setPairProgrammingSnippet: (variable, snippet) =>
-        set((state) => ({
-          pairProgramming: {
-            ...state.pairProgramming,
-            snippets: {
-              ...state.pairProgramming.snippets,
-              [variable]: snippet,
-            },
-          },
-        })),
+        setSelectedModel: (modelId) =>
+          set({ selectedModel: modelId }),
 
-      setGeneratingSnippet: (variable, isGenerating) =>
-        set((state) => ({
-          pairProgramming: {
-            ...state.pairProgramming,
-            isGenerating: {
-              ...state.pairProgramming.isGenerating,
-              [variable]: isGenerating,
-            },
-          },
-        })),
+        setAvailableModels: (models) =>
+          set({ availableModels: models }),
 
-      setPairProgrammingNotes: (variable, notes) =>
-        set((state) => ({
-          pairProgramming: {
-            ...state.pairProgramming,
-            snippets: {
-              ...state.pairProgramming.snippets,
-              [variable]: {
-                ...state.pairProgramming.snippets[variable],
-                userNotes: notes,
+        setLlmConnectionStatus: (status, message = null) =>
+          set({ llmConnectionStatus: status, llmConnectionMessage: message }),
+
+        setPairProgrammingSnippet: (variable, snippet) =>
+          set((state) => ({
+            pairProgramming: {
+              ...state.pairProgramming,
+              snippets: {
+                ...state.pairProgramming.snippets,
+                [variable]: snippet,
               },
             },
-          },
-        })),
+          })),
 
-      setPairProgrammingAcceptance: (variable, accepted) =>
-        set((state) => {
-          const existingSnippet = state.pairProgramming.snippets[variable];
-          
-          // If snippet doesn't exist, we can't set acceptance (code must be generated first)
-          if (!existingSnippet) {
-            console.warn(`Cannot set acceptance for ${variable}: snippet does not exist`);
-            return state;
-          }
+        setGeneratingSnippet: (variable, isGenerating) =>
+          set((state) => ({
+            pairProgramming: {
+              ...state.pairProgramming,
+              isGenerating: {
+                ...state.pairProgramming.isGenerating,
+                [variable]: isGenerating,
+              },
+            },
+          })),
 
-          // Update the acceptance while preserving all other fields
-          return {
+        setPairProgrammingNotes: (variable, notes) =>
+          set((state) => ({
             pairProgramming: {
               ...state.pairProgramming,
               snippets: {
                 ...state.pairProgramming.snippets,
                 [variable]: {
-                  ...existingSnippet,
-                  accepted,
+                  ...state.pairProgramming.snippets[variable],
+                  userNotes: notes,
                 },
               },
             },
-          };
-        }),
+          })),
 
-      setBulkCodeSnippets: (snippets) =>
-        set((state) => {
-          console.log('[setBulkCodeSnippets] Received snippets:', snippets.length);
-          console.log('[setBulkCodeSnippets] First snippet sample:', snippets[0]);
-          
-          const newSnippets: Record<string, VariableSnippet> = {};
-          snippets.forEach((snippet: any) => {
-            const variable = snippet.variable;
-            if (!variable) {
-              console.warn('[setBulkCodeSnippets] Snippet missing variable name:', snippet);
-              return;
+        setPairProgrammingAcceptance: (variable, accepted) =>
+          set((state) => {
+            const existingSnippet = state.pairProgramming.snippets[variable];
+
+            // If snippet doesn't exist, we can't set acceptance (code must be generated first)
+            if (!existingSnippet) {
+              console.warn(`Cannot set acceptance for ${variable}: snippet does not exist`);
+              return state;
             }
-            
-            // Auto-approve variables after code generation
-            // Only preserve 'modify' status if user explicitly marked it for modification
-            // Otherwise, auto-approve when code is generated
-            const existingAcceptance = state.pairProgramming.snippets[variable]?.accepted;
-            const hasCode = !!snippet.code_snippet && !snippet.error;
-            
-            // Auto-approve if code exists and not explicitly marked as 'modify'
-            // If already 'modify', keep it as 'modify' (user wants changes)
-            // Otherwise, auto-approve
-            const autoApproved = hasCode && existingAcceptance !== 'modify' ? 'accept' : existingAcceptance;
-            
-            newSnippets[variable] = {
-              variable: variable,
-              codeSnippet: snippet.code_snippet || '',
-              rationale: snippet.coding_rationale || '',
-              pseudoCode: snippet.pseudo_code,
-              pseudoSummary: snippet.pseudo_summary,
-              userNotes: state.pairProgramming.snippets[variable]?.userNotes || '',
-              accepted: autoApproved || (hasCode ? 'accept' : null), // Auto-approve if code exists
-              generatedAt: new Date(),
-              language: state.programmingLanguage,
-              error: snippet.error,
-              metadata: snippet.metadata,
-            };
-            
-            console.log(`[setBulkCodeSnippets] Processed ${variable}:`, {
-              hasCode: !!snippet.code_snippet,
-              hasRationale: !!snippet.coding_rationale,
-              hasError: !!snippet.error
-            });
-          });
-          
-          console.log('[setBulkCodeSnippets] Total snippets processed:', Object.keys(newSnippets).length);
-          
-          const updatedState = {
-            pairProgramming: {
-              ...state.pairProgramming,
-              snippets: {
-                ...state.pairProgramming.snippets,
-                ...newSnippets,
+
+            // Update the acceptance while preserving all other fields
+            return {
+              pairProgramming: {
+                ...state.pairProgramming,
+                snippets: {
+                  ...state.pairProgramming.snippets,
+                  [variable]: {
+                    ...existingSnippet,
+                    accepted,
+                  },
+                },
               },
-            },
-          };
-          
-          console.log('[setBulkCodeSnippets] Updated state snippets count:', Object.keys(updatedState.pairProgramming.snippets).length);
-          
-          return updatedState;
+            };
+          }),
+
+        setBulkCodeSnippets: (snippets) =>
+          set((state) => {
+            console.log('[setBulkCodeSnippets] Received snippets:', snippets.length);
+            console.log('[setBulkCodeSnippets] First snippet sample:', snippets[0]);
+
+            const newSnippets: Record<string, VariableSnippet> = {};
+            snippets.forEach((snippet: any) => {
+              const variable = snippet.variable;
+              if (!variable) {
+                console.warn('[setBulkCodeSnippets] Snippet missing variable name:', snippet);
+                return;
+              }
+
+              // Auto-approve variables after code generation
+              // Only preserve 'modify' status if user explicitly marked it for modification
+              // Otherwise, auto-approve when code is generated
+              const existingAcceptance = state.pairProgramming.snippets[variable]?.accepted;
+              const hasCode = !!snippet.code_snippet && !snippet.error;
+
+              // Auto-approve if code exists and not explicitly marked as 'modify'
+              // If already 'modify', keep it as 'modify' (user wants changes)
+              // Otherwise, auto-approve
+              const autoApproved = hasCode && existingAcceptance !== 'modify' ? 'accept' : existingAcceptance;
+
+              newSnippets[variable] = {
+                variable: variable,
+                codeSnippet: snippet.code_snippet || '',
+                rationale: snippet.coding_rationale || '',
+                pseudoCode: snippet.pseudo_code,
+                pseudoSummary: snippet.pseudo_summary,
+                userNotes: state.pairProgramming.snippets[variable]?.userNotes || '',
+                accepted: autoApproved || (hasCode ? 'accept' : null), // Auto-approve if code exists
+                generatedAt: new Date(),
+                language: state.programmingLanguage,
+                error: snippet.error,
+                metadata: snippet.metadata,
+              };
+
+              console.log(`[setBulkCodeSnippets] Processed ${variable}:`, {
+                hasCode: !!snippet.code_snippet,
+                hasRationale: !!snippet.coding_rationale,
+                hasError: !!snippet.error
+              });
+            });
+
+            console.log('[setBulkCodeSnippets] Total snippets processed:', Object.keys(newSnippets).length);
+
+            const updatedState = {
+              pairProgramming: {
+                ...state.pairProgramming,
+                snippets: {
+                  ...state.pairProgramming.snippets,
+                  ...newSnippets,
+                },
+              },
+            };
+
+            console.log('[setBulkCodeSnippets] Updated state snippets count:', Object.keys(updatedState.pairProgramming.snippets).length);
+
+            return updatedState;
+          }),
+
+        setGenerationOptions: (options) =>
+          set((state) => ({
+            generationOptions: { ...state.generationOptions, ...options },
+          })),
+
+        setIsGenerating: (generating) => set({ isGenerating: generating }),
+
+        setWorkspaceLayoutPreset: (preset) => set({ workspaceLayoutPreset: preset }),
+
+        getCompletionPercentage: () => {
+          const state = get();
+          let completed = 0;
+          const total = 5; // Project Config, Dataset, Specification, Variables, Standards
+
+          if (state.projectConfig.studyId) {
+            completed += 1;
+          }
+
+          if (state.projectConfig.adamDataset) {
+            completed += 1;
+          }
+
+          if (state.specificationFile) {
+            completed += 1;
+          }
+
+          if (state.categorizedVariables && state.categorizedVariables.total_variables > 0) {
+            completed += 1;
+          }
+
+          if (
+            state.sdtmVersion &&
+            state.adamIgVersion &&
+            state.medraVersion
+          ) {
+            completed += 1;
+          }
+
+          return Math.round((completed / total) * 100);
+        },
+
+        getTabStatus: (tabKey) => {
+          const state = get();
+
+          switch (tabKey) {
+            case 'project':
+              // Only Study ID is required
+              if (state.projectConfig.studyId) {
+                return 'complete';
+              }
+              return 'not-started';
+
+            case 'dataset':
+              // Check if ADAM dataset is selected
+              if (state.projectConfig.adamDataset) {
+                return 'complete';
+              }
+              return 'not-started';
+
+            case 'specification':
+              // Check if specification file is uploaded
+              if (state.specificationFile) {
+                return 'complete';
+              }
+              return 'not-started';
+
+            case 'variables':
+              // Check if variables have been categorized
+              if (state.categorizedVariables && state.categorizedVariables.total_variables > 0) {
+                return 'complete';
+              }
+              // Show incomplete if spec is uploaded but not categorized yet
+              if (state.specificationFile) {
+                return 'incomplete';
+              }
+              return 'not-started';
+
+            case 'standards':
+              if (state.sdtmVersion && state.adamIgVersion && state.medraVersion) {
+                return 'complete';
+              }
+              return 'incomplete';
+
+            case 'generate':
+              const percentage = get().getCompletionPercentage();
+              if (percentage === 100) {
+                return 'complete';
+              }
+              if (percentage > 0) {
+                return 'incomplete';
+              }
+              return 'not-started';
+
+            default:
+              return 'not-started';
+          }
+        },
+
+        reset: () => set(initialState),
+
+        // Workspace initialization
+        initializeWorkspace: () => set({ isWorkspaceInitialized: true }),
+
+        resetWorkspace: () => set({
+          ...initialState,
+          isWorkspaceInitialized: false,
         }),
 
-      setGenerationOptions: (options) =>
-        set((state) => ({
-          generationOptions: { ...state.generationOptions, ...options },
-        })),
-
-      setIsGenerating: (generating) => set({ isGenerating: generating }),
-
-      setWorkspaceLayoutPreset: (preset) => set({ workspaceLayoutPreset: preset }),
-
-      getCompletionPercentage: () => {
-        const state = get();
-        let completed = 0;
-        const total = 5; // Project Config, Dataset, Specification, Variables, Standards
-
-        if (state.projectConfig.studyId) {
-          completed += 1;
-        }
-
-        if (state.projectConfig.adamDataset) {
-          completed += 1;
-        }
-
-        if (state.specificationFile) {
-          completed += 1;
-        }
-
-        if (state.categorizedVariables && state.categorizedVariables.total_variables > 0) {
-          completed += 1;
-        }
-
-        if (
-          state.sdtmVersion &&
-          state.adamIgVersion &&
-          state.medraVersion
-        ) {
-          completed += 1;
-        }
-
-        return Math.round((completed / total) * 100);
-      },
-
-      getTabStatus: (tabKey) => {
-        const state = get();
-
-        switch (tabKey) {
-          case 'project':
-            // Only Study ID is required
-            if (state.projectConfig.studyId) {
-              return 'complete';
-            }
-            return 'not-started';
-
-          case 'dataset':
-            // Check if ADAM dataset is selected
-            if (state.projectConfig.adamDataset) {
-              return 'complete';
-            }
-            return 'not-started';
-
-          case 'specification':
-            // Check if specification file is uploaded
-            if (state.specificationFile) {
-              return 'complete';
-            }
-            return 'not-started';
-
-          case 'variables':
-            // Check if variables have been categorized
-            if (state.categorizedVariables && state.categorizedVariables.total_variables > 0) {
-              return 'complete';
-            }
-            // Show incomplete if spec is uploaded but not categorized yet
-            if (state.specificationFile) {
-              return 'incomplete';
-            }
-            return 'not-started';
-
-          case 'standards':
-            if (state.sdtmVersion && state.adamIgVersion && state.medraVersion) {
-              return 'complete';
-            }
-            return 'incomplete';
-
-          case 'generate':
-            const percentage = get().getCompletionPercentage();
-            if (percentage === 100) {
-              return 'complete';
-            }
-            if (percentage > 0) {
-              return 'incomplete';
-            }
-            return 'not-started';
-
-          default:
-            return 'not-started';
-        }
-      },
-
-      reset: () => set(initialState),
-      
-      // Workspace initialization
-      initializeWorkspace: () => set({ isWorkspaceInitialized: true }),
-      
-      resetWorkspace: () => set({
-        ...initialState,
-        isWorkspaceInitialized: false,
-      }),
-
-      // Clear all AI-generated results while preserving categorization
-      clearAllAIResults: () => set((state) => ({
-        pairProgramming: {
-          snippets: {},
-          rationales: {},
-          userNotes: {},
-          isGenerating: {},
-        },
-        consolidatedCode: null,
-        consolidatedProgress: 0,
-        consolidatedStatus: null,
-        consolidatedDuration: null,
-        traceabilityMatrix: null,
-        isGeneratingTraceability: false,
-        traceabilityError: null,
-        validationResults: null,
-        // Keep categorized variables and configuration
-        categorizedVariables: state.categorizedVariables,
-        projectConfig: state.projectConfig,
-        specificationFile: state.specificationFile,
-      })),
-
-      // Cleanup all loading states
-      cleanupLoadingStates: () =>
-        set((state) => ({
-          isGenerating: false,
-          isCategorizingVariables: false,
+        // Clear all AI-generated results while preserving categorization
+        clearAllAIResults: () => set((state) => ({
           pairProgramming: {
-            ...state.pairProgramming,
+            snippets: {},
+            rationales: {},
+            userNotes: {},
             isGenerating: {},
           },
-        })),
-
-      // Cleanup only code generation states
-      cleanupGenerationStates: () =>
-        set((state) => ({
-          pairProgramming: {
-            ...state.pairProgramming,
-            isGenerating: {},
-          },
-        })),
-
-      setCommentVerbosity: (level) => set({ commentVerbosity: level }),
-
-      setExecutionMode: (mode) => set({ executionMode: mode }),
-
-      setConsolidatedCode: (data) => set({ consolidatedCode: data }),
-
-      setIsGeneratingConsolidated: (generating) =>
-        set({ isGeneratingConsolidated: generating }),
-
-      setConsolidatedProgress: (progress, status = null) =>
-        set((state) => ({
-          consolidatedProgress: progress,
-          consolidatedStatus: status ?? state.consolidatedStatus,
-        })),
-
-      setConsolidatedDuration: (seconds) =>
-        set({ consolidatedDuration: seconds }),
-
-      resetConsolidated: () =>
-        set({
           consolidatedCode: null,
           consolidatedProgress: 0,
           consolidatedStatus: null,
           consolidatedDuration: null,
-        }),
+          traceabilityMatrix: null,
+          isGeneratingTraceability: false,
+          traceabilityError: null,
+          validationResults: null,
+          // Keep categorized variables and configuration
+          categorizedVariables: state.categorizedVariables,
+          projectConfig: state.projectConfig,
+          specificationFile: state.specificationFile,
+        })),
 
-      canGenerateConsolidated: () => {
-        const state = get();
-        const snippets = state.pairProgramming?.snippets || {};
-        const categorizedVariables = state.categorizedVariables;
-        
-        // If no categorized variables, can't generate
-        if (!categorizedVariables?.categories || categorizedVariables.categories.length === 0) {
-          return false;
-        }
-        
-        // Count variables with code (regardless of approval status)
-        // Generate consolidated code for all variables that have code snippets
-        let variablesWithCode = 0;
-        
-        categorizedVariables.categories.forEach((category) => {
-          if (category?.variables && Array.isArray(category.variables)) {
-            category.variables.forEach((variable) => {
-              if (variable?.name) {
-                const varName = variable.name;
-                const snippet = snippets[varName];
-                
-                // Count if variable has code (regardless of approval status)
-                if (snippet && snippet.codeSnippet && !snippet.error) {
-                  variablesWithCode++;
-                }
-              }
-            });
+        // Cleanup all loading states
+        cleanupLoadingStates: () =>
+          set((state) => ({
+            isGenerating: false,
+            isCategorizingVariables: false,
+            pairProgramming: {
+              ...state.pairProgramming,
+              isGenerating: {},
+            },
+          })),
+
+        // Cleanup only code generation states
+        cleanupGenerationStates: () =>
+          set((state) => ({
+            pairProgramming: {
+              ...state.pairProgramming,
+              isGenerating: {},
+            },
+          })),
+
+        setCommentVerbosity: (level) => set({ commentVerbosity: level }),
+
+        setExecutionMode: (mode) => set({ executionMode: mode }),
+
+        setConsolidatedCode: (data) => set({ consolidatedCode: data }),
+
+        setIsGeneratingConsolidated: (generating) =>
+          set({ isGeneratingConsolidated: generating }),
+
+        setConsolidatedProgress: (progress, status = null) =>
+          set((state) => ({
+            consolidatedProgress: progress,
+            consolidatedStatus: status ?? state.consolidatedStatus,
+          })),
+
+        setConsolidatedDuration: (seconds) =>
+          set({ consolidatedDuration: seconds }),
+
+        resetConsolidated: () =>
+          set({
+            consolidatedCode: null,
+            consolidatedProgress: 0,
+            consolidatedStatus: null,
+            consolidatedDuration: null,
+          }),
+
+        canGenerateConsolidated: () => {
+          const state = get();
+          const snippets = state.pairProgramming?.snippets || {};
+          const categorizedVariables = state.categorizedVariables;
+
+          // If no categorized variables, can't generate
+          if (!categorizedVariables?.categories || categorizedVariables.categories.length === 0) {
+            return false;
           }
-        });
-        
-        // Can generate if at least one variable has code
-        return variablesWithCode > 0;
-      },
 
-      // Traceability actions
-      setTraceabilityMatrix: (matrix) =>
-        set({
-          traceabilityMatrix: matrix,
-          traceabilityLastGenerated: matrix ? new Date() : null,
-          traceabilityError: null
-        }),
+          // Count variables with code (regardless of approval status)
+          // Generate consolidated code for all variables that have code snippets
+          let variablesWithCode = 0;
 
-      setIsGeneratingTraceability: (generating) =>
-        set({ isGeneratingTraceability: generating }),
+          categorizedVariables.categories.forEach((category) => {
+            if (category?.variables && Array.isArray(category.variables)) {
+              category.variables.forEach((variable) => {
+                if (variable?.name) {
+                  const varName = variable.name;
+                  const snippet = snippets[varName];
 
-      setTraceabilityError: (error) =>
-        set({ traceabilityError: error }),
+                  // Count if variable has code (regardless of approval status)
+                  if (snippet && snippet.codeSnippet && !snippet.error) {
+                    variablesWithCode++;
+                  }
+                }
+              });
+            }
+          });
 
-      setSelectedTraceabilityVariable: (variable) =>
-        set({ selectedTraceabilityVariable: variable }),
+          // Can generate if at least one variable has code
+          return variablesWithCode > 0;
+        },
 
-      generateTraceability: async () => {
-        const state = get();
+        // Traceability actions
+        setTraceabilityMatrix: (matrix) =>
+          set({
+            traceabilityMatrix: matrix,
+            traceabilityLastGenerated: matrix ? new Date() : null,
+            traceabilityError: null
+          }),
+
+        setIsGeneratingTraceability: (generating) =>
+          set({ isGeneratingTraceability: generating }),
+
+        setTraceabilityError: (error) =>
+          set({ traceabilityError: error }),
+
+        setSelectedTraceabilityVariable: (variable) =>
+          set({ selectedTraceabilityVariable: variable }),
+
+        generateTraceability: async () => {
+          const state = get();
 
           if (!state.specificationFile) {
             set({ traceabilityError: 'No specification file uploaded. Upload an Excel specification in the configuration section of the Pair Programming workspace.' });
-          return;
-        }
-
-        if (!state.projectConfig.studyId) {
-          set({ traceabilityError: 'Study ID not set. Go to Setup and provide a Study ID.' });
-          return;
-        }
-
-        if (!state.projectConfig.adamDataset) {
-          set({ traceabilityError: 'ADaM dataset not selected. Choose a dataset (e.g., ADSL) in Setup.' });
-          return;
-        }
-
-        set({ isGeneratingTraceability: true, traceabilityError: null });
-
-        try {
-          // Collect code snippets
-          const codeSnippets: Record<string, any> = {};
-          Object.entries(state.pairProgramming.snippets).forEach(([variable, snippet]) => {
-            if (snippet.accepted === 'accept' && snippet.codeSnippet) {
-              codeSnippets[variable] = {
-                language: snippet.language,
-                code: snippet.codeSnippet,
-              };
-            }
-          });
-
-          // Call API
-          const response = await fetch('/api/v1/traceability/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              study_id: state.projectConfig.studyId,
-              dataset: state.projectConfig.adamDataset,
-              specification_path: state.specificationFile.path,
-              code_snippets: codeSnippets,
-              include_ai_insights: true,
-              force_refresh: false,
-            }),
-          });
-
-          if (!response.ok) {
-            let detail: string | undefined;
-            try {
-              const data = await response.json();
-              detail = (data && (data.detail || data.message)) ? (data.detail || data.message) : undefined;
-            } catch {
-              try {
-                const text = await response.text();
-                detail = text && text.length < 400 ? text : undefined;
-              } catch {}
-            }
-
-            const statusLine = `HTTP ${response.status} ${response.statusText || ''}`.trim();
-
-            // Friendly hints based on common cases
-            let hint = '';
-            if (response.status === 404) {
-              // Either route not found or spec file missing on server
-              if (!detail || /not found/i.test(detail)) {
-                hint = `Check that backend is running and the specification file exists at '${state.specificationFile.path}' relative to project root.`;
-              }
-            } else if (response.status === 400) {
-              hint = 'The specification format or dataset sheet may be invalid. Ensure the workbook contains a sheet named for the dataset (e.g., ADSL, Variables, Spec, or Sheet1).';
-            } else if (response.status >= 500) {
-              hint = 'Server error during traceability generation. See backend logs for details.';
-            }
-
-            const composed = [statusLine, detail, hint].filter(Boolean).join(' — ');
-            throw new Error(composed || 'Traceability generation failed');
+            return;
           }
 
-          // Check if response has content before parsing JSON
-          const responseText = await response.text();
-          if (!responseText || responseText.trim().length === 0) {
-            throw new Error('Server returned an empty response');
+          if (!state.projectConfig.studyId) {
+            set({ traceabilityError: 'Study ID not set. Go to Setup and provide a Study ID.' });
+            return;
           }
 
-          let matrix: TraceabilityMatrix;
+          if (!state.projectConfig.adamDataset) {
+            set({ traceabilityError: 'ADaM dataset not selected. Choose a dataset (e.g., ADSL) in Setup.' });
+            return;
+          }
+
+          set({ isGeneratingTraceability: true, traceabilityError: null });
+
           try {
-            matrix = JSON.parse(responseText);
-          } catch (parseError) {
-            console.error('Failed to parse traceability JSON:', parseError);
-            throw new Error('Server returned invalid JSON response');
+            // Collect code snippets
+            const codeSnippets: Record<string, any> = {};
+            Object.entries(state.pairProgramming.snippets).forEach(([variable, snippet]) => {
+              if (snippet.accepted === 'accept' && snippet.codeSnippet) {
+                codeSnippets[variable] = {
+                  language: snippet.language,
+                  code: snippet.codeSnippet,
+                };
+              }
+            });
+
+            // Call API
+            const response = await fetch('/api/v1/traceability/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                study_id: state.projectConfig.studyId,
+                dataset: state.projectConfig.adamDataset,
+                specification_path: state.specificationFile.path,
+                code_snippets: codeSnippets,
+                include_ai_insights: true,
+                force_refresh: false,
+              }),
+            });
+
+            if (!response.ok) {
+              let detail: string | undefined;
+              try {
+                const data = await response.json();
+                detail = (data && (data.detail || data.message)) ? (data.detail || data.message) : undefined;
+              } catch {
+                try {
+                  const text = await response.text();
+                  detail = text && text.length < 400 ? text : undefined;
+                } catch { }
+              }
+
+              const statusLine = `HTTP ${response.status} ${response.statusText || ''}`.trim();
+
+              // Friendly hints based on common cases
+              let hint = '';
+              if (response.status === 404) {
+                // Either route not found or spec file missing on server
+                if (!detail || /not found/i.test(detail)) {
+                  hint = `Check that backend is running and the specification file exists at '${state.specificationFile.path}' relative to project root.`;
+                }
+              } else if (response.status === 400) {
+                hint = 'The specification format or dataset sheet may be invalid. Ensure the workbook contains a sheet named for the dataset (e.g., ADSL, Variables, Spec, or Sheet1).';
+              } else if (response.status >= 500) {
+                hint = 'Server error during traceability generation. See backend logs for details.';
+              }
+
+              const composed = [statusLine, detail, hint].filter(Boolean).join(' — ');
+              throw new Error(composed || 'Traceability generation failed');
+            }
+
+            // Check if response has content before parsing JSON
+            const responseText = await response.text();
+            if (!responseText || responseText.trim().length === 0) {
+              throw new Error('Server returned an empty response');
+            }
+
+            let matrix: TraceabilityMatrix;
+            try {
+              matrix = JSON.parse(responseText);
+            } catch (parseError) {
+              console.error('Failed to parse traceability JSON:', parseError);
+              throw new Error('Server returned invalid JSON response');
+            }
+            set({
+              traceabilityMatrix: matrix,
+              traceabilityLastGenerated: new Date(),
+              traceabilityError: null
+            });
+          } catch (error: any) {
+            const msg = (error && error.message) ? error.message : 'Failed to generate traceability matrix';
+            set({ traceabilityError: msg });
+          } finally {
+            set({ isGeneratingTraceability: false });
           }
+        },
+
+        clearTraceability: () =>
           set({
-            traceabilityMatrix: matrix,
-            traceabilityLastGenerated: new Date(),
-            traceabilityError: null
-          });
-        } catch (error: any) {
-          const msg = (error && error.message) ? error.message : 'Failed to generate traceability matrix';
-          set({ traceabilityError: msg });
-        } finally {
-          set({ isGeneratingTraceability: false });
-        }
-      },
+            traceabilityMatrix: null,
+            traceabilityError: null,
+            selectedTraceabilityVariable: null,
+            traceabilityLastGenerated: null,
+          }),
 
-      clearTraceability: () =>
-        set({
-          traceabilityMatrix: null,
-          traceabilityError: null,
-          selectedTraceabilityVariable: null,
-          traceabilityLastGenerated: null,
-        }),
+        // Submission Readiness
+        submissionReadinessScore: null,
+        preflightResults: null,
+        ctResults: null,
+        p21Results: null,
+        defineXmlStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
+        adrgStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
+        sdrgStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
+        generatedArtifacts: [],
+        recentActivity: [],
+        isValidating: false,
+        isGeneratingPackage: false,
 
-      // Submission Readiness
-      submissionReadinessScore: null,
-      preflightResults: null,
-      ctResults: null,
-      p21Results: null,
-      defineXmlStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
-      adrgStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
-      sdrgStatus: 'idle' as 'idle' | 'generating' | 'complete' | 'error',
-      generatedArtifacts: [],
-      recentActivity: [],
-      isValidating: false,
-      isGeneratingPackage: false,
+        setSubmissionReadinessScore: (score: SubmissionReadinessScore | null) =>
+          set({ submissionReadinessScore: score }),
 
-      setSubmissionReadinessScore: (score: SubmissionReadinessScore | null) =>
-        set({ submissionReadinessScore: score }),
+        refreshReadinessScore: async () => {
+          const { projectConfig, recentActivity } = get();
+          if (!projectConfig.studyId || !projectConfig.adamDataset) {
+            console.warn('Study ID and dataset required for readiness score');
+            return;
+          }
 
-      refreshReadinessScore: async () => {
-        const { projectConfig, recentActivity } = get();
-        if (!projectConfig.studyId || !projectConfig.adamDataset) {
-          console.warn('Study ID and dataset required for readiness score');
-          return;
-        }
+          try {
+            const data = await adamApi.getSubmissionReadiness(
+              projectConfig.studyId,
+              projectConfig.adamDataset
+            );
+            set({ submissionReadinessScore: data.data || data });
+          } catch (error) {
+            console.error('Error refreshing readiness score:', error);
+            const activity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'readiness_refresh',
+              message: 'Failed to refresh readiness score',
+              status: 'error',
+              details: error instanceof Error ? error.message : 'Unknown error',
+            };
+            set({ recentActivity: [activity, ...recentActivity.slice(0, 49)] });
+          }
+        },
 
-        try {
-          const data = await adamApi.getSubmissionReadiness(
-            projectConfig.studyId,
-            projectConfig.adamDataset
-          );
-          set({ submissionReadinessScore: data.data || data });
-        } catch (error) {
-          console.error('Error refreshing readiness score:', error);
-          const activity: ActivityLogItem = {
+        runAllValidations: async () => {
+          const { projectConfig, recentActivity } = get();
+          if (!projectConfig.studyId || !projectConfig.adamDataset) {
+            console.warn('Study ID and dataset required for validation');
+            return;
+          }
+
+          set({ isValidating: true });
+          const startActivity: ActivityLogItem = {
             timestamp: new Date().toISOString(),
-            action: 'readiness_refresh',
-            message: 'Failed to refresh readiness score',
-            status: 'error',
-            details: error instanceof Error ? error.message : 'Unknown error',
+            action: 'validation_start',
+            message: 'Starting all validations (Pre-P21, CT, P21)',
+            status: 'info',
           };
-          set({ recentActivity: [activity, ...recentActivity.slice(0, 49)] });
-        }
-      },
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
 
-      runAllValidations: async () => {
-        const { projectConfig, recentActivity } = get();
-        if (!projectConfig.studyId || !projectConfig.adamDataset) {
-          console.warn('Study ID and dataset required for validation');
-          return;
-        }
-
-        set({ isValidating: true });
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'validation_start',
-          message: 'Starting all validations (Pre-P21, CT, P21)',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
-
-        try {
-          const data = await adamApi.runAllValidations({
-            study_id: projectConfig.studyId,
-            dataset: projectConfig.adamDataset,
-          });
-
-          set({
-            preflightResults: data.preflight,
-            ctResults: data.controlled_terminology || data.ct,
-            p21Results: data.p21,
-          });
-
-          const successActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'validation_complete',
-            message: 'All validations completed successfully',
-            status: 'success',
-            details: {
-              preflight_passed: data.preflight?.passed,
-              ct_passed: data.controlled_terminology?.passed || data.ct?.passed,
-              p21_passed: data.p21?.passed,
-            },
-          };
-          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
-
-          // Refresh score after validation
-          get().refreshReadinessScore();
-        } catch (error) {
-          console.error('Validation error:', error);
-          const errorActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'validation_error',
-            message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
-          };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        } finally {
-          set({ isValidating: false });
-        }
-      },
-
-      runPreflightCheck: async () => {
-        const { projectConfig, recentActivity } = get();
-        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
-
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'preflight_start',
-          message: 'Running Pre-P21 structural checks',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
-
-        try {
-          const data = await adamApi.runPreflightValidation({
-            study_id: projectConfig.studyId,
-            dataset: projectConfig.adamDataset,
-          });
-          set({ preflightResults: data });
-
-          const resultActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'preflight_complete',
-            message: data.passed ? 'Pre-P21 checks passed' : `Pre-P21 checks found ${data.issues?.length || 0} issues`,
-            status: data.passed ? 'success' : 'warning',
-            details: data,
-          };
-          set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
-        } catch (error) {
-          console.error('Preflight error:', error);
-          const errorActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'preflight_error',
-            message: `Pre-P21 check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
-          };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        }
-      },
-
-      runCTValidation: async () => {
-        const { projectConfig, recentActivity } = get();
-        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
-
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'ct_validation_start',
-          message: 'Running Controlled Terminology validation',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
-
-        try {
-          const data = await adamApi.runCTValidation({
-            study_id: projectConfig.studyId,
-            dataset: projectConfig.adamDataset,
-          });
-          set({ ctResults: data });
-
-          const resultActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'ct_validation_complete',
-            message: data.passed
-              ? `CT validation passed (${data.variables_checked || 0} variables checked)`
-              : `CT validation found ${data.issues?.length || 0} issues`,
-            status: data.passed ? 'success' : 'warning',
-            details: data,
-          };
-          set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
-        } catch (error) {
-          console.error('CT validation error:', error);
-          const errorActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'ct_validation_error',
-            message: `CT validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
-          };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        }
-      },
-
-      runP21Validation: async () => {
-        const { projectConfig, recentActivity } = get();
-        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
-
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'p21_validation_start',
-          message: 'Running P21 Community Edition validation',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
-
-        try {
-          const data = await adamApi.runP21Validation({
-            study_id: projectConfig.studyId,
-            dataset: projectConfig.adamDataset,
-          });
-          set({ p21Results: data });
-
-          const errorCount = data.summary?.errors || 0;
-          const warningCount = data.summary?.warnings || 0;
-          const resultActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'p21_validation_complete',
-            message: data.passed
-              ? 'P21 validation passed'
-              : `P21 validation: ${errorCount} errors, ${warningCount} warnings`,
-            status: data.passed ? 'success' : (errorCount > 0 ? 'error' : 'warning'),
-            details: data,
-          };
-          set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
-        } catch (error) {
-          console.error('P21 validation error:', error);
-          const errorActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'p21_validation_error',
-            message: `P21 validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
-          };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        }
-      },
-
-      generateDefineXml: async () => {
-        const { projectConfig, categorizedVariables, recentActivity } = get();
-        set({ defineXmlStatus: 'generating' });
-
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'define_xml_start',
-          message: 'Generating Define.xml',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
-
-        try {
-          const variables = categorizedVariables?.categories?.flatMap(cat =>
-            cat.variables.map(v => ({
-              name: v.name,
-              label: v.label || v.name,
-              type: v.type || 'Char',
-              length: v.length ? parseInt(String(v.length), 10) : undefined,
-              format: v.format || undefined,
-              origin: 'Derived',
-              role: 'Analysis Variable',
-            }))
-          ) || [];
-
-          const data = await adamApi.generateDefineXml({
-            study_id: projectConfig.studyId,
-            dataset: projectConfig.adamDataset || 'ADSL',
-            variables,
-            include_value_lists: true,
-            include_methods: true,
-          });
-
-          set({
-            defineXmlStatus: 'complete',
-            generatedArtifacts: [...get().generatedArtifacts, data.artifact],
-          });
-
-          const successActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'define_xml_complete',
-            message: 'Define.xml generated successfully',
-            status: 'success',
-            details: data.artifact,
-          };
-          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
-        } catch (error) {
-          console.error('Define.xml generation error:', error);
-          set({ defineXmlStatus: 'error' });
-
-          const errorActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'define_xml_error',
-            message: `Define.xml generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
-          };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        }
-      },
-
-      generateADRG: async () => {
-        const { projectConfig, recentActivity } = get();
-        set({ adrgStatus: 'generating' });
-
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'adrg_start',
-          message: 'Generating ADRG document',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
-
-        try {
-          const datasetName = projectConfig.adamDataset || 'ADSL';
-          const datasets = [{
-            name: datasetName,
-            label: `${datasetName} Dataset`,
-            structure: 'One record per subject',
-            purpose: 'Analysis',
-          }];
-
-          const data = await adamApi.generateADRG({
-            study_info: {
+          try {
+            const data = await adamApi.runAllValidations({
               study_id: projectConfig.studyId,
-              protocol_number: projectConfig.protocolNumber,
-              study_name: projectConfig.studyId,
-              sponsor: projectConfig.sponsor,
-            },
-            datasets,
-            include_derivations: true,
-            include_validation_summary: true,
-          });
+              dataset: projectConfig.adamDataset,
+            });
 
-          set({
-            adrgStatus: 'complete',
-            generatedArtifacts: [...get().generatedArtifacts, data.artifact],
-          });
+            set({
+              preflightResults: data.preflight,
+              ctResults: data.controlled_terminology || data.ct,
+              p21Results: data.p21,
+            });
 
-          const successActivity: ActivityLogItem = {
+            const successActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'validation_complete',
+              message: 'All validations completed successfully',
+              status: 'success',
+              details: {
+                preflight_passed: data.preflight?.passed,
+                ct_passed: data.controlled_terminology?.passed || data.ct?.passed,
+                p21_passed: data.p21?.passed,
+              },
+            };
+            set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
+
+            // Refresh score after validation
+            get().refreshReadinessScore();
+          } catch (error) {
+            console.error('Validation error:', error);
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'validation_error',
+              message: `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          } finally {
+            set({ isValidating: false });
+          }
+        },
+
+        runPreflightCheck: async () => {
+          const { projectConfig, recentActivity } = get();
+          if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+          const startActivity: ActivityLogItem = {
             timestamp: new Date().toISOString(),
-            action: 'adrg_complete',
-            message: 'ADRG generated successfully',
-            status: 'success',
-            details: data.artifact,
+            action: 'preflight_start',
+            message: 'Running Pre-P21 structural checks',
+            status: 'info',
           };
-          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
-        } catch (error) {
-          console.error('ADRG generation error:', error);
-          set({ adrgStatus: 'error' });
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
 
-          const errorActivity: ActivityLogItem = {
-            timestamp: new Date().toISOString(),
-            action: 'adrg_error',
-            message: `ADRG generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
-          };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        }
-      },
-
-      generateSDRG: async () => {
-        const { projectConfig, recentActivity } = get();
-        set({ sdrgStatus: 'generating' });
-
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'sdrg_start',
-          message: 'Generating SDRG document',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
-
-        try {
-          const datasetName = projectConfig.adamDataset || 'ADSL';
-          const datasets = [{
-            name: datasetName,
-            label: `${datasetName} Dataset`,
-            structure: 'One record per subject',
-            purpose: 'Analysis',
-          }];
-
-          const data = await adamApi.generateSDRG({
-            study_info: {
+          try {
+            const data = await adamApi.runPreflightValidation({
               study_id: projectConfig.studyId,
-              protocol_number: projectConfig.protocolNumber,
-              study_name: projectConfig.studyId,
-              sponsor: projectConfig.sponsor,
-            },
-            datasets,
-          });
+              dataset: projectConfig.adamDataset,
+            });
+            set({ preflightResults: data });
 
-          set({
-            sdrgStatus: 'complete',
-            generatedArtifacts: [...get().generatedArtifacts, data.artifact],
-          });
+            const resultActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'preflight_complete',
+              message: data.passed ? 'Pre-P21 checks passed' : `Pre-P21 checks found ${data.issues?.length || 0} issues`,
+              status: data.passed ? 'success' : 'warning',
+              details: data,
+            };
+            set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
+          } catch (error) {
+            console.error('Preflight error:', error);
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'preflight_error',
+              message: `Pre-P21 check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          }
+        },
 
-          const successActivity: ActivityLogItem = {
+        runCTValidation: async () => {
+          const { projectConfig, recentActivity } = get();
+          if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+          const startActivity: ActivityLogItem = {
             timestamp: new Date().toISOString(),
-            action: 'sdrg_complete',
-            message: 'SDRG generated successfully',
-            status: 'success',
-            details: data.artifact,
+            action: 'ct_validation_start',
+            message: 'Running Controlled Terminology validation',
+            status: 'info',
           };
-          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
-        } catch (error) {
-          console.error('SDRG generation error:', error);
-          set({ sdrgStatus: 'error' });
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
 
-          const errorActivity: ActivityLogItem = {
+          try {
+            const data = await adamApi.runCTValidation({
+              study_id: projectConfig.studyId,
+              dataset: projectConfig.adamDataset,
+            });
+            set({ ctResults: data });
+
+            const resultActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'ct_validation_complete',
+              message: data.passed
+                ? `CT validation passed (${data.variables_checked || 0} variables checked)`
+                : `CT validation found ${data.issues?.length || 0} issues`,
+              status: data.passed ? 'success' : 'warning',
+              details: data,
+            };
+            set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
+          } catch (error) {
+            console.error('CT validation error:', error);
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'ct_validation_error',
+              message: `CT validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          }
+        },
+
+        runP21Validation: async () => {
+          const { projectConfig, recentActivity } = get();
+          if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+          const startActivity: ActivityLogItem = {
             timestamp: new Date().toISOString(),
-            action: 'sdrg_error',
-            message: `SDRG generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
+            action: 'p21_validation_start',
+            message: 'Running P21 Community Edition validation',
+            status: 'info',
           };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        }
-      },
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
 
-      createECTDPackage: async (options?: any) => {
-        const { projectConfig, recentActivity } = get();
-        if (!projectConfig.studyId) return;
+          try {
+            const data = await adamApi.runP21Validation({
+              study_id: projectConfig.studyId,
+              dataset: projectConfig.adamDataset,
+            });
+            set({ p21Results: data });
 
-        set({ isGeneratingPackage: true });
+            const errorCount = data.summary?.errors || 0;
+            const warningCount = data.summary?.warnings || 0;
+            const resultActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'p21_validation_complete',
+              message: data.passed
+                ? 'P21 validation passed'
+                : `P21 validation: ${errorCount} errors, ${warningCount} warnings`,
+              status: data.passed ? 'success' : (errorCount > 0 ? 'error' : 'warning'),
+              details: data,
+            };
+            set({ recentActivity: [resultActivity, ...get().recentActivity.slice(0, 49)] });
+          } catch (error) {
+            console.error('P21 validation error:', error);
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'p21_validation_error',
+              message: `P21 validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          }
+        },
 
-        const startActivity: ActivityLogItem = {
-          timestamp: new Date().toISOString(),
-          action: 'ectd_package_start',
-          message: 'Creating eCTD submission package',
-          status: 'info',
-        };
-        set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+        generateDefineXml: async () => {
+          const { projectConfig, categorizedVariables, recentActivity } = get();
+          set({ defineXmlStatus: 'generating' });
 
-        try {
-          const data = await adamApi.createECTDPackage({
-            study_id: projectConfig.studyId,
-            datasets: [projectConfig.adamDataset || 'ADSL'],
-            include_define_xml: options?.include_define_xml ?? true,
-            include_adrg: options?.include_adrg ?? true,
-            include_sdrg: options?.include_sdrg ?? true,
-            include_programs: options?.include_programs ?? false,
-            create_zip: options?.create_zip ?? false,
-          });
-
-          set({
-            generatedArtifacts: [...get().generatedArtifacts, ...(data.artifacts || [data.artifact])],
-          });
-
-          const successActivity: ActivityLogItem = {
+          const startActivity: ActivityLogItem = {
             timestamp: new Date().toISOString(),
-            action: 'ectd_package_complete',
-            message: `eCTD package created successfully${data.tree ? ` (${data.tree.length} items)` : ''}`,
-            status: 'success',
-            details: {
-              artifact: data.artifact,
-              tree: data.tree,
-              manifest: data.manifest,
-            },
+            action: 'define_xml_start',
+            message: 'Generating Define.xml',
+            status: 'info',
           };
-          set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
-        } catch (error) {
-          console.error('Package generation error:', error);
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
 
-          const errorActivity: ActivityLogItem = {
+          try {
+            const variables = categorizedVariables?.categories?.flatMap(cat =>
+              cat.variables.map(v => ({
+                name: v.name,
+                label: v.label || v.name,
+                type: v.type || 'Char',
+                length: v.length ? parseInt(String(v.length), 10) : undefined,
+                format: v.format || undefined,
+                origin: 'Derived',
+                role: 'Analysis Variable',
+              }))
+            ) || [];
+
+            const data = await adamApi.generateDefineXml({
+              study_id: projectConfig.studyId,
+              dataset: projectConfig.adamDataset || 'ADSL',
+              variables,
+              include_value_lists: true,
+              include_methods: true,
+            });
+
+            set({
+              defineXmlStatus: 'complete',
+              generatedArtifacts: [...get().generatedArtifacts, data.artifact],
+            });
+
+            const successActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'define_xml_complete',
+              message: 'Define.xml generated successfully',
+              status: 'success',
+              details: data.artifact,
+            };
+            set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
+          } catch (error) {
+            console.error('Define.xml generation error:', error);
+            set({ defineXmlStatus: 'error' });
+
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'define_xml_error',
+              message: `Define.xml generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          }
+        },
+
+        generateADRG: async () => {
+          const { projectConfig, recentActivity } = get();
+          set({ adrgStatus: 'generating' });
+
+          const startActivity: ActivityLogItem = {
             timestamp: new Date().toISOString(),
-            action: 'ectd_package_error',
-            message: `eCTD package creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            status: 'error',
+            action: 'adrg_start',
+            message: 'Generating ADRG document',
+            status: 'info',
           };
-          set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
-        } finally {
-          set({ isGeneratingPackage: false });
-        }
-      },
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
 
-      clearValidationResults: () =>
-        set({
-          preflightResults: null,
-          ctResults: null,
-          p21Results: null,
-          defineXmlStatus: 'idle',
-          adrgStatus: 'idle',
-          sdrgStatus: 'idle',
-        }),
+          try {
+            const datasetName = projectConfig.adamDataset || 'ADSL';
+            const datasets = [{
+              name: datasetName,
+              label: `${datasetName} Dataset`,
+              structure: 'One record per subject',
+              purpose: 'Analysis',
+            }];
 
-      // Code Review & Finalization Actions
-      setCodeReviewSession: (session) =>
-        set({ codeReviewSession: session }),
+            const data = await adamApi.generateADRG({
+              study_info: {
+                study_id: projectConfig.studyId,
+                protocol_number: projectConfig.protocolNumber,
+                study_name: projectConfig.studyId,
+                sponsor: projectConfig.sponsor,
+              },
+              datasets,
+              include_derivations: true,
+              include_validation_summary: true,
+            });
 
-      setCodeReviewStatus: (status) =>
-        set({ codeReviewStatus: status }),
+            set({
+              adrgStatus: 'complete',
+              generatedArtifacts: [...get().generatedArtifacts, data.artifact],
+            });
 
-      addCodeReviewComment: (comment) =>
-        set((state) => ({
-          codeReviewComments: [...state.codeReviewComments, comment],
-        })),
+            const successActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'adrg_complete',
+              message: 'ADRG generated successfully',
+              status: 'success',
+              details: data.artifact,
+            };
+            set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
+          } catch (error) {
+            console.error('ADRG generation error:', error);
+            set({ adrgStatus: 'error' });
 
-      updateCodeReviewComment: (commentId, updates) =>
-        set((state) => ({
-          codeReviewComments: state.codeReviewComments.map((comment) =>
-            comment.id === commentId ? { ...comment, ...updates } : comment
-          ),
-        })),
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'adrg_error',
+              message: `ADRG generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          }
+        },
 
-      deleteCodeReviewComment: (commentId) =>
-        set((state) => ({
-          codeReviewComments: state.codeReviewComments.filter((c) => c.id !== commentId),
-        })),
+        generateSDRG: async () => {
+          const { projectConfig, recentActivity } = get();
+          set({ sdrgStatus: 'generating' });
 
-      loadCodeReviewSession: async (studyId, dataset, language, runId) => {
-        set({ isLoadingReview: true, reviewError: null });
-        try {
-          const response = await adamApi.getOrCreateReviewSession({
-            study_id: studyId,
-            dataset,
-            language,
-            run_id: runId,
-          });
+          const startActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'sdrg_start',
+            message: 'Generating SDRG document',
+            status: 'info',
+          };
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
 
+          try {
+            const datasetName = projectConfig.adamDataset || 'ADSL';
+            const datasets = [{
+              name: datasetName,
+              label: `${datasetName} Dataset`,
+              structure: 'One record per subject',
+              purpose: 'Analysis',
+            }];
+
+            const data = await adamApi.generateSDRG({
+              study_info: {
+                study_id: projectConfig.studyId,
+                protocol_number: projectConfig.protocolNumber,
+                study_name: projectConfig.studyId,
+                sponsor: projectConfig.sponsor,
+              },
+              datasets,
+            });
+
+            set({
+              sdrgStatus: 'complete',
+              generatedArtifacts: [...get().generatedArtifacts, data.artifact],
+            });
+
+            const successActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'sdrg_complete',
+              message: 'SDRG generated successfully',
+              status: 'success',
+              details: data.artifact,
+            };
+            set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
+          } catch (error) {
+            console.error('SDRG generation error:', error);
+            set({ sdrgStatus: 'error' });
+
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'sdrg_error',
+              message: `SDRG generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          }
+        },
+
+        createECTDPackage: async (options?: any) => {
+          const { projectConfig, recentActivity } = get();
+          if (!projectConfig.studyId) return;
+
+          set({ isGeneratingPackage: true });
+
+          const startActivity: ActivityLogItem = {
+            timestamp: new Date().toISOString(),
+            action: 'ectd_package_start',
+            message: 'Creating eCTD submission package',
+            status: 'info',
+          };
+          set({ recentActivity: [startActivity, ...recentActivity.slice(0, 49)] });
+
+          try {
+            const data = await adamApi.createECTDPackage({
+              study_id: projectConfig.studyId,
+              datasets: [projectConfig.adamDataset || 'ADSL'],
+              include_define_xml: options?.include_define_xml ?? true,
+              include_adrg: options?.include_adrg ?? true,
+              include_sdrg: options?.include_sdrg ?? true,
+              include_programs: options?.include_programs ?? false,
+              create_zip: options?.create_zip ?? false,
+            });
+
+            set({
+              generatedArtifacts: [...get().generatedArtifacts, ...(data.artifacts || [data.artifact])],
+            });
+
+            const successActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'ectd_package_complete',
+              message: `eCTD package created successfully${data.tree ? ` (${data.tree.length} items)` : ''}`,
+              status: 'success',
+              details: {
+                artifact: data.artifact,
+                tree: data.tree,
+                manifest: data.manifest,
+              },
+            };
+            set({ recentActivity: [successActivity, ...get().recentActivity.slice(0, 49)] });
+          } catch (error) {
+            console.error('Package generation error:', error);
+
+            const errorActivity: ActivityLogItem = {
+              timestamp: new Date().toISOString(),
+              action: 'ectd_package_error',
+              message: `eCTD package creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              status: 'error',
+            };
+            set({ recentActivity: [errorActivity, ...get().recentActivity.slice(0, 49)] });
+          } finally {
+            set({ isGeneratingPackage: false });
+          }
+        },
+
+        clearValidationResults: () =>
           set({
-            codeReviewSession: response,
-            codeReviewStatus: response.status,
-            lastReviewedRunId: response.run_id || null,
-          });
+            preflightResults: null,
+            ctResults: null,
+            p21Results: null,
+            defineXmlStatus: 'idle',
+            adrgStatus: 'idle',
+            sdrgStatus: 'idle',
+          }),
 
-          // Load comments for this session
-          const comments = await adamApi.listReviewComments(response.id);
-          set({ codeReviewComments: comments });
-        } catch (error) {
-          console.error('Failed to load review session:', error);
-          set({
-            reviewError: error instanceof Error ? error.message : 'Failed to load review session',
-          });
-        } finally {
-          set({ isLoadingReview: false });
-        }
-      },
+        // Code Review & Finalization Actions
+        setCodeReviewSession: (session) =>
+          set({ codeReviewSession: session }),
 
-      updateReviewStatus: async (status) => {
-        const { codeReviewSession } = get();
-        if (!codeReviewSession) return;
+        setCodeReviewStatus: (status) =>
+          set({ codeReviewStatus: status }),
 
-        try {
-          await adamApi.updateReviewSessionStatus(codeReviewSession.id, status);
-          set({ codeReviewStatus: status });
-        } catch (error) {
-          console.error('Failed to update review status:', error);
-          set({
-            reviewError: error instanceof Error ? error.message : 'Failed to update status',
-          });
-        }
-      },
-
-      createComment: async (text, lineNumber, variableName) => {
-        const { codeReviewSession } = get();
-        if (!codeReviewSession) return;
-
-        try {
-          const newComment = await adamApi.createReviewComment({
-            session_id: codeReviewSession.id,
-            text,
-            line_number: lineNumber,
-            variable_name: variableName,
-            author: 'User', // TODO: Get from auth context
-            role: 'reviewer',
-          });
-
+        addCodeReviewComment: (comment) =>
           set((state) => ({
-            codeReviewComments: [...state.codeReviewComments, newComment],
-          }));
-        } catch (error) {
-          console.error('Failed to create comment:', error);
+            codeReviewComments: [...state.codeReviewComments, comment],
+          })),
+
+        updateCodeReviewComment: (commentId, updates) =>
+          set((state) => ({
+            codeReviewComments: state.codeReviewComments.map((comment) =>
+              comment.id === commentId ? { ...comment, ...updates } : comment
+            ),
+          })),
+
+        deleteCodeReviewComment: (commentId) =>
+          set((state) => ({
+            codeReviewComments: state.codeReviewComments.filter((c) => c.id !== commentId),
+          })),
+
+        loadCodeReviewSession: async (studyId, dataset, language, runId) => {
+          set({ isLoadingReview: true, reviewError: null });
+          try {
+            const response = await adamApi.getOrCreateReviewSession({
+              study_id: studyId,
+              dataset,
+              language,
+              run_id: runId,
+            });
+
+            set({
+              codeReviewSession: response,
+              codeReviewStatus: response.status,
+              lastReviewedRunId: response.run_id || null,
+            });
+
+            // Load comments for this session
+            const comments = await adamApi.listReviewComments(response.id);
+            set({ codeReviewComments: comments });
+          } catch (error) {
+            console.error('Failed to load review session:', error);
+            set({
+              reviewError: error instanceof Error ? error.message : 'Failed to load review session',
+            });
+          } finally {
+            set({ isLoadingReview: false });
+          }
+        },
+
+        updateReviewStatus: async (status) => {
+          const { codeReviewSession } = get();
+          if (!codeReviewSession) return;
+
+          try {
+            await adamApi.updateReviewSessionStatus(codeReviewSession.id, status);
+            set({ codeReviewStatus: status });
+          } catch (error) {
+            console.error('Failed to update review status:', error);
+            set({
+              reviewError: error instanceof Error ? error.message : 'Failed to update status',
+            });
+          }
+        },
+
+        createComment: async (text, lineNumber, variableName) => {
+          const { codeReviewSession } = get();
+          if (!codeReviewSession) return;
+
+          try {
+            const newComment = await adamApi.createReviewComment({
+              session_id: codeReviewSession.id,
+              text,
+              line_number: lineNumber,
+              variable_name: variableName,
+              author: 'User', // TODO: Get from auth context
+              role: 'reviewer',
+            });
+
+            set((state) => ({
+              codeReviewComments: [...state.codeReviewComments, newComment],
+            }));
+          } catch (error) {
+            console.error('Failed to create comment:', error);
+            set({
+              reviewError: error instanceof Error ? error.message : 'Failed to create comment',
+            });
+          }
+        },
+
+        exportReviewPDF: async () => {
+          const { projectConfig, programmingLanguage, lastReviewedRunId } = get();
+          if (!projectConfig.studyId || !projectConfig.adamDataset) return;
+
+          try {
+            await adamApi.exportReviewPDF({
+              study_id: projectConfig.studyId,
+              dataset: projectConfig.adamDataset,
+              language: programmingLanguage,
+              run_id: lastReviewedRunId || undefined,
+              format: 'pdf',
+              include_comments: true,
+            });
+          } catch (error) {
+            console.error('Failed to export PDF:', error);
+            set({
+              reviewError: error instanceof Error ? error.message : 'Failed to export PDF',
+            });
+          }
+        },
+
+        clearCodeReview: () =>
           set({
-            reviewError: error instanceof Error ? error.message : 'Failed to create comment',
-          });
-        }
-      },
-
-      exportReviewPDF: async () => {
-        const { projectConfig, programmingLanguage, lastReviewedRunId } = get();
-        if (!projectConfig.studyId || !projectConfig.adamDataset) return;
-
-        try {
-          await adamApi.exportReviewPDF({
-            study_id: projectConfig.studyId,
-            dataset: projectConfig.adamDataset,
-            language: programmingLanguage,
-            run_id: lastReviewedRunId || undefined,
-            format: 'pdf',
-            include_comments: true,
-          });
-        } catch (error) {
-          console.error('Failed to export PDF:', error);
-          set({
-            reviewError: error instanceof Error ? error.message : 'Failed to export PDF',
-          });
-        }
-      },
-
-      clearCodeReview: () =>
-        set({
-          codeReviewSession: null,
-          codeReviewComments: [],
-          codeReviewStatus: 'not_started' as import('../types').CodeReviewStatus,
-          lastReviewedRunId: null,
-          reviewError: null,
-        }),
-    }),
+            codeReviewSession: null,
+            codeReviewComments: [],
+            codeReviewStatus: 'not_started' as import('../types').CodeReviewStatus,
+            lastReviewedRunId: null,
+            reviewError: null,
+          }),
+      }),
       {
         name: 'adam-ai-storage',
-        version: 2,
+        version: 4, // Bumped to trigger migration
         partialize: (state) => {
           const { tempSpecFile: _tempSpecFile, ...rest } = state as any;
           return rest;
+        },
+        migrate: (persistedState: any, version: number) => {
+          try {
+            // Migration from version 2/3 to 4: Clean corrupted specification paths
+            if (version < 4) {
+              console.log('[ProjectStore Migration] Migrating from version', version, 'to 3');
+
+              // Fix specificationFile path if corrupted
+              if (persistedState.specificationFile?.path) {
+                let path = persistedState.specificationFile.path;
+
+                // Remove 'app/' prefix if present (e.g., app/storage -> storage)
+                if (path.includes('app/storage') || path.includes('app\\storage')) {
+                  path = path.replace(/app[/\\]storage/g, 'storage');
+                  console.log('[ProjectStore Migration] Fixed spec path:', persistedState.specificationFile.path, '->', path);
+                  persistedState.specificationFile = {
+                    ...persistedState.specificationFile,
+                    path,
+                  };
+                }
+
+                // Fix study ID typos (e.g., DSA -> D5A)
+                // This is a common OCR/typo issue
+                if (path.includes('DSA2647B')) {
+                  path = path.replace('DSA2647B', 'D5A2647B');
+                  console.log('[ProjectStore Migration] Fixed study ID in path');
+                  persistedState.specificationFile = {
+                    ...persistedState.specificationFile,
+                    path,
+                  };
+                }
+              }
+            }
+
+            return persistedState;
+          } catch (error) {
+            console.error('[ProjectStore Migration] Migration failed:', error);
+            return persistedState || {};
+          }
         },
       }
     )
