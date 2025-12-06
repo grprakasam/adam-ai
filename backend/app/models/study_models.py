@@ -456,20 +456,6 @@ class ChatRequest(BaseModel):
     temperature: Optional[float] = Field(0.1, ge=0.0, le=1.0)
 
 
-class ChatMessage(BaseModel):
-    """Chat message"""
-    id: str
-    role: str  # user, assistant, system
-    content: str
-    timestamp: datetime
-    source_document_ids: Optional[List[str]] = None
-    model_used: Optional[str] = None
-    tokens_used: Optional[int] = None
-
-    class Config:
-        from_attributes = True
-
-
 class Citation(BaseModel):
     """Citation for chatbot answer"""
     document_id: str
@@ -477,6 +463,21 @@ class Citation(BaseModel):
     page_number: Optional[int] = None
     section: Optional[str] = None
     chunk_text: Optional[str] = None
+
+
+class ChatMessage(BaseModel):
+    """Chat message"""
+    id: str
+    role: str  # user, assistant, system
+    content: str
+    timestamp: datetime
+    source_document_ids: Optional[List[str]] = None
+    citations: Optional[List[Citation]] = None
+    model_used: Optional[str] = None
+    tokens_used: Optional[int] = None
+
+    class Config:
+        from_attributes = True
 
 
 class ChatResponse(BaseModel):

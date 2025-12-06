@@ -840,6 +840,7 @@ class StudyChatMessageDB(Base):
     source_document_ids: Mapped[Optional[list]] = mapped_column(JSON)  # List of document IDs used for answer
     model_used: Mapped[Optional[str]] = mapped_column(String(100))  # gemini-2.5-flash, etc.
     tokens_used: Mapped[Optional[int]] = mapped_column(Integer)
+    citations: Mapped[Optional[list]] = mapped_column(JSON)  # Detailed citations with chunks
 
     # Relationships
     session = relationship("StudyChatSessionDB", back_populates="messages")

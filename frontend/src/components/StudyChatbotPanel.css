@@ -130,6 +130,232 @@
   margin-top: 0.5rem;
 }
 
+/* ============================================ */
+/* SOURCE CARDS - Clickable Citation Cards    */
+/* ============================================ */
+
+.message-source-cards {
+  margin-top: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.source-cards-header {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.source-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.source-card:hover {
+  border-color: #6366f1;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+  transform: translateY(-1px);
+}
+
+.source-card:last-child {
+  margin-bottom: 0;
+}
+
+.source-card-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.source-icon {
+  flex-shrink: 0;
+  color: #6366f1;
+}
+
+.source-icon.excel {
+  color: #16a34a;
+}
+
+.source-icon.pdf {
+  color: #dc2626;
+}
+
+.source-icon.word {
+  color: #2563eb;
+}
+
+.source-card-info {
+  min-width: 0;
+}
+
+.source-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-card-meta {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+  display: flex;
+  gap: 8px;
+}
+
+.source-card-view {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.source-card:hover .source-card-view {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
+/* ============================================ */
+/* SOURCE PREVIEW MODAL                        */
+/* ============================================ */
+
+.source-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.source-modal {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.source-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  color: white;
+}
+
+.source-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.source-modal-title svg {
+  color: white;
+}
+
+.source-modal-close {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.source-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.source-modal-meta {
+  display: flex;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 13px;
+}
+
+.source-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+}
+
+.source-modal-content {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.source-content-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.source-content-text {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #334155;
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
+/* ============================================ */
+/* CHAT ERROR AND INPUT                        */
+/* ============================================ */
+
 .chat-error {
   display: flex;
   justify-content: space-between;
@@ -211,6 +437,7 @@
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -251,8 +478,15 @@
   color: var(--text-primary);
 }
 
-.message-content {
-  margin-bottom: 0.25rem;
+.message-sources-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #6366f1;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(99, 102, 241, 0.2);
 }
 
 .chat-input-compact {
@@ -288,7 +522,3 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
-
-
-
-

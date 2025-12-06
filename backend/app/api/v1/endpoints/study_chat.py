@@ -156,6 +156,7 @@ async def get_session(
             content=msg_db.content,
             timestamp=msg_db.timestamp,
             source_document_ids=msg_db.source_document_ids,
+            citations=msg_db.citations,
             model_used=msg_db.model_used,
             tokens_used=msg_db.tokens_used
         ))
