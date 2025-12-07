@@ -1,0 +1,82 @@
+.code-understanding-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.code-understanding-card {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+}
+
+.field-label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #4b5563;
+}
+
+.code-input-area {
+  font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.analysis-meta {
+  margin-bottom: 12px;
+}
+
+.two-line-summary {
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.visual-flow-shell {
+  height: 420px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.visual-flow-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.chat-window {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 220px;
+  max-height: 360px;
+  overflow-y: auto;
+  background: #fafafa;
+}
+
+.chat-message.user .chat-bubble {
+  background: #e6f4ff;
+  border: 1px solid #bae0ff;
+}
+
+.chat-message.assistant .chat-bubble {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+}
+
+.chat-bubble {
+  padding: 10px 12px;
+  border-radius: 8px;
+  width: 100%;
+}
+
+.chat-bullets {
+  margin: 8px 0 0 16px;
+}
+
+.chat-assumptions {
+  margin-top: 8px;
+}
+
+@media (max-width: 1024px) {
+  .visual-flow-shell {
+    height: 360px;
+  }
+}
+

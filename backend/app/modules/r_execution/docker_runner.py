@@ -97,6 +97,36 @@ class InteractiveRRunner:
         # Get Docker image
         image = self.R_IMAGES.get(r_version, self.R_IMAGES[self.DEFAULT_VERSION])
 
+        # Check if Docker image exists locally
+        try:
+            check_result = subprocess.run(
+                ["docker", "image", "inspect", image],
+                capture_output=True,
+                timeout=10
+            )
+            if check_result.returncode != 0:
+                logger.warning(f"[{run_id}] Docker image {image} not found locally, attempting to pull...")
+                pull_result = subprocess.run(
+                    ["docker", "pull", image],
+                    capture_output=True,
+                    timeout=300  # 5 minutes timeout for pulling
+                )
+                if pull_result.returncode != 0:
+                    error_msg = f"Failed to pull Docker image {image}: {pull_result.stderr.decode('utf-8', errors='replace')}"
+                    logger.error(f"[{run_id}] {error_msg}")
+                    (output_dir / "exit_code.txt").write_text("1")
+                    (output_dir / "stderr.txt").write_text(f"Docker image error: {error_msg}\n")
+                    return 1, 0.0
+                logger.info(f"[{run_id}] Successfully pulled Docker image {image}")
+        except subprocess.TimeoutExpired:
+            error_msg = f"Timeout while checking/pulling Docker image {image}"
+            logger.error(f"[{run_id}] {error_msg}")
+            (output_dir / "exit_code.txt").write_text("1")
+            (output_dir / "stderr.txt").write_text(f"Docker image error: {error_msg}\n")
+            return 1, 0.0
+        except Exception as img_err:
+            logger.warning(f"[{run_id}] Could not check Docker image: {img_err}")
+
         # Build Docker command
         docker_cmd = self._build_docker_command(
             image=image,
@@ -168,13 +198,84 @@ class InteractiveRRunner:
             logger.info(f"[{run_id}] Execution completed in {duration:.2f}s with exit code {exit_code}")
             return exit_code, duration
 
+        except FileNotFoundError as e:
+            duration = time.time() - start_time
+            error_msg = (
+                f"Docker executable not found. "
+                f"Please ensure Docker Desktop is installed and added to your system PATH. "
+                f"Error details: {str(e)}"
+            )
+            logger.error(f"[{run_id}] {error_msg}", exc_info=True)
+            
+            (output_dir / "exit_code.txt").write_text("1")
+            (output_dir / "stderr.txt").write_text(f"{error_msg}\n")
+            return 1, duration
+            
+        except PermissionError as e:
+            duration = time.time() - start_time
+            error_msg = (
+                f"Permission denied when accessing Docker or files. "
+                f"Please ensure Docker has permission to access the workspace directory. "
+                f"On Windows, check Docker Desktop settings > Resources > File Sharing. "
+                f"Error details: {str(e)}"
+            )
+            logger.error(f"[{run_id}] {error_msg}", exc_info=True)
+            
+            (output_dir / "exit_code.txt").write_text("1")
+            (output_dir / "stderr.txt").write_text(f"{error_msg}\n")
+            return 1, duration
+
+        except asyncio.TimeoutError:
+             # This handles the outer wait_for if it were to wrap create_subprocess_exec (it doesn't currently, but good safety)
+             duration = time.time() - start_time
+             error_msg = f"Execution setup timed out after {timeout} seconds."
+             logger.error(f"[{run_id}] {error_msg}")
+             (output_dir / "exit_code.txt").write_text("1")
+             (output_dir / "stderr.txt").write_text(f"{error_msg}\n")
+             return 1, duration
+            
+        except NotImplementedError as e:
+            duration = time.time() - start_time
+            error_msg = (
+                f"Windows subprocess execution error.\n"
+                f"This is typically caused by asyncio event loop policy issues on Windows.\n"
+                f"Please restart the backend server to apply the fix.\n"
+                f"Error details: {str(e)}"
+            )
+            logger.error(f"[{run_id}] {error_msg}", exc_info=True)
+            
+            (output_dir / "exit_code.txt").write_text("1")
+            (output_dir / "stderr.txt").write_text(f"{error_msg}\n")
+            return 1, duration
+            
         except Exception as e:
             duration = time.time() - start_time
-            logger.error(f"[{run_id}] Execution error: {e}", exc_info=True)
+            error_type = type(e).__name__
+            error_details = str(e) if str(e).strip() else "No details provided"
+            
+            # Identify specific Windows asyncio issues
+            if "winerror" in error_details.lower() and "file not found" in error_details.lower():
+                 error_msg = (
+                    f"Docker process could not be started. System cannot find the file specified.\n"
+                    f"1. Check if 'docker' is in your system PATH.\n"
+                    f"2. Restart the backend server terminal to refresh environment variables."
+                 )
+            else:
+                # Build comprehensive error message
+                error_msg = (
+                    f"Docker execution failed with {error_type}.\n"
+                    f"Details: {error_details}\n\n"
+                    f"Troubleshooting:\n"
+                    f"- Ensure Docker Desktop is running\n"
+                    f"- Check internet connection if image pull is needed\n"
+                    f"- Verify available disk space"
+                )
+            
+            logger.error(f"[{run_id}] Execution error: {error_msg}", exc_info=True)
 
-            # Write error
+            # Write detailed error
             (output_dir / "exit_code.txt").write_text("1")
-            (output_dir / "stderr.txt").write_text(f"Docker execution error: {str(e)}\n")
+            (output_dir / "stderr.txt").write_text(f"{error_msg}\n")
 
             return 1, duration
 
@@ -205,12 +306,21 @@ if (length(dev.list()) > 0) {
 # Interactive R Execution Wrapper
 # Auto-generated by ADAM AI
 
-# Redirect output
+# Create output files first to ensure they exist
 stdout_file <- "/work/output/stdout.txt"
 stderr_file <- "/work/output/stderr.txt"
 
-sink(file=stdout_file, type="output")
-sink(file=stderr_file, type="message")
+# Create empty output files
+file.create(stdout_file)
+file.create(stderr_file)
+
+# Open file connections for sink
+stdout_conn <- file(stdout_file, open = "wt")
+stderr_conn <- file(stderr_file, open = "wt")
+
+# Redirect output using connections
+sink(stdout_conn, type = "output")
+sink(stderr_conn, type = "message")
 
 # Print session start
 cat("=== R Session Started ===\\n")
@@ -296,9 +406,15 @@ tryCatch({{
 cat("\\n=== Session Info ===\\n")
 print(sessionInfo())
 
-# Close sinks
+# Close sinks and connections
 sink(type="message")
 sink(type="output")
+
+# Close file connections
+tryCatch({{
+    close(stderr_conn)
+    close(stdout_conn)
+}}, error = function(e) {{ }})
 
 # Exit successfully
 quit(status=0)
@@ -326,8 +442,8 @@ quit(status=0)
             "--network", "none",  # No network access
             "--memory", f"{memory_limit}m",  # Memory limit
             "--cpus", "2",  # CPU limit
-            "--read-only",  # Read-only root filesystem
-            "--tmpfs", "/tmp:rw,noexec,nosuid,size=1g",  # Temp storage
+            # Note: --read-only removed because R needs to write to internal dirs
+            "--tmpfs", "/tmp:rw,exec,nosuid,size=1g",  # Temp storage (exec needed for R)
             "-v", f"{work_dir / 'input'}:/work/input:ro",  # Input (read-only)
             "-v", f"{work_dir / 'output'}:/work/output:rw",  # Output (read-write)
             "-v", f"{work_dir / 'logs'}:/work/logs:rw",  # Logs (read-write)

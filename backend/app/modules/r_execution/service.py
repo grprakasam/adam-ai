@@ -79,6 +79,54 @@ class RExecutionService:
 
         return work_dir
 
+    async def _copy_sdtm_data(
+        self,
+        run_id: str,
+        work_dir: Path,
+        study_id: str,
+        progress_callback: Optional[callable] = None
+    ):
+        """
+        Copy SDTM data files to the execution workspace input directory.
+        
+        This allows R code to read SDTM datasets from /work/input/ in Docker.
+        
+        Args:
+            run_id: Unique run identifier
+            work_dir: Working directory for execution
+            study_id: Study ID to load SDTM data for
+            progress_callback: Optional progress callback
+        """
+        import shutil
+        
+        # Find SDTM data directory
+        backend_dir = Path(__file__).resolve().parents[3]  # Go up to backend/
+        sdtm_dir = backend_dir / "Content" / "Generated" / "SDTM" / study_id
+        
+        if not sdtm_dir.exists():
+            logger.warning(f"[{run_id}] SDTM directory not found: {sdtm_dir}")
+            return
+        
+        input_dir = work_dir / "input"
+        copied_files = []
+        
+        # Copy all CSV files from SDTM directory to input directory
+        for csv_file in sdtm_dir.glob("*.csv"):
+            try:
+                dest_file = input_dir / csv_file.name
+                shutil.copy2(csv_file, dest_file)
+                copied_files.append(csv_file.name)
+                logger.info(f"[{run_id}] Copied SDTM file: {csv_file.name}")
+            except Exception as e:
+                logger.error(f"[{run_id}] Failed to copy {csv_file.name}: {e}")
+        
+        if copied_files:
+            logger.info(f"[{run_id}] Copied {len(copied_files)} SDTM file(s) to workspace: {', '.join(copied_files)}")
+            if progress_callback:
+                progress_callback(15, f"Copied {len(copied_files)} SDTM dataset(s)")
+        else:
+            logger.warning(f"[{run_id}] No SDTM CSV files found in {sdtm_dir}")
+
     async def start_execution(
         self,
         request: RExecutionRequest
@@ -156,6 +204,10 @@ class RExecutionService:
 
             if progress_callback:
                 progress_callback(10, "Workspace created")
+
+            # Copy SDTM data files if study_id is provided
+            if request.study_id:
+                await self._copy_sdtm_data(run_id, work_dir, request.study_id, progress_callback)
 
             # Check if any execution method is available
             if not self.capabilities.any_available:

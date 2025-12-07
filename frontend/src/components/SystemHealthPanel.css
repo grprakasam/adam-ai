@@ -1,0 +1,36 @@
+.system-health-panel {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.system-health-panel h4 {
+    margin-bottom: 12px;
+    font-weight: 600;
+    color: #262626;
+}
+
+.system-health-panel .ant-descriptions-item-label {
+    font-weight: 500;
+}
+
+.system-health-compact {
+    border-radius: 6px;
+    background: linear-gradient(135deg, #f0f2f5 0%, #fff 100%);
+}
+
+.system-health-panel code {
+    background: #f5f5f5;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+}
+
+.system-health-panel .ant-alert {
+    border-radius: 6px;
+}
+
+.system-health-panel .ant-tag {
+    border-radius: 4px;
+    font-weight: 500;
+}

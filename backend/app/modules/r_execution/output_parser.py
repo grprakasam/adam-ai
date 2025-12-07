@@ -207,6 +207,11 @@ class OutputParser:
         if not stderr_lines:
             return "Unknown error"
 
+        # Check for system/Docker errors first
+        full_stderr = "\n".join(stderr_lines)
+        if "Docker execution failed" in full_stderr or "Permission denied" in full_stderr:
+            return full_stderr
+
         # Look for R error patterns
         error_patterns = [
             r'Error in (.+)',

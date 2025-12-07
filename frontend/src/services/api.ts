@@ -15,6 +15,103 @@ const buildApiUrl = (path: string): string => {
 type CompareLanguage = 'sas' | 'r' | 'auto';
 type ComparisonMode = 'quick' | 'standard' | 'deep';
 
+// ============================================================================
+// Code Understanding API
+// ============================================================================
+
+export type CodeUnderstandingLanguage = 'SAS' | 'R' | 'auto';
+
+export interface CodeUnderstandingRequest {
+  code: string;
+  language?: CodeUnderstandingLanguage;
+  audience?: 'non-technical' | 'developer' | 'reviewer';
+}
+
+export interface CodeUnderstandingNode {
+  id: string;
+  label: string;
+  type?: 'input' | 'transform' | 'output' | 'other';
+  description?: string;
+}
+
+export interface CodeUnderstandingEdge {
+  source: string;
+  target: string;
+  label?: string;
+}
+
+export interface CodeUnderstandingVisualFlow {
+  text_walkthrough: string;
+  nodes: CodeUnderstandingNode[];
+  edges: CodeUnderstandingEdge[];
+  mermaid?: string | null;
+}
+
+export interface CodeUnderstandingResponse {
+  language_detected?: string | null;
+  two_line_summary: string;
+  ten_line_summary: string[];
+  detailed_summary: string;
+  key_insights: string[];
+  risks: string[];
+  assumptions: string[];
+  visual_flow: CodeUnderstandingVisualFlow;
+  tokens_used?: number;
+}
+
+export interface CodeUnderstandingChatRequest extends CodeUnderstandingRequest {
+  question: string;
+}
+
+export interface CodeUnderstandingChatResponse {
+  answer: string;
+  bullets: string[];
+  assumptions: string[];
+  tokens_used?: number;
+}
+
+export const analyzeCodeUnderstanding = async (
+  request: CodeUnderstandingRequest,
+  options?: RequestOptions,
+): Promise<CodeUnderstandingResponse> => {
+  try {
+    const response = await axios.post(
+      buildApiUrl('/api/v1/code-understanding/analyze'),
+      request,
+      {
+        timeout: options?.timeoutMs ?? 120000,
+        signal: options?.signal,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+    return response.data;
+  } catch (error: any) {
+    const message = error.response?.data?.detail || error.message || 'Analysis failed';
+    throw new Error(message);
+  }
+};
+
+export const chatCodeUnderstanding = async (
+  request: CodeUnderstandingChatRequest,
+  options?: RequestOptions,
+): Promise<CodeUnderstandingChatResponse> => {
+  try {
+    const response = await axios.post(
+      buildApiUrl('/api/v1/code-understanding/chat'),
+      request,
+      {
+        timeout: options?.timeoutMs ?? 120000,
+        signal: options?.signal,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+    return response.data;
+  } catch (error: any) {
+    const message = error.response?.data?.detail || error.message || 'Chat failed';
+    throw new Error(message);
+  }
+};
+
 export interface RequestOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -662,57 +759,57 @@ export const adamApi = {
   },
 
   // Stub methods - to be implemented
-  getSubmissionReadiness: async (params: any) => {
+  getSubmissionReadiness: async (_params: any) => {
     console.warn('adamApi.getSubmissionReadiness not yet implemented');
     return { overall: 0, components: {}, recommendations: [], last_updated: new Date().toISOString() };
   },
 
-  runAllValidations: async (params: any) => {
+  runAllValidations: async (_params: any) => {
     console.warn('adamApi.runAllValidations not yet implemented');
     return { status: 'pending', results: [] };
   },
 
-  runPreflightValidation: async (params: any) => {
+  runPreflightValidation: async (_params: any) => {
     console.warn('adamApi.runPreflightValidation not yet implemented');
     return { status: 'pending', results: [] };
   },
 
-  runCTValidation: async (params: any) => {
+  runCTValidation: async (_params: any) => {
     console.warn('adamApi.runCTValidation not yet implemented');
     return { status: 'pending', results: [] };
   },
 
-  runP21Validation: async (params: any) => {
+  runP21Validation: async (_params: any) => {
     console.warn('adamApi.runP21Validation not yet implemented');
     return { status: 'pending', results: [] };
   },
 
-  generateDefineXml: async (params: any) => {
+  generateDefineXml: async (_params: any) => {
     console.warn('adamApi.generateDefineXml not yet implemented');
     return { status: 'pending', file_path: '' };
   },
 
-  generateADRG: async (params: any) => {
+  generateADRG: async (_params: any) => {
     console.warn('adamApi.generateADRG not yet implemented');
     return { status: 'pending', file_path: '' };
   },
 
-  generateSDRG: async (params: any) => {
+  generateSDRG: async (_params: any) => {
     console.warn('adamApi.generateSDRG not yet implemented');
     return { status: 'pending', file_path: '' };
   },
 
-  createECTDPackage: async (params: any) => {
+  createECTDPackage: async (_params: any) => {
     console.warn('adamApi.createECTDPackage not yet implemented');
     return { status: 'pending', package_path: '' };
   },
 
-  getOrCreateReviewSession: async (params: any) => {
+  getOrCreateReviewSession: async (_params: any) => {
     console.warn('adamApi.getOrCreateReviewSession not yet implemented');
     return { id: 'temp-session', status: 'in_progress', created_at: new Date().toISOString() };
   },
 
-  listReviewComments: async (sessionId: string) => {
+  listReviewComments: async (_sessionId: string) => {
     console.warn('adamApi.listReviewComments not yet implemented');
     return [];
   },
@@ -727,9 +824,39 @@ export const adamApi = {
     return { id: 'temp-comment', ...params, created_at: new Date().toISOString() };
   },
 
-  exportReviewPDF: async (params: any) => {
+  exportReviewPDF: async (_params: any) => {
     console.warn('adamApi.exportReviewPDF not yet implemented');
     return { status: 'pending', file_path: '' };
+  },
+
+  // ADAM Generation and R Execution
+  runADAMGeneration: async (codeFile: File, dataFiles: File[]) => {
+    const formData = new FormData();
+    formData.append('code_file', codeFile);
+    dataFiles.forEach((file) => formData.append('data_files', file));
+
+    const response = await axios.post(
+      buildApiUrl('/api/v1/adam-generation/run'),
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
+  },
+
+  downloadRPlot: async (runId: string, plotIndex: number) => {
+    return axios.get(
+      buildApiUrl(`/api/v1/r-execution/run/${runId}/plots/${plotIndex}`),
+      { responseType: 'blob' }
+    );
+  },
+
+  downloadROutputFile: async (runId: string, filename: string) => {
+    return axios.get(
+      buildApiUrl(`/api/v1/r-execution/run/${runId}/download/${filename}`),
+      { responseType: 'blob' }
+    );
   },
 
   // Generic HTTP methods compatible with Axios interface
@@ -745,6 +872,156 @@ export const adamApi = {
   delete: async <T = any>(url: string, config?: any) => {
     return axios.delete<T>(buildApiUrl(url), config);
   },
+
+  // SDTM Loader and Data Preprocessing
+  checkSdtmInputs: async (studyId: string, adamDataset: string) => {
+    const response = await axios.post(
+      buildApiUrl('/api/v1/sdtm-loader/check-inputs'),
+      { study_id: studyId, adam_dataset: adamDataset }
+    );
+    return response.data;
+  },
+
+  getPreprocessingCode: async (studyId: string, adamDataset?: string) => {
+    const response = await axios.get(
+      buildApiUrl('/api/v1/sdtm-loader/preprocessing-code'),
+      { params: { study_id: studyId, adam_dataset: adamDataset } }
+    );
+    return response.data;
+  },
+
+  loadSdtmFromTestData: async (studyId: string) => {
+    const response = await axios.post(
+      buildApiUrl('/api/v1/sdtm-loader/load-test-data'),
+      { study_id: studyId }
+    );
+    return response.data;
+  },
+
+  generateSdtmDataset: async (studyId: string, domain: string, count: number) => {
+    const response = await axios.post(
+      buildApiUrl('/api/v1/sdtm-loader/generate-dataset'),
+      { study_id: studyId, domain, count }
+    );
+    return response.data;
+  },
+
+  getConsolidatedCode: async (studyId: string, adamDataset?: string) => {
+    const response = await axios.get(
+      buildApiUrl('/api/v1/program-generation/consolidated'),
+      { params: { study_id: studyId, adam_dataset: adamDataset } }
+    );
+    return response.data;
+  },
+
+  getDatasetPreview: async (studyId: string, domain: string) => {
+    const response = await axios.get(
+      buildApiUrl('/api/v1/sdtm-loader/dataset-preview'),
+      { params: { study_id: studyId, domain } }
+    );
+    return response.data;
+  },
+
+  uploadSdtmFiles: async (studyId: string, files: File[]) => {
+    const formData = new FormData();
+    formData.append('study_id', studyId);
+    files.forEach((file) => formData.append('files', file));
+
+    const response = await axios.post(
+      buildApiUrl('/api/v1/sdtm-loader/upload'),
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
+  },
+
+  // Preprocessing
+  generatePreprocessingCode: async (files: File[]) => {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('data_files', file));
+
+    const response = await axios.post(
+      buildApiUrl('/api/v1/adam-generation/preprocess'),
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    );
+    return response.data;
+  },
+
+  // R Execution API
+  getRVersions: async () => {
+    const response = await axios.get(
+      buildApiUrl('/api/v1/r-execution/versions')
+    );
+    return response.data;
+  },
+
+  startAdamGeneration: async (params: {
+    study_id: string;
+    adam_dataset: string;
+    language: string;
+    r_version: string;
+    consolidated_code_text: string;
+    output_formats: string[];
+    timeout_seconds: number;
+    memory_limit_mb: number;
+  }) => {
+    const response = await axios.post(
+      buildApiUrl('/api/v1/r-execution/run'),
+      {
+        code: params.consolidated_code_text,
+        mode: 'interactive',
+        r_version: params.r_version,
+        timeout_seconds: params.timeout_seconds,
+        memory_limit_mb: params.memory_limit_mb,
+        capture_plots: true,
+        study_id: params.study_id,
+        adam_dataset: params.adam_dataset,
+      }
+    );
+    return response.data;
+  },
+
+  getAdamGenerationStatus: async (runId: string) => {
+    const response = await axios.get(
+      buildApiUrl(`/api/v1/r-execution/run/${runId}`)
+    );
+    return response.data;
+  },
+
+  getAdamGenerationResult: async (runId: string) => {
+    const response = await axios.get(
+      buildApiUrl(`/api/v1/r-execution/run/${runId}/result`)
+    );
+    return response.data;
+  },
+
+  downloadAdamDataset: async (runId: string, format: string) => {
+    return axios.get(
+      buildApiUrl(`/api/v1/r-execution/run/${runId}/download/output.${format}`),
+      { responseType: 'blob' }
+    );
+  },
+
+  submitAdamGenerationFeedback: async (runId: string, feedback: any) => {
+    // Placeholder for feedback submission
+    console.log('Feedback submitted:', runId, feedback);
+    return { status: 'success' };
+  },
+
+  generateSdtmBatch: async (request: any) => {
+    const response = await axios.post(
+      buildApiUrl('/api/v1/test-data/generate-sdtm-batch'),
+      request
+    );
+    return response.data;
+  },
+
+  analyzeCodeUnderstanding,
 };
 
 // Export as 'api' for backward compatibility

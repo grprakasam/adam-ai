@@ -3,13 +3,11 @@ import { message, Tooltip } from 'antd';
 import {
     ThunderboltOutlined,
     CodeOutlined,
-    RocketOutlined,
     BulbOutlined,
     CheckCircleOutlined,
     CopyOutlined,
     ClearOutlined,
     ArrowRightOutlined,
-    SafetyCertificateOutlined,
     SyncOutlined,
     UploadOutlined,
 } from '@ant-design/icons';
@@ -25,30 +23,7 @@ interface Suggestion {
     suggestedCode?: string;
 }
 
-const SAMPLE_SUGGESTIONS: Suggestion[] = [
-    {
-        id: 1,
-        type: 'performance',
-        title: 'Replace nested DO loop with HASH object',
-        description: 'The current nested DO loop performs sequential reads which is inefficient for large datasets. Using a HASH object will provide O(1) lookup time.',
-        impact: '+30% faster execution',
-    },
-    {
-        id: 2,
-        type: 'readability',
-        title: 'Add meaningful variable labels',
-        description: 'Clinical datasets require proper labels for regulatory submissions. Missing labels detected for TRTSDT, TRTEDT, and SAFFL.',
-        impact: 'Improved documentation',
-    },
-    {
-        id: 3,
-        type: 'best-practice',
-        title: 'Use explicit LENGTH statements',
-        description: 'Define character variable lengths explicitly before assignment to prevent truncation issues and improve code maintainability.',
-        impact: '100% compliance',
-    },
-];
-
+// Sample code for the "Load Sample" feature - helps users test the refactorer
 const sampleSASCode = `/* Original ADSL derivation with performance issues */
 data ADSL;
   set SDTM.DM;
@@ -78,47 +53,6 @@ adsl <- dm %>%
     }
   )`;
 
-const optimizedSASCode = `/* Optimized ADSL derivation using HASH object */
-data ADSL;
-  if _n_ = 1 then do;
-    declare hash h(dataset: 'SDTM.EX');
-    h.defineKey('USUBJID');
-    h.defineData('EXSTDTC', 'EXENDTC');
-    h.defineDone();
-  end;
-  
-  set SDTM.DM;
-  
-  /* HASH lookup - O(1) performance */
-  length TRTSDT TRTEDT $10;
-  label TRTSDT = 'Date of First Exposure to Treatment'
-        TRTEDT = 'Date of Last Exposure to Treatment';
-  
-  if h.find(key: USUBJID) = 0 then do;
-    TRTSDT = EXSTDTC;
-    TRTEDT = EXENDTC;
-  end;
-run;`;
-
-const optimizedRCode = `# Optimized ADSL derivation using dplyr join
-library(dplyr)
-
-# Prepare exposure data with first/last dates per subject
-ex_summary <- ex %>%
-  group_by(USUBJID) %>%
-  summarise(
-    TRTSDT = min(EXSTDTC, na.rm = TRUE),
-    TRTEDT = max(EXENDTC, na.rm = TRUE),
-    .groups = 'drop'
-  )
-
-# Efficient left join - vectorized operation
-adsl <- dm %>%
-  left_join(ex_summary, by = "USUBJID") %>%
-  mutate(
-    TRTSDT = as.character(TRTSDT),
-    TRTEDT = as.character(TRTEDT)
-  )`;
 
 const CodeRefactorerTab = () => {
     const [language, setLanguage] = useState<'SAS' | 'R'>('SAS');
@@ -127,6 +61,7 @@ const CodeRefactorerTab = () => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
     const [optimizationScore, setOptimizationScore] = useState<number | null>(null);
+    const [improvementPercent, setImprovementPercent] = useState<number | null>(null);
 
     const handleAnalyze = useCallback(async () => {
         if (!inputCode.trim()) {
@@ -137,17 +72,59 @@ const CodeRefactorerTab = () => {
         setIsAnalyzing(true);
         setSuggestions([]);
         setOptimizationScore(null);
+        setImprovementPercent(null);
         setOutputCode('');
 
-        // Simulate AI analysis
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+            // Make real API call to the code refactorer endpoint
+            const response = await fetch('/api/v1/code-refactorer/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    code: inputCode,
+                    language: language,
+                }),
+            });
 
-        setSuggestions(SAMPLE_SUGGESTIONS);
-        setOptimizationScore(87);
-        setOutputCode(language === 'SAS' ? optimizedSASCode : optimizedRCode);
-        setIsAnalyzing(false);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Analysis failed with status ${response.status}`);
+            }
 
-        message.success('Analysis complete! Found 3 optimization opportunities.');
+            const data = await response.json();
+
+            // Map the API response to our Suggestion interface
+            const mappedSuggestions: Suggestion[] = (data.suggestions || []).map((s: any) => ({
+                id: s.id,
+                type: s.type as 'performance' | 'readability' | 'best-practice',
+                title: s.title,
+                description: s.description,
+                impact: s.impact,
+                originalCode: s.original_code,
+                suggestedCode: s.suggested_code,
+            }));
+
+            setSuggestions(mappedSuggestions);
+            setOptimizationScore(data.optimization_score);
+            setImprovementPercent(data.improvement_percentage);
+            setOutputCode(data.optimized_code || '');
+
+            message.success(`Analysis complete! Found ${mappedSuggestions.length} optimization opportunities.`);
+        } catch (error: any) {
+            console.error('Code analysis failed:', error);
+
+            if (error.message.includes('rate limit') || error.message.includes('429')) {
+                message.error('AI service rate limit exceeded. Please wait a moment and try again.');
+            } else if (error.message.includes('503') || error.message.includes('connect')) {
+                message.error('Unable to connect to AI service. Please check your connection.');
+            } else {
+                message.error(error.message || 'Failed to analyze code. Please try again.');
+            }
+        } finally {
+            setIsAnalyzing(false);
+        }
     }, [inputCode, language]);
 
     const handleLoadSample = useCallback(() => {
@@ -186,62 +163,16 @@ const CodeRefactorerTab = () => {
 
     return (
         <div className="code-refactorer">
-            {/* Hero Section */}
-            <div className="code-refactorer__hero">
-                <div className="code-refactorer__hero-content">
-                    <div className="code-refactorer__hero-badge">
-                        <ThunderboltOutlined />
-                        AI-Powered Optimization
-                    </div>
-                    <h1 className="code-refactorer__hero-title">
-                        Code Refactorer
-                    </h1>
-                    <p className="code-refactorer__hero-subtitle">
-                        Analyze your SAS or R scripts and get AI-powered recommendations for better
-                        performance, readability, and maintainability. Optimized for clinical
-                        programming best practices.
-                    </p>
+            {/* Compact Header */}
+            <div className="code-refactorer__header-compact">
+                <div className="header-info">
+                    <CodeOutlined style={{ fontSize: 18 }} />
+                    <span className="header-title">Code Refactorer</span>
                 </div>
             </div>
 
             {/* Main Content */}
             <div className="code-refactorer__main">
-                {/* Feature Cards */}
-                <div className="code-refactorer__features">
-                    <div className="code-refactorer__feature-card">
-                        <div className="code-refactorer__feature-icon code-refactorer__feature-icon--performance">
-                            <RocketOutlined />
-                        </div>
-                        <h3 className="code-refactorer__feature-title">Performance Boost</h3>
-                        <p className="code-refactorer__feature-desc">
-                            Identify slow code patterns and get recommendations for 30-50% faster
-                            execution with optimized data structures.
-                        </p>
-                    </div>
-
-                    <div className="code-refactorer__feature-card">
-                        <div className="code-refactorer__feature-icon code-refactorer__feature-icon--readability">
-                            <BulbOutlined />
-                        </div>
-                        <h3 className="code-refactorer__feature-title">Enhanced Readability</h3>
-                        <p className="code-refactorer__feature-desc">
-                            Get suggestions for cleaner code structure, better naming conventions,
-                            and improved documentation.
-                        </p>
-                    </div>
-
-                    <div className="code-refactorer__feature-card">
-                        <div className="code-refactorer__feature-icon code-refactorer__feature-icon--best-practices">
-                            <SafetyCertificateOutlined />
-                        </div>
-                        <h3 className="code-refactorer__feature-title">Clinical Best Practices</h3>
-                        <p className="code-refactorer__feature-desc">
-                            Ensure compliance with CDISC standards, ADAM IG guidelines, and
-                            regulatory submission requirements.
-                        </p>
-                    </div>
-                </div>
-
                 {/* Upload Section */}
                 <div className="code-refactorer__upload-section">
                     <div className="code-refactorer__section-header">
@@ -420,9 +351,11 @@ const CodeRefactorerTab = () => {
                                     <span className="code-refactorer__score-value">
                                         {optimizationScore}%
                                     </span>
-                                    <span className="code-refactorer__score-change">
-                                        ↑ +23%
-                                    </span>
+                                    {improvementPercent !== null && improvementPercent > 0 && (
+                                        <span className="code-refactorer__score-change">
+                                            ↑ +{improvementPercent}%
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </div>

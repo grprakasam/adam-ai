@@ -274,16 +274,24 @@ class TokenBucketRateLimiter:
         
         # Check request count
         if len(self.request_window) >= self.max_requests:
-            oldest_request = self.request_window[0]
-            wait_for_request = (oldest_request + self.window_size) - current_time
-            wait_time = max(wait_time, wait_for_request)
+            if not self.request_window:
+                wait_time = max(wait_time, self.window_size)
+            else:
+                oldest_request = self.request_window[0]
+                wait_for_request = (oldest_request + self.window_size) - current_time
+                wait_time = max(wait_time, wait_for_request)
         
         # Check token count
         total_tokens = sum(tokens for _, tokens in self.token_window)
         if total_tokens + estimated_tokens > self.max_tokens:
-            oldest_token_time = self.token_window[0][0]
-            wait_for_tokens = (oldest_token_time + self.window_size) - current_time
-            wait_time = max(wait_time, wait_for_tokens)
+            if not self.token_window:
+                # If window is empty but request is still too large, it exceeds the rate limit entirely
+                # Just wait the full window size
+                wait_time = max(wait_time, self.window_size)
+            else:
+                oldest_token_time = self.token_window[0][0]
+                wait_for_tokens = (oldest_token_time + self.window_size) - current_time
+                wait_time = max(wait_time, wait_for_tokens)
         
         return max(0, wait_time)
 

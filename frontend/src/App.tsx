@@ -43,8 +43,8 @@ const WORKSPACE_ROUTES = [
   '/generation-history', '/traceability', '/test-with-data', '/adam-generator',
   '/adam-dataset-comparer', '/submission-dashboard', '/submission-package',
   '/code-validator', '/validation-reports', '/r-frontend', '/adam-data-analytics',
-  '/study-chatbot', '/code-comparer', '/tlf-generator', '/adam-tutor',
-  '/agentic-ai', '/ai-code-debugger', '/code-refactorer', '/missing-spec-detector',
+  '/study-chatbot', '/code-comparer', '/code-understanding', '/tlf-generator', '/adam-tutor',
+  '/agentic-ai', '/code-refactorer', '/missing-spec-detector',
   '/spec-comparison', '/esubmission-checker', '/fda-reviewer-preview'
 ];
 

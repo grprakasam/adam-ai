@@ -37,6 +37,9 @@ from app.api.v1.endpoints import (
     cache,
     spec_comparison,
     spec_gap_detector,
+    code_refactorer,
+    code_understanding,
+    sdtm_loader,
 )
 from app.api import auth_routes, validation_routes, performance_routes, review_routes
 
@@ -82,6 +85,9 @@ api_router.include_router(admin.router, prefix="/admin", tags=["Admin"])
 api_router.include_router(cache.router, prefix="/cache", tags=["cache-management"])
 api_router.include_router(spec_comparison.router, prefix="/spec-comparison", tags=["spec-comparison"])
 api_router.include_router(spec_gap_detector.router, prefix="/spec-gap-detector", tags=["spec-gap-detector"])
+api_router.include_router(code_refactorer.router, tags=["code-refactorer"])
+api_router.include_router(sdtm_loader.router, tags=["sdtm-loader"])
+api_router.include_router(code_understanding.router, tags=["code-understanding"])
 
 
 @api_router.get("/status")
