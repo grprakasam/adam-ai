@@ -11,7 +11,7 @@ import CodeReviewTab from './CodeReviewTab';
 import { TestWithDataPanel } from './TestWithDataPanel';
 import { TraceabilityTab } from './TraceabilityTab';
 import SubmissionReadinessTab from './submission/SubmissionReadinessTab';
-import { AdamGeneratorTab } from './AdamGeneratorTab';
+import AdamGeneratorTab from './AdamGeneratorTab';
 import { RFrontendTab } from './RFrontendTab';
 import { CodeComparerTab } from './CodeComparerTab';
 import { DatasetComparerTab } from './DatasetComparerTab';
@@ -20,12 +20,12 @@ import { StudyChatbotTab } from './StudyChatbotTab';
 import { TLFGeneratorTab } from './TLFGeneratorTab';
 import { ADAMTutorTab } from './ADAMTutorTab';
 import { AgenticAITab } from './AgenticAITab';
-import AICodeDebuggerTab from './AICodeDebuggerTab';
 import CodeRefactorerTab from './CodeRefactorerTab';
 import MissingSpecDetectorTab from './MissingSpecDetectorTab';
 import SpecComparisonTab from './SpecComparisonTab';
 import ESubmissionCheckerTab from './ESubmissionCheckerTab';
 import FDAReviewerPreviewTab from './FDAReviewerPreviewTab';
+import { CodeUnderstandingTab } from './CodeUnderstandingTab';
 import EnterStudyDetailsPage from './EnterStudyDetailsPage';
 import { VisuallyHidden } from './a11y/VisuallyHidden';
 import { notifyUserError } from '../utils/errorNotifications';
@@ -58,12 +58,12 @@ type WorkspaceTabKey =
   | 'tlf-generator'
   | 'adam-tutor'
   | 'agentic-ai'
-  | 'ai-code-debugger'
   | 'code-refactorer'
   | 'missing-spec-detector'
   | 'spec-comparison'
   | 'esubmission-checker'
-  | 'fda-reviewer-preview';
+  | 'fda-reviewer-preview'
+  | 'code-understanding';
 
 type WorkspaceGroup = 'adamCoding' | 'utilities';
 
@@ -85,12 +85,12 @@ const TAB_TOOLTIPS: Record<string, string> = {
   'tlf-generator': 'AI-powered generation of Tables, Listings, and Figures from mockshell documents',
   'adam-tutor': 'Interactive tutorials and guides for learning ADAM programming',
   'agentic-ai': 'Autonomous AI agents for complex ADAM tasks',
-  'ai-code-debugger': 'Paste error logs, AI explains root cause and suggests fixes',
   'code-refactorer': 'Upload SAS/R scripts, AI suggests optimizations for better performance',
   'missing-spec-detector': 'Upload dataset + spec Excel, AI flags discrepancies and missing values',
   'spec-comparison': 'Upload two spec versions, AI highlights semantic differences',
   'esubmission-checker': 'One-click FDA eSubmission Technical Conformance Guide compliance scan',
-  'fda-reviewer-preview': 'AI role-plays FDA reviewer to identify submission weak spots'
+  'fda-reviewer-preview': 'AI role-plays FDA reviewer to identify submission weak spots',
+  'code-understanding': 'Upload SAS/R code, get layered summaries and a visual flow'
 };
 
 const RightPanel = ({
@@ -118,7 +118,7 @@ const RightPanel = ({
   // Mapping of which tabs belong to which high-level navigation group
   const GROUP_TABS: Record<WorkspaceGroup, WorkspaceTabKey[]> = {
     adamCoding: ['study-details', 'pair', 'review', 'consolidated'],
-    utilities: ['submission', 'comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator', 'adam-tutor', 'agentic-ai', 'ai-code-debugger', 'code-refactorer', 'missing-spec-detector', 'spec-comparison', 'esubmission-checker', 'fda-reviewer-preview'],
+    utilities: ['submission', 'comparer', 'code-comparer', 'adam-generator', 'testdata', 'r-frontend', 'analytics', 'chatbot', 'traceability', 'tlf-generator', 'adam-tutor', 'agentic-ai', 'code-refactorer', 'missing-spec-detector', 'spec-comparison', 'esubmission-checker', 'fda-reviewer-preview', 'code-understanding'],
   };
 
   // Keep active tab consistent with active group
@@ -219,10 +219,6 @@ const RightPanel = ({
           setActiveGroup('utilities');
           setActiveWorkspaceTab('agentic-ai');
           break;
-        case '/ai-code-debugger':
-          setActiveGroup('utilities');
-          setActiveWorkspaceTab('ai-code-debugger');
-          break;
         case '/code-refactorer':
           setActiveGroup('utilities');
           setActiveWorkspaceTab('code-refactorer');
@@ -242,6 +238,10 @@ const RightPanel = ({
         case '/fda-reviewer-preview':
           setActiveGroup('utilities');
           setActiveWorkspaceTab('fda-reviewer-preview');
+          break;
+        case '/code-understanding':
+          setActiveGroup('utilities');
+          setActiveWorkspaceTab('code-understanding');
           break;
         default:
           break;
@@ -481,6 +481,19 @@ const RightPanel = ({
           children: <CodeComparerTab />,
         },
         {
+          key: 'code-understanding',
+          group: 'utilities' as WorkspaceGroup,
+          label: (
+            <Tooltip title={TAB_TOOLTIPS['code-understanding']}>
+              <span>
+                Code Understanding{' '}
+                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
+              </span>
+            </Tooltip>
+          ),
+          children: <CodeUnderstandingTab />,
+        },
+        {
           key: 'tlf-generator',
           group: 'utilities' as WorkspaceGroup,
           label: (
@@ -518,19 +531,6 @@ const RightPanel = ({
             </Tooltip>
           ),
           children: <AgenticAITab />,
-        },
-        {
-          key: 'ai-code-debugger',
-          group: 'utilities' as WorkspaceGroup,
-          label: (
-            <Tooltip title={TAB_TOOLTIPS['ai-code-debugger']}>
-              <span>
-                AI Code Debugger{' '}
-                <InfoCircleOutlined style={{ marginLeft: 4, fontSize: '12px', opacity: 0.6 }} />
-              </span>
-            </Tooltip>
-          ),
-          children: <AICodeDebuggerTab />,
         },
         {
           key: 'code-refactorer',

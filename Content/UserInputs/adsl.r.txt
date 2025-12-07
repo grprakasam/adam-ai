@@ -1,0 +1,161 @@
+############################################################
+# Sample ADSL Creation Code in R
+# Assumptions:
+#   - Source data: SDTM.DM, SDTM.EX, SDTM.AE
+#   - One record per subject in DM
+#   - Treatment from EX (first exposure)
+#   - Safety population: any subject with any exposure
+#   - ITT/FULL analysis population: all randomized subjects
+############################################################
+
+library(dplyr)
+library(lubridate)
+library(haven)
+
+##--- 1. "Libraries" / Read SDTM data -----------------------
+
+# Adjust paths / file names as needed; examples assume SAS7BDAT.
+sdtm_path <- "path-to-sdtm"
+adam_path <- "path-to-adam"  # if you want to write out later
+
+dm <- read_sas(file.path(sdtm_path, "dm.sas7bdat")) %>%
+  filter(!is.na(usubjid))
+
+ex <- read_sas(file.path(sdtm_path, "ex.sas7bdat")) %>%
+  filter(!is.na(usubjid))
+
+ae <- read_sas(file.path(sdtm_path, "ae.sas7bdat")) %>%
+  filter(!is.na(usubjid))
+
+##--- 3. Basic DM prep (convert dates, derive age, etc.) ----
+## Assume in DM: BRTHDTC, RFSTDTC, RFENDTC, RACE, SEX, ARM, ARMCD, ACTARM, ACTARMCD
+
+dm_pre <- dm %>%
+  mutate(
+    ## Study Reference Start / End Dates
+    rfstdt = if_else(!is.na(rfstdtc),
+                     as.Date(substr(rfstdtc, 1, 10), format = "%Y-%m-%d"),
+                     as.Date(NA)),
+    rfendt = if_else(!is.na(rfendtc),
+                     as.Date(substr(rfendtc, 1, 10), format = "%Y-%m-%d"),
+                     as.Date(NA)),
+
+    ## Birthdate
+    brthdt = if_else(!is.na(brthdtc),
+                     as.Date(substr(brthdtc, 1, 10), format = "%Y-%m-%d"),
+                     as.Date(NA)),
+
+    ## Age at reference start date (approx; similar to SAS intck('year',...,'C'))
+    age = if_else(!is.na(brthdt) & !is.na(rfstdt),
+                  floor(time_length(interval(brthdt, rfstdt), "years")),
+                  NA_real_),
+
+    ## ITT/FULL population flag: all randomized subjects (ARMCD not missing)
+    ittfl = if_else(!is.na(armcd), "Y", "N")
+  )
+
+##--- 4. Treatment start/end from EX ------------------------
+## Assume EX: EXSTDTC (start), EXENDTC (end), EXTRT (treatment)
+
+ex_pre <- ex %>%
+  mutate(
+    exstdt = if_else(!is.na(exstdtc),
+                     as.Date(substr(exstdtc, 1, 10), format = "%Y-%m-%d"),
+                     as.Date(NA)),
+    exendt = if_else(!is.na(exendtc),
+                     as.Date(substr(exendtc, 1, 10), format = "%Y-%m-%d"),
+                     as.Date(NA))
+  )
+
+## Derive first and last treatment dates per subject
+ex_pre_sorted <- ex_pre %>%
+  arrange(usubjid, exstdt, exendt)
+
+## First dose
+ex_first <- ex_pre_sorted %>%
+  group_by(usubjid) %>%
+  summarise(trtsdt = first(exstdt), .groups = "drop")
+
+## Last dose
+ex_last <- ex_pre_sorted %>%
+  group_by(usubjid) %>%
+  summarise(trtedt = last(exendt), .groups = "drop")
+
+## Merge first/last into one treatment summary dataset
+ex_summ <- ex_first %>%
+  full_join(ex_last, by = "usubjid")
+
+##--- 5. Simple safety flag based on any exposure -----------
+
+ex_summ <- ex_summ %>%
+  mutate(
+    saffl = if_else(!is.na(trtsdt), "Y", "N")
+  )
+
+##--- 6. Optional: AEs summary for an example variable ------
+
+ae_pre <- ae %>%
+  arrange(usubjid)
+
+ae_summ <- ae_pre %>%
+  group_by(usubjid) %>%
+  summarise(
+    anyae = if_else(any(!is.na(aeterm)), "Y", "N"),
+    .groups = "drop"
+  )
+
+##--- 7. Create ADSL by merging all components --------------
+
+adsl <- dm_pre %>%
+  left_join(ex_summ, by = "usubjid") %>%
+  left_join(ae_summ, by = "usubjid") %>%
+  ## Final population flags and derived variables
+  mutate(
+    ## Safety population: any exposure
+    saffl = if_else(is.na(saffl), "N", saffl),
+
+    ## Full analysis set (FAS/ITT) same as ittfl here
+    fasfl = ittfl,
+
+    ## Subject had any AE
+    anyae = if_else(is.na(anyae), "N", anyae),
+
+    ## Example treatment variables copied from DM or EX
+    trt01p  = arm,     # Planned treatment
+    trt01pn = NA_real_,
+    trt01a  = actarm,  # Actual treatment
+    trt01an = NA_real_,
+
+    ## Study day variables (using RFSTDTC as day 1)
+    trtsdy = if_else(!is.na(trtsdt) & !is.na(rfstdt),
+                     as.integer(trtsdt - rfstdt + 1L),
+                     NA_integer_),
+    trtedy = if_else(!is.na(trtedt) & !is.na(rfstdt),
+                     as.integer(trtedt - rfstdt + 1L),
+                     NA_integer_)
+  )
+
+## If you want to add labels (optional; requires e.g. labelled or Hmisc packages)
+## Example using labelled:
+# library(labelled)
+# var_label(adsl$usubjid) <- "Unique Subject Identifier"
+# var_label(adsl$rfstdt)  <- "Reference Start Date"
+# ... etc.
+
+##--- 8. Simple QC checks -----------------------------------
+
+# Check one record per subject
+nrow(adsl)
+length(unique(adsl$usubjid))
+
+if (nrow(adsl) != length(unique(adsl$usubjid))) {
+  warning("More than one record per USUBJID found in ADSL!")
+}
+
+# Quick structure and first few records
+str(adsl)
+head(adsl, 10)
+
+## Optionally write to file (mirroring adam.adsl)
+# saveRDS(adsl, file.path(adam_path, "adsl.rds"))
+# write.csv(adsl, file.path(adam_path, "adsl.csv"), row.names = FALSE)

@@ -330,8 +330,41 @@ async def get_execution_capabilities():
     return capabilities.to_dict()
 
 
+@router.get("/validate")
+async def validate_system_health():
+    """
+    Validate system health before execution
+    
+    Performs comprehensive pre-execution checks including:
+    - Docker availability and status
+    - R image availability
+    - Disk space
+    - System resources (CPU, memory)
+    
+    Returns detailed validation results with suggestions for fixing issues.
+    """
+    from app.modules.r_execution.validation import validate_system
+    
+    try:
+        validation_result = validate_system()
+        return validation_result
+    except Exception as e:
+        logger.error(f"Error during system validation: {e}", exc_info=True)
+        return {
+            "is_valid": False,
+            "checks": [{
+                "is_valid": False,
+                "message": f"Validation error: {str(e)}",
+                "severity": "error",
+                "suggestion": "Check backend logs for more details"
+            }],
+            "summary": "System validation failed with unexpected error"
+        }
+
+
 @router.get("/runs")
 async def list_recent_runs(limit: int = Query(default=20, ge=1, le=100)):
     """List recent execution runs"""
     runs = await service.repository.list_runs(limit=limit)
     return {"runs": runs, "total": len(runs)}
+

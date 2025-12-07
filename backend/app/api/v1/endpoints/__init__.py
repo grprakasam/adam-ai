@@ -8,7 +8,8 @@ from . import (
     code_generation,
     rules,
     standards,
-    program_generation
+    program_generation,
+    code_understanding,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     'rules',
     'standards',
     'program_generation',
+    'code_understanding',
 ]

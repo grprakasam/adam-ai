@@ -10,6 +10,12 @@ from fastapi.exceptions import RequestValidationError
 from loguru import logger
 import sys
 import asyncio
+import platform
+
+# Windows-specific fix for asyncio subprocess support
+# This prevents NotImplementedError when using asyncio.create_subprocess_exec on Windows
+if platform.system() == 'Windows':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from app.config import settings
 from app.api.v1 import api_router

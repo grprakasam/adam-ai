@@ -1,230 +1,152 @@
 """
-ADAM Generation API Endpoints
+ADAM Generator API Endpoints
 
-Provides REST API for executing consolidated R/SAS programs against SDTM datasets
-to generate ADAM datasets using Dockerized R runtime.
+Handle file uploads and execution for ADAM generation.
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
-from fastapi.responses import FileResponse, StreamingResponse
-from sse_starlette.sse import EventSourceResponse
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, BackgroundTasks, UploadFile, File
+from typing import List
 import logging
+import shutil
 from pathlib import Path
-from datetime import datetime
-import json
 
-from app.modules.adam_generation import (
-    AdamGenerationService,
-    AdamGenerationRequest,
-    AdamGenerationStatus,
-    AdamGenerationResult,
-    AdamFeedbackRequest,
-    RVersionInfo,
-    SDTMInputCheck,
+from app.modules.r_execution import (
+    RExecutionService,
+    RExecutionRequest,
+    RExecutionResponse,
+    ExecutionMode,
     RunStatus,
-    ValidationError,
-    DockerUnavailableError,
 )
-from app.modules.adam_generation.validators import InputValidator
-from app.modules.adam_generation.progress_emitter import get_progress_emitter
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/adam-generation", tags=["adam-generation"])
 
 # Initialize service
-service = AdamGenerationService()
-validator = InputValidator()
+service = RExecutionService()
 
-
-@router.post("/run", response_model=AdamGenerationStatus)
-async def start_adam_generation(
-    request: AdamGenerationRequest,
-    background_tasks: BackgroundTasks
+@router.post("/run", response_model=RExecutionResponse)
+async def run_adam_generation(
+    background_tasks: BackgroundTasks,
+    code_file: UploadFile = File(...),
+    data_files: List[UploadFile] = File(default=[]),
 ):
-    """Start ADAM dataset generation (async)"""
+    """
+    Start ADAM generation run with file uploads.
+    
+    1. Uploads R script and SDTM datasets.
+    2. Sets up execution environment.
+    3. Starts R execution in background.
+    """
     try:
-        # Validate immediately
-        validation_result = await validator.validate_inputs(
-            request.study_id,
-            request.adam_dataset
-        )
-        if not validation_result.is_valid:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Validation failed: {', '.join(validation_result.errors)}"
-            )
-    except ValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # Start background task
-    run_id = AdamGenerationService._generate_run_id()
-    await service.repository.create_run(
-        run_id=run_id,
-        study_id=request.study_id,
-        adam_dataset=request.adam_dataset,
-        request_params=request.dict()
-    )
-
-    # Execute in background
-    background_tasks.add_task(
-        service.generate_adam_dataset,
-        request
-    )
-
-    return AdamGenerationStatus(
-        run_id=run_id,
-        study_id=request.study_id,
-        adam_dataset=request.adam_dataset,
-        status=RunStatus.QUEUED,
-        progress_percent=0,
-        current_step="Queued for execution",
-        started_at=datetime.utcnow()
-    )
-
-
-@router.get("/run/{run_id}", response_model=AdamGenerationStatus)
-async def get_run_status(run_id: str):
-    """Poll run status"""
-    try:
-        status = await service.get_run_status(run_id)
-        return status
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-
-
-@router.get("/run/{run_id}/stream")
-async def stream_run_progress(run_id: str):
-    """Server-Sent Events stream for real-time progress"""
-    emitter = get_progress_emitter()
-
-    async def event_generator():
-        try:
-            async for event in emitter.subscribe(run_id):
-                yield {
-                    "event": "progress",
-                    "data": json.dumps(event)
-                }
-        except Exception as e:
-            logger.error(f"Error in SSE stream for {run_id}: {e}")
-            yield {
-                "event": "error",
-                "data": json.dumps({"error": str(e)})
+        # Generate Run ID
+        run_id = service.generate_run_id()
+        
+        # Create Run Record early to reserve ID
+        await service.repository.create_run(
+            run_id=run_id,
+            request_params={
+                "code": "loaded_from_file", 
+                "filename": code_file.filename,
+                "mode": ExecutionMode.INTERACTIVE 
             }
-
-    return EventSourceResponse(event_generator())
-
-
-@router.get("/run/{run_id}/result", response_model=AdamGenerationResult)
-async def get_run_result(run_id: str):
-    """Get complete result after successful generation"""
-    status = await service.get_run_status(run_id)
-    
-    if status.status != RunStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Run {run_id} has not completed successfully (status: {status.status})"
         )
 
-    # Get run metadata
-    run = await service.repository.get_run(run_id, status.study_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
+        # Create workspace manually to populate files
+        work_dir = service._create_work_directory(run_id)
+        input_dir = work_dir / "input"
+        
+        # Read code content
+        code_content = await code_file.read()
+        code_str = code_content.decode("utf-8", errors="replace")
+        
+        # Save SDTM files
+        for data_file in data_files:
+            file_path = input_dir / data_file.filename
+            with open(file_path, "wb") as f:
+                shutil.copyfileobj(data_file.file, f)
+            logger.info(f"[{run_id}] Saved data file: {data_file.filename}")
 
-    # Build result (simplified - in production, reconstruct from metadata)
-    # For now, return status with additional info
-    raise HTTPException(
-        status_code=501,
-        detail="Result reconstruction not yet fully implemented"
-    )
-
-
-@router.get("/run/{run_id}/download")
-async def download_adam_dataset(
-    run_id: str,
-    format: str = Query("csv", regex="^(csv|xlsx|rds|zip)$")
-):
-    """Download generated ADAM dataset"""
-    status = await service.get_run_status(run_id)
-
-    if status.status != RunStatus.SUCCEEDED:
-        raise HTTPException(
-            status_code=400,
-            detail="Run not completed successfully"
+        # Create Execution Request
+        request = RExecutionRequest(
+            code=code_str,
+            mode=ExecutionMode.INTERACTIVE, # Use interactive mode to get plots/consoles
+            timeout_seconds=600, # 10 minutes default
+            memory_limit_mb=2048,
+            capture_plots=True
+        )
+        
+        # Start background execution
+        # Note: We pass run_id to reuse the one we generated and populated
+        background_tasks.add_task(
+            service.execute,
+            request,
+            run_id
+        )
+        
+        return RExecutionResponse(
+            run_id=run_id,
+            status=RunStatus.QUEUED,
+            message="ADAM generation started",
+            stream_url=f"/api/v1/r-execution/run/{run_id}/stream"
         )
 
-    # Get run metadata
-    run = await service.repository.get_run(run_id, status.study_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Run not found")
-
-    output_artifacts = run.get("output_artifacts", {})
-    file_path = output_artifacts.get(format)
-
-    if not file_path or not Path(file_path).exists():
+    except Exception as e:
+        logger.error(f"Error starting ADAM generation: {e}", exc_info=True)
         raise HTTPException(
-            status_code=404,
-            detail=f"Format {format} not available for this run"
+            status_code=500,
+            detail=f"Failed to start execution: {str(e)}"
         )
-
-    filename = f"{status.study_id}_{status.adam_dataset}_{run_id[:8]}.{format}"
-    return FileResponse(
-        path=file_path,
-        filename=filename,
-        media_type=_get_media_type(format)
-    )
-
-
-@router.get("/r-versions", response_model=List[RVersionInfo])
-async def list_r_versions():
-    """List available R versions"""
-    return await service.get_r_versions()
-
-
-@router.post("/run/{run_id}/feedback")
-async def submit_feedback(run_id: str, feedback: AdamFeedbackRequest):
-    """Submit user feedback for a run"""
-    status = await service.get_run_status(run_id)
-    
-    await service.repository.save_feedback(
-        run_id=run_id,
-        study_id=status.study_id,
-        feedback=feedback.dict()
-    )
-    
-    return {"status": "success", "message": "Feedback submitted"}
-
-
-@router.post("/check-inputs", response_model=SDTMInputCheck)
-async def check_sdtm_inputs(
-    study_id: str = Query(..., description="Study ID"),
-    adam_dataset: str = Query(..., description="ADAM dataset name"),
-    consolidated_code: Optional[str] = Query(None, description="Optional consolidated code to analyze for dataset requirements"),
-    language: str = Query('R', description="Programming language (R or SAS)")
+@router.post("/preprocess")
+async def preprocess_sdtm_files(
+    data_files: List[UploadFile] = File(...),
 ):
     """
-    Pre-flight check for SDTM dataset availability.
-
-    If consolidated_code is provided, intelligently analyzes it to detect
-    required datasets. Otherwise, uses default ADAM dataset mapping.
+    Generate R code to load uploaded SDTM files.
     """
-    result = await validator.check_sdtm_availability(
-        study_id,
-        adam_dataset,
-        consolidated_code=consolidated_code,
-        language=language
-    )
-    return result
+    try:
+        code_lines = [
+            "# === Generated Preprocessing Code ===",
+            "# Load required libraries",
+            "library(haven)",
+            "library(readr)",
+            "library(readxl)",
+            "library(dplyr)",
+            "",
+            "# Load SDTM Datasets"
+        ]
+        
+        domains_found = []
 
+        for file in data_files:
+            filename = file.filename
+            clean_name = filename.lower().replace(" ", "_")
+            domain_name = Path(filename).stem.lower() # default variable name
+            
+            # Simple heuristic for domain naming (e.g. adsl.xpt -> adsl)
+            # If filename is complex (e.g. sdtm_dm.sas7bdat), maybe keep it or simplify.
+            # Let's stick to stem.
+            
+            load_cmd = ""
+            if filename.lower().endswith(".sas7bdat"):
+                load_cmd = f'{domain_name} <- read_sas("input/{filename}")'
+            elif filename.lower().endswith(".xpt"):
+                load_cmd = f'{domain_name} <- read_xpt("input/{filename}")'
+            elif filename.lower().endswith(".csv"):
+                load_cmd = f'{domain_name} <- read_csv("input/{filename}")'
+            elif filename.lower().endswith(".xlsx"):
+                load_cmd = f'{domain_name} <- read_excel("input/{filename}")'
+            else:
+                load_cmd = f'# Warning: Unsupported format for {filename}'
+            
+            code_lines.append(load_cmd)
+            domains_found.append(domain_name.upper())
 
-def _get_media_type(format: str) -> str:
-    """Get MIME type for format"""
-    types = {
-        "csv": "text/csv",
-        "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "rds": "application/octet-stream",
-        "zip": "application/zip"
-    }
-    return types.get(format, "application/octet-stream")
+        code_lines.append("")
+        code_lines.append(f"# Processed {len(data_files)} files: {', '.join(domains_found)}")
+        
+        return {"code": "\n".join(code_lines)}
 
+    except Exception as e:
+        logger.error(f"Error generating preprocessing code: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

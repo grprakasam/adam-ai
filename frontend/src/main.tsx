@@ -22,6 +22,15 @@ window.addEventListener('error', (event) => {
     event.preventDefault();
     return;
   }
+
+  // Display critical errors on screen if the app is blank
+  const root = document.getElementById('root');
+  if (root && root.childNodes.length === 0) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = 'position:fixed; top:20px; left:20px; right:20px; padding:20px; background:#fee; border:2px solid red; color:red; z-index:99999; font-family:sans-serif;';
+    errorDiv.innerHTML = `<strong>Global Error:</strong> ${message}<br/><small>Please check console for details.</small>`;
+    document.body.appendChild(errorDiv);
+  }
 });
 
 const root = createRoot(rootElement);

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test ADAM Generator - Generate Loading Code</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test ADAM Generator - Generate Loading Code</h1>
+    
+    <div class="section">
+        <h2>1. Upload SDTM Files</h2>
+        <input type="file" id="fileInput" multiple accept=".csv,.xpt,.sas7bdat,.xlsx">
+        <p id="fileList"></p>
+    </div>
+
+    <div class="section">
+        <h2>2. Generate Loading Code</h2>
+        <button onclick="generateCode()">Generate Loading Code</button>
+        <p id="status"></p>
+    </div>
+
+    <div class="section">
+        <h2>3. Generated Code</h2>
+        <pre id="codeOutput">No code generated yet</pre>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const status = document.getElementById('status');
+        const codeOutput = document.getElementById('codeOutput');
+
+        fileInput.addEventListener('change', () => {
+            const files = Array.from(fileInput.files);
+            fileList.innerHTML = files.length > 0 
+                ? `Selected ${files.length} file(s): ${files.map(f => f.name).join(', ')}`
+                : 'No files selected';
+        });
+
+        async function generateCode() {
+            const files = fileInput.files;
+            if (files.length === 0) {
+                status.innerHTML = '<span class="error">Please select files first!</span>';
+                return;
+            }
+
+            status.innerHTML = 'Generating code...';
+            codeOutput.textContent = 'Loading...';
+
+            try {
+                const formData = new FormData();
+                for (let file of files) {
+                    formData.append('data_files', file);
+                }
+
+                const response = await fetch('http://localhost:8002/api/v1/adam-generation/preprocess', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.code) {
+                    codeOutput.textContent = data.code;
+                    status.innerHTML = '<span class="success">✓ Code generated successfully!</span>';
+                } else {
+                    status.innerHTML = '<span class="error">No code in response</span>';
+                    codeOutput.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                status.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+                codeOutput.textContent = error.stack || error.message;
+                console.error('Generation failed:', error);
+            }
+        }
+    </script>
+</body>
+</html>

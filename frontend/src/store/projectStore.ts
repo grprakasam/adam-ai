@@ -233,6 +233,21 @@ export interface ProjectStore {
   createComment: (text: string, lineNumber?: number, variableName?: string) => Promise<void>;
   exportReviewPDF: () => Promise<void>;
   clearCodeReview: () => void;
+
+  // ADAM Execution State
+  adamExecution: {
+    runId: string | null;
+    status: 'idle' | 'running' | 'succeeded' | 'failed' | 'timeout';
+    progress: number;
+    logs: string[];
+    result: any;
+    error: string | null;
+    code: string;
+  };
+
+  // ADAM Execution Actions
+  setAdamExecution: (executionState: Partial<ProjectStore['adamExecution']>) => void;
+  resetAdamExecution: () => void;
 }
 
 const initialState = {
@@ -302,6 +317,17 @@ const initialState = {
   lastReviewedRunId: null as string | null,
   isLoadingReview: false,
   reviewError: null as string | null,
+
+  // ADAM Execution State (Persisted)
+  adamExecution: {
+    runId: null as string | null,
+    status: 'idle' as 'idle' | 'running' | 'succeeded' | 'failed' | 'timeout',
+    progress: 0,
+    logs: [] as string[],
+    result: null as any,
+    error: null as string | null,
+    code: '',
+  },
 };
 
 export const useProjectStore = create<ProjectStore>()(
@@ -1443,6 +1469,21 @@ export const useProjectStore = create<ProjectStore>()(
             lastReviewedRunId: null,
             reviewError: null,
           }),
+
+        setAdamExecution: (executionState) =>
+          set((state) => ({
+            adamExecution: {
+              ...state.adamExecution,
+              ...executionState,
+            },
+          })),
+
+        resetAdamExecution: () =>
+          set((state) => ({
+            adamExecution: {
+              ...initialState.adamExecution,
+            },
+          })),
       }),
       {
         name: 'adam-ai-storage',
