@@ -1,0 +1,11 @@
+Name: Sy
+
+DOB:18July71
+
+Qualification:12th
+
+Profession: programmer
+
+State: Karnataka
+
+Country: India
