@@ -1,0 +1,39 @@
+# ADSL core benchmark specification
+#
+# Public, client-free spec used to benchmark ADAM AI against pharmaverseadam.
+# Inputs come from pharmaversesdtm (CDISC pilot study). Derivation text follows
+# the ADaM IG and the admiral ADSL template conventions, written the way a
+# statistical programming spec would phrase them.
+dataset: ADSL
+label: Subject-Level Analysis Dataset
+keys: [USUBJID]
+sdtm_domains: [dm, ex, ds]
+variables:
+  - {name: STUDYID, label: Study Identifier, type: Char, source: DM.STUDYID, derivation: "Copy DM.STUDYID."}
+  - {name: USUBJID, label: Unique Subject Identifier, type: Char, source: DM.USUBJID, derivation: "Copy DM.USUBJID. One record per subject in DM."}
+  - {name: SUBJID, label: Subject Identifier for the Study, type: Char, source: DM.SUBJID, derivation: "Copy DM.SUBJID."}
+  - {name: SITEID, label: Study Site Identifier, type: Char, source: DM.SITEID, derivation: "Copy DM.SITEID."}
+  - {name: COUNTRY, label: Country, type: Char, source: DM.COUNTRY, derivation: "Copy DM.COUNTRY."}
+  - {name: AGE, label: Age, type: Num, source: DM.AGE, derivation: "Copy DM.AGE as numeric."}
+  - {name: AGEU, label: Age Units, type: Char, source: DM.AGEU, derivation: "Copy DM.AGEU."}
+  - {name: AGEGR1, label: Pooled Age Group 1, type: Char, source: derived, derivation: "From AGE: '<18' if AGE < 18; '18-64' if 18 <= AGE <= 64; '>64' if AGE > 64; missing if AGE is missing."}
+  - {name: SEX, label: Sex, type: Char, source: DM.SEX, derivation: "Copy DM.SEX."}
+  - {name: RACE, label: Race, type: Char, source: DM.RACE, derivation: "Copy DM.RACE."}
+  - {name: ETHNIC, label: Ethnicity, type: Char, source: DM.ETHNIC, derivation: "Copy DM.ETHNIC."}
+  - {name: ARM, label: Description of Planned Arm, type: Char, source: DM.ARM, derivation: "Copy DM.ARM."}
+  - {name: ARMCD, label: Planned Arm Code, type: Char, source: DM.ARMCD, derivation: "Copy DM.ARMCD."}
+  - {name: ACTARM, label: Description of Actual Arm, type: Char, source: DM.ACTARM, derivation: "Copy DM.ACTARM."}
+  - {name: ACTARMCD, label: Actual Arm Code, type: Char, source: DM.ACTARMCD, derivation: "Copy DM.ACTARMCD."}
+  - {name: TRT01P, label: Planned Treatment for Period 01, type: Char, source: DM.ARM, derivation: "Set to DM.ARM."}
+  - {name: TRT01A, label: Actual Treatment for Period 01, type: Char, source: DM.ACTARM, derivation: "Set to DM.ACTARM."}
+  - {name: TRTSDT, label: Date of First Exposure to Treatment, type: Date, source: EX.EXSTDTC, derivation: "Earliest date part of EX.EXSTDTC over valid exposure records. A record is valid when EXDOSE > 0, or EXDOSE = 0 and EXTRT contains 'PLACEBO'. Missing if the subject has no valid exposure."}
+  - {name: TRTEDT, label: Date of Last Exposure to Treatment, type: Date, source: EX.EXENDTC, derivation: "Latest date part of EX.EXENDTC over valid exposure records (same validity rule as TRTSDT), ignoring records where EXENDTC is missing."}
+  - {name: TRTDURD, label: Total Treatment Duration (Days), type: Num, source: derived, derivation: "TRTEDT - TRTSDT + 1 when both dates are present, otherwise missing."}
+  - {name: SAFFL, label: Safety Population Flag, type: Char, source: EX, derivation: "'Y' if the subject has at least one valid exposure record (same validity rule as TRTSDT), otherwise 'N'."}
+  - {name: EOSSTT, label: End of Study Status, type: Char, source: DS.DSDECOD, derivation: "From the DS record with DSCAT = 'DISPOSITION EVENT': 'COMPLETED' if DSDECOD = 'COMPLETED'; missing if DSDECOD = 'SCREEN FAILURE'; otherwise 'DISCONTINUED'."}
+  - {name: EOSDT, label: End of Study Date, type: Date, source: DS.DSSTDTC, derivation: "Date part of DSSTDTC from the DS 'DISPOSITION EVENT' record, excluding SCREEN FAILURE records (missing for screen failures)."}
+  - {name: RANDDT, label: Date of Randomization, type: Date, source: DS.DSSTDTC, derivation: "Date part of DSSTDTC from the DS record where DSDECOD = 'RANDOMIZED'."}
+  - {name: DTHFL, label: Subject Death Flag, type: Char, source: DM.DTHFL, derivation: "Copy DM.DTHFL."}
+  - {name: DTHDT, label: Date of Death, type: Date, source: DM.DTHDTC, derivation: "Date part of DM.DTHDTC; missing if DTHDTC is missing."}
+  - {name: RFSTDTC, label: Subject Reference Start Date/Time, type: Char, source: DM.RFSTDTC, derivation: "Copy DM.RFSTDTC."}
+  - {name: RFENDTC, label: Subject Reference End Date/Time, type: Char, source: DM.RFENDTC, derivation: "Copy DM.RFENDTC."}

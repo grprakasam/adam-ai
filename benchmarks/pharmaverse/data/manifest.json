@@ -1,0 +1,42 @@
+{
+  "sources": {
+    "sdtm": {
+      "repo": "pharmaverse/pharmaversesdtm",
+      "tag": "v1.5.0"
+    },
+    "reference": {
+      "repo": "pharmaverse/pharmaverseadam",
+      "tag": "v1.4.0"
+    }
+  },
+  "files": {
+    "sdtm/dm.csv": {
+      "source_url": "https://raw.githubusercontent.com/pharmaverse/pharmaversesdtm/v1.5.0/data/dm.rda",
+      "source_sha256": "36364acc1d1e16fc72d6b28d04a9677df2375f543a46abe75d609de9835176fb",
+      "csv_sha256": "43a66b00616e4b1c40e5e3afa8821493826da1e58a65a85c84fd142e507a4ac5",
+      "rows": 306,
+      "columns": 28
+    },
+    "sdtm/ex.csv": {
+      "source_url": "https://raw.githubusercontent.com/pharmaverse/pharmaversesdtm/v1.5.0/data/ex.rda",
+      "source_sha256": "0a99a99542e2745a089bb8fcfac7315b38dbc1b6cedd004ff8fa83b4bf469982",
+      "csv_sha256": "1e6bdbd39e90bc15b7616a60921d9369039169c7de23e31fd83c74858e2da7de",
+      "rows": 591,
+      "columns": 17
+    },
+    "sdtm/ds.csv": {
+      "source_url": "https://raw.githubusercontent.com/pharmaverse/pharmaversesdtm/v1.5.0/data/ds.rda",
+      "source_sha256": "130a453b53afe5cb43c1bc61f77149243c6ffdafd1c002911125ff3bedd47383",
+      "csv_sha256": "4ff2533259652747594b629fd78e8710e5ab64a199ceb97ae7e4c8dd6055662a",
+      "rows": 850,
+      "columns": 13
+    },
+    "reference/adsl.csv": {
+      "source_url": "https://raw.githubusercontent.com/pharmaverse/pharmaverseadam/v1.4.0/data/adsl.rda",
+      "source_sha256": "0e6b5190f1925ae50e33fb6eacadcbcf4bc2dbc92929b806d155f808ccb38974",
+      "csv_sha256": "79b34bfa8447c9591d33260fc6a284e74962a3d7706fe78e274183ed81ce58af",
+      "rows": 306,
+      "columns": 57
+    }
+  }
+}
