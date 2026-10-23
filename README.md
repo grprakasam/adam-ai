@@ -282,7 +282,7 @@ Make sure you're using the virtual environment python:
 
 ## 📝 License
 
-Proprietary - Ephicacy Lifesciences Analytics
+Proprietary
 
 ## 👥 Support
 

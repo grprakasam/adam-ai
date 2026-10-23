@@ -22,12 +22,6 @@
   padding: 0 24px;
 }
 
-.progress-bar-logo {
-  height: 40px;
-  width: auto;
-  object-fit: contain;
-}
-
 .progress-section {
   display: flex;
   align-items: center;

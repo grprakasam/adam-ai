@@ -15,16 +15,5 @@ export const ApprovalProgressBar: React.FC = () => {
     return null;
   }
 
-  return (
-    <div className="approval-progress-bar-container" role="status" aria-live="polite" aria-atomic="true">
-      <div className="approval-progress-content">
-        {/* Logo */}
-        <img 
-          src="/CompanyLogo.png" 
-          alt="Company Logo" 
-          className="progress-bar-logo"
-        />
-      </div>
-    </div>
-  );
+  return null;
 };
