@@ -11,7 +11,7 @@ Features:
 - Comprehensive logging
 """
 
-from typing import Optional, Dict, Any, List, TypedDict
+from typing import Optional, Dict, Any, List, TypedDict, NotRequired
 from abc import ABC, abstractmethod
 from loguru import logger
 from functools import wraps
@@ -54,6 +54,8 @@ class UsageMetrics(TypedDict):
     prompt_tokens: int
     completion_tokens: int
     total_tokens: int
+    cache_read_tokens: NotRequired[int]   # providers with prompt caching (e.g. Bedrock)
+    cache_write_tokens: NotRequired[int]
 
 
 class LLMResponse(TypedDict):
@@ -926,6 +928,117 @@ class OllamaProvider(BaseLLMProvider):
 
 
 # ============================================================================
+# Amazon Bedrock Provider (Claude and other models via the Converse API)
+# ============================================================================
+
+class BedrockProvider(BaseLLMProvider):
+    """
+    Amazon Bedrock provider using the model-agnostic Converse API.
+
+    Authentication uses the standard AWS credential chain (environment variables,
+    shared profile, or an IAM role), so no API key is stored in .env. Optional
+    prompt caching adds a cache point after the system prompt; Bedrock only
+    caches prefixes above the model's minimum length (about 1,024 tokens for
+    Claude), so it pays off when long CDISC rule context is sent repeatedly.
+    """
+
+    def __init__(
+        self,
+        model: str = "anthropic.claude-sonnet-5-5",
+        region: Optional[str] = None,
+        prompt_caching: bool = False,
+        client: Any = None,
+    ):
+        if not model or not isinstance(model, str):
+            raise LLMValidationError("Bedrock model ID must be a non-empty string")
+        self.model = model
+        self.api_key = "aws-credential-chain"  # interface compatibility; not a secret
+        self.provider_name = "bedrock"
+        self.region = region or os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-1"
+        self.prompt_caching = prompt_caching
+        if client is not None:
+            self.client = client
+        else:
+            try:
+                import boto3
+                from botocore.config import Config
+
+                self.client = boto3.client(
+                    "bedrock-runtime",
+                    region_name=self.region,
+                    config=Config(read_timeout=REQUEST_TIMEOUT * 4, retries={"max_attempts": 2}),
+                )
+            except ImportError as e:
+                raise LLMConnectionError("boto3 package not installed (pip install boto3)") from e
+        logger.info(f"✅ Initialized Bedrock provider with model: {self.model} in {self.region}")
+
+    def _request(self, prompt: str, temperature: float, max_tokens: int) -> Dict[str, Any]:
+        system: List[Dict[str, Any]] = [{"text": SYSTEM_PROMPT}]
+        if self.prompt_caching:
+            system.append({"cachePoint": {"type": "default"}})
+        return {
+            "modelId": self.model,
+            "system": system,
+            "messages": [{"role": "user", "content": [{"text": prompt}]}],
+            "inferenceConfig": {"maxTokens": max_tokens, "temperature": temperature},
+        }
+
+    @retry_on_failure(max_retries=MAX_RETRIES)
+    async def generate(
+        self,
+        prompt: str,
+        temperature: float = 0.2,
+        max_tokens: int = 4000,
+        **kwargs
+    ) -> LLMResponse:
+        """Generate a response through the Bedrock Converse API"""
+        validate_generation_params(prompt, temperature, max_tokens)
+        request = self._request(prompt, temperature, max_tokens)
+        try:
+            response = await asyncio.to_thread(self.client.converse, **request)
+        except Exception as e:
+            code = getattr(e, "response", {}).get("Error", {}).get("Code", "") if hasattr(e, "response") else ""
+            message = f"{code} {e}".lower()
+            if "throttl" in message or "toomanyrequests" in message or "429" in message:
+                raise LLMRateLimitError(f"Rate limit exceeded for Bedrock: {e}")
+            if any(term in message for term in ("endpointconnection", "connection", "timeout", "network")):
+                raise LLMConnectionError(f"Connection failed for Bedrock: {e}")
+            raise LLMProviderError(f"Bedrock error: {e}")
+
+        blocks = response.get("output", {}).get("message", {}).get("content", [])
+        text = "".join(block.get("text", "") for block in blocks if isinstance(block, dict))
+        usage = response.get("usage", {}) or {}
+        prompt_tokens = int(usage.get("inputTokens", 0)) + int(usage.get("cacheReadInputTokens", 0)) + int(usage.get("cacheWriteInputTokens", 0))
+        completion_tokens = int(usage.get("outputTokens", 0))
+        result: LLMResponse = {
+            "content": text,
+            "model": self.model,
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+                "cache_read_tokens": int(usage.get("cacheReadInputTokens", 0)),
+                "cache_write_tokens": int(usage.get("cacheWriteInputTokens", 0)),
+            },
+            "finish_reason": response.get("stopReason", "completed"),
+        }
+        logger.info(
+            f"✅ Bedrock generation completed: {result['usage']['total_tokens']} tokens "
+            f"(cache read {result['usage']['cache_read_tokens']}), finish_reason: {result['finish_reason']}"
+        )
+        return result
+
+    async def validate_connection(self) -> bool:
+        """Validate Bedrock access with a tiny request"""
+        try:
+            await asyncio.to_thread(self.client.converse, **self._request("test", 0.0, 5))
+            return True
+        except Exception as e:
+            logger.error(f"❌ Bedrock connection validation failed: {str(e)}")
+            return False
+
+
+# ============================================================================
 # LLM Integration Service
 # ============================================================================
 
@@ -971,6 +1084,12 @@ class LLMIntegrationService:
             'openrouter': TokenBucketRateLimiter(
                 requests_per_minute=100,
                 tokens_per_minute=100000,
+                buffer_factor=0.9
+            ),
+            # Bedrock quotas are per account/region; keep a conservative default
+            'bedrock': TokenBucketRateLimiter(
+                requests_per_minute=100,
+                tokens_per_minute=200000,
                 buffer_factor=0.9
             )
         }
@@ -1071,6 +1190,18 @@ class LLMIntegrationService:
             )
         )
         
+        # Initialize Amazon Bedrock (uses the AWS credential chain, no API key in .env)
+        if getattr(settings, 'BEDROCK_ENABLED', False):
+            try:
+                self.providers["bedrock"] = BedrockProvider(
+                    model=getattr(settings, 'BEDROCK_MODEL_ID', 'anthropic.claude-sonnet-5-5'),
+                    region=getattr(settings, 'BEDROCK_REGION', None),
+                    prompt_caching=getattr(settings, 'BEDROCK_PROMPT_CACHING', False),
+                )
+                logger.info("✅ Successfully initialized bedrock provider")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize bedrock provider: {str(e)}")
+
         # Initialize Ollama (Local AI - Always available if running)
         # No API key needed - just try to connect
         try:
@@ -1223,7 +1354,8 @@ class LLMIntegrationService:
             'google': ['google', 'groq', 'openai', 'anthropic', 'openrouter'],
             'openai': ['openai', 'groq', 'google', 'anthropic', 'openrouter'],
             'anthropic': ['anthropic', 'openai', 'groq', 'google', 'openrouter'],
-            'openrouter': ['openrouter', 'groq', 'google', 'openai', 'anthropic']
+            'openrouter': ['openrouter', 'groq', 'google', 'openai', 'anthropic'],
+            'bedrock': ['bedrock', 'anthropic', 'openai', 'google', 'groq', 'openrouter']
         }
         
         return fallback_chains.get(primary_provider, [primary_provider])
