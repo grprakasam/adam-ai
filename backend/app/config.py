@@ -59,6 +59,12 @@ class Settings(BaseSettings):
     DEFAULT_TEMPERATURE: float = 0.3  # Slightly higher for faster generation
     DEFAULT_MAX_TOKENS: int = 400  # OPTIMIZED: Reduced from 800 to 400 for 2x faster responses
 
+    # Amazon Bedrock (uses the AWS credential chain: env vars, profile or IAM role)
+    BEDROCK_ENABLED: bool = False
+    BEDROCK_REGION: Optional[str] = None  # falls back to AWS_REGION / us-east-1
+    BEDROCK_MODEL_ID: str = "anthropic.claude-sonnet-5-5"
+    BEDROCK_PROMPT_CACHING: bool = False  # cache point after the system prompt
+
     # OpenRouter Configuration
     OPENROUTER_MODEL: str = "meta-llama/llama-3.1-70b-instruct"  # Default model
     OPENROUTER_SITE_URL: str = "https://adam-ai.app"  # Your site URL for OpenRouter
