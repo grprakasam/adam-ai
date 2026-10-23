@@ -1,0 +1,12 @@
+# Environment for the MCP server (app/modules/adam_agent/mcp_server.py).
+# Kept separate because the MCP SDK needs newer httpx/starlette than the pinned
+# FastAPI app; MCP servers run as their own process anyway.
+#   python -m venv .venv-mcp && .venv-mcp/bin/pip install -r backend/requirements-mcp.txt
+#   cd backend && ../.venv-mcp/bin/python -m app.modules.adam_agent.mcp_server
+mcp>=1.2,<3
+pydantic>=2.7,<3
+loguru>=0.7
+PyYAML>=6.0.1
+pandas>=2.3.3
+pytest>=7.4
+pytest-asyncio>=0.21
