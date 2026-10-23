@@ -1,0 +1,143 @@
+name: ADaM agent CI
+
+# Runs the agent unit tests, the MCP server tests and the pharmaverse benchmark
+# (replay mode) on every push and pull request. The replay benchmark is a
+# quality gate: CI fails if the pipeline no longer reproduces pharmaverseadam
+# exactly or the audit chain breaks. A live model benchmark runs on demand or
+# nightly when model credentials are configured as repository secrets.
+
+on:
+  push:
+    paths:
+      - "backend/app/modules/adam_agent/**"
+      - "backend/app/modules/llm_integration/**"
+      - "backend/app/api/v1/endpoints/adam_agent.py"
+      - "backend/tests/test_adam_agent/**"
+      - "backend/requirements*.txt"
+      - "benchmarks/**"
+      - ".github/workflows/adam-agent-ci.yml"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      routes:
+        description: "Live benchmark routes (provider:model, cheapest first)"
+        required: false
+        default: "anthropic:claude-haiku-5-5,anthropic:claude-sonnet-5-5"
+  schedule:
+    - cron: "30 1 * * 1"  # Mondays 07:00 IST
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adam-agent-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Agent unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-agent.txt
+      - name: Install dependencies
+        run: pip install -r backend/requirements-agent.txt
+      - name: Run tests
+        working-directory: backend
+        env:
+          DISABLE_LLM_PROVIDERS: "1"
+        run: python -m pytest tests/test_adam_agent -q -rs
+
+  mcp-tests:
+    name: MCP server tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-mcp.txt
+      - name: Install dependencies
+        run: pip install -r backend/requirements-mcp.txt
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest tests/test_adam_agent/test_mcp_server.py tests/test_adam_agent/test_compare.py -q
+
+  benchmark-replay:
+    name: Pharmaverse benchmark (replay, quality gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-agent.txt
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4"
+          use-public-rspm: true
+      - name: Install R packages
+        run: Rscript -e 'install.packages(c("dplyr", "tidyr", "stringr", "lubridate", "purrr", "tibble", "haven"))'
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements-agent.txt
+      - name: Verify benchmark data checksums
+        run: python benchmarks/pharmaverse/fetch_data.py --verify
+      - name: Run replay benchmark with fault injection
+        run: python benchmarks/pharmaverse/run_benchmark.py --mode replay --replay-fault --min-match 1.0
+      - name: Run end-to-end test with R
+        working-directory: backend
+        run: python -m pytest tests/test_adam_agent/test_benchmark_replay.py -q -rs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-replay
+          path: benchmarks/pharmaverse/results/
+
+  benchmark-live:
+    name: Pharmaverse benchmark (live model)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      BEDROCK_ENABLED: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}
+      LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+      LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-agent.txt
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.4"
+          use-public-rspm: true
+      - name: Install R packages
+        run: Rscript -e 'install.packages(c("dplyr", "tidyr", "stringr", "lubridate", "purrr", "tibble", "haven"))'
+      - name: Install Python dependencies
+        run: pip install -r backend/requirements-agent.txt anthropic openai google-generativeai
+      - name: Run live benchmark
+        env:
+          ROUTES: ${{ github.event.inputs.routes || 'anthropic:claude-haiku-5-5,anthropic:claude-sonnet-5-5' }}
+        run: python benchmarks/pharmaverse/run_benchmark.py --mode live --routes "$ROUTES" --max-attempts 3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-live
+          path: benchmarks/pharmaverse/results/
