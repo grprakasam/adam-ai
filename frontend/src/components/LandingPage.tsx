@@ -109,8 +109,7 @@ const LandingPage = ({ onStartProject, onOpenMigration, onNavigateToUtility }: L
         <div className="section-container">
           <div className="section-header">
             <Title level={2} className="section-title">
-              <img src="/CompanyLogo.png" alt="Company Logo" className="company-logo" />
-              Ephicacy Clinical AI Workspace
+              Clinical AI Workspace
             </Title>
             <Text className="section-subtitle">
               Comprehensive suite of AI-powered tools for Clinical Programming

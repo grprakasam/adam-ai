@@ -537,14 +537,6 @@
   width: 100%;
 }
 
-.company-logo {
-  height: 48px;
-  width: auto;
-  object-fit: contain;
-  display: inline-block;
-  vertical-align: middle;
-}
-
 .section-subtitle {
   font-size: 14px !important;
   color: var(--text-secondary) !important;

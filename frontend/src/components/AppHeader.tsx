@@ -196,7 +196,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             </Button>
           )}
           <div className="app-brand">
-            <div className="app-brand-title">Ephicacy Clinical AI Workspace</div>
+            <div className="app-brand-title">Clinical AI Workspace</div>
           </div>
 
           {showStudySelector && (
