@@ -8,7 +8,8 @@ ADAM AI is a comprehensive system that automates the generation of ADAM dataset 
 
 ## ✨ Features
 
-- 🤖 **Multi-LLM Support**: OpenAI GPT-4, Anthropic Claude 3.5, Google Gemini
+- 🤖 **Multi-LLM Support**: OpenAI, Anthropic Claude, Google Gemini, Groq, OpenRouter, Ollama, Amazon Bedrock
+- 🧠 **Agentic pipeline**: LangGraph generate → validate → execute → evaluate loop with human sign-off
 - 📊 **SDTM to ADAM Conversion**: Automated transformation of SDTM datasets
 - 📝 **Rule-Based Generation**: Follows CDISC ADAM implementation guidelines
 - ✅ **Automated Validation**: Syntax and compliance checking for generated code
@@ -16,6 +17,42 @@ ADAM AI is a comprehensive system that automates the generation of ADAM dataset 
 - 🌐 **RESTful API**: FastAPI backend with comprehensive endpoints
 - 🎨 **Modern Frontend**: React + TypeScript with Monaco Editor
 - 🔐 **Authentication & Security**: JWT-based auth with rate limiting
+
+## 🧠 Agentic ADaM Pipeline (v2)
+
+A LangGraph agent turns an ADaM spec into an R program, then proves it before a
+person signs it off:
+
+```mermaid
+flowchart LR
+    G[Generate<br/>cheap model first] --> V{Static gates}
+    V -->|fail| G
+    V --> X{Run in sandbox}
+    X -->|R error| G
+    X --> E{Compare with<br/>reference}
+    E -->|mismatch| G
+    E --> H[[Human sign-off<br/>independent reviewer]]
+    H --> F([Signed program<br/>+ Dataset-JSON])
+```
+
+* **Capped repair loop**: failures (sandbox violations, R errors, mismatched
+  variables with example subjects) are fed back to the model, then escalated to a
+  stronger model and finally to a person.
+* **QC-grade evaluation**: exact match overall and per variable, as in
+  double-programming QC.
+* **Audit and cost**: hash-chained audit log (prompt, response and code SHA-256,
+  model version, reviewer) and tokens/USD/INR per dataset.
+* **Platforms**: OpenAI, Anthropic, Gemini, Groq, OpenRouter, Ollama, and now
+  **Amazon Bedrock** with prompt caching; optional **Langfuse** tracing.
+* **MCP server**: the deterministic checks are available to any MCP client.
+
+**Public benchmark** (`benchmarks/pharmaverse`): pharmaversesdtm v1.5.0 →
+ADSL vs pharmaverseadam v1.4.0, 28 variables × 306 subjects, run in CI on every
+push. Replay (harness validation): **100% match after 1 repair loop**. Live model
+scores: run `--mode live` (see the benchmark README).
+
+Docs: [architecture](docs/architecture/agentic-pipeline.md) ·
+[decision records](docs/adr/README.md) · [benchmark](benchmarks/pharmaverse/README.md)
 
 ## 📁 Project Structure
 
@@ -37,6 +74,8 @@ ADAMAINov25/
 │   │   ├── services/   # API integration
 │   │   └── types/      # TypeScript definitions
 │   └── package.json    # Node.js dependencies
+├── benchmarks/         # Public pharmaverse benchmark (ADSL) and CI quality gate
+├── docs/               # Architecture notes and decision records (ADRs)
 ├── Context/            # Project documentation and specifications
 │   ├── ADAMRules/      # CDISC ADAM rules and guidelines
 │   └── ProjectArchitecture/ # Architecture documentation
