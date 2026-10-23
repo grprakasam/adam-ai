@@ -89,6 +89,20 @@ api_router.include_router(code_refactorer.router, tags=["code-refactorer"])
 api_router.include_router(sdtm_loader.router, tags=["sdtm-loader"])
 api_router.include_router(code_understanding.router, tags=["code-understanding"])
 
+# Agentic ADaM pipeline (LangGraph). Optional: the app still starts if the agent
+# dependencies (langgraph) are not installed yet.
+try:
+    from app.api.v1.endpoints import adam_agent
+
+    api_router.include_router(adam_agent.router, prefix="/adam-agent", tags=["adam-agent"])
+except ImportError as _agent_import_error:  # pragma: no cover - depends on environment
+    import logging as _logging
+
+    _logging.getLogger(__name__).warning(
+        "ADaM agent endpoints disabled (missing dependency: %s). Install backend/requirements-agent.txt.",
+        _agent_import_error,
+    )
+
 
 @api_router.get("/status")
 async def api_status():

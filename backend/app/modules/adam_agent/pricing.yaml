@@ -1,0 +1,25 @@
+# Token prices in USD per 1 million tokens, used for per-run cost tracking.
+#
+# Prices change. Verify against the provider's pricing page before quoting
+# numbers, and override this file with ADAM_AGENT_PRICING_FILE=/path/to/file.yaml.
+# Unknown models are still tracked by token count; their cost is reported as null.
+#
+# Claude prices: https://platform.claude.com/docs/en/about-claude/pricing (checked 2026-10-23).
+# Bedrock regional endpoints can carry a premium; see https://aws.amazon.com/bedrock/pricing/.
+models:
+  claude-sonnet-5-5:          {input: 2.00, output: 10.00, cache_read: 0.10, cache_write: 2.50, as_of: "2026-10-23"}
+  claude-haiku-5-5:           {input: 0.10, output: 0.50,  cache_read: 0.01, cache_write: 0.125, as_of: "2026-10-23", note: "prompts <=100k tokens"}
+  claude-opus-5-5:            {input: 4.00, output: 20.00, cache_read: 0.20, cache_write: 5.00, as_of: "2026-10-23"}
+  claude-sonnet-4-5:          {input: 3.00, output: 15.00, cache_read: 0.30, cache_write: 3.75, as_of: "2026-10-23"}
+  claude-haiku-4-5:           {input: 1.00, output: 5.00,  cache_read: 0.10, cache_write: 1.25, as_of: "2026-10-23"}
+  # Non-Anthropic defaults below are 2025 list prices; verify before relying on them.
+  gpt-4o:                     {input: 2.50, output: 10.00, as_of: "2025", verify: true}
+  gpt-4o-mini:                {input: 0.15, output: 0.60,  as_of: "2025", verify: true}
+  gemini-2.0-flash:           {input: 0.10, output: 0.40,  as_of: "2025", verify: true}
+  llama-3.3-70b-versatile:    {input: 0.59, output: 0.79,  as_of: "2025", verify: true}
+# Aliases map provider-specific model IDs (Bedrock, dated snapshots) to a price entry.
+aliases:
+  anthropic.claude-sonnet-5-5: claude-sonnet-5-5
+  anthropic.claude-haiku-5-5: claude-haiku-5-5
+  anthropic.claude-opus-5-5: claude-opus-5-5
+  gemini-2.0-flash-exp: gemini-2.0-flash
