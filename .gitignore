@@ -261,3 +261,9 @@ desktop.ini
 # *.xlsx
 # *.xls
 # Content/UserInputs/**/*.xlsx
+
+# Agentic ADaM pipeline (praknewupdates)
+backend/storage/audit/
+backend/Content/Generated/ADAM_AGENT/
+benchmarks/pharmaverse/results/*.json
+.venv-mcp/
