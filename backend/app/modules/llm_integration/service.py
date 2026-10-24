@@ -1044,6 +1044,23 @@ class BedrockProvider(BaseLLMProvider):
 
 
 
+class AzureOpenAIProvider(OpenAICompatibleProvider):
+    """Azure chat completions; model is the configured deployment name.
+
+    API version is explicit because it depends on the Azure resource and contract.
+    No direct OpenAI endpoint is used as a fallback.
+    """
+    def __init__(self, api_key: str, model: str):
+        from openai import AsyncAzureOpenAI
+        endpoint = settings.AZURE_OPENAI_ENDPOINT or ""
+        version = settings.AZURE_OPENAI_API_VERSION
+        if not endpoint.startswith("https://") or not version or not model:
+            raise LLMValidationError("Azure requires HTTPS endpoint, API version and deployment")
+        def client_factory(**kwargs):
+            return AsyncAzureOpenAI(azure_endpoint=endpoint, api_version=version, **kwargs)
+        super().__init__(api_key, model, client_factory)
+
+
 class LLMIntegrationService:
     """Service for managing LLM provider interactions"""
     
@@ -1154,6 +1171,13 @@ class LLMIntegrationService:
             )
         )
         
+        self._initialize_provider(
+            name="azure_openai",
+            provider_class=AzureOpenAIProvider,
+            api_key=settings.AZURE_OPENAI_API_KEY,
+            model=settings.AZURE_OPENAI_DEPLOYMENT or "",
+        )
+
         # Initialize Anthropic
         self._initialize_provider(
             name="anthropic",

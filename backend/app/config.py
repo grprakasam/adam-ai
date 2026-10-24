@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     # LLM API Keys
     GROQ_API_KEY: Optional[str] = None  # Free tier: 30 req/min, 14,400 req/day
     OPENAI_API_KEY: Optional[str] = None
+    AZURE_OPENAI_API_KEY: Optional[str] = None
+    AZURE_OPENAI_ENDPOINT: Optional[str] = None
+    AZURE_OPENAI_API_VERSION: Optional[str] = None
+    AZURE_OPENAI_DEPLOYMENT: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None  # Primary key for Gemini

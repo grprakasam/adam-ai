@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/agent-main.tsx",
+    "src/pages/AgentWorkbench.tsx",
+    "src/vite-env.d.ts"
+  ]
+}
