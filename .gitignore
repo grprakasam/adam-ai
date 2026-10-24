@@ -267,3 +267,8 @@ backend/storage/audit/
 backend/Content/Generated/ADAM_AGENT/
 benchmarks/pharmaverse/results/*.json
 .venv-mcp/
+
+# Runtime uploads, generated outputs and local spec inputs (never commit)
+backend/storage/study_documents/
+backend/Content/Generated/
+Content/UserInputs/ADAMSpecifications/
