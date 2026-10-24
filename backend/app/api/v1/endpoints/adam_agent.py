@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field, model_validator
 from app.config import settings
 from app.core.auth import User, get_current_active_user
 from app.modules.adam_agent.audit import AuditLog, verify_chain
+from app.modules.adam_agent.checkpoints import PersistentSqliteSaver
 from app.modules.adam_agent.components import LLMCodeGenerator, RExecutor, StaticValidator
 from app.modules.adam_agent.paths import safe_path
 from app.modules.adam_agent.routing import ModelRouter
@@ -53,18 +54,33 @@ def get_audit() -> AuditLog:
 def get_agent() -> AdamAgent:
     global _agent
     if _agent is None:
-        executor = RExecutor()
+        strict = os.getenv("ADAM_AGENT_REQUIRE_VERIFICATION", "true").lower() in {"1", "true", "yes"}
+        mode = os.getenv("ADAM_AGENT_EXECUTOR", "docker")
+        if mode not in {"docker", "local"}:
+            raise HTTPException(503, "ADAM_AGENT_EXECUTOR must be docker or local")
+        if strict and mode != "docker":
+            raise HTTPException(503, "Strict API verification requires the Docker executor")
+        executor = RExecutor(mode=mode)
         if not executor.available:
-            logger.warning("ADaM agent: no R runtime found; runs will stop after static validation")
-            executor = None
+            raise HTTPException(503, "Configured R executor is unavailable; no verification was skipped")
+        checkpoint_path = os.getenv("ADAM_AGENT_CHECKPOINT_PATH", "storage/adam_agent/checkpoints.sqlite")
         _agent = AdamAgent(
             generator=LLMCodeGenerator(),
             validator=StaticValidator(),
             executor=executor,
             router=ModelRouter.from_env(settings.DEFAULT_LLM_PROVIDER, settings.DEFAULT_MODEL),
             audit=get_audit(),
+            checkpointer=PersistentSqliteSaver(checkpoint_path),
+            require_verification=strict,
         )
     return _agent
+
+
+async def _start_checked(agent, *args, **kwargs):
+    try:
+        return await agent.start(*args, **kwargs)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
 
 
 class StartRunRequest(BaseModel):
@@ -97,7 +113,7 @@ async def start_run(request: StartRunRequest, current_user: User = Depends(get_c
         raise HTTPException(status_code=422, detail=f"Invalid spec: {exc}")
     sdtm_dir = _safe_path(request.sdtm_dir, must_be_dir=True)
     reference = _safe_path(request.reference_path, must_be_dir=False) if request.reference_path else None
-    result = await get_agent().start(
+    result = await _start_checked(get_agent(),
         spec,
         sdtm_dir,
         reference,
@@ -115,7 +131,7 @@ async def get_run(run_id: str, current_user: User = Depends(get_current_active_u
     agent = get_agent()
     state = agent.get_state(run_id)
     if state is None:
-        raise HTTPException(status_code=404, detail="Run not found (runs are held in memory until restart)")
+        raise HTTPException(status_code=404, detail="Run not found in the checkpoint store")
     if state.get("awaiting_review"):
         state["review_packet"] = agent.review_packet(state)
     state.pop("sdtm_summary", None)

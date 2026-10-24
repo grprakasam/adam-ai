@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck:agent": "tsc --noEmit -p tsconfig.agent.json"
   },
   "dependencies": {
     "@ant-design/icons": "^6.1.0",

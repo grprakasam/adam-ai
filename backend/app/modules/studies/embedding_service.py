@@ -11,7 +11,7 @@ try:
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
     SENTENCE_TRANSFORMERS_AVAILABLE = False
-    logger.warning("sentence-transformers not available, embeddings will use fallback")
+    logger.warning("Semantic encoder unavailable; install backend/requirements-rag.txt")
 
 
 class EmbeddingService:
@@ -104,6 +104,9 @@ class EmbeddingService:
         Fallback embedding method (simple hash-based)
         Not recommended for production, but ensures service doesn't break
         """
+        if os.getenv("EMBEDDING_ALLOW_HASH_FALLBACK", "").lower() not in {"1", "true", "yes"}:
+            raise RuntimeError("A semantic embedding model is required; install requirements-rag.txt and load the model")
+        logger.warning("DEMO ONLY: hash vectors are non-semantic; rebuild the index before real retrieval")
         # Simple hash-based embedding (not semantic, just for compatibility)
         import hashlib
         hash_obj = hashlib.sha256(text.encode())

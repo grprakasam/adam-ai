@@ -128,7 +128,9 @@ class AdamAgent:
         tracer: Any = None,
         checkpointer: Any = None,
         work_root: Optional[str | Path] = None,
+        require_verification: bool = False,
     ) -> None:
+        self.require_verification = require_verification
         self.generator = generator
         self.validator = validator or StaticValidator()
         self.executor = executor
@@ -400,7 +402,7 @@ class AdamAgent:
 
     async def _finalize(self, state: AgentState) -> Dict[str, Any]:
         run_id = state["run_id"]
-        update: Dict[str, Any] = {"cost": self._cost(run_id).totals()}
+        update: Dict[str, Any] = {"cost": state.get("cost") or self._cost(run_id).totals()}
         if state.get("status") == "approved":
             spec = DatasetSpec.from_dict(state["spec"])
             final_dir = Path(state["work_dir"]) / "final"
@@ -475,6 +477,15 @@ class AdamAgent:
         when a reference dataset is given; both default to an exact match, as in
         double-programming QC.
         """
+        if self.require_verification:
+            if self.executor is None:
+                raise ValueError("Strict verification requires an executor")
+            if not reference_path or not Path(reference_path).is_file():
+                raise ValueError("Strict verification requires an existing reference dataset")
+            if auto_approve:
+                raise ValueError("Strict verification requires human review")
+            if match_threshold != 1.0 or variable_threshold != 1.0:
+                raise ValueError("Strict verification requires exact reference agreement")
         if max_attempts < 1:
             raise ValueError("max_attempts must be >= 1")
         run_id = run_id or f"agent_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:6]}"
@@ -522,6 +533,14 @@ class AdamAgent:
         snapshot = self.graph.get_state(self._config(run_id))
         if not snapshot or "human_review" not in (snapshot.next or ()):
             raise ValueError(f"Run {run_id} is not waiting for review")
+        if self.require_verification and resume["decision"] == "approve":
+            values = snapshot.values
+            if (values.get("escalated") or
+                    not (values.get("validation") or {}).get("passed") or
+                    not (values.get("execution") or {}).get("success") or
+                    not any(h.get("step") == "evaluate" and h.get("outcome") == "pass"
+                            for h in values.get("history", []))):
+                raise ValueError("Cannot approve: required verification gates did not pass")
         max_attempts = snapshot.values.get("max_attempts", 3)
         output = await self.graph.ainvoke(Command(resume=resume), self._config(run_id, max_attempts))
         return self._result(run_id, output)
