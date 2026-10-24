@@ -14,3 +14,4 @@ Short records of significant design decisions for ADAM AI, in the
 | [0007](0007-mcp-server-for-deterministic-checks.md) | MCP server exposes checks only, in its own process | Accepted |
 | [0008](0008-bedrock-provider-with-prompt-caching.md) | Amazon Bedrock provider with optional prompt caching | Accepted |
 | [0009](0009-sandboxed-execution.md) | Static sandbox rules plus network-isolated execution | Accepted |
+| [0010](0010-strict-verification-and-durable-review.md) | Strict verification by default; durable review checkpoints | Accepted |

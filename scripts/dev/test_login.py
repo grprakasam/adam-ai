@@ -1,3 +1,4 @@
+from pathlib import Path
 """
 Test script to verify backend authentication
 """
@@ -101,7 +102,7 @@ def test_password_verification():
     try:
         # Import the auth module
         import sys
-        sys.path.insert(0, 'backend')
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 
         from app.core.auth import verify_password, USERS_DB
 

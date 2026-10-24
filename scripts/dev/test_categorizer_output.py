@@ -1,10 +1,10 @@
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent / 'backend'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 
 from app.modules.variable_categorizer.service import VariableCategorizerService
 
-spec_path = Path(__file__).parent / 'Content' / 'UserInputs' / 'ADAMSpecifications' / 'ADSLSpec.xlsx'
+spec_path = Path(__file__).resolve().parents[2] / 'Content' / 'UserInputs' / 'ADAMSpecifications' / 'ADSLSpec.xlsx'
 
 service = VariableCategorizerService()
 result = service.categorize_specification(str(spec_path), dataset_type="ADSL")

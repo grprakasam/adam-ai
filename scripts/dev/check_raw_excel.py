@@ -1,7 +1,7 @@
 import pandas as pd
 from pathlib import Path
 
-spec_path = Path(__file__).parent / 'Content' / 'UserInputs' / 'ADAMSpecifications' / 'ADSLSpec.xlsx'
+spec_path = Path(__file__).resolve().parents[2] / 'Content' / 'UserInputs' / 'ADAMSpecifications' / 'ADSLSpec.xlsx'
 df = pd.read_excel(spec_path, sheet_name=0)
 
 print("Checking ARM-related variables - RAW cell values:")

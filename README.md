@@ -1,27 +1,13 @@
 # ADAM AI
 
-AI-powered code generation and review system for ADAM (Analysis Data Model) specifications following CDISC standards.
+[![ADaM agent CI](https://github.com/grprakasam/adam-ai/actions/workflows/adam-agent-ci.yml/badge.svg)](https://github.com/grprakasam/adam-ai/actions/workflows/adam-agent-ci.yml)
+[![Agent workbench build](https://github.com/grprakasam/adam-ai/actions/workflows/agent-workbench.yml/badge.svg)](https://github.com/grprakasam/adam-ai/actions/workflows/agent-workbench.yml)
 
-## 🎯 Overview
+**A LangGraph agent that turns a CDISC ADaM specification into an R program, proves the output against an independent reference, and stops for an independent human sign-off.**
 
-ADAM AI is a comprehensive system that automates the generation of ADAM dataset code for clinical trials. It combines multiple Large Language Models (LLMs) with rule-based validation to produce high-quality, CDISC-compliant code in R and SAS.
+`Python` · `LangGraph` · `FastAPI` · `OpenAI / Anthropic / Gemini / Amazon Bedrock / Azure OpenAI` · `MCP` · `R` · `Docker` · `GitHub Actions` · `React + TypeScript`
 
-## ✨ Features
-
-- 🤖 **Multi-LLM Support**: OpenAI, Anthropic Claude, Google Gemini, Groq, OpenRouter, Ollama, Amazon Bedrock
-- 🧠 **Agentic pipeline**: LangGraph generate → validate → execute → evaluate loop with human sign-off
-- 📊 **SDTM to ADAM Conversion**: Automated transformation of SDTM datasets
-- 📝 **Rule-Based Generation**: Follows CDISC ADAM implementation guidelines
-- ✅ **Automated Validation**: Syntax and compliance checking for generated code
-- 🔄 **Multi-Language Support**: R and SAS code generation
-- 🌐 **RESTful API**: FastAPI backend with comprehensive endpoints
-- 🎨 **Modern Frontend**: React + TypeScript with Monaco Editor
-- 🔐 **Authentication & Security**: JWT-based auth with rate limiting
-
-## 🧠 Agentic ADaM Pipeline (v2)
-
-A LangGraph agent turns an ADaM spec into an R program, then proves it before a
-person signs it off:
+## Agentic ADaM pipeline
 
 ```mermaid
 flowchart LR
@@ -40,264 +26,192 @@ flowchart LR
   stronger model and finally to a person.
 * **QC-grade evaluation**: exact match overall and per variable, as in
   double-programming QC.
+* **Strict by default**: the API requires Docker execution, an independent
+  reference, exact agreement and an independent reviewer; failed checks cannot be
+  approved away ([ADR 0010](docs/adr/0010-strict-verification-and-durable-review.md)).
+* **Durable human review**: paused reviews are checkpointed in SQLite and resume
+  after a restart; a small review workbench (`/agent.html`) shows gates, code and
+  cost.
+* **Sandboxed execution**: generated R runs in a container with no network, a
+  read-only root filesystem and dropped capabilities.
 * **Audit and cost**: hash-chained audit log (prompt, response and code SHA-256,
   model version, reviewer) and tokens/USD/INR per dataset.
-* **Platforms**: OpenAI, Anthropic, Gemini, Groq, OpenRouter, Ollama, and now
-  **Amazon Bedrock** with prompt caching; optional **Langfuse** tracing.
+* **Models**: cheap-first routing across OpenAI, Anthropic, Gemini, Groq,
+  OpenRouter, Ollama, **Amazon Bedrock** (Converse API with prompt caching) and
+  **Azure OpenAI**; optional **Langfuse** tracing.
 * **MCP server**: the deterministic checks are available to any MCP client.
 
-**Public benchmark** (`benchmarks/pharmaverse`): pharmaversesdtm v1.5.0 →
+The agent generates R. SAS programs come from the base generator described below.
+
+### Verify it yourself
+
+**Public benchmark** ([`benchmarks/pharmaverse`](benchmarks/pharmaverse)): pharmaversesdtm v1.5.0 →
 ADSL vs pharmaverseadam v1.4.0, 28 variables × 306 subjects, run in CI on every
-push. Replay (harness validation): **100% match after 1 repair loop**. Live model
-scores: run `--mode live` (see the benchmark README).
+push. Replay (harness validation): **100% match after 1 repair loop** — see the
+[latest scorecard](benchmarks/pharmaverse/results/latest_replay.md).
+
+```bash
+python benchmarks/pharmaverse/run_benchmark.py --mode replay --replay-fault --min-match 1.0
+python benchmarks/pharmaverse/run_benchmark.py --mode live --max-attempts 3   # scores a real model
+```
 
 Docs: [architecture](docs/architecture/agentic-pipeline.md) ·
 [decision records](docs/adr/README.md) · [benchmark](benchmarks/pharmaverse/README.md)
 
-## 📁 Project Structure
+### Evidence and limits
+
+Replay validates the harness with a known-good program; it is not a model score.
+Azure calls are tested with a mocked SDK, and no tenant request has been made.
+The checkpointer is single-host, and the audit log is not a regulated audit system.
+Live model accuracy, production throughput and time savings are not yet
+measured. Details are in [ADR 0010](docs/adr/0010-strict-verification-and-durable-review.md).
+
+## Base application
+
+The agent sits inside a larger FastAPI + React application for ADaM programming:
+
+- **Multi-LLM support**: OpenAI, Anthropic Claude, Google Gemini, Groq, OpenRouter, Ollama, Amazon Bedrock, Azure OpenAI
+- **SDTM to ADaM conversion** with rule-based generation that follows the CDISC ADaM implementation guide
+- **R and SAS code generation** with syntax and compliance checks
+- **REST API** (FastAPI) and a React + TypeScript frontend with the Monaco editor
+- **Authentication and security**: JWT auth, rate limiting, Pydantic input validation
+
+## Project structure
 
 ```
-ADAMAINov25/
+adam-ai/
 ├── backend/              # FastAPI backend service
 │   ├── app/             # Application code
 │   │   ├── api/         # API endpoints
 │   │   ├── core/        # Core utilities (auth, validation, etc.)
 │   │   ├── models/      # Pydantic models
-│   │   ├── modules/     # Business logic modules
+│   │   ├── modules/     # Business logic modules (adam_agent/ is the agent)
 │   │   └── main.py      # FastAPI application
 │   ├── tests/           # Test suite
 │   ├── scripts/         # Utility scripts
 │   └── requirements.txt # Python dependencies
-├── frontend/            # React + TypeScript frontend
-│   ├── src/            # Source code
-│   │   ├── components/ # React components
-│   │   ├── services/   # API integration
-│   │   └── types/      # TypeScript definitions
-│   └── package.json    # Node.js dependencies
-├── benchmarks/         # Public pharmaverse benchmark (ADSL) and CI quality gate
-├── docs/               # Architecture notes and decision records (ADRs)
-├── Context/            # Project documentation and specifications
-│   ├── ADAMRules/      # CDISC ADAM rules and guidelines
-│   └── ProjectArchitecture/ # Architecture documentation
-├── Content/            # User inputs and specifications
-│   └── UserInputs/     # Excel specifications and SAS code files
-└── README.md           # This file
+├── frontend/            # React + TypeScript frontend (agent.html is the review workbench)
+├── benchmarks/          # Public pharmaverse benchmark (ADSL) and CI quality gate
+├── docs/                # Architecture notes, decision records (ADRs), historical dev notes
+├── scripts/dev/         # Manual smoke scripts (not part of CI)
+├── Context/             # CDISC ADaM rules and architecture documentation
+├── Content/             # User inputs (specifications are not included)
+└── README.md
 ```
 
-## 📂 Data in this repository
+## Data in this repository
 
 All clinical data here is public or synthetic: the CDISC pilot study (`CDISCPILOT01`, via pharmaverse) and generated test data (`STUDY001`). Sample specification spreadsheets are not included. To try the agent, use the public pharmaverse benchmark in [`benchmarks/pharmaverse`](benchmarks/pharmaverse), which ships its own ADSL spec, SDTM inputs and reference dataset, or upload your own specification in the app.
 
-## 🚀 Quick Start
+## Quick start
 
 ### Prerequisites
 
-- **Python 3.13+** (for backend)
-- **Node.js 18+** and **npm** (for frontend)
-- **API Keys** for at least one LLM provider:
-  - OpenAI API key
-  - Anthropic API key
-  - Google API key
+- **Python 3.13+** (backend)
+- **Node.js 18+** and **npm** (frontend)
+- An API key for at least one LLM provider (OpenAI, Anthropic, Google, Amazon Bedrock or Azure OpenAI)
+- **Docker** for strict agent runs
 
-### Backend Setup
+### Backend
 
-1. **Navigate to backend directory**:
-   ```powershell
-   cd backend
-   ```
-
-2. **Create and activate virtual environment**:
-   ```powershell
-   python -m venv prakenv
-   .\prakenv\Scripts\Activate.ps1
-   ```
-
-3. **Install dependencies**:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables**:
-   Create a `.env` file in the `backend/` directory:
-   ```env
-   # LLM API Keys (at least one required)
-   OPENAI_API_KEY=your_openai_api_key_here
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here
-   GOOGLE_API_KEY=your_google_api_key_here
-   
-   # Default LLM Configuration
-   DEFAULT_LLM_PROVIDER=google
-   DEFAULT_MODEL=gemini-2.5-flash
-   DEFAULT_TEMPERATURE=0.2
-   DEFAULT_MAX_TOKENS=4000
-   
-   # Server Configuration
-   HOST=0.0.0.0
-   PORT=8000
-   DEBUG=False
-   ```
-
-5. **Run the backend server**:
-   ```powershell
-   cd backend
-   ..\prakenv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-   The API will be available at:
-   - **API Base**: http://localhost:8000/api/v1
-   - **Swagger Docs**: http://localhost:8000/api/docs
-   - **ReDoc**: http://localhost:8000/api/redoc
-
-### Frontend Setup
-
-1. **Navigate to frontend directory**:
-   ```powershell
-   cd frontend
-   ```
-
-2. **Install dependencies**:
-   ```powershell
-   npm install
-   ```
-
-3. **Run the development server**:
-   ```powershell
-   npm run dev
-   ```
-
-   The frontend will be available at: http://localhost:5173
-
-## 📚 Documentation
-
-- **Backend Documentation**: See [backend/README.md](backend/README.md)
-- **Frontend Documentation**: See [frontend/README.md](frontend/README.md)
-- **Project Architecture**: See [Context/ProjectArchitecture/](Context/ProjectArchitecture/)
-- **ADAM Rules**: See [Context/ADAMRules/](Context/ADAMRules/)
-
-## 🧪 Testing
-
-### Backend Tests
 ```powershell
-.\prakenv\Scripts\python.exe -m pytest backend\tests\ -v
+cd backend
+python -m venv prakenv
+.\prakenv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-### Frontend Tests
+Create `backend/.env` (see `backend/.env.example`):
+
+```env
+# LLM API keys (at least one required)
+OPENAI_API_KEY=your_openai_api_key_here
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+GOOGLE_API_KEY=your_google_api_key_here
+
+# Default LLM configuration
+DEFAULT_LLM_PROVIDER=google
+DEFAULT_MODEL=gemini-2.5-flash
+DEFAULT_TEMPERATURE=0.2
+DEFAULT_MAX_TOKENS=4000
+
+# Server
+HOST=0.0.0.0
+PORT=8000
+DEBUG=False
+```
+
+Run the API:
+
+```powershell
+cd backend
+..\prakenv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+- API base: http://localhost:8000/api/v1
+- Swagger: http://localhost:8000/api/docs
+- ReDoc: http://localhost:8000/api/redoc
+
+On Windows, `start_servers.ps1` starts both servers.
+
+### Frontend
+
 ```powershell
 cd frontend
-npm run lint
+npm install
+npm run dev        # http://localhost:5173
 ```
 
-## 🏗️ Architecture
+## Testing
 
-### Backend Modules
-
-1. **Input Collection**: Handles user input collection (SDTM datasets, specifications)
-2. **Rule Loading**: Loads and processes ADAM rules from markdown files
-3. **Context Building**: Aggregates context from inputs and rules
-4. **Prompt Engineering**: Constructs optimized prompts for LLM
-5. **LLM Integration**: Manages interactions with multiple LLM providers
-6. **Code Generation**: Orchestrates the complete code generation workflow
-7. **Validation**: Validates generated code for syntax and CDISC compliance
-8. **Output Management**: Handles export and delivery of generated code
-
-### Frontend Components
-
-- **Setup Tab**: Study metadata and generation options
-- **Datasets Tab**: SDTM dataset selection
-- **Variables Tab**: Variable selection with search and categories
-- **Rules Tab**: CDISC rule display
-- **Code Editor**: Monaco Editor with syntax highlighting
-- **Validation Results**: Visual validation grid
-- **Quality Metrics**: Dashboard-style metrics
-- **AI Chat Assistant**: Floating chat panel for guidance
-
-## 🔧 Development
-
-### Code Style
-
-**Backend**:
-- Follow PEP 8 guidelines
-- Use type hints
-- Format with `black`: `.\prakenv\Scripts\python.exe -m black app/`
-- Lint with `flake8`: `.\prakenv\Scripts\python.exe -m flake8 app/`
-
-**Frontend**:
-- TypeScript with strict mode
-- ESLint for linting: `npm run lint`
-- Follow React best practices
-
-### Logging
-
-Backend uses `loguru` for logging:
-- Console output (colored)
-- File logging: `backend/logs/adam_ai.log` (10MB rotation)
-
-## 🔐 Security
-
-- JWT-based authentication
-- Rate limiting on API endpoints
-- Environment variables for sensitive data
-- Input validation with Pydantic
-
-## 📦 Dependencies
-
-### Backend Key Dependencies
-- FastAPI (0.104.1) - Web framework
-- Uvicorn (0.24.0) - ASGI server
-- OpenAI (1.3.5) - GPT integration
-- Anthropic (0.7.1) - Claude integration
-- Google-generativeai (0.3.1) - Gemini integration
-- Pydantic (2.10.5) - Data validation
-- Pandas (2.3.3) - Data processing
-- Loguru (0.7.2) - Logging
-
-### Frontend Key Dependencies
-- React (18.2.0) - UI framework
-- TypeScript (5.2.2) - Type safety
-- Vite (5.0.8) - Build tool
-- Ant Design (5.12.0) - UI components
-- Monaco Editor - Code editor
-- Axios (1.6.2) - HTTP client
-
-See `backend/requirements.txt` and `frontend/package.json` for complete lists.
-
-## 🐛 Troubleshooting
-
-### PowerShell Execution Policy
-If you cannot activate the virtual environment:
 ```powershell
-# Option 1: Use direct python path
-.\prakenv\Scripts\python.exe
-
-# Option 2: Change execution policy (requires admin)
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+.\prakenv\Scripts\python.exe -m pytest backend\tests\ -v      # backend
+cd frontend; npm run lint; npm run build                       # frontend
 ```
 
-### Import Errors
-Make sure you're using the virtual environment python:
-```powershell
-.\prakenv\Scripts\python.exe -c "import sys; print(sys.executable)"
-```
+CI runs the agent unit tests, the MCP server tests, the replay benchmark and the workbench build.
 
-### API Key Issues
-- Verify API keys are set in `backend/.env` file
-- Check that `.env` is in the `backend/` directory
-- Ensure at least one LLM provider key is configured
+## Architecture
 
-## 📝 License
+### Backend modules
 
-Proprietary
+1. **Input collection**: SDTM datasets and specifications
+2. **Rule loading**: ADaM rules from markdown files
+3. **Context building**: aggregates inputs and rules
+4. **Prompt engineering**: builds prompts for the LLM
+5. **LLM integration**: multiple providers behind one interface
+6. **Code generation**: orchestrates the generation workflow
+7. **Validation**: syntax and CDISC compliance checks
+8. **ADaM agent** (`modules/adam_agent`): LangGraph pipeline, routing, audit, cost, MCP server
 
-## 👥 Support
+### Frontend components
 
-For issues and questions, contact the ADAM AI development team.
+- **Setup**: study metadata and generation options
+- **Datasets and variables**: SDTM dataset and variable selection
+- **Rules**: CDISC rule display
+- **Code editor**: Monaco with syntax highlighting
+- **Validation results and quality metrics**
+- **AI chat assistant**
+- **Agent review workbench** (`/agent.html`)
 
-## 🔗 Links
+## Development
 
-- **GitHub Repository**: https://github.com/grprakasam/adam-ai
-- **API Documentation**: http://localhost:8000/api/docs (when running)
+- Backend: PEP 8 with type hints; format with `black app/`, lint with `flake8 app/`
+- Frontend: TypeScript strict mode; `npm run lint`
+- Logging: `loguru` to the console and `backend/logs/adam_ai.log` (10 MB rotation)
+- Dependencies: see `backend/requirements*.txt` and `frontend/package.json`
 
----
+## Troubleshooting
 
-**Built with ❤️ for automated CDISC ADAM dataset code generation**
+- **PowerShell execution policy**: use `.\prakenv\Scripts\python.exe` directly, or run
+  `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`.
+- **Import errors**: check you are using the virtual environment's Python.
+- **API keys**: `.env` must be in `backend/` with at least one provider key.
 
+## License
+
+Proprietary.
+
+## Author
+
+Prakasam R · [github.com/grprakasam](https://github.com/grprakasam) · [linkedin.com/in/grprakasam](https://www.linkedin.com/in/grprakasam)

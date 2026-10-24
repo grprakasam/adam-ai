@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 # Add backend to path
-backend_path = Path(__file__).parent / "backend"
+backend_path = Path(__file__).resolve().parents[2] / "backend"
 sys.path.insert(0, str(backend_path))
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker

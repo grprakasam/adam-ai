@@ -1,6 +1,7 @@
+from pathlib import Path
 """Quick test of authentication"""
 import sys
-sys.path.insert(0, 'backend')
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'backend'))
 
 from app.core.auth import verify_password, USERS_DB
 

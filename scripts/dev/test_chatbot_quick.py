@@ -1,3 +1,4 @@
+from pathlib import Path
 """Quick test for Study Chatbot"""
 import requests
 import json
@@ -8,7 +9,7 @@ print("=== Quick Study Chatbot Test ===\n")
 
 # Step 1: Upload
 print("1. Uploading test_protocol.txt...")
-with open('test_protocol.txt', 'rb') as f:
+with open(Path(__file__).with_name('test_protocol.txt'), 'rb') as f:
     files = {'files': ('test_protocol.txt', f, 'text/plain')}
     response = requests.post(f"{BASE_URL}/upload", files=files, timeout=10)
 

@@ -1,3 +1,4 @@
+from pathlib import Path
 """
 Test script for Study Chatbot - End-to-End verification
 """
@@ -18,7 +19,7 @@ def test_study_chatbot():
     # Step 1: Upload document
     print("\n1. Uploading test document...")
 
-    with open('test_protocol.txt', 'rb') as f:
+    with open(Path(__file__).with_name('test_protocol.txt'), 'rb') as f:
         files = {'files': ('test_protocol.txt', f, 'text/plain')}
         response = requests.post(f"{BASE_URL}/upload", files=files)
 
