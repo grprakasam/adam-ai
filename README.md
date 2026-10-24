@@ -84,6 +84,10 @@ ADAMAINov25/
 └── README.md           # This file
 ```
 
+## 📂 Data in this repository
+
+All clinical data here is public or synthetic: the CDISC pilot study (`CDISCPILOT01`, via pharmaverse) and generated test data (`STUDY001`). Sample specification spreadsheets are not included. To try the agent, use the public pharmaverse benchmark in [`benchmarks/pharmaverse`](benchmarks/pharmaverse), which ships its own ADSL spec, SDTM inputs and reference dataset, or upload your own specification in the app.
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -290,7 +294,7 @@ For issues and questions, contact the ADAM AI development team.
 
 ## 🔗 Links
 
-- **GitHub Repository**: https://github.com/grprakasam/ADAMAINov25
+- **GitHub Repository**: https://github.com/grprakasam/adam-ai
 - **API Documentation**: http://localhost:8000/api/docs (when running)
 
 ---
