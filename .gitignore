@@ -272,3 +272,6 @@ benchmarks/pharmaverse/results/*.json
 backend/storage/study_documents/
 backend/Content/Generated/
 Content/UserInputs/ADAMSpecifications/
+
+# Durable agent state contains generated code and run metadata.
+backend/storage/adam_agent/
