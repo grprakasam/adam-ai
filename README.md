@@ -7,6 +7,12 @@
 
 `Python` · `LangGraph` · `FastAPI` · `OpenAI / Anthropic / Gemini / Amazon Bedrock / Azure OpenAI` · `MCP` · `R` · `Docker` · `GitHub Actions` · `React + TypeScript`
 
+## Demo
+
+![ADAM AI replay walkthrough](docs/demo/adam-ai-demo.gif)
+
+A one-minute walkthrough of a real run of the public pharmaverse benchmark. The first draft carries two injected bugs (an off-by-one treatment duration and a wrong age cut-off); the comparison with the reference catches them, one repair loop fixes them, and all 28 ADSL variables match for all 306 subjects. Replay mode exercises the checks with a known-good program; it is not a live-model score. [MP4 version](docs/demo/adam-ai-demo.mp4).
+
 ## Agentic ADaM pipeline
 
 ```mermaid
