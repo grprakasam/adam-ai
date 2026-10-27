@@ -67,10 +67,15 @@ Docs: [architecture](docs/architecture/agentic-pipeline.md) ·
 ### Evidence and limits
 
 Replay validates the harness with a known-good program; it is not a model score.
-Azure calls are tested with a mocked SDK, and no tenant request has been made.
+Bedrock and Azure calls are tested with fake SDK clients; no Azure tenant request has been made.
 The checkpointer is single-host, and the audit log is not a regulated audit system.
-Live model accuracy, production throughput and time savings are not yet
+Live model accuracy on the public benchmark and production throughput are not yet
 measured. Details are in [ADR 0010](docs/adr/0010-strict-verification-and-durable-review.md).
+
+**Time saved (internal trial, self-measured).** In my own trial runs of the copilot
+mode on ADSL and ADAE, a first-draft program took about 20 minutes, compared with
+about two days to write one by hand. These timings are mine, are not independently
+verified, and exclude review and QC time.
 
 ## Base application
 
@@ -108,6 +113,17 @@ adam-ai/
 ## Data in this repository
 
 All clinical data here is public or synthetic: the CDISC pilot study (`CDISCPILOT01`, via pharmaverse) and generated test data (`STUDY001`). Sample specification spreadsheets are not included. To try the agent, use the public pharmaverse benchmark in [`benchmarks/pharmaverse`](benchmarks/pharmaverse), which ships its own ADSL spec, SDTM inputs and reference dataset, or upload your own specification in the app.
+
+## Ownership and history
+
+ADAM AI is a personal project, not a company initiative. I started it with a few
+colleagues in November 2025 and did all of the development in my personal GitHub
+account. I have demonstrated it to my employer's leadership team to show what AI
+can do for ADaM programming. Development was private until October 2026; the
+public history starts then, after colleague-authored files were removed. Claude
+Code is my pair programmer: it drafts code and tests; I set the design (recorded
+in the [decision records](docs/adr/README.md)), review every change and decide
+what ships.
 
 ## Quick start
 
