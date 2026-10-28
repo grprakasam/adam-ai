@@ -116,6 +116,19 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
     });
   }, [studies.length, filteredStudies.length, searchTerm]);
 
+  // Close the dropdown when the user clicks anywhere outside the selector
+  useEffect(() => {
+    if (!isOpen) return;
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      if (target && !target.closest('.study-selector-compact, .study-selector-hero, .study-selector-wrapper')) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [isOpen]);
+
   const handleStudySelect = async (studyId: string) => {
     await setCurrentStudy(studyId);
     onChange?.(studyId);
@@ -214,6 +227,7 @@ export const StudySelector: React.FC<StudySelectorProps> = ({
                 style={{ fontSize: '12px', color: '#64748b' }}
                 onClick={(e) => {
                   e.preventDefault();
+                  setIsOpen(false);
                   window.history.pushState({}, '', '/enter-study-details');
                   window.dispatchEvent(new Event('popstate'));
                 }}

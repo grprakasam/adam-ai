@@ -13,7 +13,7 @@
 
 A one-minute walkthrough of a real run of the public pharmaverse benchmark. The first draft carries two injected bugs (an off-by-one treatment duration and a wrong age cut-off); the comparison with the reference catches them, one repair loop fixes them, and all 28 ADSL variables match for all 306 subjects. Replay mode exercises the checks with a known-good program; it is not a live-model score. [MP4 version](docs/demo/adam-ai-demo.mp4).
 
-**App walkthrough (3 min):** a live tour of the app's screens on public CDISC pilot data: study setup, spec upload, pair programmer, traceability, QC tools, submission checks and the agent workbench. [Watch it](https://grprakasam.github.io/walkthrough.html).
+**App walkthrough (4 min):** a live tour of the app on public CDISC pilot data: study setup, spec upload, pair programmer, traceability, QC tools, submission checks, and an agent run that ends with sign-off by a second user. No model is called: the agent replays recorded programs (`ADAM_AGENT_REPLAY_PROGRAMS`), while the checks, R run, comparison and sign-off run live. [Watch it](https://grprakasam.github.io/walkthrough.html).
 
 ## Agentic ADaM pipeline
 

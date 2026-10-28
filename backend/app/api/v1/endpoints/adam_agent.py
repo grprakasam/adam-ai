@@ -23,9 +23,9 @@ from app.config import settings
 from app.core.auth import User, get_current_active_user
 from app.modules.adam_agent.audit import AuditLog, verify_chain
 from app.modules.adam_agent.checkpoints import PersistentSqliteSaver
-from app.modules.adam_agent.components import LLMCodeGenerator, RExecutor, StaticValidator
+from app.modules.adam_agent.components import LLMCodeGenerator, ReplayGenerator, RExecutor, StaticValidator
 from app.modules.adam_agent.paths import safe_path
-from app.modules.adam_agent.routing import ModelRouter
+from app.modules.adam_agent.routing import ModelRouter, Route
 from app.modules.adam_agent.spec import DatasetSpec
 from app.modules.adam_agent.workflow import AdamAgent
 
@@ -51,6 +51,27 @@ def get_audit() -> AuditLog:
     return _audit
 
 
+def _generator_and_router():
+    """Pick the code generator: a live model (default) or an opt-in replay for demos.
+
+    ``ADAM_AGENT_REPLAY_PROGRAMS`` (os.pathsep-separated R files, one per attempt)
+    replays recorded programs instead of calling a model, so the workbench can be
+    shown without an API key. Validation, the R run, the comparison and human
+    review still run for real, and every result and audit record says
+    ``provider: replay``.
+    """
+    replay = os.getenv("ADAM_AGENT_REPLAY_PROGRAMS", "").strip()
+    if not replay:
+        return LLMCodeGenerator(), ModelRouter.from_env(settings.DEFAULT_LLM_PROVIDER, settings.DEFAULT_MODEL)
+    files = [Path(p) for p in replay.split(os.pathsep) if p.strip()]
+    missing = [str(f) for f in files if not f.is_file()]
+    if missing:
+        raise HTTPException(503, f"Replay program not found: {', '.join(missing)}")
+    logger.warning("ADaM agent is in REPLAY mode: no model is called ({} recorded program(s))", len(files))
+    programs = [f.read_text(encoding="utf-8") for f in files]
+    return ReplayGenerator(programs, model="recorded-program"), ModelRouter([Route("replay", "recorded-program")])
+
+
 def get_agent() -> AdamAgent:
     global _agent
     if _agent is None:
@@ -64,11 +85,12 @@ def get_agent() -> AdamAgent:
         if not executor.available:
             raise HTTPException(503, "Configured R executor is unavailable; no verification was skipped")
         checkpoint_path = os.getenv("ADAM_AGENT_CHECKPOINT_PATH", "storage/adam_agent/checkpoints.sqlite")
+        generator, agent_router = _generator_and_router()
         _agent = AdamAgent(
-            generator=LLMCodeGenerator(),
+            generator=generator,
             validator=StaticValidator(),
             executor=executor,
-            router=ModelRouter.from_env(settings.DEFAULT_LLM_PROVIDER, settings.DEFAULT_MODEL),
+            router=agent_router,
             audit=get_audit(),
             checkpointer=PersistentSqliteSaver(checkpoint_path),
             require_verification=strict,

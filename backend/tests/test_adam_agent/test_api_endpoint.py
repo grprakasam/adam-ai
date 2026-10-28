@@ -118,3 +118,27 @@ def test_paths_outside_data_roots_are_rejected(client, tmp_path):
 def test_exactly_one_spec_form_required(client):
     response = client.post("/adam-agent/runs", json={"sdtm_dir": str(client.root / "sdtm")})
     assert response.status_code == 422
+
+
+def test_replay_mode_is_opt_in_and_labelled(tmp_path, monkeypatch):
+    endpoint = load_endpoint()
+    monkeypatch.delenv("ADAM_AGENT_REPLAY_PROGRAMS", raising=False)
+    generator, router = endpoint._generator_and_router()
+    assert type(generator).__name__ == "LLMCodeGenerator"
+
+    first, second = tmp_path / "attempt1.R", tmp_path / "attempt2.R"
+    first.write_text("adsl <- dm  # draft", encoding="utf-8")
+    second.write_text("adsl <- dm", encoding="utf-8")
+    monkeypatch.setenv("ADAM_AGENT_REPLAY_PROGRAMS", f"{first}{endpoint.os.pathsep}{second}")
+    generator, router = endpoint._generator_and_router()
+    assert isinstance(generator, ReplayGenerator)
+    assert generator.programs == ["adsl <- dm  # draft", "adsl <- dm"]
+    assert router.route_for(1).provider == "replay"
+
+
+def test_replay_mode_fails_closed_on_missing_program(tmp_path, monkeypatch):
+    endpoint = load_endpoint()
+    monkeypatch.setenv("ADAM_AGENT_REPLAY_PROGRAMS", str(tmp_path / "missing.R"))
+    with pytest.raises(endpoint.HTTPException) as exc:
+        endpoint._generator_and_router()
+    assert exc.value.status_code == 503
