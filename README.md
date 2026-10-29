@@ -121,11 +121,11 @@ All clinical data here is public or synthetic: the CDISC pilot study (`CDISCPILO
 ADAM AI is a personal project, not a company initiative. I started it with a few
 colleagues in November 2025 and did all of the development in my personal GitHub
 account. I have demonstrated it to my employer's leadership team to show what AI
-can do for ADaM programming. Development was private until October 2026; the
-public history starts then, after colleague-authored files were removed. Claude
-Code is my pair programmer: it drafts code and tests; I set the design (recorded
-in the [decision records](docs/adr/README.md)), review every change and decide
-what ships.
+can do for ADaM programming. Development was private until October 2026, when
+I published this copy with colleague-authored files removed. AI coding assistants
+(Claude Code, and Cursor in the early months) are my pair programmers: they draft
+code and tests; I set the design (recorded in the
+[decision records](docs/adr/README.md)), review every change and decide what ships.
 
 ## Quick start
 
